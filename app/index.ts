@@ -1,7 +1,7 @@
 /**
 Лаунчер и управляющий API единого Storybook. Соединяет запуск готового сервера,
 каталог, подготовку, применение и инспекцию через один авторизованный канал.
-MCP и package.json scripts вызывают эти же операции; создание API не запускает сервер.
+REST и package.json scripts вызывают эти же операции; создание API не запускает сервер.
 
 @packageDocumentation
 */
@@ -57,7 +57,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
 
   type CreateExternalStorybookControllerOptions = StorybookApp.Input
 
-  /** One typed application service shared by human CLI and Storybook MCP. */
+  /** Единый типизированный сервис для лаунчера и команд среды. */
   class ExternalStorybookController implements StorybookApp.Output {
     readonly #toolRoot: string
     readonly #daemonEntryPath: string

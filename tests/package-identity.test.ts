@@ -68,9 +68,9 @@ describe("Storybook package identity", () => {
   })
 
   test.each([
-    {name: "REST для сервера", from: ".", specifier: "@zavx0z/storybook-app-mcp-rest", entry: "app/mcp/rest/index.ts"},
-    {name: "REST для проверок MCP", from: "app/mcp", specifier: "@zavx0z/storybook-app-mcp-rest", entry: "app/mcp/rest/index.ts"},
-    {name: "Читатель спецификации для REST", from: "app/mcp/rest", specifier: "@zavx0z/storybook-specs-reader", entry: "specs/reader/index.ts"},
+    {name: "Знания для сервера", from: ".", specifier: "@zavx0z/storybook-app-knowledge", entry: "app/knowledge/index.ts"},
+    {name: "Знания для окружения", from: "app/environment", specifier: "@zavx0z/storybook-app-knowledge", entry: "app/knowledge/index.ts"},
+    {name: "Читатель спецификации для знаний", from: "app/knowledge", specifier: "@zavx0z/storybook-specs-reader", entry: "specs/reader/index.ts"},
   ])("$name", ({from, specifier, entry}) => {
     expect(
       realpathSync.native(Bun.resolveSync(specifier, resolve(root, from))),

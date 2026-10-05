@@ -1,10 +1,8 @@
 import {expect, test} from "bun:test"
-import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import createApp from "@zavx0z/storybook-app"
 import State from "@zavx0z/storybook-app-server-state"
 import {existsSync, statSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
-import {createAppMcpServer} from "../src/mcp"
 import {createLazyStartupFixture} from "./fixtures/lazy-startup"
 
 test("public App ensure parent завершается естественно после ready, detached daemon остаётся жив", async () => {
@@ -103,7 +101,7 @@ test("private stderr file сохраняет bounded хвост startup ошиб
   }
 }, 10_000)
 
-test.each(["early", "late"] as const)("SDK ensure: ready %s, стадии до ответа и повторное использование daemon", async readyOrder => {
+test.each(["early", "late"] as const)("public App ensure: ready %s, стадии до ответа и повторное использование daemon", async readyOrder => {
   const fixture = createLazyStartupFixture()
   const previousRoot = Bun.env.STORYBOOK_STATE_ROOT
   const previousFixture = Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE
@@ -115,23 +113,26 @@ test.each(["early", "late"] as const)("SDK ensure: ready %s, стадии до �
     daemonEntryPath: join(import.meta.dir, "fixtures/progress-daemon.ts"),
     legacyStatePaths: [],
   })
-  const server = createAppMcpServer({controller: app, recordRequest: async () => {}})
-  const client = new Client({name: "startup-progress-test", version: "1"})
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
-  await Promise.all([client.connect(clientTransport), server.connect(serverTransport)])
   try {
     let completed = false
-    const progress: {progress: number, message?: string | undefined}[] = []
-    const first = await client.callTool({name: "storybook_ensure", arguments: {schemaVersion: 1}}, {
-      onprogress(value) {
+    const progress: {phase: string, at: number}[] = []
+    const recordProgress = (value: Readonly<Record<string, unknown>>) => {
+      if (typeof value.phase !== "string" || typeof value.at !== "number" || !Number.isFinite(value.at)) {
+        throw new TypeError("Startup progress должен содержать phase и конечный timestamp at")
+      }
+      progress.push({phase: value.phase, at: value.at})
+    }
+    const first = await app.ensure({schemaVersion: 1}, {
+      signal: context().signal,
+      onProgress(value) {
         expect(completed).toBeFalse()
-        progress.push(value)
+        recordProgress(value)
         if (progress.length === 1) writeFileSync(join(fixture.stateRoot, "continue-startup"), readyOrder)
       },
     }).then(value => { completed = true; return value })
-    expect(first.isError).not.toBeTrue()
-    expect(progress.map(value => value.progress)).toEqual([1, 2])
-    expect(progress.map(value => JSON.parse(value.message!).phase)).toEqual(["catalog", "ready"])
+    expect(first).toMatchObject({status: "success", server: "running"})
+    expect(progress.map(value => value.phase)).toEqual(["catalog", "ready"])
+    expect(progress.every(value => Number.isFinite(value.at))).toBeTrue()
     if (readyOrder === "late") {
       writeFileSync(join(fixture.stateRoot, "emit-ready"), "ready")
       const deadline = Date.now() + 5_000
@@ -141,16 +142,14 @@ test.each(["early", "late"] as const)("SDK ensure: ready %s, стадии до �
       }
     }
     const record = State.readExternalStorybookServerRecord(State.externalStorybookServerStatePath())
-    const reused = await client.callTool({name: "storybook_ensure", arguments: {schemaVersion: 1}}, {
-      onprogress: value => { progress.push(value) },
+    const reused = await app.ensure({schemaVersion: 1}, {
+      signal: context().signal,
+      onProgress: value => { recordProgress(value) },
     })
-    expect((reused.structuredContent as Record<string, unknown>).instanceId)
-      .toBe((first.structuredContent as Record<string, unknown>).instanceId)
+    expect(reused.instanceId).toBe(first.instanceId)
     expect(State.readExternalStorybookServerRecord(State.externalStorybookServerStatePath()).pid).toBe(record.pid)
     expect(progress).toHaveLength(2)
   } finally {
-    await client.close()
-    await server.close()
     try { await app.stop({schemaVersion: 1, confirm: true}, context()) } finally {
       if (previousRoot === undefined) delete Bun.env.STORYBOOK_STATE_ROOT
       else Bun.env.STORYBOOK_STATE_ROOT = previousRoot
@@ -248,7 +247,7 @@ test.each(["finish", "abort", "abort-ready"] as const)("ensure %s: отправ�
   }
 }, 10_000)
 
-test("отдельный status получает стадию запуска без MCP progress callback", async () => {
+test("отдельный status получает стадию запуска без progress callback", async () => {
   const fixture = createLazyStartupFixture()
   const previousRoot = Bun.env.STORYBOOK_STATE_ROOT
   const previousFixture = Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE

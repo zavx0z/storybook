@@ -13,6 +13,6 @@
     "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure"
   },
   "devDependencies": {
-    "@zavx0z/storybook-app-mcp-rest": "workspace:*"
+    "@zavx0z/storybook-app-knowledge": "workspace:*"
   }
 }

@@ -31,7 +31,7 @@ test("журнал монтирует одну команду и сохраня�
     expect(container.querySelectorAll("code")[1]!.textContent).toBe(response)
     const previousEditor = container.querySelectorAll("code")[1]!
     expect(renderer.flush().boxByNode.has(container.querySelector("article")!)).toBeTrue()
-    const previous = [...container.querySelectorAll("button")].find(button => button.textContent === "Предыдущая команда")!
+    const previous = [...container.querySelectorAll("button")].find(button => button.textContent === "Предыдущий вызов")!
     previous.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await Bun.sleep(0)
     expect(container.querySelectorAll("article")).toHaveLength(1)

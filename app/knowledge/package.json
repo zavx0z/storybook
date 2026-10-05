@@ -1,0 +1,30 @@
+{
+  "name": "@zavx0z/storybook-app-knowledge",
+  "label": "HTTP-интерфейс Storybook",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTP-интерфейс постепенного раскрытия Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-repo-mcp": "workspace:*",
+    "@zavx0z/storybook-component-mcp": "workspace:*",
+    "@zavx0z/storybook-container-mcp": "workspace:*",
+    "@zavx0z/storybook-cluster-mcp": "workspace:*",
+    "@zavx0z/storybook-domain-mcp": "workspace:*",
+    "@zavx0z/storybook-package-build-conformance": "workspace:*",
+    "@zavx0z/storybook-app-knowledge-address": "workspace:*",
+    "@zavx0z/storybook-project-mcp": "workspace:*",
+    "@zavx0z/storybook-package-mcp": "workspace:*",
+    "@zavx0z/storybook-package-mcp-source": "workspace:*"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*"
+  }
+}

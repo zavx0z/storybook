@@ -14,7 +14,7 @@ describe.each([
   {name: "Закрытое окно", props: {open: false, entries: [command("hidden")]}},
   {name: "Восстановление открытого окна", props: {open: true, entries: [], initialState: {open: true, mode: "address" as const, geometry: {x: 64, y: 54, width: 690, height: 480}}}},
   {name: "Восстановление закрытого окна", props: {open: false, entries: [], initialState: {open: false, mode: "address" as const, geometry: {x: 64, y: 54, width: 690, height: 480}}}},
-  {name: "Два режима MCP", props: {open: true, entries: [command("agent")], address: "/storybook/archetypes?view=scenarios&variant=Пример"}},
+  {name: "Контекст и вызовы", props: {open: true, entries: [command("agent")], address: "/storybook/archetypes?view=scenarios&variant=Пример"}},
 ])("$name", async ({props: input}) => {
   const headless = createHeadless({width: 1000, height: 800})
   afterAll(() => headless.dispose())
@@ -52,7 +52,7 @@ describe.each([
 
   test("Назначение", () => {
     expect({role: shell.getAttribute("role"), label: shell.getAttribute("aria-label")},
-      "Окно просмотра команд и полных ответов MCP").toEqual({role: "dialog", label: "Журнал MCP"})
+      "Окно контекста и полных ответов").toEqual({role: "dialog", label: "Среда"})
   })
   test("Видимость", () => {
     expect(!shell.hasAttribute("hidden"), "Окно отображается при open=true").toBe(input.open)
@@ -61,7 +61,7 @@ describe.each([
     expect(initialLoads.length > 0, "Открытый журнал читает источник; скрытое окно и адресный режим не запрашивают журнал").toBe(input.open && mode === "agent")
   })
   test("Режим", () => {
-    expect(button(mode === "agent" ? "Вызовы агента" : "Текущий адрес → MCP").hasAttribute("disabled"),
+    expect(button(mode === "agent" ? "Вызовы" : "Контекст").hasAttribute("disabled"),
       "Выбранный режим восстанавливается из начального состояния").toBeTrue()
   })
 
@@ -71,7 +71,7 @@ describe.each([
       expect(shell.getBoundingClientRect().toJSON(), "Окно использует сохранённую геометрию либо начальные размеры").toMatchObject(input.initialState?.geometry ?? {x: 24, y: 24, width: 620, height: 400})
     })
     test("Запрос закрытия", async () => {
-      await click("Скрыть Журнал MCP")
+      await click("Скрыть Среда")
       expect(props.onClose.mock.calls, "Окно передаёт запрос родителю через onClose").toEqual([[]])
       expect(shell.hasAttribute("hidden"), "Видимость остаётся под управлением переданного open").toBeFalse()
     })
@@ -101,9 +101,9 @@ describe.each([
   /** @remarks Навигация по истории имеет смысл при нескольких командах. */
   describe.skipIf(!input.open || input.entries.length < 2)("История", () => {
     test("Выбор команды", async () => {
-      await click("Предыдущая команда")
+      await click("Предыдущий вызов")
       expect(element.querySelectorAll("code")[1]?.textContent, "Полный ответ предыдущей записи").toBe(input.entries[1]!.result)
-      await click("Следующая команда")
+      await click("Следующий вызов")
       expect(element.querySelectorAll("code")[1]?.textContent, "Возврат к последней записи").toBe(input.entries[0]!.result)
       await click("Следить за последней")
       expect(button("Следить за последней").hasAttribute("disabled"), "Слежение за новыми командами восстановлено").toBeTrue()
@@ -114,14 +114,14 @@ describe.each([
   describe.skipIf(!input.address)("Текущий адрес", () => {
     test("Запрос и ответ", async () => {
       expect(element.querySelector("article")?.textContent, "Первоначально виден вызов агента").toContain("storybook-agent")
-      await click("Текущий адрес → MCP")
+      await click("Контекст")
       expect(props.addressSource.request.mock.calls, "Обработчик получает текущий адрес страницы").toEqual([[input.address!, expect.any(AbortSignal)]])
       expect([...element.querySelector('[data-mcp-address]')!.querySelectorAll("code")].map(code => JSON.parse(code.textContent)),
         "Адресный режим показывает точный запрос и полный публичный ответ").toEqual([
         {path: "storybook/archetypes"},
         {path: "storybook/archetypes", title: "Archetypes", packages: []},
       ])
-      await click("Вызовы агента")
+      await click("Вызовы")
     })
   })
 })

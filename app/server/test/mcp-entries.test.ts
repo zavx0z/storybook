@@ -1,6 +1,6 @@
 import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 import PackageGraphCreateOwner from "@zavx0z/storybook-package-graph-create"
-import McpRestOwner from "@zavx0z/storybook-app-mcp-rest"
+import McpRestOwner from "@zavx0z/storybook-app-knowledge"
 const discoverStorybookPackages = PackageMetadataCollectOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 const storybookRest = McpRestOwner
@@ -12,7 +12,7 @@ import storybookMcpEntries from "@zavx0z/storybook-package-mcp-source"
 import resolveRoute from "@zavx0z/storybook-package-route-resolve"
 
 describe("Код владельца через общий каталог", async () => {
-  const root = join(import.meta.dir, "../../mcp/rest/spec/fixture/library")
+  const root = join(import.meta.dir, "../../knowledge/spec/fixture/library")
   const catalog = await discoverStorybookPackages([root])
   const graph = createExternalStorybookGraph(catalog)
   const entries = storybookMcpEntries({catalog, graph})

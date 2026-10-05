@@ -29,7 +29,7 @@ describe("Открытие и завершение", () => {
     expect(loads).toBe(0)
     await render({...props, open: true})
     expect(resultText()).toBe(entries[0]!.result)
-    await host.click("Скрыть Журнал MCP")
+    await host.click("Скрыть Среда")
     expect(closeRequests).toBe(1)
     expect(window().hasAttribute("hidden")).toBeFalse()
     await render(props)
@@ -49,7 +49,7 @@ describe("Открытие и завершение", () => {
     }, load: async () => [entry]}
     await render(props)
     const code = host.container.querySelector("code")!
-    const hidden = await host.click("Скрыть Журнал MCP")
+    const hidden = await host.click("Скрыть Среда")
     expect(hidden.boxByNode.has(code)).toBeFalse()
     expect(hidden.boxByNode.has(host.container.querySelector('[data-window-resize="se"]')!)).toBeFalse()
     const restored = await render(props)
@@ -140,7 +140,7 @@ describe("Большие ответы", () => {
     await host.waitFor(() => resultText() === full.result, 15000)
     expect(host.container.querySelectorAll("article")).toHaveLength(1)
     expect(resultText()).toBe(full.result)
-    await host.click("Предыдущая команда")
+    await host.click("Предыдущий вызов")
     expect(resultText()).toBe(older.result)
     const changed = {...older, result: JSON.stringify({updated: true, text: "Полный обновлённый ответ".repeat(1000)}, null, 2)}
     entries = [command("new"), full, changed, ...entries.slice(2, 19)]
@@ -149,14 +149,14 @@ describe("Большие ответы", () => {
     expect(resultText()).toBe(changed.result)
     await host.click("Следить за последней")
     expect(resultText()).toBe(entries[0]!.result)
-    await host.click("Скрыть Журнал MCP")
+    await host.click("Скрыть Среда")
   }, 30000)
 })
 
 describe("Положение и размер", () => {
   test("отмена перетаскивания освобождает capture и прекращает движение", async () => {
     let frame = await render({open: true, onClose() {}, load: async () => []})
-    const title = [...host.container.querySelectorAll("span")].find(node => node.textContent === "Журнал MCP")!
+    const title = [...host.container.querySelectorAll("span")].find(node => node.textContent === "Среда")!
     const box = host.bounds(title)
     const point = {clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, pointerId: 5}
     host.input.pointerDown(frame, point)
@@ -172,7 +172,7 @@ describe("Положение и размер", () => {
 
   test("перетаскивание заголовка изменяет положение и освобождает pointer capture", async () => {
     let frame = await render({open: true, onClose() {}, load: async () => []})
-    const title = [...host.container.querySelectorAll("span")].find(node => node.textContent === "Журнал MCP")!
+    const title = [...host.container.querySelectorAll("span")].find(node => node.textContent === "Среда")!
     const box = host.bounds(title)
     const point = {clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, pointerId: 7}
     host.input.pointerDown(frame, point)

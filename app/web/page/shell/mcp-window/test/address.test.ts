@@ -15,7 +15,7 @@ const render = async (props: McpWindowProps) => {
 }
 const result = () => host.container.querySelector('[data-mcp-address]')?.querySelectorAll("code")[1]?.textContent ?? ""
 
-describe("MCP по адресной строке", () => {
+describe("Контекст по адресной строке", () => {
   test("показывается точный владелец страницы; неизменный URL не перечитывается", async () => {
     let address = "/immersive/nodes/node/diagram?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3"
     const requests: string[] = []
@@ -30,7 +30,7 @@ describe("MCP по адресной строке", () => {
     }}
     await render(props)
     expect(requests).toHaveLength(0)
-    await host.click("Текущий адрес → MCP")
+    await host.click("Контекст")
     expect(requests).toEqual([address])
     expect(JSON.parse(result())).toEqual({path: "immersive/nodes/node/diagram", tail: "Полный ответ"})
     expect(host.container.querySelector('[data-mcp-address]')?.textContent).not.toContain("?view=")
@@ -45,13 +45,13 @@ describe("MCP по адресной строке", () => {
     address = "/"
     await host.waitFor(() => !result().includes('"path"'))
     expect(requests.at(-1)).toBe("/")
-    await host.click("Вызовы агента")
+    await host.click("Вызовы")
     const count = requests.length
     address = "/new"
     await Bun.sleep(350)
     expect(requests).toHaveLength(count)
     expect(host.container.querySelector("article")?.textContent).toContain("storybook-agent")
-    await host.click("Текущий адрес → MCP")
+    await host.click("Контекст")
     expect(requests.at(-1)).toBe("/new")
     await render({...props, open: false})
     const closed = requests.length
@@ -60,7 +60,7 @@ describe("MCP по адресной строке", () => {
     expect(requests).toHaveLength(closed)
   })
 
-  test("поздний ответ прежнего адреса не заменяет текущий; ошибка MCP показана целиком", async () => {
+  test("поздний ответ прежнего адреса не заменяет текущий; ошибка чтения контекста показана целиком", async () => {
     let address = "/old"
     const pending = Promise.withResolvers<{input: {path?: string} | null, result: unknown, failed: boolean}>()
     let previousSignal: AbortSignal | undefined
@@ -75,7 +75,7 @@ describe("MCP по адресной строке", () => {
         return {input: null, result: failure, failed: true}
       },
     }})
-    await host.click("Текущий адрес → MCP")
+    await host.click("Контекст")
     address = "/missing?future=1"
     await host.waitFor(() => result().includes("Раздел пока не доступен"))
     expect(previousSignal?.aborted).toBeTrue()

@@ -4,24 +4,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Лаунчер и оркестратор MCP, Web и Server приложения Storybook",
+  "description": "Лаунчер и оркестратор окружения, Web и Server приложения Storybook",
   "exports": {
     ".": "./index.ts"
   },
   "dependencies": {
     "@zavx0z/storybook-app-control": "workspace:*",
     "@zavx0z/storybook-app-server-state": "workspace:*",
-    "@zavx0z/storybook-app-mcp": "workspace:*",
-    "@zavx0z/storybook-tech-mcp-stdio": "workspace:*",
     "@zavx0z/storybook-package-artifacts": "workspace:*",
     "@zavx0z/storybook-app-server": "workspace:*",
     "@zavx0z/storybook-tech-limits": "workspace:*",
-    "@zavx0z/storybook-tech-mcp-lazy": "workspace:*",
     "@zavx0z/storybook-app-web": "workspace:*"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.0.0",
     "@zavx0z/storybook-chat-session": "workspace:*",
-    "@zavx0z/storybook-package-graph-read": "workspace:*"
+    "@zavx0z/storybook-package-graph-read": "workspace:*",
+    "@zavx0z/storybook-app-environment": "workspace:*"
   }
 }

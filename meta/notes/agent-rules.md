@@ -36,13 +36,14 @@
   [полное руководство авторства](../../specs/scenarios/spec/scenario.spec.ts).
   При работе над сценариями Archetypes и их ответами MCP соблюдать
   [порядок уточнения сценариев в ходе разработки](scenario-development.md).
-- Перед изменением MCP читать исполняемые контракты
-  [HTTP-прокси](../../app/mcp/proxy/spec/scenario.spec.ts) и
-  [адаптера MCP](../../app/mcp/spec/server.spec.ts);
-  границы зависимостей проверяются в [boundary.test.ts](../../app/mcp/proxy/test/boundary.test.ts).
+- Перед изменением агентского входа читать исполняемые контракты
+  [окружения](../../app/environment/spec/scenario.spec.ts),
+  [чтения знаний](../../app/knowledge/spec/scenario.spec.ts) и
+  [управления](../../app/control/spec/scenario.spec.ts).
 - Действующие предметные владельцы находятся в корневых `project`, `repo`,
   `package`, `domain`, `component`, `container`, `contracts`, `typedoc` и `specs`.
-  `app` композирует MCP, Web и Server; `tech` предоставляет технические механизмы.
+  `app` композирует окружение, знания, управление, Web и Server;
+  `tech` предоставляет технические механизмы.
   Импорты направлять к публичному входу точного владельца без старых псевдонимов.
 - Нормализованное обнаружение принадлежит [Package Metadata Collect](../../package/metadata/collect/index.ts)
   и его `StorybookPackageMetadataCollect.Output`. [Каталог сервера](../../app/server/catalog/index.ts)

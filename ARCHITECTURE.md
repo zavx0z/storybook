@@ -12,13 +12,13 @@
 отдельное описание поведения, независимо поддерживаемое рядом с кодом,
 не должно становиться вторым источником знания.
 
-Визуальный интерфейс и MCP должны раскрывать человеку и агенту одни
+Визуальный интерфейс и среда должны раскрывать человеку и агенту одни
 и те же сущности, связи, состояния и действия в подходящей для каждого форме.
 Исполняемые спецификации выражают ожидаемое поведение, тесты проверяют его,
 а Storybook позволяет исследовать это же поведение и результаты проверок.
 Каждое знание выражается один раз у своего владельца; представления выводятся
 из этого источника. Его изменение должно отражаться в визуализации,
-проверках и MCP без ручного согласования независимых описаний.
+проверках и знаниях среды без ручного согласования независимых описаний.
 
 Ниже описаны владельцы и фактические потоки реализации. Обзоры извлекаются
 из исходников единым читателем TSDoc; README служит указателем для человека.
@@ -61,9 +61,7 @@ Reservation предшествует preflight; durable createSent записы�
 клиент без dispatch-контракта остаётся консервативным. Receipt либо существующая
 однозначная reconciliation привязывает target до ожидания готовности страницы.
 Корень композирует один logical lifecycle owner; вложенный package не создаёт
-отдельный process, port, registry или graph. MCP является только агентской
-проекцией через общий controller; отдельный MCP registry или browser lifecycle
-не допускается. Наблюдение browser inventory применяется к view registry только
+отдельный process, port, registry или graph. Среда использует общий controller и его единые registry и browser lifecycle. Наблюдение browser inventory применяется к view registry только
 целиком: abort или неопределённая транспортная ошибка не удаляет известные handles.
 Scoped status и live-check проверяют вкладки выбранного packageId; scoped
 reconciliation не меняет записи других пакетов и не выдаёт их за проверенные.
@@ -86,8 +84,8 @@ reconciliation не меняет записи других пакетов и н�
 | `tech/build`, `tech/process`, `tech/hmr` | Компиляция, очередь, процессы, замена с откатом и восстановление связи |
 | `app/web` | Web-выпуск, Workbench и браузерный протокол |
 | `app/server` | HTTP/WebSocket, browser lifecycle, каталог и композиция независимых сессий |
-| `app/mcp`, `tech/mcp` | Предметный вход и технический MCP-транспорт |
-| `app` | Лаунчер, управление процессом и управляющие MCP-вызовы |
+| `app/environment`, `app/knowledge`, `app/control` | Назначения, знания и команды общего входа среды |
+| `app` | Лаунчер и управление процессом через публичный API |
 | `specs` | Чтение и исполнение сценариев, полные отчёты и правила авторства |
 
 `@zavx0z/storybook-specs-scenarios-reader` исполняет сценарий один раз и сохраняет отчёт для
@@ -235,12 +233,12 @@ README не подставляется. Текст публикуется тол
 
 ## Controller adapters
 
-CLI и MCP являются adapters одного typed application service:
+Package scripts и REST используют один typed application service:
 
 ```text
                     ┌─ human CLI formatting
 Storybook Core ─────┤
-                    └─ MCP tools/resources
+                    └─ Environment commands / REST
 
 ExternalStorybookController
   ├─ canonical server lifecycle and registry
@@ -254,9 +252,9 @@ Canonical server
          └─ opaque views and bounded captures
 ```
 
-MCP не запускает CLI, не парсит stdout и не владеет вторым registry. Stdio
-connection может завершиться независимо от daemon server. CLI сохраняется для
-человека и аварийной диагностики, но не содержит отдельной lifecycle/browser
+REST не запускает CLI, не парсит stdout и не владеет вторым registry.
+Команда запуска завершается независимо от daemon server. Scripts сохраняются для
+запуска и диагностики, но не содержат отдельной lifecycle/browser
 логики. Landing также является adapter этого application service и не открывает
 package tab самостоятельно. Browser branch диаграммы принадлежит private
 `@zavx0z/storybook-app-server-browser`; это package boundary, а не второй runtime
@@ -314,37 +312,42 @@ registry и summary statuses.
 Операции сценария сериализованы внутри его структурного владельца. Abort при
 навигации не позволяет позднему исполнению заменить текущий обзор.
 
-## MCP semantic viewport
+## Проекция знаний для агента
+
+Предметные каталоги `project/mcp`, `package/mcp` и аналогичные входы сущностей
+пока сохраняют исторические имена. Они формируют JSON-проекции и предметные
+инструменты без MCP SDK. Транспорт приложения и его SDK-пакеты удалены;
+эти проекции читает общий владелец `app/knowledge`.
 
 Публичный вход `storybook` принимает только необязательный `path` из доступных
-переходов. [Address](app/mcp/rest/address/index.ts) проверяет точное присутствие адреса
+переходов. [Address](app/knowledge/address/index.ts) проверяет точное присутствие адреса
 в публичной структуре и отклоняет query и fragment. Корневой ответ принадлежит
-[Project MCP](project/mcp/index.ts): имя проекта и переходы к его Repo.
+[Проекция Project](project/mcp/index.ts): имя проекта и переходы к его Repo.
 [Навигация Package](package/mcp/navigation/index.ts) раскрывает непосредственные переходы
-выбранного владельца. MCP соответствующей сущности формирует свой ответ из
+выбранного владельца. Проекция соответствующей сущности формирует свой ответ из
 навигации и [содержимого Package](package/mcp/content/index.ts): JSON Schema
-доступных контрактов и исходников сценариев. [REST](app/mcp/rest/index.ts)
+доступных контрактов и исходников сценариев. [REST](app/knowledge/index.ts)
 разрешает адрес и вызывает предметный вход. Схемы берутся из сохранённых
 метаданных Package, код сценариев читается
 из их файлов; чтение не выполняет сценарий и не запускает сборку.
 
-Тип выбранного пакета для MCP следует из нормативного отчёта Package
+Тип выбранного пакета для знаний следует из нормативного отчёта Package
 с выполненными проверками без ошибок и одной применимой группой.
 TODO сохраняются в отчёте и не блокируют выбор типа. Интерпретацией владеет
 [Conformance](package/build/conformance/index.ts); [Server](app/server/src/mcp-type.ts)
 связывает отчёт с владельцем и рабочей ревизией Storybook. Каталог и текущие
 исходники не подменяют сведения проверенной версии; готовый кандидат используется
 только при отсутствии рабочей ревизии.
-REST выбирает предметный MCP по этому выводу. Неизвестность и TODO сохраняются
-явно; отдельный классификатор по именам или структуре в MCP не создаётся.
+Читатель знаний выбирает предметную проекцию по этому выводу. Неизвестность и TODO сохраняются
+явно; отдельный классификатор по именам или структуре в читателе знаний не создаётся.
 
 Полный отчёт выполненного сценария используется интерфейсом. Внутреннее
 [представление сценариев для потребителя](specs/presentation/meta/notes/presentation.md)
-пока не подключено к публичному `storybook`. Поэтому его ответ не следует
+пока не подключено к `knowledge.read`. Поэтому его ответ не следует
 описывать как отчёт применённой ревизии или как результаты последних проверок.
 Точные данные и правила раскрытия принадлежат коду соответствующих владельцев.
 
-Storybook MCP проецирует lifecycle commands, canonical search, opaque package
+Общий вход среды предоставляет lifecycle commands, canonical search, opaque package
 views, event-driven wait, inspection, semantic interaction и capture. `viewId`
 является
 opaque capability derived from actual browser target, package identity and persistent private
@@ -353,10 +356,10 @@ identity, Chrome profile, port и filesystem artifact path агенту не п�
 Public `origin` аналогично является HMAC identity, пригодной для one-origin
 сравнения без раскрытия loopback URL/port.
 
-Private browser lifecycle owner говорит с Chrome по direct CDP; MCP лишь
+Private browser lifecycle owner говорит с Chrome по direct CDP; общий вход лишь
 делегирует ему opaque operation. `ai-macos`, `@meta/chrome` и browser CLI не
 используются. `Target.createTarget` всегда получает `background: true`;
-Ни MCP/CLI, ни пользовательская навигация не активируют другую вкладку.
+Ни команды среды, ни пользовательская навигация не активируют другую вкладку.
 `bringToFront`, focus emulation и OS focus не используются. Небраузерные
 lifecycle/query operations не требуют CDP.
 
@@ -377,14 +380,14 @@ frame.presentationTransforms. Клиентские getBoundingClientRect не п
 Browser Experience. State и inspection содержат singular `canvas`, взятый
 непосредственно из Experience; native Document не сканируется в поисках
 альтернативного owner Canvas. Capture area `canvas` использует bounds того же
-exact Canvas и возвращает bounded MCP image/resource.
+exact Canvas и возвращает ограниченный результат image/resource.
 
 ## Local control security
 
 State record имеет mode `0600` и random master token. Destructive/control HTTP
 requires bearer token and canonical Origin/Host checks. Browser получает только
 scoped short-lived read-only WebSocket token; master token не попадает в page
-source, MCP result или diagnostics.
+source, результат среды или diagnostics.
 
 Ресурсы обзора обслуживаются по структурному allow-list: точный исходник
 TSDoc и явно связанные с извлечённым описанием локальные assets. Служебный
@@ -408,7 +411,7 @@ and capture stores retain active/lastWorking/leased data plus bounded recent TTL
 и структурных сценариях. Отдельные каталоги историй не определяют публичные входы.
 
 Существующие reference/evidence assets остаются у своих владельцев.
-Storybook MCP capture создаёт bounded evidence, но не Blender reference,
+Команда storybook_capture создаёт bounded evidence, но не Blender reference,
 accepted baseline, visual diff или owner acceptance state.
 
 ## Repository navigation and isolated package content

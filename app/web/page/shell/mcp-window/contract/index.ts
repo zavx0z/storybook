@@ -5,7 +5,7 @@ type McpRequestRecord = ReturnType<StorybookAppServerRequests.Output["read"]>[nu
 
 /** Вход журнала обращений и чтения текущего адреса. */
 export declare namespace StorybookAppWebPageShellMcpWindow {
-  /** Полный сохраняемый снимок окна; история и ответы MCP сюда не входят. */
+  /** Полный сохраняемый снимок окна; история вызовов и ответы сюда не входят. */
   export type Output = Readonly<{
     open: boolean
     mode: "agent" | "address"

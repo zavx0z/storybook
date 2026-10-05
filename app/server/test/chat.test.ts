@@ -6,14 +6,14 @@ import {createChatServer} from "../src/chat"
 import createJournal from "@zavx0z/storybook-app-server-requests"
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
-import type {StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {StorybookAppKnowledge} from "@zavx0z/storybook-app-knowledge"
 
 const releases: (() => Promise<void>)[] = []
 afterEach(async () => { for (const release of releases.splice(0).reverse()) await release() })
 
 async function fixture(
   configOptions: StorybookTechAcp.Output["configOptions"] = [],
-  readType?: StorybookAppMcpRest.Input[1]["entries"][number]["readType"],
+  readType?: StorybookAppKnowledge.Input[1]["entries"][number]["readType"],
   withRules = false,
 ) {
   let prompts = 0

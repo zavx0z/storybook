@@ -1,12 +1,12 @@
 /**
-Окно MCP показывает переданный ему журнал агента и ответ для текущего адреса Storybook.
+Окно среды показывает переданный ему журнал агента и ответ для текущего адреса Storybook.
 Источник локального Display содержит только его агента. Общий источник всех
 агентов показывается отдельным Window в HUD с journalOnly и собственным Tab.
 
-В режиме «Вызовы агента» доступны параметры, полный ответ и история команд.
-«Текущий адрес → MCP» передаёт путь и параметры адресной строки тому же
-обработчику MCP. Смена адреса обновляет результат; «Обновить ответ» перечитывает
-тот же адрес. Неподдерживаемые адреса показывают настоящую ошибку MCP.
+В режиме «Вызовы» доступны параметры, полный ответ и история команд.
+«Контекст» передаёт путь и параметры адресной строки тому же
+источнику контекста. Смена адреса обновляет результат; «Обновить ответ» перечитывает
+тот же адрес. Неподдерживаемые адреса показывают настоящую ошибку чтения контекста.
 Положение, размер, видимость и режим восстанавливаются после
 перезагрузки из локальных настроек браузера.
 Выделение текста внутри JSON-поля ограничено этим полем и не захватывает
@@ -23,7 +23,7 @@ import {normalizeMcpWindowState} from "./src/state"
 import type {StorybookAppWebPageShellMcpWindow} from "./contract"
 export type {StorybookAppWebPageShellMcpWindow} from "./contract"
 
-/** Содержимое журнала в общем Window; внешняя кнопка MCP управляет той же видимостью. */
+/** Содержимое журнала в общем Window; внешняя кнопка «Среда» управляет той же видимостью. */
 export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input) {
   const [entries, setEntries] = useState<readonly McpRequestRecord[]>([])
   const [error, setError] = useState("")
@@ -76,7 +76,7 @@ export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input
   >
     <Window
       id={props.id ?? "storybook-mcp-window"}
-      title={props.title ?? "Журнал MCP"}
+      title={props.title ?? "Среда"}
       open={props.open}
       onOpenChange={open => { if (!open) props.onClose() }}
       geometry={geometry}

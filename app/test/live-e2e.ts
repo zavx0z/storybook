@@ -1,32 +1,32 @@
 #!/usr/bin/env bun
 
-/** Ручной MCP smoke для структурного каталога. Запускать только по отдельному поручению. */
-import {Client} from "@modelcontextprotocol/client"
-import {getDefaultEnvironment, StdioClientTransport} from "@modelcontextprotocol/client/stdio"
+/** Ручной REST smoke структурного каталога. Запускать только по отдельному поручению. */
+import createApp from "@zavx0z/storybook-app"
+import ServerState from "@zavx0z/storybook-app-server-state"
 import {fileURLToPath} from "node:url"
 
-const stdio = fileURLToPath(new URL("../src/stdio.ts", import.meta.url))
 const roots = [
   fileURLToPath(new URL("../../", import.meta.url)),
   fileURLToPath(new URL("../../../immersive", import.meta.url)),
 ]
 const packages = ["@zavx0z/storybook", "@zavx0z/immersive-ui-component", "@zavx0z/immersive-nodes-node"] as const
-const transport = new StdioClientTransport({
-  command: process.execPath,
-  args: ["run", stdio],
-  cwd: "/tmp",
-  env: getDefaultEnvironment(),
-  stderr: "inherit",
-})
-const client = new Client(
-  {name: "storybook-structural-live-e2e", version: "1.0.0"},
-  {versionNegotiation: {mode: "auto", probe: {timeoutMs: 2_000}}},
-)
-await client.connect(transport)
+const app = createApp()
+const context = {signal: new AbortController().signal}
+let endpoint: URL
+let controlToken: string
 const createdViews: string[] = []
 try {
-  const prior = await call("storybook_status", {schemaVersion: 1, includeViews: true})
-  const ensured = await call("storybook_ensure", {schemaVersion: 1, roots})
+  // Только launcher запускает daemon; работающий REST endpoint не обеспечивает собственный ensure.
+  const prior = await app.status({schemaVersion: 1, includeViews: true}, context)
+  const ensured = await app.ensure({schemaVersion: 1, roots}, context)
+  const record = ServerState.readExternalStorybookServerRecord(ServerState.externalStorybookServerStatePath())
+  assert(record.instanceId === ensured.instanceId && record.origin === ensured.origin, "Authority не совпадает с обеспеченным сервером")
+  endpoint = new URL("/api/environment", record.origin)
+  controlToken = record.controlToken
+  const bootstrap = await fetch(endpoint, {headers: {authorization: `Bearer ${controlToken}`}})
+  assert(bootstrap.ok, "Общий вход среды не выдал bootstrap")
+  const description = await bootstrap.json() as {result?: {tools?: {name: string}[]}}
+  assert(description.result?.tools?.some(tool => tool.name === "storybook_search"), "Bootstrap не предоставил поиск Storybook")
   const instanceId = text(ensured.instanceId, "instanceId")
   const origin = text(ensured.origin, "origin")
   const status = await call("storybook_status", {schemaVersion: 1, includeViews: true})
@@ -60,14 +60,18 @@ try {
   for (const viewId of createdViews) {
     await call("storybook_close", {schemaVersion: 1, viewId}).catch(() => {})
   }
-  await client.close()
 }
 
 async function call(name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const result = await client.callTool({name, arguments: args})
-  if (result.isError) throw new Error(`${name}: ${JSON.stringify(result.structuredContent ?? result.content)}`)
-  const value = result.structuredContent
+  const response = await fetch(endpoint, {
+    method: "POST", headers: {authorization: `Bearer ${controlToken}`, "content-type": "application/json"},
+    body: JSON.stringify({name, arguments: args}), signal: context.signal,
+  })
+  const envelope = await response.json() as {result?: unknown, error?: unknown}
+  if (!response.ok || envelope.error !== undefined) throw new Error(`${name}: ${JSON.stringify(envelope.error ?? envelope)}`)
+  const value = envelope.result
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`${name}: ответ не содержит структуру`)
+  if ("status" in value && value.status !== "success") throw new Error(`${name}: ${JSON.stringify(value)}`)
   return value as Record<string, unknown>
 }
 

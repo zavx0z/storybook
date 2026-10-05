@@ -1,7 +1,7 @@
 {
   "name": "@zavx0z/storybook-app-control",
   "label": "Управление Storybook",
-  "description": "Общие проверенные команды управления Storybook для REST и MCP",
+  "description": "Общие проверенные команды управления Storybook для клиентов среды",
   "version": "0.0.0",
   "private": true,
   "type": "module",

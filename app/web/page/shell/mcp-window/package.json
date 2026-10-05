@@ -1,13 +1,13 @@
 {
   "name": "@zavx0z/storybook-app-web-page-shell-mcp-window",
-  "label": "Журнал MCP",
+  "label": "Инспекция среды",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./index.tsx"
   },
-  "description": "Просмотр вызовов MCP и полного ответа для текущего адреса страницы",
+  "description": "Просмотр вызовов среды и контекста текущего адреса страницы",
   "dependencies": {
     "@zavx0z/storybook-app-server-requests": "workspace:*",
     "@zavx0z/immersive-component": "^0.0.0",

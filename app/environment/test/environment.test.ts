@@ -3,7 +3,7 @@ import {mkdtemp, mkdir, readFile, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import createEnvironment, {type StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
-import readKnowledge from "@zavx0z/storybook-app-mcp-rest"
+import readKnowledge from "@zavx0z/storybook-app-knowledge"
 
 const cleanups: (() => unknown | Promise<unknown>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })

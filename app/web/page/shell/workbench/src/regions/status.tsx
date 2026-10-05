@@ -51,7 +51,7 @@ export function StatusRegion(props: StatusRegionProps) {
     </StatusBar>
     <WindowControl
       windowId="storybook-mcp-window"
-      label="MCP"
+      label="Среда"
       open={props.mcpOpen ?? false}
       onOpenChange={open => props.onMcpOpenChange?.(open)}
     />

@@ -20,7 +20,7 @@ import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shel
 type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 describe("external Storybook shared Browser Root", () => {
-  test("открытие и закрытие MCP сохраняет камеру и дисплей", async () => {
+  test("открытие и закрытие среды сохраняет камеру и дисплей", async () => {
     const shell = await createShell(createFakeRootState())
     try {
       shell.viewPoint.x = 71
@@ -30,7 +30,7 @@ describe("external Storybook shared Browser Root", () => {
       shell.display.height = 123
       const before = viewPointValues(shell.viewPoint)
       const display = shell.display
-      const button = shell.document.querySelector('[aria-label="MCP"][aria-controls="storybook-mcp-window"]')!
+      const button = shell.document.querySelector('[aria-label="Среда"][aria-controls="storybook-mcp-window"]')!
       button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       await Promise.resolve()
       const dialog = shell.document.querySelector('[data-mcp-window] [data-window]')!

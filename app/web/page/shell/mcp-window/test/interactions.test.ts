@@ -16,21 +16,21 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
   await host.settle()
   const element = host.container.querySelector('[data-window]')!
 
-  await host.click("Предыдущая команда")
+  await host.click("Предыдущий вызов")
   const previous = host.container.querySelectorAll("code")[1]!.textContent
-  await host.click("Следующая команда")
+  await host.click("Следующий вызов")
   const next = host.container.querySelectorAll("code")[1]!.textContent
   await host.click("Следить за последней")
   const following = host.button("Следить за последней").hasAttribute("disabled")
 
   describe("История", () => {
-    test("Предыдущая команда", () => {
+    test("Предыдущий вызов", () => {
       expect(previous, "Полный ответ более ранней команды из сохранённой истории").toBe(entries[1]!.result)
     })
-    test("Следующая команда", () => {
+    test("Следующий вызов", () => {
       expect(next, "Возврат к более новой команде без изменения её данных").toBe(entries[0]!.result)
     })
-    test("Последняя команда", () => {
+    test("Последний вызов", () => {
       expect(following, "Режим автоматического показа последних поступающих команд").toBeTrue()
     })
   })
@@ -52,7 +52,7 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
   })
 
   let frame = await host.settle()
-  const title = [...element.querySelectorAll("span")].find(node => node.textContent === "Журнал MCP")!
+  const title = [...element.querySelectorAll("span")].find(node => node.textContent === "Среда")!
   const titleBox = host.bounds(title)
   const point = {clientX: titleBox.x + titleBox.width / 2, clientY: titleBox.y + titleBox.height / 2, pointerId: 1}
   host.input.pointerDown(frame, point)
@@ -80,7 +80,7 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
     })
   })
 
-  await host.click("Скрыть Журнал MCP")
+  await host.click("Скрыть Среда")
   const requested = closeRequests
   host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {...props, open: false})
   const closed = !(await host.settle()).boxByNode.has(element)
@@ -135,7 +135,7 @@ describe.each([{name: "Выделение JSON поверх соседней п�
     test("Граница поля", () => {
       expect(anchorInCode && focusInCode, "Оба конца диапазона остаются в JSON-поле").toBeTrue()
       expect(selected, "Фоновая панель не попадает в выделение").not.toContain("Текст соседней панели")
-      expect(selected, "Заголовок окна не попадает в выделение").not.toContain("Журнал MCP")
+      expect(selected, "Заголовок окна не попадает в выделение").not.toContain("Среда")
     })
   } finally {
     host.dispose()

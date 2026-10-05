@@ -8,9 +8,9 @@
 [Основания](./project/meta/notes/foundations/index.md) задают общие принципы замысла.
 Их применение к Storybook раскрыто в [архитектуре](./ARCHITECTURE.md).
 Формируемая [предметная архитектура проекта](./repo/meta/notes/architecture.md)
-сохраняется в заметке Repo до раскрытия правил через MCP.
+сохраняется в заметке Repo до раскрытия правил через среду.
 Пока архитектура формируется, заметки сохраняют единое место уточнения правил.
-Далее их смысл переносится к владельцам в код и раскрывается через MCP.
+Далее их смысл переносится к владельцам в код и раскрывается через среду.
 Ниже собраны ссылки на подробные правила и действующую реализацию.
 
 ## Правила и неперенесённый смысл
@@ -18,7 +18,7 @@
 - [Как переносить смысл заметок в код](./package/meta/notes/note-lifecycle.md).
 - [Где искать правила структуры](./package/meta/notes/draft-structure.md).
 - [Как описывать код и его контракты](./package/meta/notes/draft-documentation.md).
-- [Как уточнять сценарии и ответы MCP](./meta/notes/scenario-development.md).
+- [Как уточнять сценарии и ответы среды](./meta/notes/scenario-development.md).
 - [Какие вопросы раскрытия ещё не решены](./project/STORYBOOK-DOCUMENTATION.md).
 
 [Структурный стандарт](./package/meta/notes/draft-structure.md) определяет архетипы;
@@ -29,8 +29,8 @@
 - [Пакеты и физическая структура](package/metadata/collect/index.ts).
 - [Общий граф](package/graph/create/index.ts) и [разрешение структурных адресов](package/route/resolve/index.ts).
 - [Сборка пакета](package/build/prepare/index.ts) и [общей Web-оболочки](app/web/build/README.md).
-- [MCP проекта](project/mcp/index.ts), [пакетные переходы](package/mcp/navigation/index.ts)
-  и [граница адресации](app/mcp/rest/address/index.ts).
+- [Проекция проекта](project/mcp/index.ts), [пакетные переходы](package/mcp/navigation/index.ts)
+  и [граница адресации](app/knowledge/address/index.ts).
 - [Исполняемые спецификации](specs/README.md).
 - [Читатель Domain](./domain/index.ts) и [читатель Component](./component/index.ts).
 - [Выполнение и представление сценариев](app/web/page/package/scenario/README.md).
@@ -53,6 +53,6 @@
   [доступ к управлению и ресурсам](app/server/meta/notes/security.md) и
   [запуск приложения](./app/meta/notes/commands.md).
 - [Владение браузерными вкладками](app/server/browser/meta/notes/views.md) и
-  [управление через MCP](app/mcp/meta/notes/control.md).
+  [работа через среду](meta/notes/environment-workflow.md).
 - [Границы инструмента и незавершённые направления](./project/meta/notes/scope.md).
 - [Команды проверок](./package.json) и [правила для агентов](./AGENTS.md).

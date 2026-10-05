@@ -14,7 +14,7 @@ export declare namespace StorybookAppControl {
   Обычное окружение работающего сервера этих команд не получает.
 
   @property [resources=true] - Добавляет команду чтения штатного URI ресурса.
-  MCP сохраняет собственные resources и прежний каталог при resources:false.
+  При resources:false каталог не включает чтение ресурсов.
   */
   type Input = Readonly<{
     controller(): Controller | Promise<Controller>
@@ -28,7 +28,7 @@ export declare namespace StorybookAppControl {
   @property tools - JSON-описания и исполнители, проверяющие аргументы исходным Zod перед dispatch.
   Signal и progress поступают от контекста текущего вызова; результат контроллера сохраняется целиком.
 
-  @property schemas - Те же Zod-схемы для штатной регистрации MCP.
+  @property schemas - Исходные Zod-схемы команд общего API.
   JSON Schema инструментов описывает форму, а refine/superRefine исполняются общим контролем.
   */
   type Output = Readonly<{

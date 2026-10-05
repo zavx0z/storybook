@@ -5,7 +5,6 @@
     "": {
       "name": "@zavx0z/storybook",
       "dependencies": {
-        "@modelcontextprotocol/client": "^2.0.0",
         "@zavx0z/storybook-app": "workspace:*",
       },
       "devDependencies": {
@@ -60,17 +59,14 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-app-control": "workspace:*",
-        "@zavx0z/storybook-app-mcp": "workspace:*",
         "@zavx0z/storybook-app-server": "workspace:*",
         "@zavx0z/storybook-app-server-state": "workspace:*",
         "@zavx0z/storybook-app-web": "workspace:*",
         "@zavx0z/storybook-package-artifacts": "workspace:*",
         "@zavx0z/storybook-tech-limits": "workspace:*",
-        "@zavx0z/storybook-tech-mcp-lazy": "workspace:*",
-        "@zavx0z/storybook-tech-mcp-stdio": "workspace:*",
       },
       "devDependencies": {
-        "@modelcontextprotocol/client": "^2.0.0",
+        "@zavx0z/storybook-app-environment": "workspace:*",
         "@zavx0z/storybook-chat-session": "workspace:*",
         "@zavx0z/storybook-package-graph-read": "workspace:*",
       },
@@ -92,7 +88,7 @@
         "@zavx0z/storybook-app-environment-tools": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/storybook-app-mcp-rest": "workspace:*",
+        "@zavx0z/storybook-app-knowledge": "workspace:*",
       },
     },
     "app/environment/tools": {
@@ -111,48 +107,11 @@
         "@zavx0z/storybook-repo-mcp": "workspace:*",
       },
     },
-    "app/mcp": {
-      "name": "@zavx0z/storybook-app-mcp",
+    "app/knowledge": {
+      "name": "@zavx0z/storybook-app-knowledge",
       "version": "0.0.0",
       "dependencies": {
-        "@modelcontextprotocol/server": "^2.0.0",
-        "@zavx0z/storybook-app": "workspace:*",
-        "@zavx0z/storybook-app-control": "workspace:*",
-        "@zavx0z/storybook-app-mcp-proxy": "workspace:*",
-        "@zavx0z/storybook-app-mcp-response": "workspace:*",
-        "@zavx0z/storybook-app-mcp-rest": "workspace:*",
-        "@zavx0z/storybook-app-server-state": "workspace:*",
-        "@zavx0z/storybook-tech-mcp-progress": "workspace:*",
-        "zod": "^4.4.3",
-      },
-      "devDependencies": {
-        "@modelcontextprotocol/client": "^2.0.0",
-        "@zavx0z/storybook-app-server-requests": "workspace:*",
-      },
-    },
-    "app/mcp/proxy": {
-      "name": "@zavx0z/storybook-app-mcp-proxy",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/storybook-app-server-state": "workspace:*",
-      },
-      "devDependencies": {
-        "@modelcontextprotocol/server": "^2.0.0",
-        "typescript": "^7.0.2",
-      },
-    },
-    "app/mcp/response": {
-      "name": "@zavx0z/storybook-app-mcp-response",
-      "version": "0.0.0",
-      "dependencies": {
-        "@modelcontextprotocol/server": "^2.0.0",
-      },
-    },
-    "app/mcp/rest": {
-      "name": "@zavx0z/storybook-app-mcp-rest",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/storybook-app-mcp-rest-address": "workspace:*",
+        "@zavx0z/storybook-app-knowledge-address": "workspace:*",
         "@zavx0z/storybook-cluster-mcp": "workspace:*",
         "@zavx0z/storybook-component-mcp": "workspace:*",
         "@zavx0z/storybook-container-mcp": "workspace:*",
@@ -164,12 +123,16 @@
         "@zavx0z/storybook-repo-mcp": "workspace:*",
       },
       "devDependencies": {
-        "@modelcontextprotocol/server": "^2.0.0",
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+        "ajv": "^8.17.1",
       },
     },
-    "app/mcp/rest/address": {
-      "name": "@zavx0z/storybook-app-mcp-rest-address",
+    "app/knowledge/address": {
+      "name": "@zavx0z/storybook-app-knowledge-address",
+      "version": "0.0.0",
+    },
+    "app/response": {
+      "name": "@zavx0z/storybook-app-response",
       "version": "0.0.0",
     },
     "app/server": {
@@ -183,8 +146,8 @@
         "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
         "@zavx0z/immersive-markdown": "^0.0.0",
         "@zavx0z/storybook-app-environment": "workspace:*",
-        "@zavx0z/storybook-app-mcp-response": "workspace:*",
-        "@zavx0z/storybook-app-mcp-rest": "workspace:*",
+        "@zavx0z/storybook-app-knowledge": "workspace:*",
+        "@zavx0z/storybook-app-response": "workspace:*",
         "@zavx0z/storybook-app-server-browser": "workspace:*",
         "@zavx0z/storybook-app-server-catalog": "workspace:*",
         "@zavx0z/storybook-app-server-requests": "workspace:*",
@@ -215,14 +178,12 @@
         "@zavx0z/storybook-tech-limits": "workspace:*",
       },
       "devDependencies": {
-        "@modelcontextprotocol/client": "^2.0.0",
-        "@modelcontextprotocol/server": "^2.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-engine": "^0.0.0",
         "@zavx0z/immersive-nodes-node": "^0.0.0",
         "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-app": "workspace:*",
-        "@zavx0z/storybook-app-mcp": "workspace:*",
+        "@zavx0z/storybook-app-control": "workspace:*",
         "@zavx0z/storybook-app-web-build": "workspace:*",
         "@zavx0z/storybook-app-web-release": "workspace:*",
         "@zavx0z/storybook-cluster-mcp": "workspace:*",
@@ -234,7 +195,6 @@
         "@zavx0z/storybook-repo-mcp": "workspace:*",
         "@zavx0z/storybook-tech-build-artifacts": "workspace:*",
         "@zavx0z/storybook-tech-build-environment": "workspace:*",
-        "@zavx0z/storybook-tech-mcp-lazy": "workspace:*",
       },
     },
     "app/server/browser": {
@@ -1409,33 +1369,6 @@
       "name": "@zavx0z/storybook-tech-limits",
       "version": "0.0.0",
     },
-    "tech/mcp/lazy": {
-      "name": "@zavx0z/storybook-tech-mcp-lazy",
-      "version": "0.0.0",
-      "dependencies": {
-        "@modelcontextprotocol/client": "^2.0.0",
-        "@modelcontextprotocol/server": "^2.0.0",
-        "@zavx0z/storybook-tech-build-worker": "workspace:*",
-      },
-      "devDependencies": {
-        "@zavx0z/storybook-tech-mcp-stdio": "workspace:*",
-        "zod": "^4.4.3",
-      },
-    },
-    "tech/mcp/progress": {
-      "name": "@zavx0z/storybook-tech-mcp-progress",
-      "version": "0.0.0",
-      "dependencies": {
-        "@modelcontextprotocol/server": "^2.0.0",
-      },
-    },
-    "tech/mcp/stdio": {
-      "name": "@zavx0z/storybook-tech-mcp-stdio",
-      "version": "0.0.0",
-      "dependencies": {
-        "@modelcontextprotocol/server": "^2.0.0",
-      },
-    },
     "tech/process/measure": {
       "name": "@zavx0z/storybook-tech-process-measure",
       "version": "0.0.0",
@@ -1535,12 +1468,6 @@
     "@agentclientprotocol/codex-acp": ["@agentclientprotocol/codex-acp@2.1.1", "", { "dependencies": { "@agentclientprotocol/sdk": "^1.5.0", "@openai/codex": "^0.159.1", "diff": "^9.0.0", "open": "^11.0.1", "vscode-jsonrpc": "^9.0.1", "zod": "^4.0.0" }, "bin": { "codex-acp": "dist/index.js" } }, "sha512-dppZxW3f8kNbTDbR25+lBLtNst5DIC/Sm7GtRF69PI1Ilqv12tDSsIb0hJQW0iNzkx+JdDvX76HOyv5Uibu1qQ=="],
 
     "@agentclientprotocol/sdk": ["@agentclientprotocol/sdk@1.6.0", "", { "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-XxXrmX7aZkDgOB0Rg9cu+ZFyiUUc5lF2n9seO3Gc4OR+MTdfZOwIqF6m3LvsmmM8K3qgPmXkDH8/IFM2u9vdcQ=="],
-
-    "@modelcontextprotocol/client": ["@modelcontextprotocol/client@2.0.0", "", { "dependencies": { "@modelcontextprotocol/core": "2.0.0", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "jose": "^6.1.3", "pkce-challenge": "^5.0.0", "zod": "^4.2.0" } }, "sha512-8f1OghQ2rjzIOfqgUCP+8GiUWqRs89njoWLNqAe8kWmDePv3s1fZXseej+QXemssEuuOvLLmLO/kqM3IQHtISw=="],
-
-    "@modelcontextprotocol/core": ["@modelcontextprotocol/core@2.0.0", "", { "dependencies": { "zod": "^4.2.0" } }, "sha512-pJCEwGG7Lfr/+PQp9ZTwKXNeO5wzbfKL7H3MYpCorM4oFBoQrdjnBgEoqG+RjhsvS1FKrDbKux+M1HhlnGWqcA=="],
-
-    "@modelcontextprotocol/server": ["@modelcontextprotocol/server@2.0.0", "", { "dependencies": { "@modelcontextprotocol/core": "2.0.0", "zod": "^4.2.0" } }, "sha512-YhHWdHfpFMQfd0prsEnxKeS3Qz3ytIGmsS0sth4KDjnacIT7hxk6hXHkJ9KysxlkvTM+WZAtQbbcUhdoP4Hvtw=="],
 
     "@nodable/entities": ["@nodable/entities@3.1.0", "", {}, "sha512-LsS/DjHr+uDM647Gru/cA8+J3a3HfhttwCKLyuoyN7yXTFCxKBtSgMQBvrW9yNPa2/zDRUNuGPaH5QUFoa4arQ=="],
 
@@ -1728,15 +1655,11 @@
 
     "@zavx0z/storybook-app-environment-tools": ["@zavx0z/storybook-app-environment-tools@workspace:app/environment/tools"],
 
-    "@zavx0z/storybook-app-mcp": ["@zavx0z/storybook-app-mcp@workspace:app/mcp"],
+    "@zavx0z/storybook-app-knowledge": ["@zavx0z/storybook-app-knowledge@workspace:app/knowledge"],
 
-    "@zavx0z/storybook-app-mcp-proxy": ["@zavx0z/storybook-app-mcp-proxy@workspace:app/mcp/proxy"],
+    "@zavx0z/storybook-app-knowledge-address": ["@zavx0z/storybook-app-knowledge-address@workspace:app/knowledge/address"],
 
-    "@zavx0z/storybook-app-mcp-response": ["@zavx0z/storybook-app-mcp-response@workspace:app/mcp/response"],
-
-    "@zavx0z/storybook-app-mcp-rest": ["@zavx0z/storybook-app-mcp-rest@workspace:app/mcp/rest"],
-
-    "@zavx0z/storybook-app-mcp-rest-address": ["@zavx0z/storybook-app-mcp-rest-address@workspace:app/mcp/rest/address"],
+    "@zavx0z/storybook-app-response": ["@zavx0z/storybook-app-response@workspace:app/response"],
 
     "@zavx0z/storybook-app-server": ["@zavx0z/storybook-app-server@workspace:app/server"],
 
@@ -1950,12 +1873,6 @@
 
     "@zavx0z/storybook-tech-limits": ["@zavx0z/storybook-tech-limits@workspace:tech/limits"],
 
-    "@zavx0z/storybook-tech-mcp-lazy": ["@zavx0z/storybook-tech-mcp-lazy@workspace:tech/mcp/lazy"],
-
-    "@zavx0z/storybook-tech-mcp-progress": ["@zavx0z/storybook-tech-mcp-progress@workspace:tech/mcp/progress"],
-
-    "@zavx0z/storybook-tech-mcp-stdio": ["@zavx0z/storybook-tech-mcp-stdio@workspace:tech/mcp/stdio"],
-
     "@zavx0z/storybook-tech-process-measure": ["@zavx0z/storybook-tech-process-measure@workspace:tech/process/measure"],
 
     "@zavx0z/storybook-tech-process-sample": ["@zavx0z/storybook-tech-process-sample@workspace:tech/process/sample"],
@@ -1974,8 +1891,6 @@
 
     "bundle-name": ["bundle-name@4.1.1", "", { "dependencies": { "run-applescript": "^7.0.0" } }, "sha512-DdH81/zPLVS11EUgWq3tEu/xn+EzljlMYooDNdzWEnFha3R3NBMpMV1UqYIpjYHV/SgpFKMIX1Oh7o06SjM/oA=="],
 
-    "cross-spawn": ["cross-spawn@7.0.6", "", { "dependencies": { "path-key": "^3.1.0", "shebang-command": "^2.0.0", "which": "^2.0.1" } }, "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA=="],
-
     "default-browser": ["default-browser@5.5.1", "", { "dependencies": { "bundle-name": "^4.1.0", "default-browser-id": "^5.0.0" } }, "sha512-m1pAzaJgZ/gssEqlOhJkPJp8Xly7QyW6xcrkUa2KKcDeDSEMP7X8xipU3snUcfisTQx0w1AGae+9UtJSfVnXGw=="],
 
     "default-browser-id": ["default-browser-id@5.0.1", "", {}, "sha512-x1VCxdX4t+8wVfd1so/9w+vQ4vx7lKd2Qp5tDRutErwmR85OgmfX7RlLRMWafRMY7hbEiXIbudNrjOAPa/hL8Q=="],
@@ -1983,10 +1898,6 @@
     "define-lazy-prop": ["define-lazy-prop@3.0.0", "", {}, "sha512-N+MeXYoqr3pOgn8xfyRPREN7gHakLYjhsHhWGT3fWAiL4IkAt0iDw14QiiEm2bE30c5XX5q0FtAA3CK5f9/BUg=="],
 
     "diff": ["diff@9.0.0", "", {}, "sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw=="],
-
-    "eventsource": ["eventsource@3.0.7", "", { "dependencies": { "eventsource-parser": "^3.0.1" } }, "sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA=="],
-
-    "eventsource-parser": ["eventsource-parser@3.1.1", "", {}, "sha512-EKN1vKAMcZ8MlYMpaNuxN6R9yakzH6uajHcHVTqWJzvu5pWw9DyhbP35HH8MVBQ+dZjAfDxk+A8NiR9KWaXiyQ=="],
 
     "fast-deep-equal": ["fast-deep-equal@3.1.3", "", {}, "sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q=="],
 
@@ -2006,19 +1917,11 @@
 
     "is-wsl": ["is-wsl@3.1.1", "", { "dependencies": { "is-inside-container": "^1.0.0" } }, "sha512-e6rvdUCiQCAuumZslxRJWR/Doq4VpPR82kqclvcS0efgt430SlGIk05vdCN58+VrzgtIcfNODjozVielycD4Sw=="],
 
-    "isexe": ["isexe@2.0.0", "", {}, "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw=="],
-
-    "jose": ["jose@6.2.12", "", {}, "sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw=="],
-
     "json-schema-traverse": ["json-schema-traverse@1.0.0", "", {}, "sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug=="],
 
     "open": ["open@11.0.4", "", { "dependencies": { "default-browser": "^5.5.1", "define-lazy-prop": "^3.0.0", "is-in-ssh": "^1.0.0", "is-inside-container": "^1.0.0", "powershell-utils": "^0.2.1", "wsl-utils": "^1.0.0" } }, "sha512-++Zlftm0kVLPmzC06t6epuWmcRMDbI4z5P3NNX979WA/k23+NtSOynEGzsVfZwguKw2mi5umVgnBlJQMwRz4Pg=="],
 
     "path-expression-matcher": ["path-expression-matcher@1.6.2", "", {}, "sha512-enSlaiat05iasnzmgNxRj8reFdj3puY2QpNgP1aPIaVfT6nn9ICuPoFlKHk8EN22HcwewshO+mN2DGbkCEOtqQ=="],
-
-    "path-key": ["path-key@3.1.1", "", {}, "sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q=="],
-
-    "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
 
     "pngjs": ["pngjs@7.0.0", "", {}, "sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow=="],
 
@@ -2030,10 +1933,6 @@
 
     "run-applescript": ["run-applescript@7.1.0", "", {}, "sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q=="],
 
-    "shebang-command": ["shebang-command@2.0.0", "", { "dependencies": { "shebang-regex": "^3.0.0" } }, "sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA=="],
-
-    "shebang-regex": ["shebang-regex@3.0.0", "", {}, "sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A=="],
-
     "strnum": ["strnum@2.4.2", "", { "dependencies": { "anynum": "^1.0.1" } }, "sha512-rDG3Ah4TV0k1hWvLSzkZtMmLN9+eS+h3knq4MP6A42Y3Yh5qGNnOUs1jJkoSr8FG5dsL28c7KgkIBzSEykqtuw=="],
 
     "typescript": ["typescript@7.0.2", "", { "optionalDependencies": { "@typescript/typescript-aix-ppc64": "7.0.2", "@typescript/typescript-darwin-arm64": "7.0.2", "@typescript/typescript-darwin-x64": "7.0.2", "@typescript/typescript-freebsd-arm64": "7.0.2", "@typescript/typescript-freebsd-x64": "7.0.2", "@typescript/typescript-linux-arm": "7.0.2", "@typescript/typescript-linux-arm64": "7.0.2", "@typescript/typescript-linux-loong64": "7.0.2", "@typescript/typescript-linux-mips64el": "7.0.2", "@typescript/typescript-linux-ppc64": "7.0.2", "@typescript/typescript-linux-riscv64": "7.0.2", "@typescript/typescript-linux-s390x": "7.0.2", "@typescript/typescript-linux-x64": "7.0.2", "@typescript/typescript-netbsd-arm64": "7.0.2", "@typescript/typescript-netbsd-x64": "7.0.2", "@typescript/typescript-openbsd-arm64": "7.0.2", "@typescript/typescript-openbsd-x64": "7.0.2", "@typescript/typescript-sunos-x64": "7.0.2", "@typescript/typescript-win32-arm64": "7.0.2", "@typescript/typescript-win32-x64": "7.0.2" }, "bin": { "tsc": "bin/tsc" } }, "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA=="],
@@ -2041,8 +1940,6 @@
     "undici-types": ["undici-types@8.9.0", "", {}, "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="],
 
     "vscode-jsonrpc": ["vscode-jsonrpc@9.0.3", "", {}, "sha512-qETYf9PCl1lVfwR+oBmMfc4vP2nqLNA35ABxorw3j06+xlKRgDVxbLgKm4Y/xPL0YWdeDjLoI4ImICIT3nB0zQ=="],
-
-    "which": ["which@2.0.2", "", { "dependencies": { "isexe": "^2.0.0" }, "bin": { "node-which": "./bin/node-which" } }, "sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA=="],
 
     "wsl-utils": ["wsl-utils@1.0.1", "", { "dependencies": { "is-wsl": "^3.1.0", "powershell-utils": "^0.2.0" } }, "sha512-c16PKLIRxBYpR3jSWsdS7SFp0COm5SOQdiFjY818dYFHJbMGuLBszpF07LBWmOS1uzrHa9VGdynsEgoeKy0oOQ=="],
 

@@ -13,7 +13,6 @@ import {StorybookBrowserSessionRegistry} from "../src/browser-session-registry.t
 import {seedPublishedSharedAssets} from "./shared-assets.fixture.ts"
 import {createProjectFixture} from "./project.fixture.ts"
 import state from "@zavx0z/storybook-app-server-state"
-import mcpSources from "@zavx0z/storybook-package-mcp-source"
 
 const roots: string[] = []
 const servers: StorybookAppServer.Output[] = []
@@ -208,10 +207,7 @@ describe("one external Storybook server", () => {
     expect(running.sessions.snapshots()).toEqual([])
   })
 
-  test("адресный режим возвращает тот же ответ, что MCP, и не пишет в журнал агента", async () => {
-    const {Client, InMemoryTransport} = await import("@modelcontextprotocol/client")
-    const {McpServer} = await import("@modelcontextprotocol/server")
-    const {default: appMcp} = await import("@zavx0z/storybook-app-mcp")
+  test("адресный режим сохраняет содержание knowledge.read и не пишет в журнал агента", async () => {
     const fixture = serverFixture()
     mkdirSync(join(fixture.standalone, "text/trim/contract"), {recursive: true})
     mkdirSync(join(fixture.standalone, "text/trim/spec"), {recursive: true})
@@ -224,12 +220,11 @@ describe("one external Storybook server", () => {
     writeFileSync(join(fixture.standalone, "text/trim/spec/scenario.spec.ts"), scenarioSource)
     const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]), statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
-    const control = state.client(running.record)
-    const mcp = new McpServer({name: "address-parity", version: "1"})
-    appMcp.register(mcp, {request: (input, signal) => control.control("/api/control/storybook", input, signal)})
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
-    const client = new Client({name: "address-parity", version: "1"})
-    await Promise.all([mcp.connect(serverTransport), client.connect(clientTransport)])
+    const environment = (arguments_: Record<string, unknown>) => fetch(new URL("/api/environment", running.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({name: "knowledge.read", arguments: arguments_}),
+    })
     const session = await fetch(new URL("/api/browser/registry-session", running.origin), {method: "POST", headers: {origin: running.origin, "content-type": "application/json"}, body: "{}"})
     const {readerToken} = await session.json()
     const endpoint = new URL("/api/browser/mcp-address", running.origin)
@@ -238,44 +233,54 @@ describe("one external Storybook server", () => {
       headers: {origin, "content-type": "application/json", "x-storybook-session": token},
       body: JSON.stringify(input),
     })
-    try {
-      for (const address of ["/", "/standalone", "/standalone?view=overview", "/standalone/text", "/standalone/text/trim?view=scenarios&inspector=x", "/standalone?preview=candidate"]) {
-        const browser = await read({address})
-        expect(browser.status).toBe(200)
-        const root = address.split("?")[0]!.slice(1)
-        const expected = root === ""
-          ? (await client.callTool({name: "storybook", arguments: {}})).structuredContent
-          : await (await appMcp.read(new Request("http://localhost", {method: "POST", body: "{}"}), {
-            projectName: "Project", entries: mcpSources(running.registry.snapshot()), root: {path: root},
-          })).json()
-        const actual = await browser.json()
-        expect(actual.input).toEqual({})
-        expect(actual.structuredContent).toEqual(expected)
-        expect(JSON.parse(actual.content[0].text)).toEqual(expected)
-        expect(actual.structuredContent.path).toBe(".")
-        if (root === "standalone/text") expect(actual.structuredContent.children[0].path).toBe("./trim")
+    const journal = async () => (await fetch(new URL("/api/browser/mcp-requests", running.origin), {headers: {"x-storybook-session": readerToken}})).json()
+    for (const address of ["/", "/standalone", "/standalone?view=overview", "/standalone/text", "/standalone/text/trim?view=scenarios&inspector=x", "/standalone?preview=candidate"]) {
+      const root = address.split("?")[0]!.slice(1)
+      const response = await environment(root === "" ? {} : {path: root})
+      expect(response.status).toBe(200)
+      const {result: document} = await response.json()
+      expect(document.path).toBe(root === "" ? "." : `./${root}`)
+      // Project сохраняет меню среды. Адресный root меняет пути и сохраняет имя без повторяющего его пути.
+      const expected = {...document, path: ".", ...(["standalone/text", "standalone/text/trim"].includes(root) ? {label: root.split("/").at(-1)} : {}), children: document.children
+        .filter((child: {path: string}) => root !== "" || !["./meta/notes", "./rules/documents", "./instructions"].includes(child.path))
+        .map((child: {path: string}) => ({...child, path: root === "" ? child.path : `./${child.path.slice(root.length + 3)}`}))}
+      const before = await journal()
+      const browser = await read({address})
+      expect(browser.status).toBe(200)
+      const actual = await browser.json()
+      expect(actual.input).toEqual({})
+      expect(actual.structuredContent).toEqual(expected)
+      expect(JSON.parse(actual.content[0].text)).toEqual(expected)
+      expect(actual.structuredContent.path).toBe(".")
+      if (["standalone/text", "standalone/text/trim"].includes(root)) {
+        expect(document).not.toHaveProperty("label")
+        expect(actual.structuredContent.label).toBe(root.split("/").at(-1))
       }
-      const content = await client.callTool({name: "storybook", arguments: {path: "standalone/text/trim"}})
-      expect(content.structuredContent).toMatchObject({
-        description: "Удаляет пробелы.", input: {type: "string", description: "Исходный текст."},
-        output: {type: "string", description: "Текст без отступов."}, scenarios: [scenarioSource], children: [],
-      })
-      for (const path of ["standalone/internal", "standalone?view=scenarios"]) {
-        expect((await client.callTool({name: "storybook", arguments: {path}})).isError).toBeTrue()
-      }
-      const missing = await (await read({address: "/missing?view=scenarios"})).json()
-      expect(missing).toMatchObject({input: null, isError: true})
-      expect(await (await read({address: "/standalone/internal?view=scenarios"})).json()).toMatchObject({input: null, isError: true})
-      expect((await read({address: "/"}, "invalid")).status).toBe(401)
-      expect((await read({address: "/"}, readerToken, "https://example.com")).ok).toBeFalse()
-      expect((await read({address: "/", action: "journal"})).ok).toBeFalse()
-      const journal = await fetch(new URL("/api/browser/mcp-requests", running.origin), {headers: {"x-storybook-session": readerToken}})
-      expect(await journal.json()).toEqual({entries: []})
-      expect(running.sessions.snapshots().every(item => item.builds === 0)).toBeTrue()
-    } finally {
-      await client.close()
-      await mcp.close()
+      if (root === "standalone/text") expect(actual.structuredContent.children[0].path).toBe("./trim")
+      expect(await journal(), "Адресный просмотр не добавляет записи общего входа среды").toEqual(before)
     }
+    const content = await environment({path: "standalone/text/trim"})
+    expect(content.status).toBe(200)
+    expect((await content.json()).result).toMatchObject({
+      description: "Удаляет пробелы.", input: {type: "string", description: "Исходный текст."},
+      output: {type: "string", description: "Текст без отступов."}, scenarios: [scenarioSource], children: [],
+    })
+    for (const path of ["standalone/internal", "standalone?view=scenarios"]) {
+      const invalid = await environment({path})
+      expect(invalid.ok).toBeFalse()
+      expect(await invalid.json()).toMatchObject({error: {code: expect.any(String), message: expect.any(String)}})
+    }
+    const before = await journal()
+    expect(before.entries.length).toBeGreaterThan(0)
+    expect(before.entries.every((entry: {tool: string, agentId: string}) => entry.tool === "knowledge.read" && entry.agentId === "developer:project")).toBeTrue()
+    const missing = await (await read({address: "/missing?view=scenarios"})).json()
+    expect(missing).toMatchObject({input: null, isError: true})
+    expect(await (await read({address: "/standalone/internal?view=scenarios"})).json()).toMatchObject({input: null, isError: true})
+    expect((await read({address: "/"}, "invalid")).status).toBe(401)
+    expect((await read({address: "/"}, readerToken, "https://example.com")).ok).toBeFalse()
+    expect((await read({address: "/", action: "journal"})).ok).toBeFalse()
+    expect(await journal()).toEqual(before)
+    expect(running.sessions.snapshots().every(item => item.builds === 0)).toBeTrue()
   })
 
   test("выбор серверного сценария выполняет свежий тест с props", async () => {

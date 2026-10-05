@@ -1,0 +1,14 @@
+{
+  "name": "@zavx0z/storybook-app-knowledge-address",
+  "label": "Адресация знаний",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Проверяет адрес публичного владельца или категории из каталога Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec ./test"
+  }
+}

@@ -32,7 +32,6 @@ test("разделы технологий не создают фасадных �
     ["tech/build/compiler", "@zavx0z/storybook-tech-build-compiler"],
     ["tech/hmr/page", "@zavx0z/storybook-tech-hmr-page"],
     ["tech/http/client", "@zavx0z/storybook-tech-http-client"],
-    ["tech/mcp/stdio", "@zavx0z/storybook-tech-mcp-stdio"],
     ["tech/process/wait", "@zavx0z/storybook-tech-process-wait"],
     ["tech/testing/browser-root", "@zavx0z/storybook-tech-testing-browser-root"],
   ] as const) {
@@ -40,6 +39,8 @@ test("разделы технологий не создают фасадных �
       "Реальная возможность сохраняет identity, исходники и прямого предметного владельца")
       .toEqual({name, path: resolve(root, directory), parent: root})
   }
+  expect(result.packages.some(item => item.name.startsWith("@zavx0z/storybook-tech-mcp")),
+    "Удалённый транспорт не сохраняет исполняемых пакетов").toBeFalse()
 })
 
 

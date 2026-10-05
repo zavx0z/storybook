@@ -1,7 +1,7 @@
 import {join} from "node:path"
 import createChatSessions, {type StorybookChatSession} from "@zavx0z/storybook-chat-session"
 import createAcp from "@zavx0z/storybook-tech-acp"
-import type {StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {StorybookAppKnowledge} from "@zavx0z/storybook-app-knowledge"
 import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
 import createServerEnvironment from "./environment"
 import createTeamTools from "./team"
@@ -17,7 +17,7 @@ export function createChatServer(options: Readonly<{
   projectName(): string
   toolRoot: string
   graph(): Graph
-  entries(): StorybookAppMcpRest.Input[1]["entries"]
+  entries(): StorybookAppKnowledge.Input[1]["entries"]
   connect?: typeof createAcp
   recordRequest?: (entry: Record<string, unknown>) => void
   extensions?: StorybookAppEnvironment.Input["extensions"]

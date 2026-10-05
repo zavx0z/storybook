@@ -1,9 +1,9 @@
 import {join} from "node:path"
 import conformance from "@zavx0z/storybook-package-build-conformance"
-import type {StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {StorybookAppKnowledge} from "@zavx0z/storybook-app-knowledge"
 import type {StorybookAppServerSessions} from "@zavx0z/storybook-app-server-sessions"
 
-type ReadType = NonNullable<StorybookAppMcpRest.Input[1]["entries"][number]["readType"]>
+type ReadType = NonNullable<StorybookAppKnowledge.Input[1]["entries"][number]["readType"]>
 
 /**
 Читает тип из отчёта рабочей ревизии, которую сохраняет Storybook.

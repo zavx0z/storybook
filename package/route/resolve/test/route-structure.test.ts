@@ -77,8 +77,8 @@ describe("Текущая публичная структура", () => {
   })
 
   test("Проходит через workspace prefix к ближайшему пакету", async () => {
-    expect(await resolveRoute({route: "storybook/app/mcp/rest", roots})).toMatchObject({
-      package: {id: "@zavx0z/storybook-app-mcp-rest", path: resolve(storybookPath, "app/mcp/rest")},
+    expect(await resolveRoute({route: "storybook/app/knowledge", roots})).toMatchObject({
+      package: {id: "@zavx0z/storybook-app-knowledge", path: resolve(storybookPath, "app/knowledge")},
       relativePath: "",
       view: "overview",
     })

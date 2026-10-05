@@ -163,10 +163,10 @@ function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], 
     `}
   >
     <div hidden={props.error === ""}>{props.error}</div>
-    <div hidden={props.entries.length !== 0}>Запросов пока нет.</div>
+    <div hidden={props.entries.length !== 0}>Вызовов пока нет.</div>
     <div
       role="toolbar"
-      aria-label="Команды журнала MCP"
+      aria-label="Навигация по вызовам"
       hidden={entry === null || props.history === false}
       style={css`
         display: flex;
@@ -182,14 +182,14 @@ function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], 
       `}
     >
       <Button
-        label="Предыдущая команда"
+        label="Предыдущий вызов"
         size="small"
         disabled={olderId === null}
         onClick={() => setSelectedId(olderId)}
       />
       <span>{position}</span>
       <Button
-        label="Следующая команда"
+        label="Следующий вызов"
         size="small"
         disabled={newerId === null}
         onClick={() => setSelectedId(newerId)}

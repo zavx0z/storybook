@@ -1,6 +1,6 @@
 import createEnvironment, {type StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
-import storybookRest, {type StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
-import mcpResponse from "@zavx0z/storybook-app-mcp-response"
+import storybookRest, {type StorybookAppKnowledge} from "@zavx0z/storybook-app-knowledge"
+import publicResponse from "@zavx0z/storybook-app-response"
 import state from "@zavx0z/storybook-app-server-state"
 import ToolError from "@zavx0z/ai-tech-failure"
 import {dirname} from "node:path"
@@ -17,7 +17,7 @@ type Options = Readonly<{
   toolRoot?: string
   projectName(): string
   graph(): StorybookPackageGraphRead.Input
-  entries(): StorybookAppMcpRest.Input[1]["entries"]
+  entries(): StorybookAppKnowledge.Input[1]["entries"]
   recordRequest?: (entry: Record<string, unknown>) => void
   extensions?: StorybookAppEnvironment.Input["extensions"]
 }>
@@ -111,10 +111,10 @@ export default function createServerEnvironment(options: Options) {
         startedAt: event.startedAt,
         address: event.address,
         agentId: event.executorId,
-        input: JSON.stringify(mcpResponse.sanitizeValue({name: event.name, arguments: event.arguments})) ?? "",
+        input: JSON.stringify(publicResponse.sanitizeValue({name: event.name, arguments: event.arguments})) ?? "",
         status: event.phase === "progress" ? "running" : event.phase,
         durationMs: event.durationMs,
-        result: event.phase === "running" ? "" : JSON.stringify(mcpResponse.sanitizeValue(event.phase === "progress" ? {progress: event.progress} : event.phase === "success" ? event.result : {error: event.error})),
+        result: event.phase === "running" ? "" : JSON.stringify(publicResponse.sanitizeValue(event.phase === "progress" ? {progress: event.progress} : event.phase === "success" ? event.result : {error: event.error})),
       }
       try { options.recordRequest?.(record) } catch { /* Журнал не отменяет исполнение или доставку истории. */ }
       for (const observer of observers.get(event.executorId) ?? []) {

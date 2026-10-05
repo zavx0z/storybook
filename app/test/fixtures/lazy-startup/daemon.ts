@@ -4,6 +4,9 @@ startup candidate и authority; не копирует private server protocol и
 Сборка, discovery, Browser и canonical daemon в этом fixture не запускаются.
 */
 import ServerState from "@zavx0z/storybook-app-server-state"
+import createApp from "@zavx0z/storybook-app"
+import createControl from "@zavx0z/storybook-app-control"
+import createEnvironment from "@zavx0z/storybook-app-environment"
 import {appendFileSync, existsSync, rmSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 
@@ -17,6 +20,13 @@ const statePath = ServerState.externalStorybookServerStatePath()
 const toolRoot = process.cwd()
 let record: ReturnType<typeof ServerState.createExternalStorybookServerRecord>
 let closing = false
+const control = createControl({controller: () => createApp({toolRoot, legacyStatePaths: []})})
+const environment = createEnvironment({
+  resolve: address => ({address, label: "Isolated fixture", type: "Project", directory: toolRoot}),
+  readKnowledge: async () => Response.json({children: [], description: "Isolated startup fixture"}),
+  extensions: () => control.tools,
+})
+const assignment = environment.assign({executorId: "fixture:developer", address: "/", inspectExecutors: true})
 
 const stop = () => {
   if (closing) return
@@ -25,6 +35,7 @@ const stop = () => {
     rmSync(statePath)
   }
   writeFileSync(join(stateRoot, "daemon.stopped"), String(process.pid))
+  environment.dispose()
   server.stop(true)
   process.exit(0)
 }
@@ -39,6 +50,11 @@ const server = Bun.serve({
       graphDigest: "fixture-graph", rootIds: [], nodes: [], packages: [],
     })
     ServerState.assertExternalStorybookControlRequest(request, record)
+    if (path === "/api/environment") {
+      const headers = new Headers(request.headers)
+      headers.set("authorization", `Bearer ${(await assignment).token}`)
+      return environment.handle(new Request(request, {headers}))
+    }
     if (path === "/api/control/status" && request.method === "GET") return Response.json({
       ok: true, instanceId: record.instanceId, origin: record.origin,
       registryRevision: "fixture-registry", graphDigest: "fixture-graph", entries: [], packages: [], declarationErrors: [],

@@ -1,7 +1,7 @@
 import type {StorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 type McpAddressSource = NonNullable<StorybookAppWebPageShellMcpWindow.Input["addressSource"]>
 
-/** Читает MCP-ответ текущего URL через browser-сессию, без управляющего токена и записи в журнал агента. */
+/** Читает контекст текущего URL через browser-сессию, без управляющего токена и записи в журнал агента. */
 export function createMcpAddressSource(readAddress: () => string, fetcher: typeof fetch = fetch): McpAddressSource {
   return {
     readAddress,
@@ -12,7 +12,7 @@ export function createMcpAddressSource(readAddress: () => string, fetcher: typeo
         body: "{}",
         signal,
       })
-      if (!session.ok) throw new Error("Не удалось открыть сессию MCP для текущего адреса")
+      if (!session.ok) throw new Error("Не удалось открыть сессию среды для текущего адреса")
       const {readerToken} = await session.json()
       const response = await fetcher("/api/browser/mcp-address", {
         method: "POST",
@@ -20,7 +20,7 @@ export function createMcpAddressSource(readAddress: () => string, fetcher: typeo
         body: JSON.stringify({address}),
         signal,
       })
-      if (!response.ok) throw new Error(`Не удалось прочитать MCP-ответ: HTTP ${response.status}`)
+      if (!response.ok) throw new Error(`Не удалось прочитать контекст: HTTP ${response.status}`)
       const reply = await response.json()
       return {input: reply.input, result: reply.structuredContent, failed: reply.isError === true}
     },

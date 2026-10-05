@@ -4,7 +4,7 @@ import {fixture} from "../test/fixture"
 
 describe.each([
   {name: "Работающее окружение", props: {lifecycle: false, resources: true}},
-  {name: "Транспорт лаунчера MCP", props: {lifecycle: true, resources: false}},
+  {name: "Команды лаунчера", props: {lifecycle: true, resources: false}},
 ])("$name", async ({props}) => {
   const controller = fixture()
   const control = createControl({...props, controller: () => controller.controller})

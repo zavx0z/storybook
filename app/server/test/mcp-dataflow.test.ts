@@ -4,7 +4,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import Catalog from "@zavx0z/storybook-app-server-catalog"
 import sources from "@zavx0z/storybook-package-mcp-source"
-import rest from "@zavx0z/storybook-app-mcp-rest"
+import rest from "@zavx0z/storybook-app-knowledge"
 import repo from "@zavx0z/storybook-repo-mcp"
 import component from "@zavx0z/storybook-component-mcp"
 import container from "@zavx0z/storybook-container-mcp"
@@ -36,7 +36,7 @@ test.each([
   {type: "Container" as const, read: container},
   {type: "Cluster" as const, read: cluster},
   {type: "Domain" as const, read: domain},
-])("PackageMetadata → $type MCP → app/mcp сохраняет прежнее содержание", async ({type, read}) => {
+])("PackageMetadata → проекция $type → Knowledge сохраняет содержание", async ({type, read}) => {
   const verification = {status: "confirmed" as const, type, revision: "working"}
   const entries = sources(reader.snapshot(), async () => verification)
   const selected = entries.find(entry => entry.path === "owner")!

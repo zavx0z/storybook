@@ -6,13 +6,13 @@ export function createMcpRequestSource(fetcher: typeof fetch = fetch) {
     const session = await fetcher("/api/browser/registry-session", {
       method: "POST", headers: {"content-type": "application/json"}, body: "{}",
     })
-    if (!session.ok) throw new Error("Не удалось открыть сессию журнала MCP")
+    if (!session.ok) throw new Error("Не удалось открыть сессию журнала вызовов")
     const {readerToken} = await session.json()
     if (typeof readerToken !== "string") throw new Error("Нет сессии Storybook для чтения журнала")
     const response = await fetcher(`/api/browser/mcp-requests${address === undefined ? "" : `?address=${encodeURIComponent(address)}`}`, {
       headers: {"x-storybook-session": readerToken},
     })
-    if (!response.ok) throw new Error("Не удалось получить журнал MCP")
+    if (!response.ok) throw new Error("Не удалось получить журнал вызовов")
     return (await response.json()).entries
   }
 }

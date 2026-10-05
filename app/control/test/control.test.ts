@@ -16,7 +16,7 @@ test("описания готовятся без запуска контролл
   expect(f.calls.map(call => call.method)).toEqual(["status"])
 })
 
-test("сохраняется прежний каталог MCP и те же строгие Zod refine до любого dispatch", async () => {
+test("каталог команд использует строгие Zod refine до любого dispatch", async () => {
   const f = fixture()
   const control = createControl({controller: () => f.controller, lifecycle: true, resources: false})
   expect(control.tools).toHaveLength(14)

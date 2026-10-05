@@ -1,0 +1,11 @@
+{
+  "name": "@zavx0z/storybook-app-response",
+  "label": "Публичный результат",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Представление JSON-результата с удалением служебных сведений",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

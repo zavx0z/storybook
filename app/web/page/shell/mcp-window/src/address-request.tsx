@@ -43,7 +43,7 @@ export function AddressRequest(props: Readonly<{active: boolean, source?: McpAdd
       void source.request(next, controller.signal).then(reply => {
         if (disposed || controller.signal.aborted) return
         const rootLabel = reply.result !== null && typeof reply.result === "object"
-          && "label" in reply.result && typeof reply.result.label === "string" ? reply.result.label : "MCP"
+          && "label" in reply.result && typeof reply.result.label === "string" ? reply.result.label : "Среда"
         setAddress(reply.input === null ? "Пакет не найден" : reply.input.path ?? rootLabel)
         setEntry({...record, input: reply.input === null ? "" : JSON.stringify(reply.input, null, 2), status: reply.failed ? "failed" : "success", durationMs: Date.now() - startedAt, result: JSON.stringify(reply.result, null, 2)})
       }).catch(error => {

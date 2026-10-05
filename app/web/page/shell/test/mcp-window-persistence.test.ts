@@ -29,7 +29,7 @@ test("перемещение, размер, режим и закрытие пе�
   createMcpWindowPersistence(storage).save({...initialLayout, open: true})
   try {
     let frame = await mount()
-    const title = [...host.container.querySelectorAll("span")].find(node => node.textContent === "Журнал MCP")!
+    const title = [...host.container.querySelectorAll("span")].find(node => node.textContent === "Среда")!
     const box = host.bounds(title)
     const point = {clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, pointerId: 7}
     host.input.pointerDown(frame, point)
@@ -43,7 +43,7 @@ test("перемещение, размер, режим и закрытие пе�
     host.input.pointerMove(frame, {...handle, clientX: handle.clientX + 70, clientY: handle.clientY + 80, buttons: 1})
     frame = await host.settle()
     host.input.pointerUp(frame, {...handle, clientX: handle.clientX + 70, clientY: handle.clientY + 80})
-    await host.click("Текущий адрес → MCP")
+    await host.click("Контекст")
     expect(createMcpWindowPersistence(storage).initialState).toEqual({open: true, mode: "address", geometry: {x: 64, y: 54, width: 690, height: 480}})
     host.dispose()
     host = createWindowHost()
@@ -51,8 +51,8 @@ test("перемещение, размер, режим и закрытие пе�
     const element = host.container.querySelector('[data-window]')!
     expect(element.hasAttribute("hidden")).toBeFalse()
     expect(host.bounds(element)).toEqual({x: 64, y: 54, width: 690, height: 480})
-    expect(host.button("Текущий адрес → MCP").hasAttribute("disabled")).toBeTrue()
-    await host.click("Скрыть Журнал MCP")
+    expect(host.button("Контекст").hasAttribute("disabled")).toBeTrue()
+    await host.click("Скрыть Среда")
     host.dispose()
     host = createWindowHost()
     await mount()

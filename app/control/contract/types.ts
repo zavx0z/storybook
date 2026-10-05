@@ -326,7 +326,7 @@ export type StorybookStopInput = Readonly<{
 }>
 
 /**
-Изображение для передачи в содержимом ответа MCP.
+Изображение для передачи в результате команды среды.
 
 @property data - Данные изображения в кодировке Base64.
 
@@ -349,7 +349,7 @@ export type StorybookCaptureResult = StorybookControllerResult & Readonly<{
 }>
 
 /**
-Результат чтения ресурса Storybook для передачи через MCP.
+Результат чтения ресурса Storybook для передачи клиентам среды.
 
 @property status - Итог чтения {@link StorybookOperationStatus}.
 

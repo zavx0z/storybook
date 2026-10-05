@@ -3,7 +3,7 @@ import {mkdtemp, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import createEnvironment from "@zavx0z/storybook-app-environment"
-import readKnowledge from "@zavx0z/storybook-app-mcp-rest"
+import readKnowledge from "@zavx0z/storybook-app-knowledge"
 
 describe.each([
   {name: "Исполнитель Component", props: {executorId: "component-worker", address: "/sample"}, type: "Component" as const},

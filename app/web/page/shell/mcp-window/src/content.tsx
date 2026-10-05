@@ -26,7 +26,7 @@ export function McpContent(props: Readonly<{
   >
     <div
       role="toolbar"
-      aria-label="Режим журнала MCP"
+      aria-label="Разделы среды"
       hidden={props.journalOnly === true}
       style={css`
         display: flex;
@@ -41,13 +41,13 @@ export function McpContent(props: Readonly<{
       `}
     >
       <Button
-        label="Вызовы агента"
+        label="Вызовы"
         size="small"
         disabled={props.mode === "agent"}
         onClick={() => props.onMode("agent")}
       />
       <Button
-        label="Текущий адрес → MCP"
+        label="Контекст"
         size="small"
         disabled={props.mode === "address"}
         onClick={() => props.onMode("address")}
