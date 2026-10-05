@@ -4,6 +4,7 @@ import type {Relocation} from "./relocation"
 import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
 import type {Environment, EnvironmentInput} from "./environment"
 import type {Target} from "./target"
+import type {HistoryBody, HistoryPage, HistoryEvidencePage, HistoryQuery} from "./history"
 
 type TimelineContent = Extract<StorybookChatHistory.Output[number], {kind: "message"}>["content"][number]
 
@@ -22,10 +23,20 @@ export declare namespace StorybookChatSession {
   type Input = Readonly<{
     directory(subject: Pick<Subject, "address" | "cwd">): string
     legacyDirectory?: string
+    /** Максимум неактивных resident states, по умолчанию 32. */
+    maxInactiveSessions?: number
+    /** Пауза до закрытия неактивного ACP и окружения, по умолчанию 30000 мс. */
+    idleConnectionMs?: number
+    /** Максимум подключённых ACP, по умолчанию 4. */
+    maxConnections?: number
+    /** Максимум ещё не начатых задач одной беседы, по умолчанию 128. */
+    maxPending?: number
     resolve(address: string): Subject
     environment?(input: EnvironmentInput): Promise<Environment>
     connect(input: Readonly<{
       subject: Subject
+      /** Локальная identity выбранной беседы, независимо от provider sessionId. */
+      localSessionId: string
       /** UUID сохраняемого исполнителя, независимый от адреса и provider session. */
       executorId: string
       /** Имя исполнителя внутри предмета, независимое от имени самого предмета. */
@@ -43,8 +54,8 @@ export declare namespace StorybookChatSession {
   /**
   История, поток состояния и действия над беседой.
 
-  @property read - Возвращает свежий независимый snapshot, не создавая пустой файл.
-  Он включает ещё не опубликованные потоковые дельты и их version. Сохранённые pending
+  @property read - Возвращает свежий компактный snapshot, не создавая пустой файл.
+  Он включает счётчики ещё не опубликованных потоковых записей и их version. Сохранённые pending
   при загрузке восстанавливают ранее принятую работу; обычное чтение без них не запускает модель.
 
   @property prompt - Сохраняет текст либо штатные ACP ContentBlock и начинает один turn;
@@ -56,8 +67,8 @@ export declare namespace StorybookChatSession {
   @property permission - Разрешает ожидающий запрос ровно одним из переданных исполнителем вариантов.
 
   @property subscribe - Немедленно передаёт текущий снимок. Потоковые ACP/replay/environment
-  updates объединяются до создания полного snapshot примерно за 50 мс; raw timeline
-  и version каждой мутации сохраняются. Управляющие переходы и финальный результат
+  updates объединяются до создания компактного snapshot примерно за 50 мс; raw evidence
+  сохраняется на диске, version отражает каждую мутацию. Управляющие переходы и финальный результат
   публикуются без этого ожидания и снимают pending publication. Последняя отписка
   очищает timer, не отменяя выполнение; без наблюдателей поток не создаёт snapshots.
 
@@ -73,10 +84,24 @@ export declare namespace StorybookChatSession {
   type Output = Readonly<{
     /** Явно создаёт независимого именованного исполнителя и сохраняет его пустую историю. */
     create(input: Readonly<{address: string, label: string}>): Promise<Snapshot>
-    /** Перечисляет только беседы выбранного адреса, включая уже загруженный empty default; сохранённые pending восстанавливаются. */
+    /** Перечисляет только беседы выбранного адреса, включая уже загруженный empty default; по одному designated snapshot агента. */
     list(address: string): Promise<readonly Snapshot[]>
+    /** Создаёт пустую именованную сессию существующего агента без подключения ACP. */
+    createSession(target: Target, label?: string): Promise<Snapshot>
+    /** Перечисляет сохранённые сессии выбранного агента без запуска модели. */
+    listSessions(target: Target): Promise<readonly Snapshot[]>
+    /** Меняет только имя точной выбранной локальной сессии. */
+    renameSession(target: Target, label: string): Promise<Snapshot>
+    /** Удаляет выбранную неактивную локальную сессию; provider remote не затрагивается. */
+    deleteSession(target: Target): Promise<void>
     migrateLegacy(): Promise<Readonly<{migrated: number, unresolved: readonly string[]}>>
     read(target: Target): Promise<Snapshot>
+    /** Читает ограниченную страницу заголовков без подключения исполнителя. */
+    history(target: Target, query?: HistoryQuery): Promise<HistoryPage>
+    /** Читает тело одной записи, без raw updates. */
+    historyItem(target: Target, id: string): Promise<HistoryBody>
+    /** Читает ограниченную страницу исходных свидетельств записи. */
+    historyEvidence(target: Target, id: string, query?: HistoryQuery): Promise<HistoryEvidencePage>
     /** Получает настройки без собственного prompt; после подготовки может продолжить ранее сохранённые pending. */
     prepare(target: Target): Promise<Snapshot>
     /** Меняет выбранную настройку вне turn; применённые значения подтверждает агент. */

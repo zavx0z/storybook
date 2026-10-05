@@ -1,3 +1,4 @@
+import {inspect} from "./inspect"
 import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, readdir, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
@@ -29,7 +30,7 @@ async function fixture(connect: StorybookChatSession.Input["connect"]) {
 
 async function settled(chats: StorybookChatSession.Output, address: string) {
   for (let attempt = 0; attempt < 100; attempt++) {
-    const value = await chats.read(address)
+    const value = await inspect(chats, address)
     if (value.status === "idle" || value.status === "failed") return value
     await Bun.sleep(5)
   }
@@ -39,13 +40,13 @@ async function settled(chats: StorybookChatSession.Output, address: string) {
 test("чтение адресов не запускает агента и не создаёт пустые истории", async () => {
   let connections = 0
   const {chats, directory} = await fixture(async () => { connections++; throw new Error("unexpected") })
-  const button = await chats.read("/button")
-  const input = await chats.read("/input")
+  const button = await inspect(chats, "/button")
+  const input = await inspect(chats, "/input")
   expect(button.id).not.toBe(input.id)
-  expect((await chats.read("/button")).id).toBe(button.id)
+  expect((await inspect(chats, "/button")).id).toBe(button.id)
   expect(connections).toBe(0)
   await expect(readdir(directory)).rejects.toThrow()
-  await expect(chats.read("/foreign")).rejects.toThrow("Неизвестный адрес")
+  await expect(inspect(chats, "/foreign")).rejects.toThrow("Неизвестный адрес")
 })
 
 test("два turn сохраняют разные ответы, повтор запроса не дублирует отправку, восстановление использует прежнюю ACP-сессию", async () => {
@@ -82,9 +83,9 @@ test("два turn сохраняют разные ответы, повтор з�
   await chats.dispose()
   const restored = createChatSessions(input)
   cleanup.push(() => restored.dispose())
-  expect((await restored.read("/button")).messages).toEqual(done.messages)
-  expect((await restored.read("/button")).id).toBe(done.id)
-  expect((await restored.read("/button")).executorId).toBe(done.executorId)
+  expect((await inspect(restored, "/button")).messages).toEqual(done.messages)
+  expect((await inspect(restored, "/button")).id).toBe(done.id)
+  expect((await inspect(restored, "/button")).executorId).toBe(done.executorId)
   await restored.prompt("/button", "Три", "request-3")
   await settled(restored, "/button")
   expect(previous).toEqual([undefined, "native-session"])
@@ -110,7 +111,7 @@ test("отписка не отменяет работу, отмена касае
   expect(cancelled).toEqual([])
   await chats.cancel("/button")
   expect((await settled(chats, "/button")).status).toBe("idle")
-  expect((await chats.read("/input")).status).toBe("running")
+  expect((await inspect(chats, "/input")).status).toBe("running")
   expect(cancelled).toEqual(["/button"])
   finish.get("/input")!()
   await settled(chats, "/input")
@@ -133,8 +134,8 @@ test("разрешение связано с беседой и принимае�
     async dispose() {},
   }))
   await chats.prompt("/button", "Проверь", "permission-1")
-  let state = await chats.read("/button")
-  while (state.permissions.length === 0) { await Bun.sleep(5); state = await chats.read("/button") }
+  let state = await inspect(chats, "/button")
+  while (state.permissions.length === 0) { await Bun.sleep(5); state = await inspect(chats, "/button") }
   const id = state.permissions[0]!.id
   await expect(chats.permission("/input", id, "decline")).rejects.toThrow()
   await expect(chats.permission("/button", id, "allow")).rejects.toThrow()

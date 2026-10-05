@@ -1,3 +1,4 @@
+import {inspect, persisted} from "./inspect"
 import {afterEach, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {mkdir, mkdtemp, readdir, rm} from "node:fs/promises"
@@ -11,7 +12,7 @@ const filename = (address: string) => `${createHash("sha256").update(address).di
 
 async function settled(sessions: StorybookChatSession.Output, address: string): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt++) {
-    const value = await sessions.read(address)
+    const value = await inspect(sessions, address)
     if (value.status === "idle") return
     if (value.status === "failed") throw new Error(value.error ?? "Ошибка беседы")
     await Bun.sleep(5)
@@ -62,16 +63,16 @@ test("Project и две сущности сохраняют истории ка�
   for (const address of ["/", "/a", "/b"]) await settled(sessions, address)
   await sessions.dispose()
   for (const address of ["/", "/a", "/b"]) {
-    const document = await Bun.file(f.path(address)).json()
+    const document = await persisted(f.path(address))
     expect(document.address).toBe(address)
-    expect(document.timeline.filter((item: {kind: string}) => item.kind === "message")
-      .map((item: {content: {text: string}[]}) => item.content.map(block => block.text).join(""))).toEqual([`Вопрос ${address}`, "Ответ"])
-    expect(document.messages).toBeUndefined()
+    expect(document.timeline.filter(item => item.kind === "message")
+      .map(item => item.content.map(block => block.type === "text" ? block.text : "").join(""))).toEqual([`Вопрос ${address}`, "Ответ"])
+    expect(document).not.toHaveProperty("messages")
   }
   await expect(readdir(join(f.root, "chats"))).rejects.toThrow()
   const restored = f.create()
-  const before = await Bun.file(f.path("/a")).json()
-  expect((await restored.read("/a")).id).toBe(before.id)
+  const before = await persisted(f.path("/a"))
+  expect((await inspect(restored, "/a")).id).toBe(before.id)
   await restored.prepare("/a")
   expect(f.connections.at(-1)?.previousSessionId).toBe(before.sessionId)
 })
@@ -83,8 +84,8 @@ test("перенос старой истории сохраняет сообще
   const legacy = join(f.root, "chats", filename("/a"))
   await Bun.write(legacy, `${JSON.stringify(document, null, 2)}\n`)
   const sessions = f.create()
-  expect((await sessions.read("/a")).id).toBe(document.id)
-  expect(await Bun.file(f.path("/a")).json()).toMatchObject({schemaVersion: 2, id: document.id, sessionId: document.sessionId,
+  expect((await inspect(sessions, "/a")).id).toBe(document.id)
+  expect(await persisted(f.path("/a"))).toMatchObject({schemaVersion: 3, id: document.id, sessionId: document.sessionId,
     timeline: [{id: "old", sequence: 1, kind: "message", origin: "legacy", role: "user", content: [{type: "text", text: "Сохранённый вопрос"}]}]})
   expect(await Bun.file(legacy).json(), "Прежняя история остаётся доступной для восстановления").toEqual(document)
   expect(f.connections).toHaveLength(0)
@@ -92,7 +93,7 @@ test("перенос старой истории сохраняет сообще
   await settled(sessions, "/a")
   await sessions.dispose()
   const restored = f.create()
-  expect((await restored.read("/a")).messages.map(message => message.text))
+  expect((await inspect(restored, "/a")).messages.map(message => message.text))
     .toEqual(["Сохранённый вопрос", "Новый вопрос", "Ответ"])
   expect(f.connections[0]?.previousSessionId).toBe("saved-session")
 })
@@ -114,16 +115,16 @@ test("миграция файла владельца сохраняет исхо
   const encoded = `${JSON.stringify(original, null, 2)}\n`
   await Bun.write(file, encoded)
   const sessions = f.create()
-  const before = await sessions.read("/a")
+  const before = await inspect(sessions, "/a")
   expect(before.messages).toEqual(original.messages)
   expect(before.executorId).toMatch(/^[a-f0-9-]{36}$/u)
   expect(await Bun.file(`${file}.schema1`).text()).toBe(encoded)
   await sessions.prompt("/a", "Продолжение", "new")
   await settled(sessions, "/a")
   await sessions.dispose()
-  const saved = await Bun.file(file).json()
-  expect(saved).toMatchObject({schemaVersion: 2, id: "original", executorId: before.executorId, sessionId: "native-original", cwd: original.cwd, usage: original.usage})
-  expect(saved.messages).toBeUndefined()
+  const saved = await persisted(file)
+  expect(saved).toMatchObject({schemaVersion: 3, id: "original", executorId: before.executorId, sessionId: "native-original", cwd: original.cwd, usage: original.usage})
+  expect(saved).not.toHaveProperty("messages")
   expect(await Bun.file(`${file}.schema1`).text()).toBe(encoded)
   expect(f.connections[0]?.previousSessionId).toBe("native-original")
   expect(f.connections[0]?.executorId).toBe(before.executorId)
@@ -140,7 +141,7 @@ test("пакетный перенос историй не загружает а�
   const sessions = f.create()
   expect(await sessions.migrateLegacy()).toEqual({migrated: 1, unresolved: ["/deleted"]})
   expect(await sessions.migrateLegacy()).toEqual({migrated: 0, unresolved: ["/deleted"]})
-  expect((await Bun.file(f.path("/a")).json()).timeline).toEqual([{id: "1", sequence: 1, origin: "legacy", kind: "message", role: "user", content: [{type: "text", text: "История"}]}])
+  expect((await persisted(f.path("/a"))).timeline).toEqual([{id: "1", sequence: 1, origin: "legacy", kind: "message", role: "user", content: [{type: "text", text: "История"}]}])
   expect(await Bun.file(join(legacy, filename("/deleted"))).exists()).toBeTrue()
   expect(f.connections).toHaveLength(0)
 })

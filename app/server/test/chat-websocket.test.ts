@@ -34,7 +34,7 @@ test("восемь живых WebSocket бесед получают снимки
       })
       socket.send(JSON.stringify({type: "subscribe", topic: "chat:/"}))
       await until(() => messages.some(message => message.type === "chat.snapshot"))
-      expect(messages[0]).toMatchObject({type: "chat.snapshot", address: "/", snapshot: {address: "/", status: "idle", messages: []}})
+      expect(messages[0]).toMatchObject({type: "chat.snapshot", address: "/", snapshot: {address: "/", status: "idle", history: {total: 0}}})
       return {socket, messages, readerToken}
     }
     const tabs = await Promise.all(Array.from({length: 8}, subscribe))
@@ -61,7 +61,21 @@ test("восемь живых WebSocket бесед получают снимки
     tab.socket.send(JSON.stringify({type: "subscribe", topic: "chat:/", executorId: created.executorId}))
     await until(() => tab.messages.some(message => message.type === "chat.snapshot" && message.executorId === created.executorId))
     expect(tab.messages.find(message => message.executorId === created.executorId)?.snapshot)
-      .toMatchObject({address: "/", executorLabel: "Второй специалист", messages: [], status: "idle"})
+      .toMatchObject({address: "/", executorLabel: "Второй специалист", history: {total: 0}, status: "idle"})
+    const command = async (operation: string, values: object) => fetch(new URL(`/api/browser/chat/${operation}`, server.origin), {
+      method: "POST", headers: {Origin: server.origin, "content-type": "application/json", "x-storybook-session": token},
+      body: JSON.stringify({address: "/", executorId: created.executorId, ...values}),
+    })
+    const session = await (await command("session-create", {label: "Исследование"})).json()
+    expect(session.id).not.toBe(created.id)
+    tab.socket.send(JSON.stringify({type: "subscribe", topic: "chat:/", executorId: created.executorId, sessionId: session.id}))
+    await until(() => tab.messages.some(message => message.sessionId === session.id))
+    expect((await command("session-rename", {sessionId: session.id, label: "Проверка"})).ok).toBeTrue()
+    await until(() => tab.messages.some(message => message.sessionId === session.id && message.snapshot.sessionLabel === "Проверка"))
+    expect((await (await command("sessions", {})).json()).map((value: {sessionLabel: string}) => value.sessionLabel)).toContain("Проверка")
+    expect((await command("session-delete", {sessionId: session.id})).ok).toBeTrue()
+    expect((await (await command("sessions", {})).json()).some((value: {id: string}) => value.id === session.id)).toBeFalse()
+    expect((await command("session", {sessionId: session.id})).ok).toBeFalse()
     const legacy = await fetch(new URL("/api/browser/chat/events", server.origin), {headers: {"x-storybook-session": token}})
     expect(legacy.status).toBe(410)
     expect(await legacy.json()).toHaveProperty("error")

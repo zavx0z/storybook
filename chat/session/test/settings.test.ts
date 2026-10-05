@@ -1,3 +1,4 @@
+import {inspect} from "./inspect"
 import {expect, test} from "bun:test"
 import {mkdtemp, rm} from "node:fs/promises"
 import {join} from "node:path"
@@ -48,31 +49,31 @@ test("настройки не запускают prompt; модель обнов
     },
   })
   try {
-    expect((await chats.read("/")).settings).toEqual([])
+    expect((await inspect(chats, "/")).settings).toEqual([])
     expect(connections).toBe(0)
     const phases: string[] = []
     const stopProgress = await chats.subscribe("/", state => { if (state.progress) phases.push(state.progress) })
     await Promise.all([chats.prepare("/"), chats.prepare("/")])
     stopProgress()
     expect(phases).toContain("Загрузка сессии и доступных моделей…")
-    expect((await chats.read("/")).progress).toBeUndefined()
+    expect((await inspect(chats, "/")).progress).toBeUndefined()
     expect(connections).toBe(1)
     expect(prompts).toBe(0)
-    expect((await chats.read("/")).settings).toMatchObject([{id: "provider-model", value: "a"}, {value: "high"}])
+    expect((await inspect(chats, "/")).settings).toMatchObject([{id: "provider-model", value: "a"}, {value: "high"}])
     await expect(chats.configure("/", "provider-model", "unavailable")).rejects.toThrow("доступный вариант")
     expect(changes).toEqual([])
     const configured = await chats.configure("/", "provider-model", "b")
     expect(configured.settings).toMatchObject([{value: "b"}, {value: "low", options: [{value: "low"}]}])
-    expect(configured.messages).toEqual([])
+    expect(configured.history.total).toBe(0)
     expect(configured.usage).toBeNull()
     const done = Promise.withResolvers<void>()
     const unsubscribe = await chats.subscribe("/", state => {
-      if (state.status === "idle" && state.messages.length === 2) done.resolve()
+      if (state.status === "idle" && state.history.total > 0) done.resolve()
     })
     await chats.prompt("/", "Привет", "one")
     await done.promise
     unsubscribe()
-    const result = await chats.read("/")
+    const result = await inspect(chats, "/")
     expect(result.messages.map(message => message.text)).toEqual(["Привет", "Готово"])
     expect(result.usage).toEqual({used: 427000, size: 828000})
     expect(prompts).toBe(1)
@@ -100,11 +101,11 @@ test("подготовка настроек публикует этапы и о�
   try {
     const pending = chats.prepare("/").then(() => null, error => error)
     await started.promise
-    expect(await chats.read("/")).toMatchObject({configuring: true, progress: "Подключение к агенту…", messages: []})
+    expect(await inspect(chats, "/")).toMatchObject({configuring: true, progress: "Подключение к агенту…", messages: []})
     await chats.cancel("/")
     expect((await pending).message).toBe("Подключение отменено")
-    expect(await chats.read("/")).toMatchObject({configuring: false, messages: []})
-    expect((await chats.read("/")).progress).toBeUndefined()
+    expect(await inspect(chats, "/")).toMatchObject({configuring: false, messages: []})
+    expect((await inspect(chats, "/")).progress).toBeUndefined()
   } finally {
     await chats.dispose()
     await rm(directory, {recursive: true, force: true})

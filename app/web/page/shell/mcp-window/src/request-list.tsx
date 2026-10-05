@@ -127,6 +127,19 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord, active?: boolean}>
     >
       {props.entry.address ?? "Общий агент"} · {props.entry.agentId?.slice(0, 8)}
     </div>
+    <div
+      role="status"
+      hidden={props.entry.omitted === undefined}
+      style={css`
+        &[hidden] {
+          display: none;
+        }
+      `}
+    >
+      Содержимое выгружено из временного журнала для ограничения памяти.
+      Запрос: {props.entry.omitted?.inputBytes ?? 0} байт;
+      ответ: {props.entry.omitted?.resultBytes ?? 0} байт.
+    </div>
     <JsonField
       title="Параметры запроса"
       value={props.entry.input}

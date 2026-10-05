@@ -1,3 +1,4 @@
+import {inspect, persisted} from "./inspect"
 import {expect, test} from "bun:test"
 import {mkdtemp, readFile, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
@@ -28,19 +29,19 @@ test("timeline сохраняет границы сообщений, tools, cont
     },
   })
   try {
-    const content: Extract<Awaited<ReturnType<StorybookChatSession.Output["read"]>>["timeline"][number], {kind: "message"}>["content"] = [
+    const content: Extract<Awaited<ReturnType<typeof inspect>>["timeline"][number], {kind: "message"}>["content"] = [
       {type: "text", text: "Прочитай"},
       {type: "image", mimeType: "image/png", data: "AA=="},
       {type: "resource", resource: {uri: "context://subject", mimeType: "text/plain", text: "Предоставленный контекст"}},
     ]
     const done = Promise.withResolvers<void>()
     const unsubscribe = await sessions.subscribe("/", value => {
-      if (value.status === "idle" && value.timeline.some(item => item.kind === "turn" && item.state === "completed")) done.resolve()
+      if (value.status === "idle" && value.history.total > 0) done.resolve()
     })
     await sessions.prompt("/", content, "rich")
     await done.promise
     unsubscribe()
-    const actual = await sessions.read("/")
+    const actual = await inspect(sessions, "/")
     expect(supplied).toEqual(content)
     expect(actual.timeline.map(item => item.kind)).toEqual(["message", "context", "turn", "message", "tool", "message", "message", "turn"])
     const tool = actual.timeline.find(item => item.kind === "tool")
@@ -50,9 +51,9 @@ test("timeline сохраняет границы сообщений, tools, cont
     expect(actual.timeline.at(-1)).toMatchObject({kind: "turn", state: "completed", stopReason: "end_turn"})
     const fs = await import("node:fs/promises")
     const file = (await fs.readdir(directory)).find(name => name.endsWith(".json"))!
-    const stored = JSON.parse(await readFile(join(directory, file), "utf8"))
-    expect(stored.schemaVersion).toBe(2)
-    expect(stored.messages).toBeUndefined()
+    const stored = await persisted(join(directory, file))
+    expect(stored.schemaVersion).toBe(3)
+    expect(stored).not.toHaveProperty("messages")
     expect(stored.timeline).toEqual(actual.timeline)
   } finally {
     await sessions.dispose()

@@ -1,5 +1,5 @@
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
-import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
+import type {HistoryState} from "./history"
 
 /**
 Текстовое представление сообщения канонической timeline для прежних потребителей.
@@ -45,8 +45,7 @@ export type ContextUsage = Readonly<{used: number; size: number}>
 @property id - Identity беседы, сохраняемая вместе с её историей.
 @property address - Канонический путь предмета внутри Project, включая `/` для самого проекта.
 @property label - Имя предмета из текущего каталога.
-@property messages - Вычисляемая текстовая проекция timeline; медиа, инструменты
-и reasoning сохраняются в timeline, а не в дублированном текстовом storage.
+@property history - Компактный счётчик дисковой истории; содержимое читается отдельно.
 @property status - Готовность беседы, подключение, исполнение либо подтверждённая ошибка.
 @property error - Текущая ошибка; null означает её отсутствие.
 @property permissions - Запросы, ожидающие явного решения пользователя.
@@ -55,15 +54,17 @@ export type ContextUsage = Readonly<{used: number; size: number}>
 */
 export type Snapshot = Readonly<{
   id: string
+  /** Локальная identity беседы, равная id; не native ACP sessionId. */
+  sessionId: string
+  /** Независимое имя беседы одного агента. */
+  sessionLabel: string
   /** Устойчивый UUID исполнителя; отличается от id беседы и native provider sessionId. */
   executorId: string
   /** Имя исполнителя; label сохраняет имя предмета из каталога. */
   executorLabel: string
   address: string
   label: string
-  messages: readonly Message[]
-  /** Единственная сохраняемая история; messages является её текстовой проекцией. */
-  timeline: StorybookChatHistory.Output
+  history: HistoryState
   /** Ссылки на сохранённые user messages, ещё не начатые этим исполнителем. */
   pending: readonly string[]
   /** Реальные возможности подключённого агента; null до подключения. */

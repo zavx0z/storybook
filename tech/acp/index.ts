@@ -23,6 +23,7 @@ import {fileURLToPath} from "node:url"
 import type {StorybookTechAcp} from "./contract"
 import {prepareExclusiveMcp} from "./src/policy"
 import {promptContent} from "./src/content"
+import {gatedInput, notificationFlow} from "./src/flow"
 
 export type {StorybookTechAcp} from "./contract"
 
@@ -138,6 +139,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
   let configOptions: readonly SessionConfigOption[] = []
   let prompting = false
   let notifications = Promise.resolve()
+  const flow = notificationFlow()
   const early: SessionNotification[] = []
   const connection = client({name: "storybook"})
     .onRequest(methods.client.session.requestPermission, async ({params}) => {
@@ -154,6 +156,10 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     .onNotification(methods.client.session.update, ({params}) => {
       if (disposed) return
       if (sessionId === null) {
+        if (early.length >= 32 || Buffer.byteLength(JSON.stringify([...early, params])) > 16 * 1024 * 1024) {
+          fail(new Error("ACP прислал слишком много updates до identity сессии"))
+          return
+        }
         early.push(params)
         return
       }
@@ -161,7 +167,8 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     })
     .connect(ndJsonStream(
       Writable.toWeb(child.stdin),
-      Readable.toWeb(child.stdout) as unknown as Parameters<typeof ndJsonStream>[1],
+      gatedInput(Readable.toWeb(child.stdout, {strategy: {highWaterMark: 65536, size: chunk => chunk.byteLength}}) as unknown as ReadableStream<Uint8Array>, () => flow.wait()),
+      {maxMessageBytes: 16 * 1024 * 1024},
     ))
 
   const exited = new Promise<number>((resolve, reject) => {
@@ -178,6 +185,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
 
   function fail(error: unknown): void {
     failure ??= error instanceof Error ? error : new Error(String(error))
+    flow.close()
     connection.close(failure)
   }
 
@@ -188,6 +196,9 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
   }
 
   function enqueue(notification: SessionNotification, fromReplay = false): void {
+    let release: () => void
+    try { release = flow.reserve(Buffer.byteLength(JSON.stringify(notification))) }
+    catch (error) { fail(error); return }
     notifications = notifications.then(async () => {
       if (notification.sessionId !== sessionId) throw new Error("ACP update принадлежит другой сессии")
       if (notification.update.sessionUpdate === "config_option_update") configOptions = notification.update.configOptions
@@ -195,7 +206,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
         if (input.onReplay !== undefined) await input.onReplay(notification.update)
         else if (["config_option_update", "usage_update"].includes(notification.update.sessionUpdate)) await input.onUpdate(notification.update)
       } else await input.onUpdate(notification.update)
-    }).catch(error => {
+    }).finally(release).catch(error => {
       fail(error)
       throw error
     })
@@ -205,6 +216,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
   function dispose(): Promise<void> {
     if (disposal !== null) return disposal
     disposed = true
+    flow.close()
     input.signal?.removeEventListener("abort", onAbort)
     connection.close(new Error("ACP connection освобождён владельцем"))
     child.stdin.end()

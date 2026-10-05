@@ -147,7 +147,7 @@ test("подписка передаёт историю и её закрытие 
   const snapshots: unknown[] = []
   const release = await server.subscribe("/repo/button", snapshot => snapshots.push(snapshot))
   expect(snapshots).toHaveLength(1)
-  expect(snapshots[0]).toMatchObject({address: "/repo/button", status: "idle", messages: []})
+  expect(snapshots[0]).toMatchObject({address: "/repo/button", status: "idle", history: {total: 0}})
   const before = await server.chats.read("/repo/button")
   release()
   release()
@@ -181,8 +181,8 @@ test("HTTP настройки используют ту же ACP-сессию б
   const request = (operation: string, values = {}) => f.server.request(new Request(`http://127.0.0.1:12345/api/browser/chat/${operation}`, {
     method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({address: "/repo/button", ...values}),
   }))
-  expect(await (await request("prepare")).json()).toMatchObject({settings: [{id: "selected-model", value: "a"}], messages: [], configuring: false})
-  expect(await (await request("configure", {id: "selected-model", value: "b"})).json()).toMatchObject({settings: [{value: "b"}], messages: []})
+  expect(await (await request("prepare")).json()).toMatchObject({settings: [{id: "selected-model", value: "a"}], history: {total: 0}, configuring: false})
+  expect(await (await request("configure", {id: "selected-model", value: "b"})).json()).toMatchObject({settings: [{value: "b"}], history: {total: 0}})
   expect(f.connections).toHaveLength(1)
   expect(f.connections[0]!.config, "Модель и мышление определяет адаптер, приложение ограничивает собственные средства исполнения")
     .toMatchObject({"features.shell_tool": false, "features.unified_exec": false, "skills.include_instructions": false, project_doc_max_bytes: 0, web_search: "disabled"})
@@ -191,4 +191,57 @@ test("HTTP настройки используют ту же ACP-сессию б
   expect(f.connections[0]!.mode).toBe("read-only")
   expect(f.connections[0]!.mcpServers).toEqual([])
   expect(f.prompts()).toBe(0)
+})
+
+test("HTTP разделяет compact состояние, страницы заголовков и отдельные тела с identity guard", async () => {
+  const {server, connections} = await fixture()
+  const target = {address: "/repo/button"}
+  await server.chats.prepare(target.address)
+  for (let index = 0; index < 100; index++) await connections[0]!.onUpdate({
+    sessionUpdate: "agent_message_chunk", messageId: `message:${index}`, content: {type: "text", text: `Запись ${index} ${"x".repeat(1000)}`},
+  })
+  const request = (operation: string, values = {}) => server.request(new Request(`http://localhost/api/browser/chat/${operation}`, {
+    method: "POST", body: JSON.stringify({...target, ...values}),
+  }))
+  const snapshot = await (await request("session")).json()
+  expect(snapshot.history.total).toBe(100)
+  expect(snapshot).not.toHaveProperty("timeline")
+  expect(snapshot).not.toHaveProperty("messages")
+  expect(JSON.stringify(snapshot).length).toBeLessThan(4096)
+  const page = await (await request("history", {query: {around: 0, limit: 32}})).json()
+  expect(page.items).toHaveLength(32)
+  expect(JSON.stringify(page)).not.toContain("x".repeat(100))
+  expect(page.after).not.toBeNull()
+  const first = page.items[0]
+  const body = await (await request("history-item", {id: first.id, chatId: snapshot.id})).json()
+  expect(body.entry.content).toEqual([{type: "text", text: `Запись 0 ${"x".repeat(1000)}`}])
+  expect(body.entry.updates ?? []).toEqual([])
+  const evidence = await (await request("history-evidence", {id: first.id, query: {around: 0}})).json()
+  expect(evidence.items).toHaveLength(1)
+  expect(evidence.items[0].update.messageId).toBe("message:0")
+  expect((await request("history", {chatId: "stale"})).status).toBe(409)
+  await expect(request("history", {query: {limit: 100000}})).rejects.toThrow("граница")
+  await expect(request("history", {query: {before: 10, after: 20}})).rejects.toThrow("один cursor")
+  expect((await request("history")).headers.get("cache-control")).toBe("no-store")
+})
+
+test("две сессии агента разделяют полномочия, получают только свои события и освобождаются независимо", async () => {
+  const {server} = await fixture()
+  const agent = await server.chats.read("/repo/button")
+  const events = [[], []] as unknown[][]
+  const leases = await Promise.all(["first-session", "second-session"].map((sessionId, index) => server.environment.acquireSession({
+    executorId: agent.executorId, executorLabel: agent.executorLabel, address: agent.address, sessionId,
+  }, event => {events[index]!.push(event)})))
+  const first = leases[0]!
+  const second = leases[1]!
+  expect(first.token).toBe(second.token)
+  expect((await first.execute(scopedRequest(first.token, {}))).status).toBe(200)
+  expect(events[0]).toHaveLength(2)
+  expect(events[1]).toHaveLength(0)
+  first.dispose()
+  expect((await second.execute(scopedRequest(second.token, {}))).status).toBe(200)
+  expect(events[0]).toHaveLength(2)
+  expect(events[1]).toHaveLength(2)
+  second.dispose()
+  expect((await server.environment.handle(scopedRequest(second.token, {}))).status).toBe(401)
 })

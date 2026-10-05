@@ -11,8 +11,9 @@ export type Command = Readonly<{name: string, arguments: Readonly<Record<string,
 Содержимое передаётся перед первой задачей в новой provider session и при изменении
 контекста. execute доставляет одну команду тому же исполнителю и возвращает точный
 результат либо предметную ошибку. Транспортный отказ не повторяет команду автоматически.
-dispose закрывает назначение при окончательном завершении либо переносе беседы.
-Обычное переподключение ACP сохраняет окружение и не вызывает dispose.
+dispose освобождает назначение этой локальной сессии при idle release, отказе,
+переносе либо завершении. Новое подключение подготавливает окружение заново,
+сохраняя logical executorId и локальный sessionId.
 */
 export type Environment = Readonly<{
   content: Content
@@ -23,7 +24,9 @@ export type Environment = Readonly<{
 /** Подготовка окружения не запускает генерацию и не раскрывает секреты модели. */
 export type EnvironmentInput = Readonly<{
   executorId: string
+  /** Локальная сессия агента; определяет время жизни назначения окружения. */
+  sessionId: string
   executorLabel: string
   address: string
-  onUpdate(update: Extract<Item, {kind: "tool"}>["call"]): void
+  onUpdate(update: Extract<Item, {kind: "tool"}>["call"]): void | Promise<void>
 }>

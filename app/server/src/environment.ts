@@ -4,6 +4,7 @@ import publicResponse from "@zavx0z/storybook-app-response"
 import state from "@zavx0z/storybook-app-server-state"
 import ToolError from "@zavx0z/ai-tech-failure"
 import {dirname} from "node:path"
+import {AsyncLocalStorage} from "node:async_hooks"
 import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
 import createKnowledgeNotes, {knowledgePath} from "./knowledge-notes"
 import {streamAppOperation} from "./app-stream"
@@ -35,6 +36,9 @@ export default function createServerEnvironment(options: Options) {
   const readInstructions = createInstructionsReader(options.project)
   const instructionsEntry = {path: "./instructions", description: "Действующие агентские правила по цепочке Project и назначенного предмета"}
   const observers = new Map<string, Set<(event: CallEvent) => void>>()
+  const sessionCalls = new AsyncLocalStorage<string>()
+  const sessionObservers = new Map<string, Set<(event: CallEvent) => void>>()
+  const leases = new Map<string, Set<symbol>>()
   const resolveSubject = (address: string) => {
     if (address === "/") return {address, label: options.projectName(), cwd: options.project}
     if (typeof address !== "string" || !address.startsWith("/") || address.startsWith("//") || /[?#]/u.test(address)) {
@@ -111,6 +115,7 @@ export default function createServerEnvironment(options: Options) {
         startedAt: event.startedAt,
         address: event.address,
         agentId: event.executorId,
+        ...(sessionCalls.getStore() === undefined ? {} : {sessionId: sessionCalls.getStore()}),
         input: JSON.stringify(publicResponse.sanitizeValue({name: event.name, arguments: event.arguments})) ?? "",
         status: event.phase === "progress" ? "running" : event.phase,
         durationMs: event.durationMs,
@@ -118,7 +123,11 @@ export default function createServerEnvironment(options: Options) {
       }
       try { options.recordRequest?.(record) } catch { /* Журнал не отменяет исполнение или доставку истории. */ }
       for (const observer of observers.get(event.executorId) ?? []) {
-        try { observer(structuredClone(event)) } catch { /* Каждый наблюдатель независим. */ }
+        try { void Promise.resolve(observer(structuredClone(event))).catch(() => {}) } catch { /* Каждый наблюдатель независим. */ }
+      }
+      const sessionId = sessionCalls.getStore()
+      if (sessionId !== undefined) for (const observer of sessionObservers.get(sessionId) ?? []) {
+        try { void Promise.resolve(observer(structuredClone(event))).catch(() => {}) } catch { /* Отказ представления не меняет команду. */ }
       }
     },
   })
@@ -150,6 +159,39 @@ export default function createServerEnvironment(options: Options) {
     resolveSubject,
     readSubject,
     assignExecutor,
+    /** Сессии одного агента разделяют полномочия, но не события и время жизни наблюдения. */
+    async acquireSession(input: {executorId: string, executorLabel: string, address: string, sessionId: string}, observer: (event: CallEvent) => void) {
+      const lease = Symbol(input.sessionId)
+      const owned = leases.get(input.executorId) ?? new Set<symbol>()
+      leases.set(input.executorId, owned)
+      owned.add(lease)
+      let assignment: Assignment
+      try { assignment = await assignExecutor({executorId: input.executorId, executorLabel: input.executorLabel, address: input.address}) }
+      catch (error) { owned.delete(lease); if (!owned.size) leases.delete(input.executorId); throw error }
+      const listeners = sessionObservers.get(input.sessionId) ?? new Set()
+      sessionObservers.set(input.sessionId, listeners)
+      listeners.add(observer)
+      let released = false
+      return {
+        ...assignment,
+        execute(request: Request) {
+          if (released) throw new Error("Назначение сессии освобождено")
+          return sessionCalls.run(input.sessionId, () => environment.handle(request))
+        },
+        dispose() {
+          if (released) return
+          released = true
+          listeners.delete(observer)
+          if (!listeners.size) sessionObservers.delete(input.sessionId)
+          owned.delete(lease)
+          if (!owned.size) {
+            leases.delete(input.executorId)
+            assignments.delete(input.executorId)
+            environment.revoke(input.executorId)
+          }
+        },
+      }
+    },
     subscribe(executorId: string, observer: (event: CallEvent) => void) {
       const listeners = observers.get(executorId) ?? new Set()
       listeners.add(observer)
@@ -188,6 +230,8 @@ export default function createServerEnvironment(options: Options) {
       disposed = true
       assignments.clear()
       observers.clear()
+      sessionObservers.clear()
+      leases.clear()
       notes.dispose()
       developer = undefined
       environment.dispose()

@@ -1,6 +1,44 @@
 # Сессии чатов
 
-[Публичное описание](./index.ts).
+[Публичное описание](./index.ts) и [контракт](./contract/index.ts).
 
-* [Использование](./spec/scenario.spec.ts)
-* [Контракт](./contract/index.ts)
+Session владеет историей, очередью и ACP-подключением беседы. `executorId`
+определяет агента; `id` и публичный `sessionId` определяют одну локальную беседу
+этого агента. Приватный native ACP `sessionId` сохраняется отдельно и используется
+для штатного восстановления провайдера. Имена агента и беседы независимы.
+
+Управляющий `Snapshot` содержит состояние и счётчики истории. `history` читает
+ограниченные страницы заголовков с устойчивыми ordinal; `historyItem` — тело
+одной записи; `historyEvidence` — отдельную страницу исходных обновлений.
+История не удерживается в resident State или управляющих публикациях.
+
+Schema3 хранит атомарный компактный header и текстовый NDJSON-журнал в `meta/chat`
+владельца. SQLite в `meta/data/chat` является восстанавливаемым дисковым индексом
+и cache. Старые schema1/schema2 сохраняются перед потоковой миграцией; прежний
+общий каталог остаётся нетронутым. Перенос копирует весь корпус с durable intent.
+
+`createSession` создаёт пустую беседу существующего агента; `listSessions`
+перечисляет его сессии; точный `Target.sessionId` выбирает беседу для продолжения.
+Первый вопрос определяет auto имя; явное имя и `renameSession` закрепляют manual
+имя. `deleteSession` отклоняет active/pending работу и сохраняет tombstone до
+удаления локального корпуса. Удаление не обращается к provider remote.
+
+По умолчанию сохраняются не более 32 неактивных resident States, четыре ACP
+подключения и 128 pending ссылок одной беседы. Idle подключения и окружения
+освобождаются через 30 секунд. Наблюдатели и accepted pending защищают работу от
+вытеснения; отписка не отменяет turn. Read/list idle беседы не запускают provider.
+Accepted pending после restart восстанавливаются через единственный canonical
+State. Durable start и dequeue фиксируются вместе до первого provider attempt;
+уже начатая неопределённая операция автоматически не повторяется.
+
+Общие frontend и media-возможности находятся в [Repo Chat](../../../chat/README.md).
+Настройки агента, назначение окружения и ACP lifecycle остаются в Storybook.
+
+Проверяемые свидетельства:
+
+- [Использование](./spec/scenario.spec.ts) и [сохранность истории](./test/history.test.ts).
+- [Большая дисковая история и rebuild](./test/archive.test.ts).
+- [Idle release, cache eviction и provider slots](./test/lifecycle.test.ts).
+- [Параллельное восстановление очереди](./test/concurrency.test.ts).
+- [Имена, выбор и удаление сессий](./test/named-sessions.test.ts).
+- [Recovery и перенос исполнителей](./test/executors.test.ts).

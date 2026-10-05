@@ -1,51 +1,68 @@
-import {createHash, randomUUID} from "node:crypto"
-import {mkdir, readFile, link, unlink, writeFile} from "node:fs/promises"
+import {createHash} from "node:crypto"
+import {access, copyFile, mkdir} from "node:fs/promises"
+import {constants} from "node:fs"
 import {dirname, join} from "node:path"
-import type {Document} from "./document"
-import {decodeDocument} from "./validation"
+import type {ArchiveMetadata} from "./archive"
+import {copyArchive, openArchive, readArchiveState} from "./archive"
 import {readMoveIntent} from "./relocation"
 
-export function chatFile(directory: string, address: string, executorId?: string): string {
+type CompactDocument = ArchiveMetadata & {schemaVersion: 3}
+
+export function chatFile(directory: string, address: string, executorId?: string, sessionId?: string): string {
   const prefix = createHash("sha256").update(address).digest("hex")
-  return join(directory, `${prefix}${executorId === undefined ? "" : `.${executorId}`}.json`)
+  return join(directory, `${prefix}${executorId === undefined ? "" : `.${executorId}`}${sessionId === undefined ? "" : `.${sessionId}`}.json`)
 }
 
-/** Переносит прежнюю историю в хранилище владельца без перезаписи занятого назначения. */
-export async function copyHistory(file: string, document: Document): Promise<Document> {
-  await mkdir(dirname(file), {recursive: true})
-  const temporary = `${file}.${randomUUID()}.tmp`
-  try {
-    await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, {mode: 0o600, flag: "wx"})
-    await link(temporary, file)
-    return document
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
-    const concurrent = await readChatDocument(file, document.address)
-    if (concurrent?.id !== document.id) throw new Error("Назначение уже занято другой историей")
-    return concurrent
-  } finally {
-    await unlink(temporary).catch(error => { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error })
+/** Переносит весь корпус, сохраняя исходный архив и identity назначения. */
+export async function copyHistory(file: string, document: CompactDocument, sourceFile?: string): Promise<CompactDocument> {
+  const existing = await readChatDocument(file, document.address)
+  if (existing !== null) {
+    if (existing.id !== document.id) throw new Error("Назначение уже занято другой историей")
+    return existing
   }
+  const {schemaVersion, ...metadata} = document
+  if (sourceFile !== undefined) await copyArchive(sourceFile, file, metadata)
+  else {
+    const archive = await openArchive(file, metadata)
+    try { await archive.commit(metadata) } finally { await archive.dispose() }
+  }
+  return document
 }
 
-export async function readChatDocument(file: string, address: string): Promise<Document | null> {
-  let text: string
-  try {
-    text = await readFile(file, "utf8")
-  } catch (error) {
+/** Читает компактный header; миграция legacy выполняется архивом один раз. */
+export async function readChatDocument(file: string, address: string): Promise<CompactDocument | null> {
+  try { await access(`${file}.deleted`); return null } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+  }
+  try { await access(file) } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
     throw error
   }
-  const value: unknown = JSON.parse(text)
-  const intent = await readMoveIntent(file)
-  const patched = intent !== null && value !== null && typeof value === "object" && "id" in value && value.id === intent.id &&
-    "address" in value && value.address === intent.from.address && !("executorId" in value)
-    ? {...value, executorId: intent.executorId}
-    : value
-  const document = decodeDocument(patched, address)
-  if (document === null) throw new Error(`Повреждена история чата ${address}`)
-  if (value !== null && typeof value === "object" && "schemaVersion" in value && value.schemaVersion === 1) {
-    await link(file, `${file}.schema1`).catch(error => { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error })
+  const saved = await readArchiveState(file)
+  if (saved !== null) {
+    if (saved.metadata.address !== address) throw new Error(`Повреждена история чата ${address}`)
+    return {...saved.metadata, schemaVersion: 3}
   }
-  return document
+  const intent = await readMoveIntent(file)
+  const archive = await openArchive(file, {address, ...(intent === null ? {} : {executorId: intent.executorId})} as ArchiveMetadata)
+  try {
+    if (archive.metadata.address !== address) throw new Error(`Повреждена история чата ${address}`)
+    return {...archive.metadata, schemaVersion: 3}
+  } finally { await archive.dispose() }
+}
+
+/** Общий прежний файл остаётся нетронутым; мигрирует только копия владельца. */
+export async function importLegacy(source: string, file: string, address: string): Promise<CompactDocument | null> {
+  try { await access(`${file}.deleted`); return null } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+  }
+  try { await access(source) } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
+    throw error
+  }
+  await mkdir(dirname(file), {recursive: true})
+  try { await copyFile(source, file, constants.COPYFILE_EXCL) } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+  }
+  return await readChatDocument(file, address)
 }

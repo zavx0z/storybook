@@ -1,10 +1,11 @@
+import {inspect, persisted} from "./inspect"
 import {afterEach, expect, test} from "bun:test"
 import {mkdir, mkdtemp, readdir, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import createSessions, {type StorybookChatSession} from "../index"
 
-type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
+type Snapshot = Awaited<ReturnType<typeof inspect>>
 type Content = Extract<Snapshot["timeline"][number], {kind: "message"}>["content"]
 type ConnectionInput = Parameters<StorybookChatSession.Input["connect"]>[0]
 type EnvironmentInput = Parameters<NonNullable<StorybookChatSession.Input["environment"]>>[0]
@@ -77,7 +78,9 @@ async function fixture(options: {
 
 async function turn(sessions: StorybookChatSession.Output, requestId: string, text = "Проверь Button", address = "/button"): Promise<Snapshot> {
   const completed = Promise.withResolvers<Snapshot>()
-  const unsubscribe = await sessions.subscribe(address, state => {
+  const unsubscribe = await sessions.subscribe(address, async summary => {
+    if (summary.status !== "idle" && summary.status !== "failed") return
+    const state = await inspect(sessions, address)
     if (state.timeline.some(item => item.kind === "turn" && item.requestId === requestId && item.state !== "started") &&
       (state.status === "idle" || state.status === "failed")) completed.resolve(state)
   })
@@ -134,9 +137,9 @@ test("полная команда из нескольких chunks выполн�
   expect(actual.timeline.at(-1)).toMatchObject({kind: "turn", state: "completed", stopReason: "end_turn"})
   await sessions.dispose()
   const file = (await readdir(f.directory)).find(name => name.endsWith(".json"))!
-  const stored = await Bun.file(join(f.directory, file)).json()
+  const stored = await persisted(join(f.directory, file))
   expect(stored.timeline).toEqual(actual.timeline)
-  expect(stored.messages).toBeUndefined()
+  expect(stored).not.toHaveProperty("messages")
 })
 
 test.each([

@@ -12,7 +12,7 @@ type Tool = Extract<TimelineItem, {kind: "tool"}>["call"]
 type Update = Parameters<StorybookTechAcp.Input["onUpdate"]>[0]
 
 /** Частное состояние текущего потока; не является вторым сохраняемым источником. */
-export type Cursor = {message?: string, replayed: Set<string>, batchId?: string}
+export type Cursor = {message?: string, batchId?: string}
 
 /** Nullable ACP patch fields оставляют прежнее значение; rawInput/rawOutput сохраняют явный null. */
 function mergeTool(previous: Tool, incoming: Tool): Tool {
@@ -75,11 +75,10 @@ export function receiveUpdate(timeline: TimelineItem[], update: Update, origin: 
     const continued = providerMessageId === undefined && origin === "live" ? timeline.find(item => item.id === cursor.message && item.kind === "message" && item.role === role && item.origin === "live") : undefined
     const existing = identified ?? continued
     if (existing?.kind === "message") {
-      const reset = origin === "replay" && !cursor.replayed.has(existing.id)
+      const reset = origin === "replay" && existing.updates?.at(-1)?.batchId !== cursor.batchId
       const content = [...(reset ? [] : existing.content), structuredClone(update.content)]
       const event = {id: randomUUID(), sequence, origin, ...batch, update: structuredClone(update)}
       timeline[timeline.indexOf(existing)] = {...existing, content, updates: [...(existing.updates ?? []), event]}
-      if (origin === "replay") cursor.replayed.add(existing.id)
       cursor.message = existing.id
     } else {
       const id = randomUUID()
@@ -89,7 +88,6 @@ export function receiveUpdate(timeline: TimelineItem[], update: Update, origin: 
         ...(origin === "replay" && providerMessageId === undefined ? {diagnostic: "ACP replay не предоставил messageId: тождество с локальной историей не установлено."} : {}),
       })
       cursor.message = id
-      if (origin === "replay") cursor.replayed.add(id)
     }
     return
   }

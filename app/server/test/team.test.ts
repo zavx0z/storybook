@@ -1,3 +1,4 @@
+import {inspect} from "../../../chat/session/test/inspect"
 import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, rm} from "node:fs/promises"
 import {join} from "node:path"
@@ -57,7 +58,7 @@ test("один вход среды находит только своих спе
   expect(list.body.result.executors).toContainEqual(expect.objectContaining({relation: "peers", label: "Тестировщик"}))
   const denied = await f.call("team.send", {address: "/b", executorId: f.other.executorId, text: "Вне области"})
   expect(denied.status).toBe(403)
-  expect((await f.chat.chats.read({address: "/b", executorId: f.other.executorId})).messages).toEqual([])
+  expect((await inspect(f.chat.chats, {address: "/b", executorId: f.other.executorId})).messages).toEqual([])
   const sent = await f.call("team.send", {address: "/a", executorId: f.peer.executorId, text: "Проверь результат"})
   expect(sent.status).toBe(200)
   expect(sent.body.result).toMatchObject({accepted: true, address: "/a", executorId: f.peer.executorId})
@@ -65,9 +66,9 @@ test("один вход среды находит только своих спе
   for (let attempt = 0; attempt < 100 && f.received.length === 0; attempt++) await Bun.sleep(5)
   expect(f.received).toHaveLength(1)
   expect(f.received[0]!.cwd).toBe(join(f.root, "a"))
-  const message = (await f.chat.chats.read(target)).messages.find(item => item.role === "user")!
+  const message = (await inspect(f.chat.chats, target)).messages.find(item => item.role === "user")!
   expect(JSON.parse(message.text)).toEqual({from: {address: "/a", executorId: f.source.executorId, label: "Разработчик"}, message: "Проверь результат"})
-  expect((await f.chat.chats.read({address: "/a", executorId: f.source.executorId})).messages).toEqual([])
+  expect((await inspect(f.chat.chats, {address: "/a", executorId: f.source.executorId})).messages).toEqual([])
   const spoofed = await f.call("team.send", {address: "/a", executorId: f.peer.executorId, text: "Подмена", from: "другой"})
   expect(spoofed.status).toBe(400)
 })
@@ -84,6 +85,6 @@ test("внешнее полномочие Project использует тот ж
   const sent = await call("team.send", {address: "/b", executorId: f.other.executorId, text: "Задача разработчика среды"})
   expect(sent.status).toBe(200)
   const target = {address: "/b", executorId: f.other.executorId}
-  const message = (await f.chat.chats.read(target)).messages.find(item => item.role === "user")!
+  const message = (await inspect(f.chat.chats, target)).messages.find(item => item.role === "user")!
   expect(JSON.parse(message.text).from).toEqual({address: "/", executorId: "developer:project", label: "Разработчик Project"})
 })

@@ -10,6 +10,25 @@ import type {StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
 type Graph = StorybookPackageGraphRead.Input
 type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
 type Target = Parameters<StorybookChatSession.Output["read"]>[0]
+type HistoryQuery = NonNullable<Parameters<StorybookChatSession.Output["history"]>[1]>
+
+/** Не допускает неограниченное чтение архива через внешний транспорт. */
+function historyQuery(value: unknown): HistoryQuery {
+  if (value === undefined) return {}
+  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new TypeError("Нужен диапазон истории")
+  const query = value as Record<string, unknown>
+  const bounds = {before: [0, Number.MAX_SAFE_INTEGER], after: [0, Number.MAX_SAFE_INTEGER],
+    around: [0, Number.MAX_SAFE_INTEGER], limit: [1, 64], maxBytes: [1024, 131072]} as const
+  for (const [key, entry] of Object.entries(query)) {
+    if (!Object.hasOwn(bounds, key)) throw new TypeError("Неизвестный параметр диапазона истории")
+    const [minimum, maximum] = bounds[key as keyof typeof bounds]
+    if (typeof entry !== "number" || !Number.isSafeInteger(entry) || entry < minimum || entry > maximum) {
+      throw new TypeError("Недопустимая граница диапазона истории")
+    }
+  }
+  if (["before", "after", "around"].filter(key => Object.hasOwn(query, key)).length > 1) throw new TypeError("Нужен один cursor истории")
+  return query as HistoryQuery
+}
 
 /** Соединяет адресные беседы с общим окружением предмета и жизненным циклом ACP. */
 export function createChatServer(options: Readonly<{
@@ -35,9 +54,8 @@ export function createChatServer(options: Readonly<{
     legacyDirectory: join(options.project, "chats"),
     resolve: environment.resolveSubject,
     async environment(input) {
-      const assignment = await environment.assignExecutor({executorId: input.executorId, executorLabel: input.executorLabel, address: input.address})
-      const release = environment.subscribe(input.executorId, event => {
-        input.onUpdate(event.phase === "running" ? {
+      const assignment = await environment.acquireSession(input, event => {
+        return input.onUpdate(event.phase === "running" ? {
           sessionUpdate: "tool_call", toolCallId: event.id, title: event.name,
           status: "in_progress", rawInput: event.arguments,
         } : {
@@ -49,7 +67,7 @@ export function createChatServer(options: Readonly<{
       return {
         content: [{type: "text", text: JSON.stringify({environment: assignment.bootstrap})}],
         async execute(command, signal) {
-          const response = await environment.handle(new Request("http://localhost/api/environment", {
+          const response = await assignment.execute(new Request("http://localhost/api/environment", {
             method: "POST",
             headers: {authorization: `Bearer ${assignment.token}`, "content-type": "application/json"},
             body: JSON.stringify(command),
@@ -58,8 +76,7 @@ export function createChatServer(options: Readonly<{
           return [{type: "text", text: await response.text()}]
         },
         dispose() {
-          release()
-          environment.revokeExecutor(input.executorId)
+          assignment.dispose()
         },
       }
     },
@@ -92,7 +109,7 @@ export function createChatServer(options: Readonly<{
       })
     },
   })
-  /** Частоту потоковых snapshots определяет Chat Session до клонирования истории. */
+  /** Подписка передаёт только состояние и revision архива, без содержимого истории. */
   const subscribe = async (target: Target, listener: (snapshot: Snapshot) => void): Promise<() => void> => {
     let release = () => {}
     let closed = false
@@ -130,9 +147,29 @@ export function createChatServer(options: Readonly<{
       }
       if (typeof body?.address !== "string") throw new TypeError("Нужен адрес чата")
       if (Object.hasOwn(body, "executorId") && typeof body.executorId !== "string") throw new TypeError("Нужна identity исполнителя")
-      const target: Target = typeof body.executorId === "string" ? {address: body.address, executorId: body.executorId} : body.address
-      let value: Snapshot | readonly Snapshot[]
+      if (body.sessionId !== undefined && (typeof body.sessionId !== "string" || typeof body.executorId !== "string")) throw new TypeError("Сессия должна принадлежать выбранному агенту")
+      const target: Target = typeof body.executorId === "string"
+        ? {address: body.address, executorId: body.executorId, ...(typeof body.sessionId === "string" ? {sessionId: body.sessionId} : {})} : body.address
+      if (body.chatId !== undefined) {
+        if (typeof body.chatId !== "string") throw new TypeError("Нужна identity беседы")
+        if ((await chats.read(target)).id !== body.chatId) return Response.json({error: "Беседа изменилась"}, {status: 409})
+      }
+      let value: unknown
       if (path.endsWith("/session")) value = await chats.read(target)
+      else if (path.endsWith("/sessions")) value = await chats.listSessions(target)
+      else if (path.endsWith("/session-create")) value = await chats.createSession(target, body.label as string)
+      else if (path.endsWith("/session-rename")) value = await chats.renameSession(target, body.label as string)
+      else if (path.endsWith("/session-delete")) {
+        if (body.sessionId === undefined) throw new TypeError("Нужна точная сессия для удаления")
+        await chats.deleteSession(target)
+        value = {deleted: true, sessionId: body.sessionId}
+      }
+      else if (path.endsWith("/history")) value = await chats.history(target, historyQuery(body.query))
+      else if (path.endsWith("/history-item") || path.endsWith("/history-evidence")) {
+        if (typeof body.id !== "string" || !body.id || body.id.length > 512) throw new TypeError("Нужен id записи истории")
+        value = path.endsWith("/history-item") ? await chats.historyItem(target, body.id)
+          : await chats.historyEvidence(target, body.id, historyQuery(body.query))
+      }
       else if (path.endsWith("/list")) value = await chats.list(body.address)
       else if (path.endsWith("/create")) value = await chats.create({address: body.address, label: body.label as string})
       else if (path.endsWith("/prepare")) value = await chats.prepare(target)

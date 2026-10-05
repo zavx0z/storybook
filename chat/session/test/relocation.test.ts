@@ -1,3 +1,4 @@
+import {inspect, persisted} from "./inspect"
 import {afterEach, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {mkdir, mkdtemp, readFile, rm, stat} from "node:fs/promises"
@@ -42,7 +43,7 @@ async function fixture(connect: StorybookChatSession.Input["connect"]) {
 
 async function settled(chats: StorybookChatSession.Output, address: string) {
   for (let attempt = 0; attempt < 100; attempt++) {
-    const state = await chats.read(address)
+    const state = await inspect(chats, address)
     if (state.status === "idle" || state.status === "failed") return state
     await Bun.sleep(5)
   }
@@ -75,12 +76,12 @@ test("перенос сохраняет историю, id для чернови
   f.select("/new")
   const relocated = f.create()
   const moved = await relocated.relocate(f.mapping)
-  expect(moved).toMatchObject({id: before.id, address: "/new", messages: before.messages})
+  expect(moved).toMatchObject({id: before.id, address: "/new", history: {total: before.history.total}})
   expect(moved?.id, "Browser draft key продолжает использовать прежний chat id").toBe(before.id)
   expect(moved?.executorId).toBe(before.executorId)
-  const target = JSON.parse(await readFile(f.file("/new"), "utf8"))
+  const target = await persisted(f.file("/new"))
   expect(target).toMatchObject({id: before.id, address: "/new", cwd: f.newCwd, sessionId: "retained-acp-session"})
-  expect(JSON.parse(await readFile(f.file("/old"), "utf8"))).toMatchObject({address: "/old", id: before.id})
+  expect(await persisted(f.file("/old"))).toMatchObject({address: "/old", id: before.id})
   expect(calls).toEqual([{cwd: f.oldCwd, previousSessionId: undefined}])
 
   await relocated.prompt("/new", "Второй", "second")
@@ -91,8 +92,9 @@ test("перенос сохраняет историю, id для чернови
   ])
   expect(continued.messages).toHaveLength(before.messages.length + 2)
   const repeated = await relocated.relocate(f.mapping)
-  expect(repeated?.messages).toEqual(continued.messages)
-  expect(JSON.parse(await readFile(f.file("/new"), "utf8")).timeline).toEqual(continued.timeline)
+  expect(repeated?.id).toBe(continued.id)
+  expect((await inspect(relocated, "/new")).messages).toEqual(continued.messages)
+  expect((await persisted(f.file("/new"))).timeline).toEqual(continued.timeline)
 })
 
 test("занятый новый адрес отказывает без изменения обеих историй", async () => {
@@ -136,10 +138,10 @@ test("пауза между turn освобождает прежнее ACP-по�
   const before = await settled(chats, "/old")
   f.select("/new")
   const moved = await chats.relocate(f.mapping)
-  expect(moved).toMatchObject({id: before.id, address: "/new", messages: before.messages})
+  expect(moved).toMatchObject({id: before.id, address: "/new", history: {total: before.history.total}})
   expect(disposed).toBe(1)
-  expect((await chats.read("/new")).id).toBe(before.id)
-  await expect(chats.read("/old")).rejects.toThrow("Адрес отсутствует")
+  expect((await inspect(chats, "/new")).id).toBe(before.id)
+  await expect(inspect(chats, "/old")).rejects.toThrow("Адрес отсутствует")
 })
 
 test("ошибка официального ACP resume сохраняет прежнюю историю и sessionId", async () => {
@@ -166,7 +168,7 @@ test("ошибка официального ACP resume сохраняет пре
   expect(failed.error).toBe("ACP resume unavailable")
   expect([...failed.messages.slice(0, before.messages.length)]).toEqual([...before.messages])
   expect(attempts).toEqual(["retained-acp-session"])
-  expect(JSON.parse(await readFile(f.file("/new"), "utf8")).sessionId).toBe("retained-acp-session")
+  expect((await persisted(f.file("/new"))).sessionId).toBe("retained-acp-session")
 })
 
 test("активный turn запрещает перенос и сохраняет прежний файл", async () => {
@@ -183,7 +185,7 @@ test("активный turn запрещает перенос и сохраня�
   f.select("/old", "/new")
   const chats = f.create()
   await chats.prompt("/old", "В работе", "active")
-  while ((await chats.read("/old")).status !== "running") await Bun.sleep(5)
+  while ((await inspect(chats, "/old")).status !== "running") await Bun.sleep(5)
   const before = await readFile(f.file("/old"), "utf8")
   await expect(chats.relocate(f.mapping)).rejects.toThrow("Активную беседу")
   expect(await readFile(f.file("/old"), "utf8")).toBe(before)

@@ -1,3 +1,4 @@
+import {inspect} from "../test/inspect"
 /** Сессия сохраняет принадлежность адреса, историю и подтверждённый результат исполнения. */
 import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, rm} from "node:fs/promises"
@@ -67,16 +68,18 @@ describe.each([
   let resolveFinished!: (value: Awaited<ReturnType<StorybookChatSession.Output["read"]>>) => void
   const finished = new Promise<Awaited<ReturnType<StorybookChatSession.Output["read"]>>>(resolve => { resolveFinished = resolve })
   const unsubscribe = await sessions.subscribe(props.address, value => {
-    if (value.status === "idle" && value.messages.length > 0) resolveFinished(value)
+    if (value.status === "idle" && value.history.total > 0) resolveFinished(value)
   })
   await sessions.prompt(props.address, "Начать беседу", "example-message")
-  const actual = await finished
+  await finished
+  const actual = await inspect(sessions, props.address)
   unsubscribe()
   const movedAddress = props.address === "/" ? "/moved" : `${props.address}/moved`
-  const moved = await sessions.relocate({
+  const movedSummary = await sessions.relocate({
     from: {address: props.address, cwd: directory},
     to: {address: movedAddress, cwd: directory},
   })
+  const moved = movedSummary === null ? null : await inspect(sessions, movedAddress)
 
   test("Адрес", () => {
     expect({address: actual.address, label: actual.label, id: actual.id},

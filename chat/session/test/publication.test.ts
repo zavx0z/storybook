@@ -1,3 +1,4 @@
+import {inspect, persisted} from "./inspect"
 import {afterEach, expect, spyOn, test} from "bun:test"
 import {mkdtemp, readFile, readdir, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
@@ -51,32 +52,48 @@ function observeClones() {
   const clone = spyOn(globalThis, "structuredClone")
   cleanups.push(() => clone.mockRestore())
   return () => clone.mock.calls.filter(([value]) => value !== null && typeof value === "object"
-    && "timeline" in value && "version" in value && "messages" in value).length
+    && "history" in value && "version" in value).length
+}
+
+/** Управляем только debounce: скорость fsync не меняет смысл проверки объединения. */
+function holdPublication() {
+  const original = globalThis.setTimeout
+  const pending = new Map<ReturnType<typeof setTimeout>, () => void>()
+  const timer = spyOn(globalThis, "setTimeout").mockImplementation(((callback: () => void, delay?: number) => {
+    const handle = original(callback, delay === 50 ? 60_000 : delay)
+    if (delay === 50) pending.set(handle, callback)
+    return handle
+  }) as typeof setTimeout)
+  cleanups.push(() => { for (const handle of pending.keys()) clearTimeout(handle); timer.mockRestore() })
+  return () => { for (const [handle, callback] of pending) { clearTimeout(handle); callback() }; pending.clear() }
 }
 
 test("поток ACP/replay/environment объединяется до клонирования, read возвращает все дельты и последнюю version", async () => {
   const f = await fixture()
+  const flushPublication = holdPublication()
   const snapshots: Snapshot[] = []
   const unsubscribe = await f.sessions.subscribe("/", value => snapshots.push(value))
   cleanups.push(unsubscribe)
   const clones = observeClones()
   const version = snapshots.at(-1)!.version
-  for (let index = 0; index < 30; index++) f.connection.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "live", content: {type: "text", text: `${index},`}})
+  for (let index = 0; index < 30; index++) await f.connection.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "live", content: {type: "text", text: `${index},`}})
   await f.connection.onReplay?.({sessionUpdate: "agent_message_chunk", messageId: "replay", content: {type: "text", text: "Восстановленное сообщение"}})
-  f.environment.onUpdate({sessionUpdate: "tool_call", toolCallId: "environment", title: "Чтение", status: "in_progress"})
-  f.environment.onUpdate({sessionUpdate: "tool_call_update", toolCallId: "environment", status: "completed", rawOutput: {ok: true}})
+  await f.environment.onUpdate({sessionUpdate: "tool_call", toolCallId: "environment", title: "Чтение", status: "in_progress"})
+  await f.environment.onUpdate({sessionUpdate: "tool_call_update", toolCallId: "environment", status: "completed", rawOutput: {ok: true}})
   expect(snapshots).toHaveLength(1)
   expect(clones(), "До публикации нет отброшенных полных snapshots").toBe(0)
   const current = await f.sessions.read("/")
+  const history = await inspect(f.sessions, "/")
   expect(current.version).toBe(version + 33)
-  expect(current.messages[0]!.text).toBe(Array.from({length: 30}, (_, index) => `${index},`).join(""))
-  const message = current.timeline.find(item => item.kind === "message" && item.providerMessageId === "live")
+  expect(history.messages[0]!.text).toBe(Array.from({length: 30}, (_, index) => `${index},`).join(""))
+  const message = history.timeline.find(item => item.kind === "message" && item.providerMessageId === "live")
   expect(message?.kind === "message" ? message.updates : []).toHaveLength(30)
-  const tool = current.timeline.find(item => item.kind === "tool")
+  const tool = history.timeline.find(item => item.kind === "tool")
   expect(tool?.kind === "tool" ? tool.updates : []).toHaveLength(2)
+  flushPublication()
   await until(() => snapshots.length === 2)
   expect(snapshots[1]).toEqual(current)
-  expect(clones(), "Один явный read и один объединённый snapshot").toBe(2)
+  expect(clones(), "Два явных чтения и один объединённый snapshot").toBe(3)
   await pause(70)
   expect(snapshots).toHaveLength(2)
 })
@@ -86,22 +103,23 @@ test("без слушателей и после последней отписк�
   const clones = observeClones()
   const timers = spyOn(globalThis, "setTimeout")
   cleanups.push(() => timers.mockRestore())
-  f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Без наблюдателя"}})
+  await f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Без наблюдателя"}})
   expect(clones()).toBe(0)
   expect(timers.mock.calls.filter(([, delay]) => delay === 50)).toHaveLength(0)
   const snapshots: Snapshot[] = []
   const unsubscribe = await f.sessions.subscribe("/", value => snapshots.push(value))
-  expect(snapshots[0]!.messages[0]!.text).toBe("Без наблюдателя")
-  f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: " и дополнение"}})
+  expect((await inspect(f.sessions, "/")).messages[0]!.text).toBe("Без наблюдателя")
+  await f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: " и дополнение"}})
   const before = clones()
   unsubscribe()
-  f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: " после закрытия"}})
+  await f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: " после закрытия"}})
   await pause(70)
   expect(clones()).toBe(before)
   expect(snapshots).toHaveLength(1)
   const current = await f.sessions.read("/")
+  const history = await inspect(f.sessions, "/")
   expect(current.version).toBe(snapshots[0]!.version + 2)
-  expect(current.messages[0]!.text).toBe("Без наблюдателя и дополнение после закрытия")
+  expect(history.messages[0]!.text).toBe("Без наблюдателя и дополнение после закрытия")
 })
 
 test("permission публикуется сразу вместе с pending delta и отменяет отложенную публикацию", async () => {
@@ -111,13 +129,13 @@ test("permission публикуется сразу вместе с pending delta
   cleanups.push(unsubscribe)
   const clones = observeClones()
   const version = snapshots[0]!.version
-  f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Перед разрешением"}})
+  await f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Перед разрешением"}})
   const permission = f.connection.onPermission({sessionId: "publication-session", toolCall: {toolCallId: "tool", title: "Действие"},
     options: [{optionId: "reject", name: "Отклонить", kind: "reject_once"}]})
   expect(snapshots).toHaveLength(2)
   expect(clones()).toBe(1)
   expect(snapshots[1]!.version).toBe(version + 2)
-  expect(snapshots[1]!.messages[0]!.text).toBe("Перед разрешением")
+  expect((await inspect(f.sessions, "/")).messages[0]!.text).toBe("Перед разрешением")
   expect(snapshots[1]!.permissions).toHaveLength(1)
   await pause(70)
   expect(snapshots).toHaveLength(2)
@@ -133,20 +151,23 @@ test.each(["completed", "cancelled", "failed"] as const)("%s доставляе�
   await f.sessions.prompt("/", "Задача", "request")
   await f.started.promise
   const before = await f.sessions.read("/")
-  f.connection.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "final", content: {type: "text", text: "Последняя дельта"}})
+  const publishedBefore = snapshots.at(-1)!
+  await f.connection.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "final", content: {type: "text", text: "Последняя дельта"}})
   const queuedCount = snapshots.length
-  expect(snapshots.at(-1)!.timeline.some(item => item.kind === "message" && item.providerMessageId === "final")).toBeFalse()
+  expect(snapshots.at(-1)).toEqual(publishedBefore)
   if (state === "completed") f.completion.resolve({stopReason: "end_turn"})
   else if (state === "cancelled") await f.sessions.cancel("/")
   else f.completion.reject(new Error("Отказ исполнителя"))
-  await until(() => snapshots.some(value => value.timeline.some(item => item.kind === "turn" && item.state === state)))
+  await until(() => snapshots.some(value => value.history.total > before.history.total && value.status === (state === "failed" ? "failed" : "idle")))
   expect(snapshots.length).toBeGreaterThan(queuedCount)
   const final = snapshots.at(-1)!
-  expect(final.messages.some(message => message.text === "Последняя дельта")).toBeTrue()
+  const finalHistory = await inspect(f.sessions, "/")
+  expect(finalHistory.messages.some(message => message.text === "Последняя дельта")).toBeTrue()
+  expect(finalHistory.timeline.at(-1)).toMatchObject({kind: "turn", state})
   expect(final.version).toBe(before.version + (state === "cancelled" ? 3 : 2))
   expect(final).toEqual(await f.sessions.read("/"))
   const file = (await readdir(f.directory)).find(name => name.endsWith(".json"))!
-  expect(JSON.parse(await readFile(join(f.directory, file), "utf8")).timeline).toEqual(final.timeline)
+  expect((await persisted(join(f.directory, file))).timeline).toEqual(finalHistory.timeline)
   const count = snapshots.length
   await pause(70)
   expect(snapshots).toHaveLength(count)
@@ -157,7 +178,7 @@ test("dispose снимает pending publication без поздних listeners
   const snapshots: Snapshot[] = []
   await f.sessions.subscribe("/", value => snapshots.push(value))
   const clones = observeClones()
-  f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "До завершения owner"}})
+  await f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "До завершения owner"}})
   await f.sessions.dispose()
   await pause(70)
   expect(snapshots).toHaveLength(1)
