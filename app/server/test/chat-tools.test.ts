@@ -2,9 +2,7 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, readFile, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import {createChatServer} from "../src/chat"
-import createMcp from "../../mcp/src/chat"
 import createJournal from "@zavx0z/storybook-app-server-requests"
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
@@ -12,7 +10,7 @@ import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-re
 const cleanups: (() => unknown | Promise<unknown>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 
-test("переходный MCP-клиент доставляет инструменты общему окружению и сохраняет источник журнала", async () => {
+test("единый HTTP endpoint доставляет инструменты двух назначений и сохраняет источник журнала", async () => {
   const root = await mkdtemp(join(tmpdir(), "chat-tools-"))
   cleanups.push(() => rm(root, {recursive: true, force: true}))
   for (const name of ["a", "b"]) await mkdir(join(root, name))
@@ -21,7 +19,7 @@ test("переходный MCP-клиент доставляет инструм�
   const nodes = ["a", "b"].map(name => ({id: name, urlPath: `/${name}`, label: name, packageId: name,
     kind: "package", source: {path: join(root, name, "package.json")}, childIds: []}))
   const host = createChatServer({
-    project: root, projectName: () => "Project", toolRoot: root, origin: () => "http://127.0.0.1:12345",
+    project: root, projectName: () => "Project", toolRoot: root,
     graph: () => ({nodes} as unknown as StorybookPackageGraphRead.Input),
     entries: () => nodes.map(node => ({path: node.id, description: node.id, parent: null,
       readType: async () => ({status: "confirmed", type: "Component"})})),
@@ -33,56 +31,52 @@ test("переходный MCP-клиент доставляет инструм�
     },
   })
   cleanups.push(() => host.dispose())
-  // Настоящий HTTP-транспорт ведёт только к существующему хосту Storybook, без AI server.
-  const http = Bun.serve({hostname: "127.0.0.1", port: 0, async fetch(request) {
-    if (new URL(request.url).pathname === "/api/chat/tools") return host.scopedTools(request,
-      request.method === "POST" ? await request.json() : undefined)
-    return host.scopedMcp(request)
+  // Настоящий HTTP-транспорт использует единую среду, без AI HTTP и MCP runtime.
+  const http: Bun.Server<unknown> = Bun.serve<unknown>({hostname: "127.0.0.1", port: 0, async fetch(request) {
+    if (new URL(request.url).pathname !== "/api/environment") return Response.json({error: {code: "NOT_FOUND"}}, {status: 404})
+    return host.environment.request(request, {origin: http.url.origin, controlToken: "c".repeat(43)})
   }})
   cleanups.push(() => http.stop(true))
-  const clients: Client[] = []
   const keys: string[] = []
   for (const name of ["a", "b"]) {
     await host.chats.prepare(`/${name}`)
     expect(connections.at(-1)!.mcpServers).toEqual([])
     const {executorId} = await host.chats.read(`/${name}`)
-    const key = (await host.environment.assignExecutor({executorId, address: `/${name}`})).token
-    keys.push(key)
-    const server = await createMcp({origin: http.url.origin, key})
-    const client = new Client({name, version: "1"})
-    const [ct, st] = InMemoryTransport.createLinkedPair()
-    await Promise.all([client.connect(ct), server.connect(st)])
-    clients.push(client)
-    cleanups.push(async () => {
-      await client.close()
-      await server.close()
-    })
+    keys.push((await host.environment.assignExecutor({executorId, address: `/${name}`})).token)
   }
-  const [a, b] = clients as [Client, Client]
-  const catalog = await a.listTools()
-  expect(catalog.tools.map(tool => tool.name)).toContain("filesystem.apply-patch")
+  const call = (key: string, command?: unknown) => fetch(new URL("/api/environment", http.url), {
+    method: command === undefined ? "GET" : "POST",
+    headers: {authorization: `Bearer ${key}`, "content-type": "application/json"},
+    ...(command === undefined ? {} : {body: JSON.stringify(command)}),
+  })
+  const catalog = (await (await call(keys[0]!)).json()).result
+  expect(catalog.tools.map((tool: {name: string}) => tool.name)).toContain("filesystem.apply-patch")
   expect(catalog.tools).toHaveLength(13)
-  expect(catalog.tools.map(tool => tool.name)).toEqual(expect.arrayContaining(["team.list", "team.send"]))
-  expect(catalog.tools.map(tool => tool.name)).not.toContain("git.status")
-  const read = catalog.tools.find(tool => tool.name === "filesystem.read")!
+  expect(catalog.tools.map((tool: {name: string}) => tool.name)).toEqual(expect.arrayContaining(["knowledge.read", "team.list", "team.send"]))
+  expect(catalog.tools.map((tool: {name: string}) => tool.name)).not.toContain("git.status")
+  expect(catalog.tools.map((tool: {name: string}) => tool.name)).not.toContain("storybook")
+  const read = catalog.tools.find((tool: {name: string}) => tool.name === "filesystem.read")!
   expect(read.inputSchema).toMatchObject({type: "object", additionalProperties: false})
   expect(read.inputSchema.properties).not.toHaveProperty("root")
   const content = '/Users/example/source\n{"url":"http://localhost:1234","packageRoot":"literal data"}'
-  expect((await a.callTool({name: "filesystem.create", arguments: {path: "file.txt", content}})).isError).not.toBeTrue()
-  expect((await b.callTool({name: "filesystem.create", arguments: {path: "file.txt", content: "second"}})).isError).not.toBeTrue()
-  const response = await a.callTool({name: "filesystem.read", arguments: {path: "file.txt"}})
-  expect(response.structuredContent).toMatchObject({path: "file.txt", content})
+  expect((await call(keys[0]!, {name: "filesystem.create", arguments: {path: "file.txt", content}})).status).toBe(200)
+  expect((await call(keys[1]!, {name: "filesystem.create", arguments: {path: "file.txt", content: "second"}})).status).toBe(200)
+  const response = await call(keys[0]!, {name: "filesystem.read", arguments: {path: "file.txt"}})
+  expect((await response.json()).result).toMatchObject({path: "file.txt", content})
   expect(await readFile(join(root, "a/file.txt"), "utf8")).toBe(content)
-  const denied = await a.callTool({name: "filesystem.read", arguments: {path: "../b/file.txt"}})
-  expect(denied.isError).toBeTrue()
-  expect(JSON.stringify(denied)).not.toContain(root)
-  await a.callTool({name: "storybook", arguments: {path: "."}})
-  expect((await a.callTool({name: "filesystem.read", arguments: {path: "file.txt"}})).structuredContent).toMatchObject({content})
+  const denied = await call(keys[0]!, {name: "filesystem.read", arguments: {path: "../b/file.txt"}})
+  expect(denied.status).toBe(403)
+  const failure = await denied.json()
+  expect(failure.error.code).toBe("PATH_NOT_ALLOWED")
+  expect(JSON.stringify(failure)).not.toContain(root)
+  await call(keys[0]!, {name: "knowledge.read", arguments: {path: "."}})
+  expect((await (await call(keys[0]!, {name: "filesystem.read", arguments: {path: "file.txt"}})).json()).result).toMatchObject({content})
   expect(journal.read("/a").map(entry => entry.tool)).toContain("filesystem.read")
   expect(journal.read("/a").some(entry => entry.status === "failed")).toBeTrue()
   expect(journal.read("/b")).toHaveLength(1)
   expect(journal.read()).toHaveLength(journal.read("/a").length + 1)
   for (const key of keys) expect(JSON.stringify(journal.read())).not.toContain(key)
   await host.dispose()
-  expect((await fetch(new URL("/api/chat/tools", http.url), {headers: {authorization: `Bearer ${keys[0]}`}})).status).toBe(401)
+  expect((await call(keys[0]!)).status).toBe(401)
+  expect((await call(keys[0]!, {name: "filesystem.read", arguments: {path: "file.txt"}})).status).toBe(401)
 })

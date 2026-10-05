@@ -2,10 +2,106 @@ import {expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import createApp from "@zavx0z/storybook-app"
 import State from "@zavx0z/storybook-app-server-state"
-import {existsSync, writeFileSync} from "node:fs"
+import {existsSync, statSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {createAppMcpServer} from "../src/mcp"
 import {createLazyStartupFixture} from "./fixtures/lazy-startup"
+
+test("public App ensure parent завершается естественно после ready, detached daemon остаётся жив", async () => {
+  const fixture = createLazyStartupFixture()
+  const previousRoot = Bun.env.STORYBOOK_STATE_ROOT
+  const previousFixture = Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE
+  Bun.env.STORYBOOK_STATE_ROOT = fixture.stateRoot
+  Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE = "isolated"
+  const parentPath = join(fixture.root, "ensure-parent.ts")
+  const daemonPath = join(fixture.root, "lifecycle-daemon.ts")
+  writeFileSync(daemonPath, `
+import {existsSync, writeFileSync} from "node:fs"
+import {join} from "node:path"
+await import(${JSON.stringify(fixture.daemonEntryPath)})
+while (!existsSync(join(Bun.env.STORYBOOK_STATE_ROOT!, "parent-finished"))) await Bun.sleep(5)
+await Bun.stderr.write("late daemon diagnostic\\n")
+writeFileSync(join(Bun.env.STORYBOOK_STATE_ROOT!, "late-stderr-written"), "written")
+`)
+  writeFileSync(parentPath, `
+import createApp from "@zavx0z/storybook-app"
+const app = createApp({toolRoot: ${JSON.stringify(fixture.toolRoot)}, daemonEntryPath: ${JSON.stringify(daemonPath)}, legacyStatePaths: []})
+const result = await app.ensure({schemaVersion: 1}, {signal: new AbortController().signal})
+console.log(JSON.stringify(result))
+`)
+  const app = createApp({toolRoot: fixture.toolRoot, daemonEntryPath: daemonPath, legacyStatePaths: []})
+  const parent = Bun.spawn([process.execPath, parentPath], {
+    cwd: fixture.toolRoot,
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+    timeout: 5_000,
+    // Только fixture: no-orphans намеренно убивает daemon при выходе parent, противореча проверяемому lifecycle.
+    env: {...Bun.env, BUN_FEATURE_FLAG_NO_ORPHANS: "0", STORYBOOK_STATE_ROOT: fixture.stateRoot, STORYBOOK_LAZY_STARTUP_FIXTURE: "isolated"},
+  })
+  const stdout = new Response(parent.stdout).text()
+  const stderr = new Response(parent.stderr).text()
+  try {
+    const exitCode = await parent.exited
+    expect(exitCode, "Caller заканчивает работу без process.exit и без ожидания завершения daemon").toBe(0)
+    expect(parent.signalCode).toBeNull()
+    expect(JSON.parse((await stdout).trim())).toMatchObject({status: "success", server: "running"})
+    expect(await stderr).toBe("")
+    const record = State.readExternalStorybookServerRecord(State.externalStorybookServerStatePath())
+    expect(State.processExists(record.pid)).toBeTrue()
+    const logPath = `${State.externalStorybookServerStatePath()}.stderr.log`
+    expect(statSync(logPath).mode & 0o777).toBe(0o600)
+    writeFileSync(join(fixture.stateRoot, "parent-finished"), "finished")
+    const deadline = Date.now() + 1_000
+    while (!existsSync(join(fixture.stateRoot, "late-stderr-written")) && State.processExists(record.pid) && Date.now() < deadline) await Bun.sleep(10)
+    expect(existsSync(join(fixture.stateRoot, "late-stderr-written")), "Поздняя запись stderr после естественного выхода parent не завершает daemon").toBeTrue()
+    expect(State.processExists(record.pid)).toBeTrue()
+    expect(await Bun.file(logPath).text()).toContain("late daemon diagnostic")
+    expect(await app.status({schemaVersion: 1}, {signal: new AbortController().signal}))
+      .toMatchObject({server: "running", instanceId: record.instanceId})
+    expect(State.readExternalStorybookServerRecord(State.externalStorybookServerStatePath()).pid).toBe(record.pid)
+    expect((await fetch(new URL("/api/health", record.origin))).status).toBe(200)
+  } finally {
+    if (parent.exitCode === null) {
+      parent.kill()
+      await parent.exited
+    }
+    try {
+      if ((await State.inspectExternalStorybookServer()).state === "running") {
+        await app.stop({schemaVersion: 1, confirm: true}, {signal: AbortSignal.timeout(5_000)})
+      }
+    } finally {
+      if (previousRoot === undefined) delete Bun.env.STORYBOOK_STATE_ROOT
+      else Bun.env.STORYBOOK_STATE_ROOT = previousRoot
+      if (previousFixture === undefined) delete Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE
+      else Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE = previousFixture
+      fixture.dispose()
+    }
+  }
+}, 10_000)
+
+test("private stderr file сохраняет bounded хвост startup ошибки и освобождает неготовый child", async () => {
+  const fixture = createLazyStartupFixture()
+  const previousRoot = Bun.env.STORYBOOK_STATE_ROOT
+  const previousMarker = Bun.env.STORYBOOK_STDERR_FLOOD_DAEMON_MARKER
+  Bun.env.STORYBOOK_STATE_ROOT = fixture.stateRoot
+  const marker = join(fixture.stateRoot, "failed-daemon.pid")
+  Bun.env.STORYBOOK_STDERR_FLOOD_DAEMON_MARKER = marker
+  const app = createApp({toolRoot: fixture.toolRoot,
+    daemonEntryPath: join(import.meta.dir, "fixtures/stderr-flood-daemon.ts"), legacyStatePaths: []})
+  try {
+    await expect(app.ensure({schemaVersion: 1}, {signal: AbortSignal.timeout(5_000)})).rejects.toThrow("Storybook startup: catalog")
+    expect(State.processExists(Number(await Bun.file(marker).text()))).toBeFalse()
+    expect(existsSync(`${State.externalStorybookServerStatePath()}.start.lock`)).toBeFalse()
+    expect(existsSync(State.externalStorybookServerStatePath())).toBeFalse()
+  } finally {
+    if (previousRoot === undefined) delete Bun.env.STORYBOOK_STATE_ROOT
+    else Bun.env.STORYBOOK_STATE_ROOT = previousRoot
+    if (previousMarker === undefined) delete Bun.env.STORYBOOK_STDERR_FLOOD_DAEMON_MARKER
+    else Bun.env.STORYBOOK_STDERR_FLOOD_DAEMON_MARKER = previousMarker
+    fixture.dispose()
+  }
+}, 10_000)
 
 test.each(["early", "late"] as const)("SDK ensure: ready %s, стадии до ответа и повторное использование daemon", async readyOrder => {
   const fixture = createLazyStartupFixture()

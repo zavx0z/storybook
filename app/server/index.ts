@@ -482,7 +482,6 @@ export default async function startExternalStorybookServer(
     project: project.root,
     projectName: () => project.name,
     toolRoot,
-    origin: () => server.url.origin,
     graph: () => registry.snapshot().graph,
     entries: mcpEntries,
     ...(options.extensions === undefined ? {} : {extensions: options.extensions}),
@@ -500,6 +499,9 @@ export default async function startExternalStorybookServer(
       const url = new URL(request.url)
       try {
         assertExternalStorybookRequestHost(request, server.url.origin)
+        if (url.pathname.startsWith("/api/chat/")) {
+          return responseJson({error: {code: "NOT_FOUND", message: "Переходный адрес чата отсутствует; используй /api/environment"}}, 404)
+        }
         if (request.method === "GET" && options.previousAddress !== undefined) {
           const address = options.previousAddress(url.pathname, registry.snapshot().graph)
           if (address !== null) {
@@ -512,15 +514,6 @@ export default async function startExternalStorybookServer(
         if (url.pathname === "/api/environment") {
           server.timeout(request, 0)
           return await chat.environment.request(request, {origin: server.url.origin, controlToken: serverRecord.controlToken})
-        }
-        if (url.pathname === "/api/chat/mcp") {
-          assertExternalStorybookRequestOrigin(request, server.url.origin)
-          return await chat.scopedMcp(request)
-        }
-        if (url.pathname === "/api/chat/tools") {
-          assertExternalStorybookRequestOrigin(request, server.url.origin)
-          const command = request.method === "POST" ? await requestObject(request, 16 * 1024 * 1024) : undefined
-          return await chat.scopedTools(request, command)
         }
         if (url.pathname.startsWith("/api/browser/chat/")) {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: request.method !== "GET"})

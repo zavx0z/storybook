@@ -19,7 +19,7 @@ async function fixture() {
   ].map(node => ({...node, kind: "directory", label: node.id, packageId: node.id}))
   const received: {cwd: string, content: unknown}[] = []
   const chat = createChatServer({
-    project: root, projectName: () => "Project", toolRoot: root, origin: () => "http://localhost",
+    project: root, projectName: () => "Project", toolRoot: root,
     graph: () => ({nodes} as unknown as StorybookPackageGraphRead.Input),
     entries: () => nodes.map(node => ({path: node.urlPath.slice(1), description: node.label, parent: node.parentId})),
     async connect(input) {

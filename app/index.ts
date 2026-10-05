@@ -10,7 +10,7 @@ const {readExternalStorybookOperationProgress, readExternalStorybookStartupProgr
 type ExternalStorybookMigrationRecord = NonNullable<ReturnType<StorybookAppServerState.Output["readExternalStorybookMigrationRecord"]>>
 type ExternalStorybookServerRecord = ReturnType<StorybookAppServerState.Output["readExternalStorybookServerRecord"]>
 import {createHmac} from "node:crypto"
-import {existsSync, realpathSync} from "node:fs"
+import {closeSync, constants, existsSync, fchmodSync, fstatSync, openSync, readSync, realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {join, resolve} from "node:path"
 import {
@@ -31,7 +31,7 @@ import {
   type StorybookStatusInput,
   type StorybookStopInput,
   type StorybookWaitInput,
-} from "./contract/control"
+} from "./src/control-types"
 
 
 import type {StorybookApp} from "./contract"
@@ -51,7 +51,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     packages: readonly Readonly<Record<string, unknown>>[]
   }>
 
-  type SpawnedStorybookDaemon = Bun.Subprocess<"ignore", "ignore", "pipe">
+  type SpawnedStorybookDaemon = ReturnType<NonNullable<StorybookApp.Input["spawnDaemon"]>>
 
   const DAEMON_STDERR_TAIL_LENGTH = 2_048
 
@@ -658,20 +658,33 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     preferredPort?: number
     startLease: Readonly<{path: string; token: string}>
   }>): SpawnedStorybookDaemon {
-    const child = Bun.spawn([process.execPath, input.entryPath, ...input.declarations], {
-      cwd: input.toolRoot,
-      stdin: "ignore",
-      stdout: "ignore",
-      stderr: "pipe",
-      env: {
-        ...Bun.env,
-        STORYBOOK_SERVER_PORT: String(input.preferredPort ?? 0),
-        STORYBOOK_START_LEASE_PATH: input.startLease.path,
-        STORYBOOK_START_LEASE_TOKEN: input.startLease.token,
-      },
-      detached: true,
-    })
-    return child
+    const path = `${externalStorybookServerStatePath()}.stderr.log`
+    const descriptor = openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o600)
+    try {
+      if (!fstatSync(descriptor).isFile()) throw new Error("Storybook daemon stderr sink must be a regular file")
+      fchmodSync(descriptor, 0o600)
+      const child = Bun.spawn([process.execPath, input.entryPath, ...input.declarations], {
+        cwd: input.toolRoot,
+        stdin: "ignore",
+        stdout: "ignore",
+        stderr: descriptor,
+        env: {
+          ...Bun.env,
+          STORYBOOK_SERVER_PORT: String(input.preferredPort ?? 0),
+          STORYBOOK_START_LEASE_PATH: input.startLease.path,
+          STORYBOOK_START_LEASE_TOKEN: input.startLease.token,
+        },
+        detached: true,
+      })
+      return {
+        pid: child.pid,
+        get exitCode() { return child.exitCode },
+        exited: child.exited,
+        stderr: {path},
+        kill: signal => child.kill(signal),
+        unref: () => child.unref(),
+      }
+    } finally { closeSync(descriptor) }
   }
 
   async function waitForRunning(
@@ -681,12 +694,13 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     startLease: Readonly<{path: string; token: string}>,
     onProgress?: StorybookControllerContext["onProgress"],
   ): Promise<ExternalStorybookServerRecord> {
-    const stderr = captureDaemonStderr(child.stderr, progress => {
+    const stderr = captureDaemonStderr(child.stderr, child.exited, progress => {
       writeExternalStorybookStartupProgress(startLease, toolRoot, {phase: String(progress.phase), at: Number(progress.at)})
       return onProgress?.(progress)
     })
     try {
       while (true) {
+        stderr.poll()
         signal.throwIfAborted()
         if (child.exitCode !== null) {
           await stderr.completed
@@ -701,6 +715,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         const inspection = await inspectExternalStorybookServer()
         assertOwnedStorybookState(inspection, toolRoot)
         if (ownedRunningRecord(inspection, toolRoot)) {
+          stderr.poll()
           await stderr.finishProgress(signal)
           return inspection.record!
         }
@@ -712,17 +727,19 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     } catch (error) {
       throw withDaemonStderr(error, stderr.tail())
     } finally {
-      stderr.detachProgress()
+      await stderr.close()
     }
   }
 
   function captureDaemonStderr(
-    stream: ReadableStream<Uint8Array>,
+    source: SpawnedStorybookDaemon["stderr"],
+    exited: Promise<number>,
     onProgress?: StorybookControllerContext["onProgress"],
   ): Readonly<{
     completed: Promise<void>
     finishProgress(signal: AbortSignal): Promise<void>
-    detachProgress(): void
+    close(): Promise<void>
+    poll(): void
     tail(): string
   }> {
     let output = ""
@@ -732,6 +749,11 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     let progressError: unknown
     let progressFailed = false
     let readyObserved = false
+    let closing = false
+    const reader = source instanceof ReadableStream ? source.getReader() : undefined
+    const descriptor = reader === undefined ? openSync((source as {path: string}).path, constants.O_RDONLY | constants.O_NOFOLLOW) : undefined
+    let offset = 0
+    const decoder = new TextDecoder()
     const enqueue = (phase: string): void => {
       if (onProgress === undefined || phase === "ready" && readyObserved) return
       if (phase === "ready") readyObserved = true
@@ -764,9 +786,25 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       output = `${output}${value}`.slice(-DAEMON_STDERR_TAIL_LENGTH)
       if (onProgress !== undefined) observe(value)
     }
-    const completed = (async (): Promise<void> => {
-      const reader = stream.getReader()
-      const decoder = new TextDecoder()
+    const poll = (): void => {
+      if (descriptor === undefined || closing) return
+      const size = fstatSync(descriptor).size
+      const buffer = Buffer.alloc(64 * 1024)
+      while (offset < size) {
+        const bytes = readSync(descriptor, buffer, 0, Math.min(buffer.length, size - offset), offset)
+        if (bytes === 0) break
+        offset += bytes
+        append(decoder.decode(buffer.subarray(0, bytes), {stream: true}))
+      }
+    }
+    const completed = reader === undefined ? exited.then(() => {
+      if (!closing) {
+        poll()
+        append(decoder.decode())
+      }
+    }).catch(error => {
+      if (!closing) append(`\n[Storybook daemon stderr read failed: ${startupErrorText(error)}]`)
+    }) : (async (): Promise<void> => {
       try {
         while (true) {
           const {done, value} = await reader.read()
@@ -775,14 +813,25 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         }
         append(decoder.decode())
       } catch (error) {
-        append(`\n[Storybook daemon stderr read failed: ${startupErrorText(error)}]`)
+        if (!closing) append(`\n[Storybook daemon stderr read failed: ${startupErrorText(error)}]`)
       } finally {
         reader.releaseLock()
       }
     })()
     return Object.freeze({
       completed,
-      detachProgress: () => { onProgress = undefined },
+      poll,
+      async close() {
+        onProgress = undefined
+        closing = true
+        // Файл принадлежит диагностике daemon; parent освобождает только свой read descriptor.
+        // Custom pipe теряет только pending reader, без cancel writer процесса.
+        if (descriptor !== undefined) closeSync(descriptor)
+        if (reader !== undefined) {
+          reader.releaseLock()
+          await completed
+        }
+      },
       async finishProgress(signal: AbortSignal): Promise<void> {
         signal.throwIfAborted()
         // Parent уже подтвердил owned running record; child может ещё не вывести ready.

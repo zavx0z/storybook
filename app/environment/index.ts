@@ -12,7 +12,7 @@
 @packageDocumentation
 */
 import {createHash, randomBytes, randomUUID} from "node:crypto"
-import createEntityTools from "@zavx0z/storybook-app-mcp-tools"
+import createEntityTools from "@zavx0z/storybook-app-environment-tools"
 import ToolError from "@zavx0z/ai-tech-failure"
 import type {StorybookAppEnvironment as Contract} from "./contract"
 import type {Bootstrap} from "./contract/context"

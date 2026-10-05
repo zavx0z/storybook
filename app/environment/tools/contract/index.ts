@@ -3,7 +3,7 @@ import type {StorybookPackageMcpTools} from "@zavx0z/storybook-package-mcp-tools
 type BoundTool = StorybookPackageMcpTools.Output[number]
 
 /** Описание и исполнение инструментов назначенной сущности. */
-export declare namespace StorybookAppMcpTools {
+export declare namespace StorybookAppEnvironmentTools {
   /** Directory и подтверждённый тип приходят от хоста, а не из вызова агента. */
   type Input = Readonly<{
     directory: string

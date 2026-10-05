@@ -16,7 +16,6 @@ export function createChatServer(options: Readonly<{
   project: string
   projectName(): string
   toolRoot: string
-  origin(): string
   graph(): Graph
   entries(): StorybookAppMcpRest.Input[1]["entries"]
   connect?: typeof createAcp
@@ -93,46 +92,6 @@ export function createChatServer(options: Readonly<{
       })
     },
   })
-  const bootstrap = (request: Request) => environment.handle(new Request(request.url, {
-    headers: request.headers,
-    signal: request.signal,
-  }))
-  const commandRequest = (request: Request, command: unknown) => {
-    const headers = new Headers(request.headers)
-    headers.delete("content-length")
-    return new Request(request.url, {
-      method: "POST", headers, body: JSON.stringify(command), signal: request.signal,
-    })
-  }
-  /** Переходная карточка storybook вызывает canonical knowledge.read с тем же назначением и журналом. */
-  const scopedMcp = async (request: Request): Promise<Response> => {
-    const authorization = await bootstrap(request)
-    if (!authorization.ok) return authorization
-    if (request.method !== "GET" && request.method !== "POST") return Response.json({error: "Ожидается GET или POST"}, {status: 405})
-    let input: unknown = {}
-    if (request.method === "POST") {
-      const text = await request.text()
-      if (text.length > 16_384) return Response.json({error: "Слишком большой запрос знаний"}, {status: 413})
-      try { input = JSON.parse(text || "{}") }
-      catch { return Response.json({error: "Ожидается JSON-объект"}, {status: 400}) }
-    }
-    const response = await environment.handle(commandRequest(request, {name: "knowledge.read", arguments: input}))
-    if (!response.ok) return response
-    const value = await response.json() as {result: Record<string, unknown>}
-    return Response.json(value.result, {status: response.status, headers: response.headers})
-  }
-  /** Сохраняет прежний каталог MCP; все вызовы доставляются единому обработчику окружения. */
-  const scopedTools = async (request: Request, command?: unknown): Promise<Response> => {
-    if (request.method === "GET") {
-      const response = await environment.handle(request)
-      if (!response.ok) return response
-      const value = await response.json() as {result: {tools: {name: string}[]}}
-      const tools = value.result.tools.filter(tool => tool.name !== "knowledge.read" && tool.name !== "environment.inspect")
-      return Response.json({tools}, {headers: response.headers})
-    }
-    if (request.method !== "POST") return environment.handle(request)
-    return environment.handle(commandRequest(request, command))
-  }
   /** Один подписчик получает свежий снимок, последующие изменения объединяются за 50 мс. */
   const subscribe = async (target: Target, listener: (snapshot: Snapshot) => void): Promise<() => void> => {
     let release = () => {}
@@ -169,8 +128,6 @@ export function createChatServer(options: Readonly<{
   return {
     chats,
     environment,
-    scopedMcp,
-    scopedTools,
     subscribe,
     async request(request: Request): Promise<Response> {
       const path = new URL(request.url).pathname

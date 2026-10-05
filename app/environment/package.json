@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/storybook-app-mcp-tools": "workspace:*",
+    "@zavx0z/storybook-app-environment-tools": "workspace:*",
     "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure"
   },
   "devDependencies": {

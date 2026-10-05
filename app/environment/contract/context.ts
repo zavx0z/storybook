@@ -1,4 +1,4 @@
-import type {StorybookAppMcpTools} from "@zavx0z/storybook-app-mcp-tools"
+import type {StorybookAppEnvironmentTools} from "@zavx0z/storybook-app-environment-tools"
 
 /**
 Предмет, который доверенный хост разрешил по действующему Project.
@@ -14,8 +14,8 @@ import type {StorybookAppMcpTools} from "@zavx0z/storybook-app-mcp-tools"
 export type Subject = Readonly<{
   address: string
   label: string
-  directory: StorybookAppMcpTools.Input["directory"]
-  type?: StorybookAppMcpTools.Input["type"]
+  directory: StorybookAppEnvironmentTools.Input["directory"]
+  type?: StorybookAppEnvironmentTools.Input["type"]
 }>
 
 /**
@@ -52,7 +52,7 @@ export type Bootstrap = Readonly<{
   executorLabel?: string
   subject: Pick<Subject, "address" | "label" | "type">
   protocol: string
-  tools: ReturnType<StorybookAppMcpTools.Output["list"]>
+  tools: ReturnType<StorybookAppEnvironmentTools.Output["list"]>
   knowledge: readonly Readonly<{path: string, description: string}>[]
   instructions: readonly Instruction[]
 }>

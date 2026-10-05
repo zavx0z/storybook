@@ -39,7 +39,6 @@ async function fixture() {
     project,
     projectName: () => "Project",
     toolRoot: project,
-    origin: () => http.url.origin,
     graph: () => ({nodes} as unknown as StorybookPackageGraphRead.Input),
     entries: () => entries,
     recordRequest: entry => journal.write(entry),
@@ -64,8 +63,6 @@ async function fixture() {
   http = Bun.serve<unknown>({hostname: "127.0.0.1", port: 0, async fetch(request) {
     const path = new URL(request.url).pathname
     if (path === "/api/environment") return chat.environment.request(request, {origin: http.url.origin, controlToken})
-    if (path === "/api/chat/mcp") return chat.scopedMcp(request)
-    if (path === "/api/chat/tools") return chat.scopedTools(request, request.method === "POST" ? await request.json() : undefined)
     return Response.json({error: "Unknown route"}, {status: 404})
   }})
   cleanups.push(() => http.stop(true))
@@ -163,29 +160,26 @@ test("dispose и reconnect ACP не отзывают bearer окружения, 
   expect((await f.call(f.controlToken)).status).toBe(401)
 })
 
-test("переходные MCP инструменты используют то же назначение, журнал и неповреждённый результат", async () => {
+test("единый endpoint описывает и исполняет инструменты с тем же назначением, журналом и неповреждённым результатом", async () => {
   const f = await fixture()
   const worker = await f.chat.environment.assignExecutor({executorId: "worker", address: "/a"})
-  const headers = {authorization: `Bearer ${worker.token}`}
-  const catalog = await fetch(new URL("/api/chat/tools", f.http.url), {headers})
-  const tools = (await catalog.json()).tools
-  expect(tools).toHaveLength(12)
+  const catalog = await f.call(worker.token)
+  const tools = (await catalog.json()).result.tools
+  expect(tools).toHaveLength(13)
   expect(tools.map((tool: {name: string}) => tool.name)).toEqual(expect.arrayContaining(["team.list", "team.send"]))
-  expect(tools.map((tool: {name: string}) => tool.name)).not.toContain("knowledge.read")
+  expect(tools.map((tool: {name: string}) => tool.name)).toContain("knowledge.read")
   const content = '/Users/example/source\n{"packageRoot":"literal data"}'
-  const created = await fetch(new URL("/api/chat/tools", f.http.url), {
-    method: "POST", headers, body: JSON.stringify({name: "filesystem.create", arguments: {path: "new.txt", content}}),
-  })
+  const created = await f.call(worker.token, {name: "filesystem.create", arguments: {path: "new.txt", content}})
   expect(created.status).toBe(200)
   const read = await f.call(worker.token, {name: "filesystem.read", arguments: {path: "new.txt"}})
   expect((await read.json()).result.content).toBe(content)
   expect(await readFile(join(f.project, "a/new.txt"), "utf8")).toBe(content)
-  const knowledge = await fetch(new URL("/api/chat/mcp", f.http.url), {method: "POST", headers, body: "{}"})
-  expect((await knowledge.json()).path).toBe(".")
+  const knowledge = await f.call(worker.token, {name: "knowledge.read", arguments: {}})
+  expect((await knowledge.json()).result.path).toBe(".")
   expect(f.journal.read("/a").map(entry => entry.tool)).toEqual(["knowledge.read", "filesystem.read", "filesystem.create"])
   expect(f.journal.read("/a").every(entry => entry.agentId === "worker")).toBeTrue()
   expect(JSON.stringify(f.journal.read())).not.toContain(worker.token)
   expect(f.chat.environment.revokeExecutor("worker")).toBeTrue()
   expect((await f.call(worker.token)).status).toBe(401)
-  expect((await fetch(new URL("/api/chat/tools", f.http.url), {headers})).status).toBe(401)
+  expect((await f.call(worker.token, {name: "filesystem.read", arguments: {path: "new.txt"}})).status).toBe(401)
 })

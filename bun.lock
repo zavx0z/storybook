@@ -89,10 +89,26 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
-        "@zavx0z/storybook-app-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-app-environment-tools": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-app-mcp-rest": "workspace:*",
+      },
+    },
+    "app/environment/tools": {
+      "name": "@zavx0z/storybook-app-environment-tools",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
+        "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
+        "@zavx0z/storybook-cluster-mcp": "workspace:*",
+        "@zavx0z/storybook-component-mcp": "workspace:*",
+        "@zavx0z/storybook-container-mcp": "workspace:*",
+        "@zavx0z/storybook-domain-mcp": "workspace:*",
+        "@zavx0z/storybook-package-mcp": "workspace:*",
+        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-project-mcp": "workspace:*",
+        "@zavx0z/storybook-repo-mcp": "workspace:*",
       },
     },
     "app/mcp": {
@@ -105,7 +121,6 @@
         "@zavx0z/storybook-app-mcp-proxy": "workspace:*",
         "@zavx0z/storybook-app-mcp-response": "workspace:*",
         "@zavx0z/storybook-app-mcp-rest": "workspace:*",
-        "@zavx0z/storybook-app-mcp-tools": "workspace:*",
         "@zavx0z/storybook-app-server-state": "workspace:*",
         "@zavx0z/storybook-tech-mcp-progress": "workspace:*",
         "zod": "^4.4.3",
@@ -156,22 +171,6 @@
     "app/mcp/rest/address": {
       "name": "@zavx0z/storybook-app-mcp-rest-address",
       "version": "0.0.0",
-    },
-    "app/mcp/tools": {
-      "name": "@zavx0z/storybook-app-mcp-tools",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
-        "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
-        "@zavx0z/storybook-cluster-mcp": "workspace:*",
-        "@zavx0z/storybook-component-mcp": "workspace:*",
-        "@zavx0z/storybook-container-mcp": "workspace:*",
-        "@zavx0z/storybook-domain-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
-        "@zavx0z/storybook-project-mcp": "workspace:*",
-        "@zavx0z/storybook-repo-mcp": "workspace:*",
-      },
     },
     "app/server": {
       "name": "@zavx0z/storybook-app-server",
@@ -1727,6 +1726,8 @@
 
     "@zavx0z/storybook-app-environment": ["@zavx0z/storybook-app-environment@workspace:app/environment"],
 
+    "@zavx0z/storybook-app-environment-tools": ["@zavx0z/storybook-app-environment-tools@workspace:app/environment/tools"],
+
     "@zavx0z/storybook-app-mcp": ["@zavx0z/storybook-app-mcp@workspace:app/mcp"],
 
     "@zavx0z/storybook-app-mcp-proxy": ["@zavx0z/storybook-app-mcp-proxy@workspace:app/mcp/proxy"],
@@ -1736,8 +1737,6 @@
     "@zavx0z/storybook-app-mcp-rest": ["@zavx0z/storybook-app-mcp-rest@workspace:app/mcp/rest"],
 
     "@zavx0z/storybook-app-mcp-rest-address": ["@zavx0z/storybook-app-mcp-rest-address@workspace:app/mcp/rest/address"],
-
-    "@zavx0z/storybook-app-mcp-tools": ["@zavx0z/storybook-app-mcp-tools@workspace:app/mcp/tools"],
 
     "@zavx0z/storybook-app-server": ["@zavx0z/storybook-app-server@workspace:app/server"],
 

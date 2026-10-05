@@ -51,7 +51,7 @@ test("чат средового входа сохраняет адрес фай�
   const entry = graph.nodes.find(node => node.kind === "entry" && node.source.path.endsWith("/web.ts"))!
   const cwd: string[] = []
   const server = createChatServer({
-    project, projectName: () => "Fixture", toolRoot: project, origin: () => "http://127.0.0.1:12345",
+    project, projectName: () => "Fixture", toolRoot: project,
     graph: () => graph, entries: () => storybookMcpEntries({catalog, graph}),
     async connect(input) {
       cwd.push(input.cwd)

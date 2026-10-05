@@ -1,6 +1,7 @@
 {
-  "name": "@zavx0z/storybook-app-mcp-tools",
+  "name": "@zavx0z/storybook-app-environment-tools",
   "label": "Инструменты сущности",
+  "description": "Выбор и исполнение предметных инструментов в назначенной файловой области",
   "version": "0.0.0",
   "private": true,
   "type": "module",

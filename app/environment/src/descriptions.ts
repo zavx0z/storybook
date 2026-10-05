@@ -1,6 +1,6 @@
-import type {StorybookAppMcpTools} from "@zavx0z/storybook-app-mcp-tools"
+import type {StorybookAppEnvironmentTools} from "@zavx0z/storybook-app-environment-tools"
 
-type Description = ReturnType<StorybookAppMcpTools.Output["list"]>[number]
+type Description = ReturnType<StorybookAppEnvironmentTools.Output["list"]>[number]
 
 export const protocol = [
   'Для действия отправь полное сообщение, содержащее только JSON-объект {"name":"имя команды","arguments":{}} без Markdown и другого текста.',

@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import createTools from "@zavx0z/storybook-app-mcp-tools"
+import createTools from "@zavx0z/storybook-app-environment-tools"
 
 describe.each([
   {name: "Project", type: "Project" as const},

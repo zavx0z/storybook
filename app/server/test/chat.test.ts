@@ -36,7 +36,7 @@ async function fixture(
   const connections: StorybookTechAcp.Input[] = []
   const journal = createJournal()
   const server = createChatServer({
-    project, projectName: () => "Project", toolRoot: project, origin: () => "http://127.0.0.1:12345",
+    project, projectName: () => "Project", toolRoot: project,
     graph: () => ({nodes} as unknown as StorybookPackageGraphRead.Input), entries: () => entries,
     recordRequest: entry => journal.write(entry),
     async connect(input) {
@@ -67,8 +67,8 @@ async function assignmentKey(server: ReturnType<typeof createChatServer>, addres
   return (await server.environment.assignExecutor({executorId, address})).token
 }
 
-const scopedRequest = (key: string, input: object) => new Request("http://127.0.0.1:12345/api/chat/mcp", {
-  method: "POST", headers: {authorization: `Bearer ${key}`, "content-type": "application/json"}, body: JSON.stringify(input),
+const scopedRequest = (key: string, input: object) => new Request("http://127.0.0.1:12345/api/environment", {
+  method: "POST", headers: {authorization: `Bearer ${key}`, "content-type": "application/json"}, body: JSON.stringify({name: "knowledge.read", arguments: input}),
 })
 
 test("вызовы двух агентов разделяются по источнику и одновременно попадают в общий журнал", async () => {
@@ -77,9 +77,9 @@ test("вызовы двух агентов разделяются по исто�
   await server.chats.prepare("/repo/button-other")
   expect(connections.every(connection => connection.mcpServers.length === 0)).toBeTrue()
   const keys = await Promise.all(["/repo/button", "/repo/button-other"].map(address => assignmentKey(server, address)))
-  await server.scopedMcp(scopedRequest(keys[0]!, {}))
-  await server.scopedMcp(scopedRequest(keys[0]!, {path: "./repo/button-other"}))
-  await server.scopedMcp(scopedRequest(keys[1]!, {}))
+  await server.environment.handle(scopedRequest(keys[0]!, {}))
+  await server.environment.handle(scopedRequest(keys[0]!, {path: "./repo/button-other"}))
+  await server.environment.handle(scopedRequest(keys[1]!, {}))
   const first = journal.read("/repo/button")
   const second = journal.read("/repo/button-other")
   expect(journal.read()).toHaveLength(3)
@@ -90,7 +90,7 @@ test("вызовы двух агентов разделяются по исто�
   expect(first[0]?.agentId).not.toBe(second[0]?.agentId)
   expect(first[0]?.agentId).toBeTruthy()
   expect(first.every(entry => entry.tool === "knowledge.read"),
-    "Переходная карточка storybook записывает исполненную команду окружения, а не название MCP-карточки").toBeTrue()
+    "Каждое чтение знаний записывает canonical команду общего окружения").toBeTrue()
   expect(first[0]?.agentId, "Источник журнала совпадает с устойчивой identity исполнителя беседы")
     .toBe((await server.chats.read("/repo/button")).executorId)
   for (const key of keys) expect(JSON.stringify(journal.read())).not.toContain(key)
@@ -100,46 +100,46 @@ test("общие правила остаются доступными перех
   const {server, connections} = await fixture([], undefined, true)
   await server.chats.prepare("/repo/button")
   const key = await assignmentKey(server, "/repo/button")
-  const root = await (await server.scopedMcp(scopedRequest(key, {}))).json()
+  const root = (await (await server.environment.handle(scopedRequest(key, {}))).json()).result
   const rules = root.children.find((child: {path: string}) => child.path === "./rules/storybook/package/reader")
   expect(rules).toBeDefined()
   expect(root.path).toBe(".")
   expect(root).not.toHaveProperty("rules")
-  const rule = await (await server.scopedMcp(scopedRequest(key, {path: rules.path}))).json()
+  const rule = (await (await server.environment.handle(scopedRequest(key, {path: rules.path}))).json()).result
   expect(rule.children).toEqual([{description: "Contract", path: "./rules/storybook/package/reader/contract"}])
-  expect((await server.scopedMcp(scopedRequest(key, {path: rule.children[0].path}))).status).toBe(200)
-  expect((await server.scopedMcp(scopedRequest(key, {path: "storybook/package/reader"}))).status).toBe(403)
+  expect((await server.environment.handle(scopedRequest(key, {path: rule.children[0].path}))).status).toBe(200)
+  expect((await server.environment.handle(scopedRequest(key, {path: "storybook/package/reader"}))).status).toBe(403)
 })
 
-test("пустой MCP-вызов открывает назначенный предмет, прямой чужой адрес запрещён", async () => {
+test("пустые arguments knowledge.read открывают назначенный предмет, прямой чужой адрес запрещён", async () => {
   const {server, connections} = await fixture()
   await server.chats.prompt("/repo/button", "Привет", "1")
   while (connections.length === 0) await Bun.sleep(5)
   const key = await assignmentKey(server, "/repo/button")
-  const root = await server.scopedMcp(scopedRequest(key, {}))
+  const root = await server.environment.handle(scopedRequest(key, {}))
   expect(root.status).toBe(200)
-  expect(await root.json()).toEqual({description: "Button", path: ".", children: [
+  expect((await root.json()).result).toEqual({description: "Button", path: ".", children: [
     {description: "Part", path: "./part"},
     {path: "./meta/notes", description: "Заметки назначенного владельца из meta/notes"},
     {path: "./rules/documents", description: "Основания и нормативные документы Storybook"},
     {path: "./instructions", description: "Действующие агентские правила по цепочке Project и назначенного предмета"},
   ]})
-  const part = await (await server.scopedMcp(scopedRequest(key, {path: "part"}))).json()
+  const part = (await (await server.environment.handle(scopedRequest(key, {path: "part"}))).json()).result
   expect(part).toEqual({description: "Part", path: "./part", children: [{description: "Deep", path: "./part/deep"}]})
-  expect((await server.scopedMcp(scopedRequest(key, {path: part.children[0].path}))).status).toBe(200)
-  expect((await server.scopedMcp(scopedRequest(key, {path: "deep"}))).status).toBe(403)
-  expect(await (await server.scopedMcp(scopedRequest(key, {}))).json()).toEqual({description: "Button", path: ".", children: [
+  expect((await server.environment.handle(scopedRequest(key, {path: part.children[0].path}))).status).toBe(200)
+  expect((await server.environment.handle(scopedRequest(key, {path: "deep"}))).status).toBe(403)
+  expect((await (await server.environment.handle(scopedRequest(key, {}))).json()).result).toEqual({description: "Button", path: ".", children: [
     {description: "Part", path: "./part"},
     {path: "./meta/notes", description: "Заметки назначенного владельца из meta/notes"},
     {path: "./rules/documents", description: "Основания и нормативные документы Storybook"},
     {path: "./instructions", description: "Действующие агентские правила по цепочке Project и назначенного предмета"},
   ]})
-  expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button/part"}))).status).toBe(403)
-  expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
-  expect((await server.scopedMcp(scopedRequest(key, {path: "repo"}))).status).toBe(403)
-  expect((await server.scopedMcp(scopedRequest("invalid", {}))).status).toBe(401)
+  expect((await server.environment.handle(scopedRequest(key, {path: "repo/button/part"}))).status).toBe(403)
+  expect((await server.environment.handle(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
+  expect((await server.environment.handle(scopedRequest(key, {path: "repo"}))).status).toBe(403)
+  expect((await server.environment.handle(scopedRequest("invalid", {}))).status).toBe(401)
   await server.dispose()
-  expect((await server.scopedMcp(scopedRequest(key, {}))).status).toBe(401)
+  expect((await server.environment.handle(scopedRequest(key, {}))).status).toBe(401)
 })
 
 test("подписка передаёт историю и её закрытие не отменяет чат", async () => {
@@ -166,11 +166,11 @@ test("адресный чат выбирает инструменты окруж
   await server.chats.prepare("/repo/button")
   expect(reads, "Подключение выбирает набор инструментов по подтверждённому типу").toBe(1)
   const key = await assignmentKey(server, "/repo/button")
-  expect(await (await server.scopedMcp(scopedRequest(key, {}))).json())
+  expect((await (await server.environment.handle(scopedRequest(key, {}))).json()).result)
     .toMatchObject({path: ".", description: "Button",
       verification: {status: "confirmed", type: "Component", revision: "verified"}})
   expect(reads, "Предметное чтение отдельно проверяет актуальный отчёт").toBe(2)
-  expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
+  expect((await server.environment.handle(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
   expect(reads, "Чужой адрес не читает отчёт до проверки полномочий").toBe(2)
 })
 

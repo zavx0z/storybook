@@ -3,7 +3,7 @@ import {mkdtemp, mkdir, readFile, rm, symlink, writeFile} from "node:fs/promises
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {spawnSync} from "node:child_process"
-import createTools from "@zavx0z/storybook-app-mcp-tools"
+import createTools from "@zavx0z/storybook-app-environment-tools"
 import component from "@zavx0z/storybook-component-mcp"
 import createWorkspace from "@zavx0z/ai-workspace"
 

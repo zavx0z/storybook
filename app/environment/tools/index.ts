@@ -1,6 +1,6 @@
 /**
-Выбирает инструменты предметной сущности и закрепляет их за областью подключения.
-Package предоставляет общий набор, предметный MCP добавляет свои возможности.
+Выбирает инструменты предметной сущности и закрепляет их за областью назначения.
+Package предоставляет общий набор, предметный владелец добавляет свои возможности.
 Вызов не меняет область, не запускает AI HTTP и не исполняет произвольные импорты.
 
 @packageDocumentation
@@ -14,8 +14,8 @@ import component from "@zavx0z/storybook-component-mcp"
 import container from "@zavx0z/storybook-container-mcp"
 import cluster from "@zavx0z/storybook-cluster-mcp"
 import domain from "@zavx0z/storybook-domain-mcp"
-import type {StorybookAppMcpTools as Contract} from "./contract"
-export type {StorybookAppMcpTools} from "./contract"
+import type {StorybookAppEnvironmentTools as Contract} from "./contract"
+export type {StorybookAppEnvironmentTools} from "./contract"
 
 const owners = {Project: project, Repo: repo, Component: component, Container: container, Cluster: cluster, Domain: domain}
 

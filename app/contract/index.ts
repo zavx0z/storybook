@@ -1,4 +1,5 @@
 import type {StorybookAppControl} from "@zavx0z/storybook-app-control"
+import type {Daemon} from "./daemon"
 
 /** Контракт единого приложения Storybook. */
 export declare namespace StorybookApp {
@@ -8,7 +9,9 @@ export declare namespace StorybookApp {
   @property [toolRoot] - Канонический checkout приложения с готовыми зависимостями.
   @property [legacyStatePaths] - Пути прежних записей для штатного принятия экземпляра.
   @property [spawnDaemon] - Создаёт принадлежащий процесс по заданию entry/tool/declarations/startLease.
-  Возвращает Bun subprocess; завершение и проверка ownership принадлежат лаунчеру.
+  Возвращает реальный минимальный handle; Bun pipe subprocess структурно совместим.
+  Для независимого daemon stderr направляется в private файл; custom фабрика
+  отвечает за время жизни собственного pipe после handoff. Ownership проверяет лаунчер.
   */
   type Input = Readonly<{
     daemonEntryPath?: string
@@ -20,7 +23,7 @@ export declare namespace StorybookApp {
       declarations: readonly string[]
       preferredPort?: number
       startLease: Readonly<{path: string; token: string}>
-    }>) => Bun.Subprocess<"ignore", "ignore", "pipe">
+    }>) => Daemon
   }>
 
   /**

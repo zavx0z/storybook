@@ -58,21 +58,42 @@ describe("one external Storybook server", () => {
     expect(running.sessions.snapshots().every(value => value.builds === 0)).toBeTrue()
   })
 
-  test("HTTP инструментов адресного агента требует grant и ограничивает тело до исполнения", async () => {
+  test("общий HTTP вход требует grant, не принимает выбор файлового root и ограничивает тело до исполнения", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
-    const url = new URL("/api/chat/tools", running.origin)
+    const url = new URL("/api/environment", running.origin)
     const catalog = await fetch(url)
     expect(catalog.status).toBe(401)
     expect(await catalog.json()).toMatchObject({error: {code: "UNAUTHORIZED"}})
     const call = await fetch(url, {method: "POST", headers: {"content-type": "application/json", authorization: `Bearer ${running.record.controlToken}`},
-      body: JSON.stringify({name: "filesystem.create", arguments: {path: "forbidden.txt", content: "x"}})})
-    expect(call.status, "Управляющий токен не заменяет назначение адресного агента").toBe(401)
+      body: JSON.stringify({name: "filesystem.create", arguments: {path: "forbidden.txt", content: "x", root: fixture.standalone}})})
+    expect(call.status, "Доверенный управляющий токен даёт Project grant, но аргументы инструмента не переназначают файловую область").toBe(400)
+    expect((await call.json()).error.code).toBe("INVALID_INPUT")
     expect(existsSync(join(fixture.root, "forbidden.txt"))).toBeFalse()
-    const oversized = await fetch(url, {method: "POST", body: new Uint8Array(16 * 1024 * 1024 + 1)})
+    const oversized = await fetch(url, {method: "POST", headers: {authorization: `Bearer ${running.record.controlToken}`}, body: new Uint8Array(16 * 1024 * 1024 + 1)})
     expect(oversized.status).toBe(413)
+    expect(running.sessions.snapshots().every(snapshot => snapshot.builds === 0)).toBeTrue()
+  })
+
+  test("удалённые HTTP адреса чата не раскрывают инструменты и не возвращают HTML fallback", async () => {
+    const fixture = serverFixture()
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]),
+      statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    servers.push(running)
+    for (const path of ["/api/chat/mcp", "/api/chat/tools"]) {
+      for (const method of ["GET", "POST"]) {
+        const response = await fetch(new URL(path, running.origin), {
+          method, headers: {authorization: `Bearer ${running.record.controlToken}`},
+          ...(method === "GET" ? {} : {body: JSON.stringify({name: "filesystem.create", arguments: {path: "retired.txt", content: "x"}})}),
+        })
+        expect(response.status).toBe(404)
+        expect(response.headers.get("content-type")).toContain("application/json")
+        expect(await response.json()).toMatchObject({error: {code: "NOT_FOUND"}})
+      }
+    }
+    expect(existsSync(join(fixture.root, "retired.txt"))).toBeFalse()
     expect(running.sessions.snapshots().every(snapshot => snapshot.builds === 0)).toBeTrue()
   })
 

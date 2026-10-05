@@ -1,6 +1,6 @@
 import type {Subject, AssignmentInput, Assignment, Instruction} from "./context"
 import type {CallEvent} from "./events"
-import type {StorybookAppMcpTools} from "@zavx0z/storybook-app-mcp-tools"
+import type {StorybookAppEnvironmentTools} from "@zavx0z/storybook-app-environment-tools"
 
 /** Назначение и исполнение окружения независимо от модели и транспорта её сессии. */
 export declare namespace StorybookAppEnvironment {
@@ -29,7 +29,7 @@ export declare namespace StorybookAppEnvironment {
     instructions?(input: Readonly<{executorId: string, subject: Subject, inspectExecutors: boolean}>): readonly Instruction[] | Promise<readonly Instruction[]>
     readKnowledge(input: Readonly<{address: string, path?: string, signal: AbortSignal}>): Promise<Response>
     /** Предметный владелец добавляет инструменты конкретного назначения до выдачи bootstrap. */
-    extensions?(input: Readonly<{executorId: string, subject: Subject, inspectExecutors: boolean}>): StorybookAppMcpTools.Input["extensions"] | Promise<StorybookAppMcpTools.Input["extensions"]>
+    extensions?(input: Readonly<{executorId: string, subject: Subject, inspectExecutors: boolean}>): StorybookAppEnvironmentTools.Input["extensions"] | Promise<StorybookAppEnvironmentTools.Input["extensions"]>
     onCall?(event: CallEvent): void | Promise<void>
     /** Необязательная штатная доставка NDJSON; execute возвращает ту же result/error оболочку, что JSON. */
     stream?(signal: AbortSignal, subscribe: (listener: (progress: Readonly<Record<string, unknown>>) => void) => () => void,
