@@ -128,6 +128,57 @@ describe.each([
       expect(issued, "Полученная команда остаётся самостоятельным сообщением с назначением command")
         .toMatchObject({kind: "message", purpose: "command"})
     })
+    test.each([false, true])("Восстановление собственного контекста с image=%s", async imageInput => {
+      const root = await mkdtemp(join(tmpdir(), "chat-supplied-replay-"))
+      let bootstrap: {type: "text"; text: string} = {type: "text", text: ""}
+      const question = {type: "text" as const, text: "Что доступно?"}
+      const image = {type: "image" as const, mimeType: "image/png", data: "AA=="}
+      const imageEcho = {type: "text" as const, text: "[@image](data:image/png;base64,AA==)"}
+      const input: StorybookChatSession.Input = {
+        directory: () => root,
+        resolve: address => ({address, label: "Предмет", cwd: root}),
+        async environment(assignment) {
+          bootstrap = {type: "text", text: JSON.stringify({environment: {executorId: assignment.executorId, subject: {address: assignment.address}}})}
+          return {content: [bootstrap], async execute() { return [] }, dispose() {}}
+        },
+        async connect(assignment) {
+          if (assignment.previousSessionId !== undefined) for (const content of [bootstrap, question, ...(imageInput ? [imageEcho] : [])]) {
+            await assignment.onReplay?.({sessionUpdate: "user_message_chunk", messageId: "native-input", content})
+          }
+          return {
+            sessionId: "native-session", capabilities: {}, configOptions: [], async setConfigOption() { return [] },
+            async prompt() { return {stopReason: "end_turn"} }, async cancel() {}, async dispose() {},
+          }
+        },
+      }
+      const original = createChatSessions(input)
+      let restored: StorybookChatSession.Output | undefined
+      try {
+        const done = Promise.withResolvers<void>()
+        const release = await original.subscribe("/subject", state => {
+          if (state.status === "idle" && state.history.total > 0 && !state.pending.length) done.resolve()
+        })
+        await original.prompt("/subject", [question, ...(imageInput ? [image] : [])], "request")
+        await done.promise
+        release()
+        await original.dispose()
+        restored = createChatSessions(input)
+        await restored.prepare("/subject")
+        const page = await restored.history("/subject")
+        const replay = page.items.find(item => item.origin === "replay")!
+        expect(page.items.filter(item => item.role === "user"), "Вопрос сохраняет одну canonical пользовательскую строку").toHaveLength(1)
+        expect(replay.kind, "Точный replay supplied context и вопроса остаётся свёрнутым контекстом").toBe("context")
+        expect((await restored.historyItem("/subject", replay.id)).entry, "Контекст связан с исходным requestId и не склеен с вопросом")
+          .toMatchObject({kind: "context", requestId: "request", content: [bootstrap]})
+        expect((await restored.historyEvidence("/subject", replay.id)).items.map(event => (event.update as {content: unknown}).content),
+          "Native replay blocks остаются исходными свидетельствами, image echo сохраняет точный текст адаптера")
+          .toEqual([bootstrap, question, ...(imageInput ? [imageEcho] : [])])
+      } finally {
+        await original.dispose()
+        await restored?.dispose()
+        await rm(root, {recursive: true, force: true})
+      }
+    })
   })
 
 })

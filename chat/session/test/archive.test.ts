@@ -127,6 +127,180 @@ test("страница headers не читает большие tool payload, ev
   expect(archive.body(id).evidenceCount).toBe(5)
 })
 
+test.each(["user-first", "context-first"])("собственный bootstrap replay %s остаётся context с canonical вопросом, raw evidence и cold rebuild", async order => {
+  const f = await fixture()
+  let archive = await f.open()
+  const bootstrap = {type: "text" as const, text: JSON.stringify({environment: {
+    executorId: f.metadata.executorId, subject: {address: f.metadata.address}, instructions: "Правила ".repeat(5000),
+  }})}
+  const question = {type: "text" as const, text: "какие инструменты ты видешь у себя?"}
+  const input: ArchiveMutation[] = [message("user:original", question.text),
+    {type: "append", item: {id: "own-context", kind: "context", origin: "local", requestId: "original", content: [bootstrap]}}]
+  await archive.commit(undefined, order === "user-first" ? input : input.reverse())
+  const events = [bootstrap, question].map(content => ({sessionUpdate: "user_message_chunk" as const, messageId: "native-user",
+    content: {text: content.text, type: content.type}}))
+  const cursor = {}
+  for (const event of events) await archive.receive(event, "replay", cursor)
+  const id = archive.findProvider("user", "native-user")!.id
+  const originalHeader = JSON.parse(await readFile(f.file, "utf8"))
+  const journal = join(f.root, "meta/chat", originalHeader.journal)
+  const originalSource = await readFile(journal, "utf8")
+  const assertProjection = () => {
+    expect(archive.page().items.find(item => item.id === id)).toMatchObject({kind: "context", evidenceCount: 2})
+    expect(archive.body(id).entry).toMatchObject({id, kind: "context", requestId: "original", content: [bootstrap]})
+    expect(archive.body("user:original").entry).toMatchObject({kind: "message", role: "user", content: [question]})
+    expect(archive.content(id)).toEqual([bootstrap, question])
+    expect(archive.evidence(id).items.map(event => event.update)).toEqual(events)
+    expect(archive.stats().total).toBe(3)
+    expect(archive.residency().entries).toBe(0)
+  }
+  assertProjection()
+  await archive.dispose()
+  await rm(archive.cacheFile)
+  archive = await f.open()
+  assertProjection()
+  const readContent = archive.content.bind(archive)
+  const readIds: string[] = []
+  archive.content = id => { readIds.push(id); return readContent(id) }
+  for (let index = 0; index < 10; index++) archive.page()
+  expect(readIds).toEqual([])
+  archive.body(id)
+  expect(readIds).toEqual(["own-context"])
+  expect(await readFile(journal, "utf8")).toBe(originalSource)
+  expect(JSON.parse(await readFile(f.file, "utf8"))).toEqual(originalHeader)
+})
+
+test.each([
+  {name: "без собственного supplied context", supplied: false, scope: true, question: true, identity: true},
+  {name: "другого адреса", supplied: true, scope: false, question: true, identity: true},
+  {name: "с другим вопросом", supplied: true, scope: true, question: false, identity: true},
+  {name: "без provider identity", supplied: true, scope: true, question: true, identity: false},
+])("несопоставленный user replay $name сохраняет пользовательский JSON", async props => {
+  const f = await fixture()
+  const archive = await f.open()
+  const bootstrap = {type: "text" as const, text: JSON.stringify({environment: {executorId: f.metadata.executorId,
+    subject: {address: props.scope ? f.metadata.address : "/other"}}})}
+  await archive.commit(undefined, [message("user:original", "Вопрос"),
+    ...(props.supplied ? [{type: "append" as const, item: {id: "own-context", kind: "context" as const, origin: "local" as const,
+      requestId: "original", content: [bootstrap]}}] : [])])
+  const cursor = {}
+  for (const content of [bootstrap, {type: "text" as const, text: props.question ? "Вопрос" : "Другой вопрос"}]) {
+    await archive.receive({sessionUpdate: "user_message_chunk", ...(props.identity ? {messageId: "native-user"} : {}), content}, "replay", cursor)
+  }
+  for (const item of archive.page().items.filter(item => item.origin === "replay")) {
+    expect(item).toMatchObject({kind: "message", role: "user"})
+    expect(archive.body(item.id).entry).toMatchObject({kind: "message", role: "user"})
+  }
+})
+
+test("неоднозначный собственный bootstrap replay не угадывает requestId одинаковых вопросов", async () => {
+  const f = await fixture()
+  const archive = await f.open()
+  const bootstrap = {type: "text" as const, text: JSON.stringify({environment: {executorId: f.metadata.executorId,
+    subject: {address: f.metadata.address}}})}
+  for (const requestId of ["one", "two"]) await archive.commit(undefined, [message(`user:${requestId}`, "Вопрос"),
+    {type: "append", item: {id: `context:${requestId}`, kind: "context", origin: "local", requestId, content: [bootstrap]}}])
+  const cursor = {}
+  for (const content of [bootstrap, {type: "text" as const, text: "Вопрос"}]) {
+    await archive.receive({sessionUpdate: "user_message_chunk", messageId: "native-user", content}, "replay", cursor)
+  }
+  expect(archive.body(archive.findProvider("user", "native-user")!.id).entry).toMatchObject({kind: "message", role: "user"})
+})
+
+test("собственный bootstrap replay получает projection при позднем canonical input и снимает её при неоднозначности", async () => {
+  const f = await fixture()
+  const archive = await f.open()
+  const bootstrap = {type: "text" as const, text: JSON.stringify({environment: {executorId: f.metadata.executorId,
+    subject: {address: f.metadata.address}}})}
+  const cursor = {}
+  for (const content of [bootstrap, {type: "text" as const, text: "Вопрос"}]) {
+    await archive.receive({sessionUpdate: "user_message_chunk", messageId: "native-user", content}, "replay", cursor)
+  }
+  const id = archive.findProvider("user", "native-user")!.id
+  expect(archive.body(id).entry).toMatchObject({kind: "message", role: "user"})
+  const input = (requestId: string): ArchiveMutation[] => [
+    {type: "append", item: {id: `context:${requestId}`, kind: "context", origin: "local", requestId, content: [bootstrap]}},
+    message(`user:${requestId}`, "Вопрос"),
+  ]
+  await archive.commit(undefined, input("one"))
+  expect(archive.body(id).entry).toMatchObject({kind: "context", requestId: "one"})
+  const revision = archive.body(id).revision
+  await archive.commit(undefined, input("two"))
+  expect(archive.body(id).entry).toMatchObject({kind: "message", role: "user"})
+  expect(archive.body(id).revision).toBeGreaterThan(revision)
+})
+
+test.each([
+  {name: "отдельные chunks", bootstrap: false, merged: false},
+  {name: "один text block", bootstrap: false, merged: true},
+  {name: "bootstrap и image", bootstrap: true, merged: false},
+])("собственный image echo $name возвращает typed context и сохраняет source при cold rebuild", async props => {
+  const f = await fixture()
+  let archive = await f.open()
+  const content = [{type: "text" as const, text: "что видишь тут?"},
+    {type: "image" as const, mimeType: "image/png", data: Buffer.alloc(750_000).toString("base64")}]
+  const bootstrap = {type: "text" as const, text: JSON.stringify({environment: {executorId: f.metadata.executorId,
+    subject: {address: f.metadata.address}}})}
+  await archive.commit(undefined, [
+    {type: "append", item: {id: "user:picture", kind: "message", role: "user", origin: "local", content}},
+    ...(props.bootstrap ? [{type: "append" as const, item: {id: "own-context", kind: "context" as const, origin: "local" as const, requestId: "picture", content: [bootstrap]}}] : []),
+    {type: "append", item: {id: "start", kind: "turn", origin: "local", requestId: "picture", state: "started"}},
+  ])
+  const echo = `[@image](data:${content[1]!.mimeType};base64,${content[1]!.data})`
+  const raw = [...(props.bootstrap ? [bootstrap] : []), content[0]!, {type: "text" as const, text: echo}]
+  const events = (props.merged ? [{type: "text" as const, text: raw.map(block => block.text).join("")}] : raw)
+    .map(block => ({sessionUpdate: "user_message_chunk" as const, messageId: "native-picture", content: block}))
+  const replayCursor = {}
+  for (const event of events) await archive.receive(event, "replay", replayCursor)
+  const id = archive.findProvider("user", "native-picture")!.id
+  const header = JSON.parse(await readFile(f.file, "utf8"))
+  const journal = join(f.root, "meta/chat", header.journal)
+  const source = await readFile(journal, "utf8")
+  const assertProjection = () => {
+    expect(archive.page().items.find(item => item.id === id)).toMatchObject({kind: "context"})
+    const body = archive.body(id)
+    expect(body.entry).toMatchObject({kind: "context", requestId: "picture", content: props.bootstrap ? [bootstrap] : content})
+    expect(archive.body("user:picture").entry).toMatchObject({kind: "message", role: "user", content})
+    const evidence: unknown[] = []
+    let after: number | undefined
+    for (;;) {
+      const page = archive.evidence(id, after === undefined ? {} : {after})
+      evidence.push(...page.items.map(event => event.update))
+      if (page.after === null) break
+      after = page.after
+    }
+    expect(evidence).toEqual(events)
+    expect(archive.residency().entries).toBe(0)
+  }
+  assertProjection()
+  await archive.dispose()
+  await rm(archive.cacheFile)
+  archive = await f.open()
+  assertProjection()
+  expect(await readFile(journal, "utf8")).toBe(source)
+  expect(JSON.parse(await readFile(f.file, "utf8"))).toEqual(header)
+})
+
+test.each([
+  {name: "только пользовательский Markdown link", image: false, started: true, data: "AA==", question: "Вопрос"},
+  {name: "ещё не начатый image input", image: true, started: false, data: "AA==", question: "Вопрос"},
+  {name: "другие байты изображения", image: true, started: true, data: "AQ==", question: "Вопрос"},
+  {name: "другой вопрос", image: true, started: true, data: "AA==", question: "Другой вопрос"},
+])("несопоставленный image echo $name не декодирует произвольный link", async props => {
+  const f = await fixture()
+  const archive = await f.open()
+  const text = "Вопрос[@image](data:image/png;base64,AA==)"
+  const content = props.image ? [{type: "text" as const, text: "Вопрос"}, {type: "image" as const, mimeType: "image/png", data: "AA=="}]
+    : [{type: "text" as const, text}]
+  await archive.commit(undefined, [{type: "append", item: {id: "user:picture", kind: "message", role: "user", origin: "local", content}},
+    ...(props.started ? [{type: "append" as const, item: {id: "start", kind: "turn" as const, origin: "local" as const, requestId: "picture", state: "started" as const}}] : [])])
+  const echo = props.image ? `${props.question}[@image](data:image/png;base64,${props.data})` : text
+  await archive.receive({sessionUpdate: "user_message_chunk", messageId: "native-picture", content: {type: "text", text: echo}}, "replay", {})
+  const id = archive.findProvider("user", "native-picture")!.id
+  expect(archive.page().items.find(item => item.id === id)).toMatchObject({kind: "message", role: "user"})
+  expect(archive.body(id).entry).toMatchObject({kind: "message", content: [{type: "text", text: echo}]})
+})
+
 test.each([1, 2])("потоковая миграция schema%d сохраняет original bytes, identities и незавершённый start", async version => {
   const f = await fixture()
   const legacy = version === 1 ? {...f.metadata, schemaVersion: 1, messages: [{id: "user:old", role: "user", text: "Старая история"}]}
@@ -378,3 +552,20 @@ test("1000 одиночных updates на 1000 и 100000 entries использ
   expect(measurements[1]!.queryMs).toBeLessThan(measurements[0]!.queryMs * 6 + 100)
   if (process.env.CHAT_ARCHIVE_BENCHMARK === "1") console.log(JSON.stringify({operation: "single-update-comparison", updates: 1000, metadataCommits: 100, indexedLookupIterations: 1000, measurements}))
 }, 120_000)
+
+test("удаление отдельного маркера не сканирует растущие таблицы replay-сопоставлений", async () => {
+  const f = await fixture()
+  const archive = await f.open()
+  await archive.commit(f.metadata, [message("user:one")])
+  const db = new Database(archive.cacheFile, {readonly: true})
+  try {
+    for (const [table, predicate, args] of [
+      ["supplied_input", "context_id=? OR request_id=?", ["other-marker", ""]],
+      ["replay_projection", "entry_id=? OR context_id=? OR request_id=?", ["other-marker", "other-marker", ""]],
+    ] as const) {
+      const plan = db.query(`EXPLAIN QUERY PLAN DELETE FROM ${table} WHERE ${predicate}`).all(...args) as {detail: string}[]
+      expect(plan.some(row => row.detail.includes("MULTI-INDEX OR"))).toBe(true)
+      expect(plan.some(row => row.detail.includes(`SCAN ${table}`))).toBe(false)
+    }
+  } finally {db.close()}
+})

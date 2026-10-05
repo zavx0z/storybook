@@ -90,6 +90,15 @@ Idle read/list/history не запускают provider. Исключение �
 Messages объединяются только по provider messageId, tools — по toolCallId.
 Replay batch marker хранится у записи на диске; растущий replay Set отсутствует.
 Replay без messageId не сопоставляется по похожему тексту и сохраняет diagnostic.
+Replay собственного JSON-окружения с той же executor identity и адресом раскрывается
+как context, когда indexed digest и сравнение ContentBlock подтверждают единственную
+пару локального supplied context/requestId и canonical user content. Порядок полей
+JSON не меняет это соответствие. Вопрос сохраняет свою локальную строку; native
+provider identity, исходные blocks и raw updates остаются в источнике и evidence.
+Для native image echo Codex индекс сверяет exact текстовую форму с начатым локальным
+input из text/image blocks. Текстовые `[@image](...)` произвольного пользователя
+не декодируются. При единственном соответствии replay раскрывается как context
+с исходными typed blocks; изображение остаётся в canonical пользовательской строке.
 Полная JSON-команда помечается durable до исполнения окружением; отказ транспорта
 никогда не повторяет возможную мутацию автоматически. Неизменный bootstrap
 контекст не пересылается второй раз в ту же native session.

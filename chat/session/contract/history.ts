@@ -47,6 +47,11 @@ export type HistoryPage = Readonly<{
 /**
 Проекция тела одной записи. Raw updates не дублируются в entry, а читаются отдельной
 страницей evidence. Источник на диске сохраняет исходные блоки и события без потерь.
+Replay собственного bootstrap с единственным точным соответствием supplied context
+и canonical user content раскрывается как context того же requestId. Вопрос остаётся
+в локальном сообщении; исходные replay blocks доступны через evidence.
+Текстовое image echo Codex сопоставляется только с точным начатым локальным input,
+содержащим image. Проекция context возвращает его исходные typed blocks, а не data URL как текст.
 */
 export type HistoryBody = Readonly<{
   chatId: string

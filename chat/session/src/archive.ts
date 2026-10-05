@@ -2,6 +2,8 @@
 Дисковая история беседы. Текстовый журнал в meta/chat является источником;
 SQLite содержит только восстанавливаемую адресацию и проекции. Управляющее
 состояние не удерживает записи, payload или полный индекс истории в памяти.
+Replay собственного bootstrap с точным canonical user content раскрывается как
+context; исходные ContentBlock, provider identity и evidence остаются на диске.
 */
 import {Database} from "bun:sqlite"
 import {createHash, randomUUID} from "node:crypto"
@@ -48,6 +50,7 @@ type Transaction = {schemaVersion: 1; previous: string; metadata: ArchiveMetadat
 type Row = {id: string; ordinal: number; sequence: number; revision: number; kind: Item["kind"]; origin: Origin; preview: string; data?: string; body_bytes: number; evidence_count: number; provider_id: string | null; tool_id: string | null; replay_batch: string | null}
 const SMALL_COLUMNS = "id,ordinal,sequence,revision,kind,origin,preview,body_bytes,evidence_count,provider_id,tool_id,replay_batch"
 const BODY_LIMIT = 16 * 1024 * 1024
+const CODEX_IMAGE_ECHO = "codex-image-echo-v1"
 const RECORD_LIMIT = 64 * 1024 * 1024
 const QUEUE_LIMIT = 32 * 1024 * 1024
 const ZERO_HASH = "0".repeat(64)
@@ -77,6 +80,24 @@ async function writeLease<T>(file: string, action: () => Promise<T>): Promise<T>
 }
 
 function digest(value: string): string { return createHash("sha256").update(value).digest("hex") }
+/** Порядок JSON-полей не меняет ContentBlock; порядок блоков, массивов и текст остаются точными. */
+function contentEncoding(value: unknown): string {
+  return JSON.stringify(value, (_, entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry)
+    ? Object.fromEntries(Object.entries(entry).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)) : entry)
+}
+/** Exact text/image history echo официального Codex ACP; произвольные Markdown links не декодируются. */
+function codexImageEcho(content: readonly Content[]): string | null {
+  if (!content.some(block => block.type === "image") || content.some(block => block.type !== "text" && block.type !== "image")) return null
+  return content.map(block => {
+    if (block.type === "text") return block.text
+    if (block.type !== "image") throw new Error("Неподдерживаемый image echo block")
+    let uri = `data:${block.mimeType};base64,${block.data}`
+    if (block.uri) {
+      try { if (["http:", "https:", "data:"].includes(new URL(block.uri).protocol)) uri = block.uri } catch {}
+    }
+    return `[@image](${uri})`
+  }).join("")
+}
 function database(file: string): Database {
   const existing = pool.get(file)
   if (existing !== undefined) { pool.delete(file); pool.set(file, existing); return existing }
@@ -110,6 +131,22 @@ function database(file: string): Database {
     CREATE TABLE IF NOT EXISTS identity (id TEXT PRIMARY KEY, sequence INTEGER NOT NULL, entry_id TEXT NOT NULL);
     CREATE UNIQUE INDEX IF NOT EXISTS event_sequence ON identity(sequence) WHERE sequence > 0;
     CREATE INDEX IF NOT EXISTS parent_identity ON identity(entry_id);`)
+  const replayIndexSchema = `CREATE TABLE IF NOT EXISTS supplied_input (context_id TEXT NOT NULL, request_id TEXT NOT NULL,
+    bootstrap_hash TEXT NOT NULL, input_hash TEXT NOT NULL, PRIMARY KEY(context_id,bootstrap_hash));
+    CREATE INDEX IF NOT EXISTS supplied_input_content ON supplied_input(bootstrap_hash,input_hash);
+    CREATE INDEX IF NOT EXISTS supplied_input_request ON supplied_input(request_id);
+    CREATE INDEX IF NOT EXISTS supplied_context_request ON entry(json_extract(data,'$.requestId')) WHERE kind='context' AND origin='local';
+    CREATE TABLE IF NOT EXISTS replay_input (entry_id TEXT NOT NULL, bootstrap_hash TEXT NOT NULL, input_hash TEXT NOT NULL, PRIMARY KEY(entry_id,bootstrap_hash));
+    CREATE INDEX IF NOT EXISTS replay_input_content ON replay_input(bootstrap_hash,input_hash);
+    CREATE TABLE IF NOT EXISTS replay_projection (entry_id TEXT PRIMARY KEY, context_id TEXT NOT NULL, request_id TEXT NOT NULL, body_bytes INTEGER NOT NULL);
+    CREATE INDEX IF NOT EXISTS replay_projection_context ON replay_projection(context_id);
+    CREATE INDEX IF NOT EXISTS replay_projection_request ON replay_projection(request_id);`
+  db.exec(replayIndexSchema)
+  const keys = db.query("PRAGMA table_info(supplied_input)").all() as {pk: number}[]
+  if (keys.filter(column => column.pk > 0).length === 1) {
+    db.exec("DROP TABLE supplied_input; DROP TABLE replay_input; DELETE FROM replay_projection; DELETE FROM stamp;")
+    db.exec(replayIndexSchema)
+  }
   pool.set(file, db)
   return db
 }
@@ -247,6 +284,135 @@ export class Archive {
     db.query("INSERT INTO evidence(entry_id,ordinal,id,sequence,bytes,data) VALUES(?,(SELECT COALESCE(MAX(ordinal),-1)+1 FROM evidence WHERE entry_id=?),?,?,?,?)").run(id, id, event.id, event.sequence, Buffer.byteLength(encoded), encoded)
     db.query("UPDATE entry SET evidence_count=evidence_count+1 WHERE id=?").run(id)
   }
+  /** Digest читается по блокам: корпус и растущий список request не удерживаются в RAM. */
+  private inputDigest(db: Database, ids: readonly string[]): string {
+    const hash = createHash("sha256").update("[")
+    let first = true
+    for (const id of ids) for (const block of db.query("SELECT data FROM block WHERE entry_id=? ORDER BY ordinal").iterate(id) as Iterable<{data: string}>) {
+      if (!first) hash.update(",")
+      hash.update(contentEncoding(JSON.parse(block.data)))
+      first = false
+    }
+    return hash.update("]").digest("hex")
+  }
+  private blocks(db: Database, id: string): Content[] {
+    const row = db.query("SELECT body_bytes FROM entry WHERE id=?").get(id) as {body_bytes: number} | null
+    if (row === null || row.body_bytes > BODY_LIMIT) throw new Error("Тело записи превышает предел ограниченного сопоставления")
+    return (db.query("SELECT data FROM block WHERE entry_id=? ORDER BY ordinal").all(id) as {data: string}[]).map(block => JSON.parse(block.data))
+  }
+  private indexSuppliedInput(db: Database, item: Item, revision: number): void {
+    if (item.kind === "turn" && item.state === "started") {
+      const user = db.query("SELECT data,body_bytes FROM entry WHERE id=? AND kind='message' AND origin='local'").get(`user:${item.requestId}`) as {data: string; body_bytes: number} | null
+      if (user !== null && user.body_bytes <= BODY_LIMIT) {
+        const data = JSON.parse(user.data)
+        this.indexSuppliedInput(db, {...data, content: this.blocks(db, data.id)}, revision)
+      }
+      return
+    }
+    if (item.kind === "message" && item.origin === "local" && item.role === "user" && item.id.startsWith("user:")) {
+      const requestId = item.id.slice(5)
+      const echo = codexImageEcho(item.content)
+      const started = db.query("SELECT 1 FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' AND json_extract(data,'$.requestId')=? LIMIT 1").get(requestId) !== null
+      if (started && echo !== null && Buffer.byteLength(echo) <= BODY_LIMIT) {
+        const inputHash = digest(echo)
+        db.query("INSERT OR REPLACE INTO supplied_input(context_id,request_id,bootstrap_hash,input_hash) VALUES(?,?,?,?)")
+          .run(item.id, requestId, CODEX_IMAGE_ECHO, inputHash)
+        for (const replay of db.query("SELECT entry_id FROM replay_input WHERE bootstrap_hash=? AND input_hash=?")
+          .iterate(CODEX_IMAGE_ECHO, inputHash) as Iterable<{entry_id: string}>) this.materializeReplay(db, replay.entry_id, revision)
+      }
+      for (const context of db.query("SELECT data FROM entry WHERE kind='context' AND origin='local' AND json_extract(data,'$.requestId')=? AND body_bytes<=?")
+        .iterate(requestId, BODY_LIMIT) as Iterable<{data: string}>) {
+        const data = JSON.parse(context.data)
+        this.indexSuppliedInput(db, {...data, content: this.blocks(db, data.id)}, revision)
+      }
+      return
+    }
+    if (item.kind !== "context" || item.origin !== "local" || !item.requestId || item.content.length !== 1 || item.content[0]?.type !== "text") return
+    const userId = `user:${item.requestId}`
+    const user = db.query("SELECT origin,kind,preview,body_bytes FROM entry WHERE id=?").get(userId) as Pick<Row, "origin" | "kind" | "preview" | "body_bytes"> | null
+    if (user?.kind !== "message" || user.origin !== "local" || user.body_bytes > BODY_LIMIT || JSON.parse(user.preview).role !== "user") return
+    if (Buffer.byteLength(JSON.stringify(item.content[0])) > BODY_LIMIT) return
+    const bootstrapHash = digest(contentEncoding(item.content[0]))
+    const inputHash = this.inputDigest(db, [item.id, userId])
+    const fingerprints = [{bootstrapHash, inputHash}]
+    const echo = codexImageEcho([...item.content, ...this.blocks(db, userId)])
+    const started = db.query("SELECT 1 FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' AND json_extract(data,'$.requestId')=? LIMIT 1").get(item.requestId) !== null
+    if (started && echo !== null && Buffer.byteLength(echo) <= BODY_LIMIT) fingerprints.push({bootstrapHash: CODEX_IMAGE_ECHO, inputHash: digest(echo)})
+    for (const fingerprint of fingerprints) {
+      db.query("INSERT OR REPLACE INTO supplied_input(context_id,request_id,bootstrap_hash,input_hash) VALUES(?,?,?,?)")
+        .run(item.id, item.requestId, fingerprint.bootstrapHash, fingerprint.inputHash)
+      for (const replay of db.query("SELECT entry_id FROM replay_input WHERE bootstrap_hash=? AND input_hash=?")
+        .iterate(fingerprint.bootstrapHash, fingerprint.inputHash) as Iterable<{entry_id: string}>) this.materializeReplay(db, replay.entry_id, revision)
+    }
+  }
+  /** Точное соответствие вычисляется при записи/rebuild; header чтение никогда не раскрывает payload. */
+  private materializeReplay(db: Database, id: string, revision: number): void {
+    const fingerprints = db.query("SELECT bootstrap_hash,input_hash FROM replay_input WHERE entry_id=? LIMIT 2").all(id) as {bootstrap_hash: string; input_hash: string}[]
+    if (!fingerprints.length) return
+    const previous = db.query("SELECT context_id FROM replay_projection WHERE entry_id=?").get(id) as {context_id: string} | null
+    const matches: {context_id: string; request_id: string}[] = []
+    let ambiguous = false
+    for (const fingerprint of fingerprints) {
+      const candidates = db.query("SELECT context_id,request_id FROM supplied_input WHERE bootstrap_hash=? AND input_hash=? LIMIT 2")
+        .all(fingerprint.bootstrap_hash, fingerprint.input_hash) as {context_id: string; request_id: string}[]
+      if (candidates.length > 1) { ambiguous = true; continue }
+      const candidate = candidates[0]
+      if (candidate === undefined) continue
+      const replay = this.blocks(db, id)
+      const supplied = this.blocks(db, candidate.context_id)
+      const content = candidate.context_id === `user:${candidate.request_id}` ? supplied : [...supplied, ...this.blocks(db, `user:${candidate.request_id}`)]
+      const confirmed = fingerprint.bootstrap_hash === CODEX_IMAGE_ECHO
+        ? replay.every(block => block.type === "text") && replay.map(block => block.type === "text" ? block.text : "").join("") === codexImageEcho(content)
+        : contentEncoding(replay) === contentEncoding(content)
+      if (confirmed) matches.push(candidate)
+    }
+    const match = !ambiguous && matches.length === 1 ? matches[0] : undefined
+    if (match === undefined) {
+      if (previous !== null) {
+        db.query("DELETE FROM replay_projection WHERE entry_id=?").run(id)
+        db.query("UPDATE entry SET revision=? WHERE id=?").run(revision, id)
+      }
+      return
+    }
+    const context = db.query("SELECT body_bytes FROM entry WHERE id=?").get(match.context_id) as {body_bytes: number}
+    db.query("INSERT OR REPLACE INTO replay_projection(entry_id,context_id,request_id,body_bytes) VALUES(?,?,?,?)")
+      .run(id, match.context_id, match.request_id, context.body_bytes)
+    db.query("UPDATE entry SET revision=? WHERE id=?").run(revision, id)
+  }
+  /** Только собственный envelope с native identity может стать кандидатом exact supplied replay. */
+  private indexReplay(db: Database, id: string, revision: number): void {
+    const row = db.query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE id=?`).get(id) as Row | null
+    if (row === null || row.kind !== "message" || row.origin !== "replay" || JSON.parse(row.preview).role !== "user") return
+    db.query("DELETE FROM replay_input WHERE entry_id=?").run(id)
+    db.query("DELETE FROM replay_projection WHERE entry_id=?").run(id)
+    if (row.provider_id === null || row.body_bytes > BODY_LIMIT) return
+    const first = db.query("SELECT data FROM block WHERE entry_id=? AND ordinal=0").get(id) as {data: string} | null
+    if (first === null) return
+    const block: Content = JSON.parse(first.data)
+    if (block.type !== "text") return
+    let envelope: unknown
+    try { envelope = JSON.parse(block.text) } catch {}
+    const environment = envelope !== null && typeof envelope === "object" && Object.keys(envelope).length === 1 && "environment" in envelope ? envelope.environment : undefined
+    if (environment !== null && typeof environment === "object" && "executorId" in environment && environment.executorId === this.header.metadata.executorId &&
+      "subject" in environment && environment.subject !== null && typeof environment.subject === "object" && "address" in environment.subject && environment.subject.address === this.header.metadata.address) {
+      db.query("INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)")
+        .run(id, digest(contentEncoding(block)), this.inputDigest(db, [id]))
+    }
+    const content = this.blocks(db, id)
+    if (content.every(block => block.type === "text")) {
+      const text = content.map(block => block.type === "text" ? block.text : "").join("")
+      if (text.includes("[@image](")) db.query("INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)")
+        .run(id, CODEX_IMAGE_ECHO, digest(text))
+    }
+    this.materializeReplay(db, id, revision)
+  }
+  private replayContext(row: Row): {context_id: string; request_id: string; body_bytes: number} | null {
+    return this.db().query("SELECT context_id,request_id,body_bytes FROM replay_projection WHERE entry_id=?").get(row.id) as {context_id: string; request_id: string; body_bytes: number} | null
+  }
+  private projectedHeader(row: Row): HistoryEntry {
+    const context = this.replayContext(row)
+    return context === null ? headerEntry(row) : headerEntry({...row, kind: "context", preview: "{}", body_bytes: context.body_bytes})
+  }
   private apply(db: Database, mutation: StoredMutation, revision: number): number {
     if (mutation.type === "create") {
       const update = mutation.event.update as Update
@@ -260,6 +426,9 @@ export class Archive {
       return delta
     }
     if (mutation.type === "remove") {
+      db.query("DELETE FROM supplied_input WHERE context_id=? OR request_id=?").run(mutation.id, mutation.id.startsWith("user:") ? mutation.id.slice(5) : "")
+      db.query("DELETE FROM replay_input WHERE entry_id=?").run(mutation.id)
+      db.query("DELETE FROM replay_projection WHERE entry_id=? OR context_id=? OR request_id=?").run(mutation.id, mutation.id, mutation.id.startsWith("user:") ? mutation.id.slice(5) : "")
       db.query("DELETE FROM block WHERE entry_id=?").run(mutation.id)
       db.query("DELETE FROM evidence WHERE entry_id=?").run(mutation.id)
       db.query("DELETE FROM identity WHERE entry_id=?").run(mutation.id)
@@ -288,6 +457,8 @@ export class Archive {
         item.kind === "tool" ? item.toolCallId : null)
       if (item.kind === "message" || item.kind === "context") for (const content of item.content) this.addBlock(db, item.id, content)
       if (item.kind === "tool" || item.kind === "message") for (const event of item.updates ?? []) this.addEvidence(db, item.id, event)
+      this.indexSuppliedInput(db, item, revision)
+      this.indexReplay(db, item.id, revision)
       return 1
     }
     const row = db.query("SELECT * FROM entry WHERE id=?").get(mutation.id) as Row | null
@@ -307,6 +478,7 @@ export class Archive {
     } else throw new Error("Обновление не соответствует виду записи")
     this.addEvidence(db, row.id, mutation.event)
     db.query("UPDATE entry SET revision=?,replay_batch=COALESCE(?,replay_batch) WHERE id=?").run(revision, mutation.replayBatch ?? null, row.id)
+    this.indexReplay(db, row.id, revision)
     return 0
   }
   private stamp(db: Database, header: Header): void {
@@ -314,7 +486,7 @@ export class Archive {
   }
   private sourceStamp(header: Header): string {
     const info = statSync(join(dirname(this.file), header.journal))
-    return `${header.hash}:${header.committedBytes}:${info.mtimeMs}:${info.ctimeMs}:${info.size}`
+    return `supplied-input-v6:${header.hash}:${header.committedBytes}:${info.mtimeMs}:${info.ctimeMs}:${info.size}`
   }
   async initialize(): Promise<void> {
     await writeLease(this.file, async () => { await this.initializeLeased() })
@@ -344,7 +516,7 @@ export class Archive {
     }
     const saved = db.query("SELECT value FROM stamp WHERE key='source'").get() as {value: string} | null
     if (saved?.value === this.sourceStamp(this.header)) { this.initialized = true; return }
-    db.exec("DELETE FROM stamp; DELETE FROM block; DELETE FROM evidence; DELETE FROM identity; DELETE FROM entry;")
+    db.exec("DELETE FROM stamp; DELETE FROM block; DELETE FROM evidence; DELETE FROM identity; DELETE FROM entry; DELETE FROM supplied_input; DELETE FROM replay_input; DELETE FROM replay_projection;")
     let offset = 0
     let hash = ZERO_HASH
     let revision = 0
@@ -503,6 +675,13 @@ export class Archive {
     if (row === null) throw new Error("Запись истории не найдена")
     if (row.body_bytes > BODY_LIMIT) throw new Error("Тело записи превышает предел чтения 16 MiB; исходные данные сохранены")
     const data = JSON.parse((this.db().query("SELECT data FROM entry WHERE id=?").get(id) as {data: string}).data)
+    const context = this.replayContext(row)
+    if (context !== null) {
+      const entry: Item = {id: row.id, sequence: row.sequence, origin: row.origin,
+        ...(data.batchId === undefined ? {} : {batchId: data.batchId}), kind: "context", requestId: context.request_id, content: this.content(context.context_id)}
+      return {chatId: this.header.metadata.id, revision: row.revision, id,
+        bytes: context.body_bytes, entry, evidenceCount: row.evidence_count}
+    }
     let entry: Item
     if (row.kind === "message" || row.kind === "context") {
       const content: Content[] = []
@@ -533,7 +712,7 @@ export class Archive {
     let bytes = 2
     const backwards = query.after === undefined && query.around === undefined
     for (const row of rows) {
-      const entry = headerEntry(row)
+      const entry = this.projectedHeader(row)
       const length = Buffer.byteLength(JSON.stringify(entry)) + Number(items.length > 0)
       if (bytes + length > maxBytes && items.length === 0) throw new RangeError("Заголовок записи превышает byte budget страницы; исходная identity сохранена")
       if (bytes + length > maxBytes) break
