@@ -1,0 +1,157 @@
+{
+  "label": "large-end-visible",
+  "recordedAt": "2026-10-05T06:02:20.013Z",
+  "forcedGC": false,
+  "before": {
+    "visibility": "visible",
+    "timeOrigin": 1791176054713.2,
+    "frames": 44,
+    "elements": 1171,
+    "windows": [
+      {
+        "name": "Журнал агента",
+        "rect": {
+          "x": 331.7576642294403,
+          "y": 94.53493612850158,
+          "width": 593.3333485461042,
+          "height": 860.0000154609207,
+          "top": 94.53493612850158,
+          "right": 925.0910127755444,
+          "bottom": 954.5349515894223,
+          "left": 331.7576642294403
+        }
+      },
+      {
+        "name": "Общий журнал вызовов",
+        "rect": {
+          "x": 317,
+          "y": 585,
+          "width": 601,
+          "height": 485,
+          "top": 585,
+          "right": 918,
+          "bottom": 1070,
+          "left": 317
+        }
+      },
+      {
+        "name": "zavx0z",
+        "rect": {
+          "x": 6,
+          "y": 6,
+          "width": 297,
+          "height": 1052,
+          "top": 6,
+          "right": 303,
+          "bottom": 1058,
+          "left": 6
+        }
+      }
+    ],
+    "large": {
+      "characters": 548153,
+      "hasEnd": true,
+      "rows": 34,
+      "firstRow": "2",
+      "lastRow": "13009",
+      "scrollTop": 207770,
+      "contentHeight": 208160,
+      "viewportHeight": 400,
+      "rect": {
+        "x": 330,
+        "y": 896.0000000000002,
+        "width": 575,
+        "height": 400,
+        "top": 896.0000000000002,
+        "right": 905,
+        "bottom": 1296.0000000000002,
+        "left": 330
+      },
+      "viewportRowsSource": [
+        "  \"size\": 521907,",
+        "  \"truncated\": false,",
+        "  \"contentHash\": \"81bd41b4b00383d26fd47bb59f385316d751a373508a33fdb6507af511315e3a\"",
+        "}"
+      ]
+    }
+  },
+  "after": {
+    "visibility": "visible",
+    "timeOrigin": 1791176054713.2,
+    "frames": 45,
+    "elements": 1171,
+    "windows": [
+      {
+        "name": "Журнал агента",
+        "rect": {
+          "x": 331.7576642294403,
+          "y": 94.53493612850158,
+          "width": 593.3333485461042,
+          "height": 860.0000154609207,
+          "top": 94.53493612850158,
+          "right": 925.0910127755444,
+          "bottom": 954.5349515894223,
+          "left": 331.7576642294403
+        }
+      },
+      {
+        "name": "Общий журнал вызовов",
+        "rect": {
+          "x": 317,
+          "y": 585,
+          "width": 601,
+          "height": 485,
+          "top": 585,
+          "right": 918,
+          "bottom": 1070,
+          "left": 317
+        }
+      },
+      {
+        "name": "zavx0z",
+        "rect": {
+          "x": 6,
+          "y": 6,
+          "width": 297,
+          "height": 1052,
+          "top": 6,
+          "right": 303,
+          "bottom": 1058,
+          "left": 6
+        }
+      }
+    ],
+    "large": {
+      "characters": 548153,
+      "hasEnd": true,
+      "rows": 34,
+      "firstRow": "2",
+      "lastRow": "13009",
+      "scrollTop": 207770,
+      "contentHeight": 208160,
+      "viewportHeight": 400,
+      "rect": {
+        "x": 330,
+        "y": 657.0000000000002,
+        "width": 575,
+        "height": 400,
+        "top": 657.0000000000002,
+        "right": 905,
+        "bottom": 1057.0000000000002,
+        "left": 330
+      },
+      "viewportRowsSource": [
+        "  \"size\": 521907,",
+        "  \"truncated\": false,",
+        "  \"contentHash\": \"81bd41b4b00383d26fd47bb59f385316d751a373508a33fdb6507af511315e3a\"",
+        "}"
+      ]
+    }
+  },
+  "heap": {
+    "usedSize": 53949512,
+    "totalSize": 65728512,
+    "embedderHeapUsedSize": 1010960,
+    "backingStorageSize": 62436216
+  }
+}

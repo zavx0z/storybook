@@ -38,7 +38,8 @@ function JsonFieldView(props: Readonly<{title: string, value: string, active?: b
         max-width: 100%;
         min-width: 0;
         height: var(--journal-field-height);
-        overflow-y: hidden;
+        max-height: 400px;
+        overflow-y: auto;
         flex-shrink: 0;
         user-select: contain;
       `}

@@ -1,0 +1,93 @@
+{
+  "label": "readonly-large",
+  "context": {
+    "timeOrigin": 1791176054713.2,
+    "viewport": {
+      "width": 1920,
+      "height": 1088,
+      "devicePixelRatio": 2
+    }
+  },
+  "textCaches": [
+    {
+      "leaseStats": {
+        "entries": 322,
+        "activeEntries": 197,
+        "inactiveEntries": 125,
+        "activeUsers": 304,
+        "activeBytes": 8885758,
+        "inactiveBytes": 5868512,
+        "arrayBytes": 14719656,
+        "keyBytes": 34614,
+        "maxInactiveBytes": 16777216,
+        "maxEntries": 4096
+      },
+      "name": "Text2",
+      "entries": 322,
+      "cpuBytes": 14719656,
+      "inactiveBytes": 5854536,
+      "inactiveEntries": 125,
+      "constructionDefaults": {
+        "entries": 0,
+        "bytes": 0,
+        "active": 0
+      },
+      "largest": [
+        {
+          "constructionDefault": false,
+          "keyCharacters": 105,
+          "bytes": 215856,
+          "active": true
+        },
+        {
+          "constructionDefault": false,
+          "keyCharacters": 102,
+          "bytes": 209472,
+          "active": false
+        },
+        {
+          "constructionDefault": false,
+          "keyCharacters": 102,
+          "bytes": 196080,
+          "active": true
+        },
+        {
+          "constructionDefault": false,
+          "keyCharacters": 102,
+          "bytes": 193464,
+          "active": false
+        },
+        {
+          "constructionDefault": false,
+          "keyCharacters": 102,
+          "bytes": 189792,
+          "active": false
+        },
+        {
+          "constructionDefault": false,
+          "keyCharacters": 80,
+          "bytes": 174384,
+          "active": true
+        },
+        {
+          "constructionDefault": false,
+          "keyCharacters": 88,
+          "bytes": 167352,
+          "active": false
+        },
+        {
+          "constructionDefault": false,
+          "keyCharacters": 79,
+          "bytes": 157872,
+          "active": true
+        }
+      ]
+    }
+  ],
+  "heap": {
+    "usedSize": 69537120,
+    "totalSize": 77336576,
+    "embedderHeapUsedSize": 1341328,
+    "backingStorageSize": 63444489
+  }
+}

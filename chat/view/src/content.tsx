@@ -146,6 +146,8 @@ function ChatDataView(props: Readonly<{
       path={props.path}
       readOnly={true}
       showLineNumbers={false}
+      softBreaks={document.softBreaks}
+      showFormattingCharacters={false}
       style={css`
         width: 100%;
         max-width: 100%;

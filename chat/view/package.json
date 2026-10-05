@@ -22,6 +22,8 @@
     "@zavx0z/storybook-tech-json-format": "workspace:*"
   },
   "devDependencies": {
+    "@zavx0z/immersive-browser": "^0.0.0",
+    "@zavx0z/immersive-renderer-html": "^0.0.0",
     "@zavx0z/immersive-headless": "^0.0.0",
     "@zavx0z/immersive-dom": "^0.0.0",
     "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",

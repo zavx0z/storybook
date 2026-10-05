@@ -1,0 +1,56 @@
+import {StorybookCdpClient} from '../app/server/browser/src/chrome-client'
+import {StorybookCdpConnection} from '../app/server/browser/src/cdp-connection'
+const action = process.argv[2] ?? 'inspect'
+const label = process.argv[3] ?? action
+const api = new StorybookCdpClient({launchIfMissing:false})
+const targets = await (await fetch(new URL('/json/list',await api.cdpOrigin()))).json()
+const matches = targets.filter((t:any)=>t.type==='page'&&new URL(t.url).pathname==='/immersive')
+if(matches.length!==1)throw new Error('Expected one Immersive page')
+const cdp = await StorybookCdpConnection.connect(matches[0].webSocketDebuggerUrl)
+const props = async (id:string):Promise<any> => cdp.command('Runtime.getProperties',{objectId:id,ownProperties:true})
+const child = async (id:string,name:string) => (await props(id)).result.find((p:any)=>p.name===name)?.value?.objectId
+const binding = async(fn:string,name:string) => {
+ const info=await props(fn)
+ const scopes=info.internalProperties?.find((p:any)=>p.name==='[[Scopes]]')?.value?.objectId
+ if(!scopes)return
+ for(const scope of (await props(scopes)).result){
+  if(!/^\d+$/.test(scope.name)||!scope.value?.objectId||scope.value.description==='Global')continue
+  const value=await child(scope.value.objectId,name)
+  if(value)return value
+ }
+}
+try {
+ const f:any=await cdp.command('Runtime.evaluate',{expression:'globalThis.__EXTERNAL_STORYBOOK_AGENT_BRIDGE__.invoke',objectGroup:'readonly-probe'})
+ const options=await binding(f.result.objectId,'options')
+ const shell=await child(options!,'shell')
+ const root=await child(shell!,'root')
+ const runtime=await binding((await child(root!,'render'))!,'runtime')
+ if(!runtime)throw new Error('Active runtime missing')
+ const read = async() => {
+  const result:any=await cdp.command('Runtime.callFunctionOn',{objectId:runtime,functionDeclaration:`function(){
+   const d=this.document;
+   const code=[...d.querySelectorAll('code')].find(node=>node.textContent.includes('READONLY PERF ROW'));
+   const viewport=code?.closest('section[role="region"]');
+   const rect=viewport?.getBoundingClientRect();
+   return {visibility:globalThis.document.visibilityState,timeOrigin:performance.timeOrigin,frames:this.presentedFrames,
+    elements:d.querySelectorAll('*').length,draftCharacters:d.querySelector('textarea[aria-label="Сообщение"]')?.value?.length,windows:[...d.querySelectorAll('[data-window]')].map(n=>({name:n.getAttribute('aria-label'),rect:n.getBoundingClientRect().toJSON()})),
+    large:code?{characters:code.textContent.length,hasEnd:code.textContent.includes('READONLY PERF END'),rows:code.querySelectorAll('[data-line-index]').length,
+    firstRow:code.querySelector('[data-code-row-index]')?.getAttribute('data-code-row-index'),lastRow:[...code.querySelectorAll('[data-code-row-index]')].at(-1)?.getAttribute('data-code-row-index'),
+    scrollTop:viewport.scrollTop,scrollLeft:viewport.scrollLeft,contentHeight:code.getBoundingClientRect().height,viewportHeight:rect.height,rect:rect.toJSON(),
+    viewportRowsSource:[...code.querySelectorAll('[data-code-row-index]')].filter(n=>{const r=n.getBoundingClientRect();return r.bottom>rect.top&&r.top<rect.bottom}).map(n=>n.textContent).slice(-4)}:null};
+  }`,returnByValue:true})
+  if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails))
+  return result.result.value
+ }
+ const before=await read()
+ if(['end','start','right','left'].includes(action)){
+  if(!before.large)throw new Error('Large document is not selected')
+  const r=before.large.rect
+  await cdp.command('Input.dispatchMouseEvent',{type:'mouseWheel',x:r.left+Math.min(60,r.width/2),y:r.top+20,deltaX:action==='right'?10000:action==='left'?-10000:0,deltaY:action==='end'?before.large.contentHeight:action==='start'?-before.large.contentHeight:0})
+  await new Promise(resolve=>setTimeout(resolve,400))
+ }
+ const after=await read()
+ const report={label,recordedAt:new Date().toISOString(),forcedGC:false,before,after,heap:await cdp.command('Runtime.getHeapUsage')}
+ await Bun.write(`chat/view/meta/research/2026-10-05/readonly-${label}.json`,JSON.stringify(report,null,2))
+ console.log(JSON.stringify(report))
+} finally {await cdp.command('Runtime.releaseObjectGroup',{objectGroup:'readonly-probe'}).catch(()=>{});cdp.close()}

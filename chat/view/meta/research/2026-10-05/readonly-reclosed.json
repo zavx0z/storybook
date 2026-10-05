@@ -1,0 +1,107 @@
+{
+  "label": "reclosed",
+  "recordedAt": "2026-10-05T06:14:51.163Z",
+  "forcedGC": false,
+  "before": {
+    "visibility": "visible",
+    "timeOrigin": 1791176054713.2,
+    "frames": 65,
+    "elements": 990,
+    "windows": [
+      {
+        "name": "Журнал агента",
+        "rect": {
+          "x": 331.7576642294403,
+          "y": 94.53493612850158,
+          "width": 593.3333485461042,
+          "height": 860.0000154609207,
+          "top": 94.53493612850158,
+          "right": 925.0910127755444,
+          "bottom": 954.5349515894223,
+          "left": 331.7576642294403
+        }
+      },
+      {
+        "name": "Общий журнал вызовов",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      {
+        "name": "zavx0z",
+        "rect": {
+          "x": 6,
+          "y": 6,
+          "width": 297,
+          "height": 1052,
+          "top": 6,
+          "right": 303,
+          "bottom": 1058,
+          "left": 6
+        }
+      }
+    ],
+    "large": null
+  },
+  "after": {
+    "visibility": "visible",
+    "timeOrigin": 1791176054713.2,
+    "frames": 65,
+    "elements": 990,
+    "windows": [
+      {
+        "name": "Журнал агента",
+        "rect": {
+          "x": 331.7576642294403,
+          "y": 94.53493612850158,
+          "width": 593.3333485461042,
+          "height": 860.0000154609207,
+          "top": 94.53493612850158,
+          "right": 925.0910127755444,
+          "bottom": 954.5349515894223,
+          "left": 331.7576642294403
+        }
+      },
+      {
+        "name": "Общий журнал вызовов",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      {
+        "name": "zavx0z",
+        "rect": {
+          "x": 6,
+          "y": 6,
+          "width": 297,
+          "height": 1052,
+          "top": 6,
+          "right": 303,
+          "bottom": 1058,
+          "left": 6
+        }
+      }
+    ],
+    "large": null
+  },
+  "heap": {
+    "usedSize": 58900456,
+    "totalSize": 141721600,
+    "embedderHeapUsedSize": 1183968,
+    "backingStorageSize": 62498504
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "label": "large-following",
+  "recordedAt": "2026-10-05T06:00:28.257Z",
+  "forcedGC": false,
+  "before": {
+    "visibility": "visible",
+    "timeOrigin": 1791176054713.2,
+    "frames": 24,
+    "elements": 1156,
+    "windows": [
+      {
+        "name": "Журнал агента",
+        "rect": {
+          "x": 331.7576642294403,
+          "y": 94.53493612850158,
+          "width": 593.3333485461042,
+          "height": 860.0000154609207,
+          "top": 94.53493612850158,
+          "right": 925.0910127755444,
+          "bottom": 954.5349515894223,
+          "left": 331.7576642294403
+        }
+      },
+      {
+        "name": "Общий журнал вызовов",
+        "rect": {
+          "x": 317,
+          "y": 585,
+          "width": 601,
+          "height": 485,
+          "top": 585,
+          "right": 918,
+          "bottom": 1070,
+          "left": 317
+        }
+      },
+      {
+        "name": "zavx0z",
+        "rect": {
+          "x": 6,
+          "y": 6,
+          "width": 297,
+          "height": 1052,
+          "top": 6,
+          "right": 303,
+          "bottom": 1058,
+          "left": 6
+        }
+      }
+    ],
+    "large": {
+      "characters": 548153,
+      "hasEnd": true,
+      "rows": 33,
+      "firstRow": "0",
+      "lastRow": "32",
+      "scrollTop": 0,
+      "rect": {
+        "x": 330,
+        "y": 896.0000000000002,
+        "width": 575,
+        "height": 400,
+        "top": 896.0000000000002,
+        "right": 905,
+        "bottom": 1296.0000000000002,
+        "left": 330
+      },
+      "paintedRows": [
+        "READONLY PERF ROW 00019 | value = 19\\r\\n",
+        "READONLY PERF ROW 00020 | value = 20\\r\\n",
+        "READONLY PERF ROW 00021 | value = 21\\r\\n",
+        "READONLY PERF ROW 00022 | value = 22\\r\\n"
+      ]
+    }
+  },
+  "after": {
+    "visibility": "visible",
+    "timeOrigin": 1791176054713.2,
+    "frames": 24,
+    "elements": 1156,
+    "windows": [
+      {
+        "name": "Журнал агента",
+        "rect": {
+          "x": 331.7576642294403,
+          "y": 94.53493612850158,
+          "width": 593.3333485461042,
+          "height": 860.0000154609207,
+          "top": 94.53493612850158,
+          "right": 925.0910127755444,
+          "bottom": 954.5349515894223,
+          "left": 331.7576642294403
+        }
+      },
+      {
+        "name": "Общий журнал вызовов",
+        "rect": {
+          "x": 317,
+          "y": 585,
+          "width": 601,
+          "height": 485,
+          "top": 585,
+          "right": 918,
+          "bottom": 1070,
+          "left": 317
+        }
+      },
+      {
+        "name": "zavx0z",
+        "rect": {
+          "x": 6,
+          "y": 6,
+          "width": 297,
+          "height": 1052,
+          "top": 6,
+          "right": 303,
+          "bottom": 1058,
+          "left": 6
+        }
+      }
+    ],
+    "large": {
+      "characters": 548153,
+      "hasEnd": true,
+      "rows": 33,
+      "firstRow": "0",
+      "lastRow": "32",
+      "scrollTop": 0,
+      "rect": {
+        "x": 330,
+        "y": 896.0000000000002,
+        "width": 575,
+        "height": 400,
+        "top": 896.0000000000002,
+        "right": 905,
+        "bottom": 1296.0000000000002,
+        "left": 330
+      },
+      "paintedRows": [
+        "READONLY PERF ROW 00019 | value = 19\\r\\n",
+        "READONLY PERF ROW 00020 | value = 20\\r\\n",
+        "READONLY PERF ROW 00021 | value = 21\\r\\n",
+        "READONLY PERF ROW 00022 | value = 22\\r\\n"
+      ]
+    }
+  },
+  "heap": {
+    "usedSize": 80170464,
+    "totalSize": 106287104,
+    "embedderHeapUsedSize": 1466200,
+    "backingStorageSize": 61339652
+  }
+}

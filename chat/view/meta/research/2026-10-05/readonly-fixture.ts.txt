@@ -1,0 +1,7 @@
+// Запускать из Project; файл предназначен только для синтетической проверки.
+const source = Array.from({length: 13000}, (_, index) =>
+  `READONLY PERF ROW ${String(index).padStart(5, "0")} | value = ${index}`,
+).join("\r\n") + "\r\nREADONLY PERF END"
+await Bun.write("tmp/readonly-performance.txt", source)
+// Через общий вход среды: filesystem.read({path:"tmp/readonly-performance.txt",maxBytes:1048576}).
+// В общем журнале выбрать и закрепить этот вызов, затем измерять существующий CodeEditor.

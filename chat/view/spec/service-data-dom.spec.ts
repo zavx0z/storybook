@@ -5,6 +5,9 @@ import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive-dom"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import StorybookChatView, {type StorybookChatView as Contract} from "@zavx0z/storybook-chat-view"
 import {ChatContextContent, ChatData} from "../src/content"
+import {createDocumentRenderer, readRenderedSelectionText} from "@zavx0z/immersive-renderer-html"
+import {createDocumentClipboardController} from "@zavx0z/immersive-browser/clipboard"
+import {textPositionAtOffset} from "@zavx0z/immersive-dom/text-position"
 
 test("закрытая tool запись не форматирует документ и не создаёт CodeEditor", async () => {
   const f = fixture()
@@ -80,3 +83,56 @@ function fixture() {
   document.append(host)
   return {document, host, root: createRoot(host)}
 }
+
+test("настоящее копирование служебного JSON сохраняет escapes и форматирование", async () => {
+  const f = fixture()
+  const value = {text: "LEFT\nRIGHT\r\nКонец", nested: {ok: true}, literal: "\\n"}
+  const source = JSON.stringify(value, null, 2)
+  const props = {label: "Исходный JSON", value}
+  f.root.render(ChatData as unknown as CompiledTemplate<typeof props>, props)
+  f.root.flush()
+  const renderer = createDocumentRenderer({document: f.document, root: f.host, viewport: {width: 600, height: 400}})
+  let written = ""
+  const clipboard = createDocumentClipboardController(f.document, {access: {
+    readText: async () => "",
+    writeText: async text => { written = text },
+  }})
+  clipboard.configure(() => readRenderedSelectionText(renderer.flush(), f.document.getSelection()), () => {})
+  try {
+    const code = f.host.querySelector("code")!
+    const range = f.document.createRange()
+    range.selectNodeContents(code)
+    f.document.getSelection().addRange(range)
+    expect((await clipboard.copy()).status).toBe("copied")
+    expect(written, "Визуальные переносы не добавляют LF и не удаляют escapes из clipboard").toBe(source)
+    expect(JSON.parse(written)).toEqual(value)
+  } finally { clipboard.dispose(); renderer.dispose(); f.root.unmount() }
+})
+
+test("большой служебный документ сохраняет весь текст без тысяч DOM строк", async () => {
+  const f = fixture()
+  const source = Array.from({length: 13000}, (_, index) => `Строка ${index}: полный исходник`).join("\r\n")
+  const props = {label: "Большой исходник", value: source}
+  f.root.render(ChatData as unknown as CompiledTemplate<typeof props>, props)
+  f.root.flush()
+  const renderer = createDocumentRenderer({document: f.document, root: f.host, viewport: {width: 600, height: 400}})
+  let written = ""
+  const clipboard = createDocumentClipboardController(f.document, {access: {
+    readText: async () => "",
+    writeText: async text => { written = text },
+  }})
+  clipboard.configure(() => readRenderedSelectionText(renderer.flush(), f.document.getSelection()), () => {})
+  try {
+    const code = f.host.querySelector("code")!
+    const frame = renderer.flush()
+    expect(code.textContent).toBe(source)
+    expect(code.querySelectorAll("[data-line-index]").length, "Материализуется окно строк с запасом").toBeLessThan(200)
+    expect(frame.displayList.filter(item => item.kind === "text" && code.contains(item.node)).length,
+      "Скрытый исходник не создаёт glyph display items").toBeLessThan(400)
+    const start = textPositionAtOffset(code, source.indexOf("Строка 6500:"))
+    const end = textPositionAtOffset(code, source.length)
+    f.document.getSelection().setBaseAndExtent(start.node, start.offset, end.node, end.offset)
+    expect((await clipboard.copy()).status).toBe("copied")
+    expect(written, "Копирование включает невидимый диапазон без изменения CRLF").toBe(source.slice(source.indexOf("Строка 6500:")))
+  } finally { clipboard.dispose(); renderer.dispose(); f.root.unmount() }
+})
