@@ -59,8 +59,8 @@ describe.each([
       .toBe(".")
   })
   test("Форма стартового контекста", () => {
-    expect(Object.keys(bootstrap), "Identity исполнителя, предмет, русский протокол, инструменты и ссылки знаний составляют один стартовый контекст")
-      .toEqual(["executorId", "subject", "protocol", "tools", "knowledge"])
+    expect(Object.keys(bootstrap), "Identity исполнителя, предмет, русский протокол, инструменты, ссылки знаний и доставленные правила составляют один стартовый контекст")
+      .toEqual(["executorId", "subject", "protocol", "tools", "knowledge", "instructions"])
   })
 
   /** @remarks Инспекция других исполнителей назначается только разработчику Project. */

@@ -141,6 +141,18 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
         const extensions = await options.extensions?.({executorId, subject, inspectExecutors})
         assertOpen()
         if (pending.get(executorId) !== reservation) throw new ToolError("UNAUTHORIZED", "Назначение отозвано до подготовки инструментов", 401)
+        const instructions = await options.instructions?.({executorId, subject, inspectExecutors}) ?? []
+        assertOpen()
+        if (pending.get(executorId) !== reservation) throw new ToolError("UNAUTHORIZED", "Назначение отозвано до завершения чтения правил", 401)
+        if (!Array.isArray(instructions) || instructions.some(instruction => instruction === null || typeof instruction !== "object"
+          || Object.keys(instruction).some(key => !["source", "content", "contentHash"].includes(key))
+          || typeof instruction.source !== "string" || !instruction.source
+          || instruction.source.startsWith("/") || /^[A-Za-z]:/u.test(instruction.source) || instruction.source.includes("\\")
+          || instruction.source.split("/").some((segment: string) => segment === "..")
+          || typeof instruction.content !== "string"
+          || instruction.contentHash !== undefined && (typeof instruction.contentHash !== "string" || !/^[a-f0-9]{64}$/u.test(instruction.contentHash)))) {
+          throw new ToolError("INVALID_RESULT", "Правила возвращают source относительно Project и полный content", 500)
+        }
         const tools = createEntityTools({directory: subject.directory, ...(subject.type === undefined ? {} : {type: subject.type}),
           ...(extensions === undefined ? {} : {extensions})})
         const descriptions = tools.list()
@@ -154,6 +166,7 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
           protocol,
           tools: [...descriptions, knowledgeDescription, ...(inspectExecutors ? [inspectDescription] : [])],
           knowledge: [{path: ".", description: "Начальная точка знаний назначенного предмета; children раскрывает доступные подробности и общие правила."}],
+          instructions: structuredClone(instructions),
         }
         const token = randomBytes(32).toString("base64url")
         const digest = createHash("sha256").update(token).digest("hex")

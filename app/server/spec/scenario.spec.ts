@@ -73,7 +73,7 @@ describe.each([
       })
       expect((await response.json()).result.children.map((item: {path: string}) => item.path),
         "Начальное знание даёт точные переходы к заметкам выбранного владельца и нормативным источникам Storybook")
-        .toEqual(["./meta/notes", "./rules/documents"])
+        .toEqual(["./meta/notes", "./rules/documents", "./instructions"])
     })
   })
 })

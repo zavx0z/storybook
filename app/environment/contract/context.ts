@@ -19,6 +19,17 @@ export type Subject = Readonly<{
 }>
 
 /**
+Полный исходник действующего правила, выбранный доверенным хостом.
+
+@property source - Путь источника относительно Project, без абсолютного файлового корня.
+
+@property content - Исходный текст документа; доставка не создаёт копии файла политики.
+
+@property [contentHash] - SHA-256 прочитанного содержимого для сопоставления редакций.
+*/
+export type Instruction = Readonly<{source: string, content: string, contentHash?: string}>
+
+/**
 Стартовый контекст одного исполнителя и описание его действительных возможностей.
 
 @property executorId - Устойчивая identity, назначенная хостом независимо от предмета и provider session.
@@ -31,6 +42,9 @@ export type Subject = Readonly<{
 
 @property knowledge - Точки входа отложенного чтения относительно неизменной области назначения.
 Чтение начальной точки раскрывает доступные адреса в children.
+
+@property instructions - Правила, прочитанные до выдачи назначения, в порядке от общих к локальным.
+Снимок сохраняется для этого назначения; изменения файлов не обновляют контекст ранее запущенной сессии автоматически.
 */
 export type Bootstrap = Readonly<{
   executorId: string
@@ -40,6 +54,7 @@ export type Bootstrap = Readonly<{
   protocol: string
   tools: ReturnType<StorybookAppMcpTools.Output["list"]>
   knowledge: readonly Readonly<{path: string, description: string}>[]
+  instructions: readonly Instruction[]
 }>
 
 /**

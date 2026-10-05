@@ -7,6 +7,7 @@ import {dirname} from "node:path"
 import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
 import createKnowledgeNotes, {knowledgePath} from "./knowledge-notes"
 import {streamAppOperation} from "./app-stream"
+import createInstructionsReader from "./instructions"
 
 type Assignment = Awaited<ReturnType<StorybookAppEnvironment.Output["assign"]>>
 type Authority = Parameters<typeof state.assertExternalStorybookControlRequest>[1]
@@ -31,6 +32,8 @@ Markdown-источники установленного Storybook. Выбор �
 */
 export default function createServerEnvironment(options: Options) {
   const notes = createKnowledgeNotes(options.toolRoot)
+  const readInstructions = createInstructionsReader(options.project)
+  const instructionsEntry = {path: "./instructions", description: "Действующие агентские правила по цепочке Project и назначенного предмета"}
   const observers = new Map<string, Set<(event: CallEvent) => void>>()
   const resolveSubject = (address: string) => {
     if (address === "/") return {address, label: options.projectName(), cwd: options.project}
@@ -70,6 +73,9 @@ export default function createServerEnvironment(options: Options) {
   const readSubject = async (request: Request, address: string): Promise<Response> => {
     const subject = resolveSubject(address)
     const path = await knowledgePath(request)
+    if (path === instructionsEntry.path) return Response.json({
+      path, description: instructionsEntry.description, instructions: readInstructions(subject.cwd), children: [],
+    })
     if (path !== null) {
       const document = notes.read(subject.cwd, path)
       if (document !== undefined) return Response.json(document)
@@ -77,10 +83,11 @@ export default function createServerEnvironment(options: Options) {
     const response = await readCatalogSubject(request, address)
     if (!response.ok || path !== undefined && path !== ".") return response
     const value = await response.json() as {children: {path: string, description: string}[]}
-    return Response.json({...value, children: [...value.children, ...notes.menus]}, {status: response.status, headers: response.headers})
+    return Response.json({...value, children: [...value.children, ...notes.menus, instructionsEntry]}, {status: response.status, headers: response.headers})
   }
   const environment = createEnvironment({
     stream: streamAppOperation,
+    instructions: input => readInstructions(input.subject.directory),
     async resolve(address) {
       const subject = resolveSubject(address)
       notes.bind(subject.cwd)

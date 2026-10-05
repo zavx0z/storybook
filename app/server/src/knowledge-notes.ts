@@ -40,6 +40,7 @@ const normativeSources = [
   {path: "specs/scenarios/meta/notes/presentation.md", description: "Авторство и представление сценария"},
   {path: "specs/presentation/meta/notes/presentation.md", description: "Представление исполняемых спецификаций"},
   {path: "meta/notes/scenario-development.md", description: "Уточнение сценариев по мере разработки"},
+  {path: "meta/notes/environment-workflow.md", description: "Рабочий процесс агентского окружения Storybook"},
 ] as const
 
 /** Кодирует адрес из физических сегментов; модель использует точное значение children. */

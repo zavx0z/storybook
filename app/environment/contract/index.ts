@@ -1,4 +1,4 @@
-import type {Subject, AssignmentInput, Assignment} from "./context"
+import type {Subject, AssignmentInput, Assignment, Instruction} from "./context"
 import type {CallEvent} from "./events"
 import type {StorybookAppMcpTools} from "@zavx0z/storybook-app-mcp-tools"
 
@@ -19,9 +19,14 @@ export declare namespace StorybookAppEnvironment {
   Промежуточные progress сохраняют тот же id и не заменяют итог success/failed.
   Синхронный throw или отклонённый Promise наблюдателя не меняют результат исполнения.
   Хост отвечает за хранение, очистку диагностических данных и завершение своих записей.
+
+  @property [instructions] - Читает правила назначенного предмета до выдачи bearer и первого prompt.
+  Возвращает полные исходники с относительными Project путями; отсутствие callback даёт пустой список.
+  Доставка правил не изменяет файловую область или права инспекции.
   */
   type Input = Readonly<{
     resolve(address: string): Subject | Promise<Subject>
+    instructions?(input: Readonly<{executorId: string, subject: Subject, inspectExecutors: boolean}>): readonly Instruction[] | Promise<readonly Instruction[]>
     readKnowledge(input: Readonly<{address: string, path?: string, signal: AbortSignal}>): Promise<Response>
     /** Предметный владелец добавляет инструменты конкретного назначения до выдачи bootstrap. */
     extensions?(input: Readonly<{executorId: string, subject: Subject, inspectExecutors: boolean}>): StorybookAppMcpTools.Input["extensions"] | Promise<StorybookAppMcpTools.Input["extensions"]>

@@ -39,6 +39,7 @@ test("root знаний публикует точные переходы к owne
   expect(root.body.result.children).toEqual([
     {path: "./meta/notes", description: "Заметки назначенного владельца из meta/notes"},
     {path: "./rules/documents", description: "Основания и нормативные документы Storybook"},
+    {path: "./instructions", description: "Действующие агентские правила по цепочке Project и назначенного предмета"},
   ])
   const rules = await f.read(root.body.result.children[1].path)
   const foundations = rules.body.result.children.find((item: {path: string}) => item.path.endsWith("project/meta/notes/foundations/index.md"))
@@ -135,7 +136,7 @@ test("environment.inspect читает ту же owner note и те же нор�
     method: "POST", headers: {authorization: `Bearer ${authority.controlToken}`}, body: JSON.stringify({name: "knowledge.read", arguments: {}}),
   }), authority)
   expect((await response.json()).result.children.map((item: {path: string}) => item.path))
-    .toEqual(["./a", "./b", "./meta/notes", "./rules/documents"])
+    .toEqual(["./a", "./b", "./meta/notes", "./rules/documents", "./instructions"])
 })
 
 test("непрочитанные заметки сохраняют identity области, превышение бюджета не выдаётся за полный документ", async () => {

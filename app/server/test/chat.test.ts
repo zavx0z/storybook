@@ -122,6 +122,7 @@ test("пустой MCP-вызов открывает назначенный пр
     {description: "Part", path: "./part"},
     {path: "./meta/notes", description: "Заметки назначенного владельца из meta/notes"},
     {path: "./rules/documents", description: "Основания и нормативные документы Storybook"},
+    {path: "./instructions", description: "Действующие агентские правила по цепочке Project и назначенного предмета"},
   ]})
   const part = await (await server.scopedMcp(scopedRequest(key, {path: "part"}))).json()
   expect(part).toEqual({description: "Part", path: "./part", children: [{description: "Deep", path: "./part/deep"}]})
@@ -131,6 +132,7 @@ test("пустой MCP-вызов открывает назначенный пр
     {description: "Part", path: "./part"},
     {path: "./meta/notes", description: "Заметки назначенного владельца из meta/notes"},
     {path: "./rules/documents", description: "Основания и нормативные документы Storybook"},
+    {path: "./instructions", description: "Действующие агентские правила по цепочке Project и назначенного предмета"},
   ]})
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button/part"}))).status).toBe(403)
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)

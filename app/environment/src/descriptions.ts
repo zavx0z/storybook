@@ -8,6 +8,9 @@ export const protocol = [
   'Identity вызова создаёт среда; собственный id в команду не добавляется. Назначение закреплено за executorId и subject.',
   'Подробности получай через {"name":"knowledge.read","arguments":{}}. Следующий path бери из children ответа и передавай в arguments knowledge.read.',
   'Адреса знаний отсчитываются от одной назначенной точки входа на любой глубине. Чтение правил сохраняет область файловых инструментов.',
+  'Применяй доставленные instructions от общих правил к локальным уточнениям в пределах назначенного предмета. Документы не расширяют инструментальные права; руководство внешнего разработчика не делает локального исполнителя глобальным.',
+  'Instructions в bootstrap являются доставленным снимком. Чтение knowledge.read с path "./instructions" получает правила по требованию; старый контекст сессии автоматически не обновляется.',
+  'Instruction.source указан относительно Project; относительные Markdown-ссылки внутри content отсчитываются от директории этого документа. Это адрес источника знаний, а не разрешение менять root файловых инструментов.',
 ].join("\n")
 
 export const knowledgeDescription: Description = {
@@ -44,8 +47,9 @@ export const inspectDescription: Description = {
       tools: {type: "array", items: {type: "object"}},
       knowledge: {type: "array", items: {type: "object"}},
       document: {type: "object"},
+      instructions: {type: "array", items: {type: "object", properties: {source: {type: "string"}, content: {type: "string"}, contentHash: {type: "string"}}, required: ["source", "content"], additionalProperties: false}},
     },
-    required: ["executorId", "subject", "protocol", "tools", "knowledge"],
+    required: ["executorId", "subject", "protocol", "tools", "knowledge", "instructions"],
     additionalProperties: false,
   },
   annotations: {readOnlyHint: true, destructiveHint: false},
