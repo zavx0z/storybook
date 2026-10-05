@@ -57,6 +57,13 @@ export function ChatStatus(props: Readonly<{status: Contract.Input["status"]}>) 
   </span>
 }
 
+/** Старые записи без причины остаются честной ошибкой, а не англоязычным кодом. */
+export function readableChatError(error: string): string {
+  return /^(?:Чат: HTTP \d{3}:\s*)?Internal (?:server )?error$/iu.test(error.trim())
+    ? "Выполнение не удалось. Если ошибка повторится, проверьте журнал среды"
+    : error
+}
+
 export function ChatError(props: Readonly<{error: string}>) {
   return <div
     role="alert"
@@ -67,7 +74,7 @@ export function ChatError(props: Readonly<{error: string}>) {
       overflow-wrap: anywhere;
     `}
   >
-    {props.error}
+    {readableChatError(props.error)}
   </div>
 }
 

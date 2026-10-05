@@ -5,7 +5,7 @@ import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
 import type {StorybookChatView} from "../contract"
 import {ChatContent, ChatContextContent, ChatData} from "./content"
 import {messageContent} from "./message-content"
-import {EmptyHistory, ChatNotice} from "./feedback"
+import {EmptyHistory, ChatNotice, readableChatError} from "./feedback"
 
 type Item = StorybookChatHistory.Output[number]
 type Content = Extract<Item, {kind: "message"}>["content"][number]
@@ -279,7 +279,7 @@ function ReloadBody(props: Readonly<{id: string, onRetry(id: string): void}>) {
 
 function TurnHeader(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number]}>) {
   const header = props.row.header
-  const label = header.state === "completed" ? "Выполнение завершено" : header.state === "started" ? "Выполнение началось" : header.state === "cancelled" ? "Выполнение остановлено" : header.error ?? "Ошибка выполнения"
+  const label = header.state === "completed" ? "Выполнение завершено" : header.state === "started" ? "Выполнение началось" : header.state === "cancelled" ? "Выполнение остановлено" : readableChatError(header.error ?? "Ошибка выполнения")
   return <p data-chat-turn={header.id} role="status">
     {label}
   </p>

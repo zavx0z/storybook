@@ -10,6 +10,7 @@ import {
   methods,
   ndJsonStream,
   PROTOCOL_VERSION,
+  RequestError,
   type SessionNotification,
   type SessionConfigOption,
 } from "@agentclientprotocol/sdk"
@@ -27,6 +28,27 @@ import {gatedInput, notificationFlow} from "./src/flow"
 
 export type {StorybookTechAcp} from "./contract"
 
+/** Штатная причина отказа ACP остаётся читаемой для владельца сессии. */
+function requestFailure(error: unknown): never {
+  if (error instanceof RequestError) {
+    const data: unknown = error.data
+    const details = typeof data === "string" ? data
+      : data !== null && typeof data === "object" && "details" in data && typeof data.details === "string"
+        ? data.details : undefined
+    const reason = details?.trim()
+    const archived = /^session [a-f0-9-]+ is archived\b/iu.test(reason ?? error.message)
+    const message = archived ? "Сессия Codex архивирована. Восстановите её из архива, чтобы продолжить беседу"
+      : reason && !error.message.includes(reason) ? `${error.message}: ${reason}` : error.message
+    const visible = message.length > 2048 ? `${message.slice(0, 2047)}…` : message
+    if (visible !== error.message) {
+      const failure = new RequestError(error.code, visible, error.data)
+      failure.cause = error
+      throw failure
+    }
+  }
+  throw error
+}
+
 /**
 Инициализирует ACP и создаёт либо восстанавливает точную сессию.
 Время жизни подготовки и исполнения принадлежит вызывающему владельцу через signal.
@@ -38,6 +60,8 @@ environment адаптера. Сам cwd не является sandbox.
 @returns Готовая сессия; после использования требуется вызвать dispose.
 @throws Ошибка запуска, initialize, восстановления, открытия сессии или callback.
 Ошибка восстановления не заменяется созданием нового контекста.
+Текст причины из ACP error data раскрывается в сообщении ошибки; code и data сохраняются.
+Архивированная сессия Codex сообщает человеку причину и действие для продолжения беседы.
 
 @example
 ```ts
@@ -297,7 +321,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
         if (prompting) throw new Error("Настройки нельзя менять во время ответа")
         const response = await connection.agent.request(methods.agent.session.setConfigOption, {
           sessionId: activeSessionId, configId, value,
-        })
+        }).catch(requestFailure)
         await notifications
         assertOpen()
         configOptions = response.configOptions
@@ -312,7 +336,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
           const response = await connection.agent.request(methods.agent.session.prompt, {
             sessionId: activeSessionId,
             prompt: blocks,
-          })
+          }).catch(requestFailure)
           await notifications
           assertOpen()
           return response
@@ -332,7 +356,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     } catch (cleanupError) {
       throw new AggregateError([error, cleanupError], "ACP startup и освобождение процесса завершились ошибкой")
     }
-    throw error
+    requestFailure(error)
   } finally {
     startupSignal.removeEventListener("abort", abortStartup)
   }

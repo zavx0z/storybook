@@ -565,3 +565,49 @@ test("agent-level sessions/create исключают stale session target, conve
     expect(fixture.sockets[0]!.sent[0]).toEqual({type: "subscribe", topic: "chat:/target", executorId: selected.executorId, sessionId: selected.sessionId})
   } finally {client.dispose()}
 })
+
+test("причина отказа показывается без HTTP-префикса, неизвестный Internal error получает понятное действие", async () => {
+  for (const [detail, expected] of [
+    ["Сессия Codex архивирована. Восстановите её из архива, чтобы продолжить беседу", "Сессия Codex архивирована. Восстановите её из архива, чтобы продолжить беседу"],
+    ["Internal error", "Не удалось выполнить действие в чате. Повторите попытку; если ошибка сохранится, проверьте журнал среды"],
+  ]) {
+    const fixture = browserChatFixture("/storybook/error-message")
+    const fetcher = (async (url, init) => String(url).endsWith("/prompt")
+      ? Response.json({error: detail}, {status: 400}) : fixture.fetcher(url, init)) as typeof fetch
+    const client = createChatBrowserClient({address: "/storybook/error-message", label: "Ошибки", createSocket: fixture.createSocket, fetcher})
+    client.start()
+    try {
+      await until(() => fixture.calls.length === 3)
+      client.setDraft("Вопрос")
+      await client.send()
+      expect(client.getSnapshot().error).toBe(expected)
+      expect(client.getSnapshot().draft).toBe("Вопрос")
+    } finally {client.dispose()}
+  }
+})
+
+test("файлы из drop используют общий bounded media pipeline и попадают в запрос только после отправки", async () => {
+  const fixture = browserChatFixture("/storybook/drop")
+  const client = createChatBrowserClient({address: "/storybook/drop", label: "Вложения", createSocket: fixture.createSocket, fetcher: fixture.fetcher})
+  client.start()
+  try {
+    await until(() => fixture.calls.length === 3)
+    const file = new File(["Содержимое файла"], "Заметка.txt", {type: "text/plain"})
+    await client.attachFiles([file])
+    expect(client.getSnapshot().attachments).toHaveLength(1)
+    expect(client.getSnapshot().attachments[0]!.attachment.text).toBe("Содержимое файла")
+    expect(fixture.calls.some(call => call.url.endsWith("/prompt"))).toBe(false)
+    await client.attachFiles(Array.from({length: 8}, () => file))
+    expect(client.getSnapshot().attachments).toHaveLength(1)
+    expect(client.getSnapshot().error).toContain("8 вложений")
+    client.setDraft("Прочитай файл")
+    await client.send()
+    const request = fixture.calls.find(call => call.url.endsWith("/prompt"))!
+    expect(request).toBeDefined()
+    const body = JSON.parse(String(request.init?.body))
+    expect(body.content).toHaveLength(2)
+    expect(body.content[0]).toEqual({type: "text", text: "Прочитай файл"})
+    expect(body.content[1]).toMatchObject({type: "resource", resource: {mimeType: file.type, text: "Содержимое файла"}})
+    expect(client.getSnapshot().attachments).toHaveLength(0)
+  } finally {client.dispose()}
+})

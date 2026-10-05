@@ -4,7 +4,7 @@ import {join} from "node:path"
 import {copyFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {pathToFileURL} from "node:url"
-import type {SessionUpdate} from "@agentclientprotocol/sdk"
+import {RequestError, type SessionUpdate} from "@agentclientprotocol/sdk"
 import createAcp, {type StorybookTechAcp} from "../index"
 
 const cwd = resolve(import.meta.dir, "../../..")
@@ -121,11 +121,46 @@ test("load восстанавливает указанный ID и подавл�
 test.each([
   ["no-load", "не поддерживает восстановление"],
   ["load-error", "Сохранённая сессия отсутствует"],
+  ["load-error-data", "Сессия Codex архивирована. Восстановите её из архива, чтобы продолжить беседу"],
+  ["load-error-inline", "Сессия Codex архивирована. Восстановите её из архива, чтобы продолжить беседу"],
 ])("невозможное восстановление %s не создаёт новый контекст", async (behavior, error) => {
   await expect(createAcp(options({
     previousSessionId: "retained-session",
     env: {ACP_FIXTURE_BEHAVIOR: behavior},
   }))).rejects.toThrow(error)
+})
+
+test("отказ восстановления раскрывает понятную причину и сохраняет данные ACP", async () => {
+  const error = await createAcp(options({
+    previousSessionId: "retained-session",
+    env: {ACP_FIXTURE_BEHAVIOR: "load-error-data"},
+  })).catch(error => error)
+  expect(error).toBeInstanceOf(RequestError)
+  expect(error.code).toBe(-32603)
+  expect(error.message).toBe("Сессия Codex архивирована. Восстановите её из архива, чтобы продолжить беседу")
+  expect(error.message).not.toContain("codex unarchive")
+  expect(error.data.details).toContain("is archived")
+  expect(error.cause).toBeInstanceOf(RequestError)
+  expect(error.cause.message).toBe("Internal error")
+})
+
+test("prompt и настройка сохраняют текстовые details отказа вместо одного Internal error", async () => {
+  const connection = await createAcp(options({env: {ACP_FIXTURE_BEHAVIOR: "request-error-data"}}))
+  try {
+    await expect(connection.prompt("image")).rejects.toThrow("Изображение отклонено исполнителем")
+    await expect(connection.setConfigOption("model", "model-a")).rejects.toThrow("Настройка недоступна")
+  } finally {
+    await connection.dispose()
+  }
+})
+
+test("большие данные отказа остаются в диагностике, но не раздувают сообщение интерфейса", async () => {
+  const error = await createAcp(options({previousSessionId: "retained-session", env: {ACP_FIXTURE_BEHAVIOR: "load-error-long"}})).catch(error => error)
+  expect(error).toBeInstanceOf(RequestError)
+  expect(error.message.length).toBe(2048)
+  expect(error.message.endsWith("…")).toBe(true)
+  expect(error.data.details).toBe("Причина отказа. ".repeat(1000))
+  expect(error.cause).toBeInstanceOf(RequestError)
 })
 
 test("чужой session/update не попадает в историю", async () => {

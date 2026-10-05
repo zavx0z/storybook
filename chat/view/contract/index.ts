@@ -61,6 +61,7 @@ export declare namespace StorybookChatView {
     attaching?: boolean | undefined
     media?: MediaPreview | null | undefined
     onAttach?: (() => void) | undefined
+    onFiles?: ((files: readonly File[]) => void) | undefined
     onRemoveAttachment?: ((id: string) => void) | undefined
     onMedia?: ((value: MediaPreview | null) => void) | undefined
     sending?: boolean | undefined

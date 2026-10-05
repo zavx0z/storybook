@@ -34,6 +34,9 @@ const connection = agent({name: "ACP process fixture"})
   .onRequest(methods.agent.session.load, async ({params, client}) => {
     input = params
     if (behavior === "load-error") throw RequestError.internalError(undefined, "Сохранённая сессия отсутствует")
+    if (behavior === "load-error-data") throw RequestError.internalError({details: "session 01a10a20-3975-7e72-90ad-d6b05177b285 is archived. Run `codex unarchive` to unarchive it first."})
+    if (behavior === "load-error-inline") throw new RequestError(-32603, "session 01a10a20-3975-7e72-90ad-d6b05177b285 is archived", {})
+    if (behavior === "load-error-long") throw RequestError.internalError({details: "Причина отказа. ".repeat(1000)})
     await client.notify(methods.client.session.update, {
       sessionId: params.sessionId,
       update: {sessionUpdate: "agent_message_chunk", content: {type: "text", text: "replayed"}},
@@ -48,6 +51,7 @@ const connection = agent({name: "ACP process fixture"})
     return {configOptions}
   })
   .onRequest(methods.agent.session.setConfigOption, ({params}) => {
+    if (behavior === "request-error-data") throw RequestError.internalError("Настройка недоступна")
     const selected = configOptions.find(option => option.id === params.configId)
     if (!selected || selected.type !== "select" || !selected.options.some(option => "value" in option && option.value === params.value)) throw RequestError.invalidParams()
     configOptions = configOptions.map(option => option.id === params.configId && option.type === "select" ? {...option, currentValue: params.value as string} : option)
@@ -57,6 +61,7 @@ const connection = agent({name: "ACP process fixture"})
     return {configOptions}
   })
   .onRequest(methods.agent.session.prompt, async ({params, client}) => {
+    if (behavior === "request-error-data") throw RequestError.internalError({details: "Изображение отклонено исполнителем"})
     const text = params.prompt.find(block => block.type === "text")
     const message = text?.type === "text" ? text.text : ""
     if (message === "crash") process.exit(42)

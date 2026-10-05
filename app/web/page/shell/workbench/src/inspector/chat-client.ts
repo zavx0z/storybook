@@ -1,4 +1,4 @@
-import {pickMedia, type MediaDraftAttachment} from "@zavx0z/chat/media"
+import {filesToMedia, pickMedia, type MediaDraftAttachment} from "@zavx0z/chat/media"
 import type {MediaPreview} from "@zavx0z/chat/content"
 import type {StorybookChatView} from "@zavx0z/storybook-chat-view"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
@@ -196,9 +196,14 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       let detail = ""
       try {
         const value = await response.json()
-        if (typeof value.error === "string") detail = `: ${value.error}`
+        if (typeof value.error === "string") detail = value.error.trim()
       } catch {}
-      throw new Error(`Чат: HTTP ${response.status}${detail}`)
+      const message = detail && !/^(internal error|internal server error)$/iu.test(detail) ? detail
+        : response.status === 413 ? "Сообщение слишком большое. Уменьшите размер вложений или текста"
+        : response.status === 429 ? "Слишком много запросов. Подождите немного и повторите действие"
+        : response.status === 401 || response.status === 403 ? "Нет доступа к чату. Обновите страницу и повторите действие"
+        : "Не удалось выполнить действие в чате. Повторите попытку; если ошибка сохранится, проверьте журнал среды"
+      throw new Error(message, {cause: {status: response.status, detail}})
     }
     return response.json()
   }
@@ -315,6 +320,26 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     }
   }
 
+  const addAttachments = async (files?: readonly File[]): Promise<void> => {
+    if (disposed || attaching || view.sending || view.status === "connecting" || view.status === "running" || files === undefined && !pageDocument) return
+    attaching = true
+    notify()
+    try {
+      const options = {signal: lifetime.signal, existing: attachments, isCurrent: () => !disposed,
+        ...(session?.capabilities === undefined || session.capabilities === null ? {} : {capabilities: {
+          image: session.capabilities.promptCapabilities?.image === true,
+          audio: session.capabilities.promptCapabilities?.audio === true,
+          files: session.capabilities.promptCapabilities?.embeddedContext === true,
+        }})}
+      const added = files === undefined
+        ? await pickMedia({...options, browserDocument: pageDocument!})
+        : await filesToMedia(files, options)
+      if (!disposed) {attachments = [...attachments, ...added]; actionError = undefined}
+      else for (const attachment of added) attachment.release()
+    } catch (failure) {if (!disposed) actionError = failure instanceof Error ? failure.message : String(failure)}
+    finally {attaching = false; notify()}
+  }
+
   return {
     historyViewport: history.viewport,
     historyVisible(value: boolean) {
@@ -372,18 +397,8 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     async deleteSession(executorId: string, sessionId: string): Promise<void> {
       await post("session-delete", {executorId, sessionId})
     },
-    async attach() {
-      if (disposed || attaching || view.sending || !pageDocument) return
-      attaching = true
-      notify()
-      try {
-        const added = await pickMedia({browserDocument: pageDocument, signal: lifetime.signal, existing: attachments, isCurrent: () => !disposed,
-          ...(session?.capabilities === undefined || session.capabilities === null ? {} : {capabilities: {image: session.capabilities.promptCapabilities?.image === true, audio: session.capabilities.promptCapabilities?.audio === true, files: session.capabilities.promptCapabilities?.embeddedContext === true}})})
-        if (!disposed) {attachments = [...attachments, ...added]; actionError = undefined}
-        else for (const attachment of added) attachment.release()
-      } catch (failure) {if (!disposed) actionError = failure instanceof Error ? failure.message : String(failure)}
-      finally {attaching = false; notify()}
-    },
+    attach: () => addAttachments(),
+    attachFiles: (files: readonly File[]) => addAttachments(files),
     removeAttachment(id: string) {
       const item = attachments.find(item => item.attachment.id === id)
       if (item && media?.source === item.attachment) {media = null; visibilityChanged()}

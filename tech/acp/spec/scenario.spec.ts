@@ -1,6 +1,7 @@
 /** Подключение, настройки и несколько turn проходят через настоящий ACP SDK и отдельный controlled process. */
 import {afterAll, describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
+import {RequestError} from "@agentclientprotocol/sdk"
 import connect, {type StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 
 describe.each([
@@ -49,5 +50,23 @@ describe.each([
     const messages = updates.flatMap(update => update.sessionUpdate === "agent_message_chunk" && update.content.type === "text"
       ? [JSON.parse(update.content.text).text] : [])
     expect(messages, "Исходные обновления доставляются в порядке исполнения").toEqual(["Первый turn", "Второй turn"])
+  })
+  describe.skipIf(props.previousSessionId === null)("Отказ восстановления", () => {
+    test("Понятная причина", async () => {
+      const error = await connect({
+        cwd: resolve(import.meta.dir, "../../.."),
+        command: process.execPath,
+        args: [resolve(import.meta.dir, "../test/fixture/agent.ts")],
+        env: {ACP_FIXTURE_BEHAVIOR: "load-error-data"},
+        previousSessionId: props.previousSessionId!,
+        mcpServers: [],
+        onUpdate() {},
+        async onPermission() { return {outcome: {outcome: "cancelled"}} },
+      }).catch(error => error)
+      expect(error, "Отказ остаётся штатной ошибкой ACP с исходными code и data").toBeInstanceOf(RequestError)
+      expect(error.message, "Архивированная сессия объясняет причину и действие для продолжения беседы")
+        .toBe("Сессия Codex архивирована. Восстановите её из архива, чтобы продолжить беседу")
+      expect(error.data.details, "Техническая причина остаётся доступной для диагностики").toContain("is archived")
+    })
   })
 })

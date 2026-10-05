@@ -69,6 +69,7 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
       attaching={view.attaching}
       media={view.media}
       onAttach={() => {void client.attach()}}
+      onFiles={files => {void client.attachFiles(files)}}
       onRemoveAttachment={client.removeAttachment}
       onMedia={client.preview}
       onPrepareSettings={() => {void client.prepare()}}

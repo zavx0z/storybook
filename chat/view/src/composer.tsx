@@ -35,6 +35,7 @@ export function ChatComposer(input: Readonly<{view: Contract.Input}>) {
       onFocus={() => setSettingsOpen(false)}
       attachments={props.attachments}
       onAttach={props.onAttach}
+      onFiles={props.onFiles}
       onRemove={props.onRemoveAttachment}
       onPreview={attachment => props.onMedia?.({source: attachment.attachment, mimeType: attachment.attachment.mimeType, label: attachment.attachment.name})}
     >
