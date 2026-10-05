@@ -1,4 +1,4 @@
-import {SelectField} from "@zavx0z/immersive-ui-component"
+import SelectField from "@zavx0z/immersive-ui-component-field-select"
 import svgIcon from "@zavx0z/immersive-tech-svg-encode"
 import type {StorybookChatView as Contract} from "../contract"
 

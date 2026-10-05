@@ -2,29 +2,13 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive-headless"
 import {Event, InputEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
-import StorybookChatView, {type StorybookChatView as Contract} from "@zavx0z/storybook-chat-view"
+import {fixtureImageData, fixtureImageDraws, fixtureImageEncodings, fixtureDecodedEncodings, installFixtureImageEncoder} from "./fixture/media-host"
+import StorybookChatView, {type FixtureContract as Contract} from "./fixture/history"
+
+const restoreImageEncoder = installFixtureImageEncoder()
+afterAll(restoreImageEncoder)
 
 describe.each([
-  {
-    name: "Участники беседы",
-    props: {
-      address: "/team",
-      label: "Команда предмета",
-      executorId: "executor-1",
-      executors: [
-        {executorId: "executor-1", executorLabel: "Главный", status: "idle", pending: ["task-1"]},
-        {executorId: "executor-2", executorLabel: "Исследователь", status: "running", pending: []},
-      ],
-      pendingTasks: 1,
-      messages: [],
-      draft: "",
-      status: "idle",
-      sending: false,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
-    sendEnabled: false,
-    cancelEnabled: false,
-    statusLabel: "Готов",
-  },
   {
     name: "События и медиа",
     props: {
@@ -37,7 +21,7 @@ describe.each([
       timeline: [
         {id: "user-media", kind: "message", sequence: 1, origin: "local", role: "user", content: [
           {type: "text", text: "Посмотри изображение"},
-          {type: "image", mimeType: "image/png", data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="},
+          {type: "image", mimeType: "image/png", data: fixtureImageData},
         ]},
         {id: "context", kind: "context", sequence: 2, origin: "local", content: [{type: "text", text: "Переданный исходник"}]},
         {id: "thought", kind: "message", sequence: 3, origin: "live", role: "thought", content: [{type: "text", text: "Сверяю размеры"}]},
@@ -198,8 +182,6 @@ describe.each([
   const onCancel = mock(() => {})
   const onPrepareSettings = mock(() => {})
   const onConfigure = mock((id: string, value: string) => {})
-  const onSelectExecutor = mock((id: string) => {})
-  const onCreateExecutor = mock((label: string) => {})
   const headless = createHeadless({width: 400, height: 600})
   afterAll(() => headless.dispose())
   const element = await headless.render(
@@ -207,10 +189,7 @@ describe.each([
       address={props.address}
       label={props.label}
       executorId={props.executorId}
-      executors={props.executors}
       pendingTasks={props.pendingTasks}
-      onSelectExecutor={onSelectExecutor}
-      onCreateExecutor={onCreateExecutor}
       messages={props.messages}
       timeline={props.timeline}
       draft={props.draft}
@@ -266,27 +245,19 @@ describe.each([
     expect(onCancel.mock.calls, "Доступная отмена передаёт действие владельцу исполнения").toEqual(cancelEnabled ? [[]] : [])
   })
 
-  /** @remarks Выбор участника доступен только при предоставленном списке исполнителей. */
-  describe.skipIf(props.executors === undefined)("Участники", () => {
-    test("Выбор исполнителя", () => {
-      const select = element.querySelector('[data-chat-executors] select') as HTMLSelectElement
-      select.value = "executor-2"
-      select.dispatchEvent(new Event("change", {bubbles: true}))
-      expect(onSelectExecutor.mock.calls, "Выбор передаёт ключ участника владельцу адреса").toEqual([["executor-2"]])
-      expect(onSend.mock.calls, "Выбор участника не ставит задачу").toEqual([])
-    })
-
-    test("Очередь", () => {
-      expect(element.querySelector("[data-chat-executors]")?.textContent,
-        "Очередь показывается отдельно от состояния текущего ответа").toContain("Задач в очереди: 1")
-    })
-  })
-
-  /** @remarks Богатая история предоставляет записи протокола и изображение. */
   describe.skipIf(props.timeline === undefined)("История исполнения", () => {
-    test("Изображение сообщения", () => {
-      expect(element.querySelector('[data-chat-image]')?.getAttribute("src"),
-        "Изображение использует сохранённые данные ContentBlock в общем Document").toStartWith("data:image/png;base64,")
+    test("Изображение сообщения", async () => {
+      await headless.capture(element)
+      const src = element.querySelector('[data-chat-image]')?.getAttribute("src")
+      expect(src, "В semantic img передаётся подготовленный bounded blob, а не original data URI").toStartWith("blob:")
+      expect(fixtureImageDraws, "Encoder получил actual decoded PNG и bounded draw dimensions").toContainEqual({sourceWidth: 1, sourceHeight: 1, width: 1, height: 1})
+      const encoded = fixtureImageEncodings.at(-1)!
+      expect(encoded.type).toBe("image/png")
+      expect(fixtureDecodedEncodings, "Output blob действительно декодируется actual decoder как PNG1×1").toContainEqual({width: 1, height: 1})
+      const source = props.timeline!.find(item => item.kind === "message" && item.id === "user-media")!
+      expect(source.kind === "message" ? source.content : [], "Подготовка preview не переписывает сохранённый ContentBlock").toEqual([
+        {type: "text", text: "Посмотри изображение"}, {type: "image", mimeType: "image/png", data: fixtureImageData},
+      ])
     })
 
     test("Скрытые детали", () => {

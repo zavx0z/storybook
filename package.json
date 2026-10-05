@@ -133,6 +133,12 @@
     "@zavx0z/ai-filesystem-apply-patch": "link:@zavx0z/ai-filesystem-apply-patch",
     "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
     "@zavx0z/ai-git-status": "link:@zavx0z/ai-git-status",
-    "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure"
+    "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
+    "@zavx0z/chat": "link:@zavx0z/chat",
+    "@zavx0z/immersive-ui-component-surface-panel": "link:@zavx0z/immersive-ui-component-surface-panel",
+    "@zavx0z/immersive-ui-component-button-icon": "link:@zavx0z/immersive-ui-component-button-icon",
+    "@zavx0z/immersive-ui-component-field-select": "link:@zavx0z/immersive-ui-component-field-select",
+    "@zavx0z/immersive-ui-component-field-text": "link:@zavx0z/immersive-ui-component-field-text",
+    "@zavx0z/immersive-ui-component-widget-inspector": "link:@zavx0z/immersive-ui-component-widget-inspector"
   }
 }

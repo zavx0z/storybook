@@ -15,7 +15,7 @@ import {isCompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import {WORKBENCH_EVENTS, WORKBENCH_LAYOUT_PROTOCOL, WORKBENCH_REGIONS} from "../src/events"
 import type {Workbench} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"
-import {WORKBENCH_CHAT_WIDGET, WORKBENCH_STANDARD_WIDGET_REGISTRY, withWorkbenchChat} from "../src/inspector/registry"
+import {WORKBENCH_CHAT_WIDGET, WORKBENCH_AGENTS_WIDGET, WORKBENCH_STANDARD_WIDGET_REGISTRY, withWorkbenchChat} from "../src/inspector/registry"
 import {loadCompiledWorkbench} from "./fixture/compile-workbench"
 
 let api: typeof ControllerModule
@@ -28,7 +28,7 @@ describe("compiled Storybook Workbench", () => {
   test("адресный Chat первый на root, Repo и рядом с предметными секциями; смена Inspector сохраняет Preview", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({document, parent: document,
-      initial: {"inspector.registry": [WORKBENCH_CHAT_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY]},
+      initial: {"inspector.registry": [WORKBENCH_CHAT_WIDGET, WORKBENCH_AGENTS_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY]},
     })
     const preview = document.createElement("article")
     const fetcher = (async () => new Response("", {status: 404})) as unknown as typeof fetch
@@ -36,7 +36,7 @@ describe("compiled Storybook Workbench", () => {
       workbench.present({label: "Project", presentation: {node: preview, projection: "display"},
         ...withWorkbenchChat({address: "/?inspector=chat", label: "Project", fetcher}),
       })
-      expect(workbench.controller.read("inspector.subject")).toEqual({subjectId: "/", workspaceId: "/", widgetIds: ["chat"]})
+      expect(workbench.controller.read("inspector.subject")).toEqual({subjectId: "/", workspaceId: "/", widgetIds: ["chat", "agents"]})
       expect(workbench.controller.selectedInspector()).toBe("chat")
       const previewParent = preview.parentNode
       workbench.present({label: "Component", presentation: {node: preview, projection: "display"},
@@ -44,7 +44,7 @@ describe("compiled Storybook Workbench", () => {
           {packageId: "@fixture/components", subjectId: "component", workspaceId: "contract", widgetIds: ["source"]},
           {source: {html: "<div>Example</div>"}}),
       })
-      expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["chat", "source"])
+      expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["chat", "agents", "source"])
       expect(workbench.controller.read("inspector.values").chat).toMatchObject({address: "/storybook/component"})
       workbench.controller.selectInspector("source")
       expect(workbench.controller.selectedInspector()).toBe("source")
@@ -53,7 +53,7 @@ describe("compiled Storybook Workbench", () => {
         ...withWorkbenchChat({address: "/storybook", label: "Repo", fetcher}),
       })
       expect(workbench.controller.read("inspector.subject")?.packageId).toBeUndefined()
-      expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["chat"])
+      expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["chat", "agents"])
       expect(workbench.controller.selectedInspector()).toBe("chat")
       expect(preview.parentNode).toBe(previewParent)
     } finally { workbench.dispose() }

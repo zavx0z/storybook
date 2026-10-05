@@ -1,121 +1,26 @@
-import {Markdown} from "@zavx0z/immersive-markdown"
+import MessageView, {type MediaPreview} from "@zavx0z/chat/content"
 import formatJson from "@zavx0z/storybook-tech-json-format"
 import {memo, useMemo} from "@zavx0z/immersive-component"
-import {CodeEditor} from "@zavx0z/immersive-ui-component"
-import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
+import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
+import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
 import {ChatNotice} from "./feedback"
 import {serviceDocumentSource, serviceLanguageForMime} from "./service-document"
 
-type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
-type Item = Snapshot["timeline"][number]
+type Item = StorybookChatHistory.Output[number]
 type Content = Extract<Item, {kind: "message"}>["content"][number]
 
-function resourceMarkdown(block: Extract<Content, {type: "resource_link"}>): string {
-  const label = (block.title ?? block.name).replace(/[\[\]\\]/gu, "\\$&")
-  const uri = block.uri.replace(/[\s()]/gu, character => encodeURIComponent(character))
-  return `[${label}](${uri})${block.description ? `\n\n${block.description}` : ""}`
-}
-
-/** Только штатное Markdown-представление; исходный текст и код не исполняются. */
+/** Блоки сообщения отображаются reusable Chat frontend; ACP остаётся у host. */
 export function ChatText(props: Readonly<{text: string}>) {
-  return <Markdown
-    source={props.text}
-    wrap={true}
-    style={css`
-      width: 100%;
-      min-width: 0;
-      flex-shrink: 0;
-      overflow-wrap: anywhere;
-      font-size: 14px;
-      line-height: 1.5;
-    `}
-  />
+  return <MessageView content={{type: "text", text: props.text}} />
 }
 
-/** Изображение участвует в раскладке общего Document, без отдельного Canvas. */
-function ChatImage(props: Readonly<{data: string, mimeType: string, label: string}>) {
-  const supported = /^image\/[a-z0-9.+-]+$/iu.test(props.mimeType)
-  return <div
-    style={css`
-      display: block;
-      min-width: 0;
-      max-width: 100%;
-      flex-shrink: 0;
-    `}
-  >
-    {supported ? <ChatImageData
-      data={props.data}
-      mimeType={props.mimeType}
-      label={props.label}
-    /> : null}
-    {!supported ? <ChatNotice
-      text={`Изображение: неподдерживаемый формат ${props.mimeType}`}
-    /> : null}
-  </div>
-}
-
-function ChatImageData(props: Readonly<{data: string, mimeType: string, label: string}>) {
-  return <img
-    data-chat-image=""
-    src={`data:${props.mimeType};base64,${props.data}`}
-    alt={props.label}
-    style={css`
-      display: block;
-      max-width: 100%;
-      height: auto;
-      flex-shrink: 0;
-    `}
-  />
-}
-
-function ChatResource(props: Readonly<{content: Extract<Content, {type: "resource"}>}>) {
-  const resource = props.content.resource
-  return <section data-chat-resource={resource.uri}>
-    <ChatText
-      text={resource.uri}
-    />
-    {"text" in resource ? <ChatText
-      text={resource.text}
-    /> : null}
-    {"blob" in resource && resource.mimeType?.startsWith("image/") ? <ChatImage
-      data={resource.blob}
-      mimeType={resource.mimeType}
-      label={resource.uri}
-    /> : null}
-    {"blob" in resource && !resource.mimeType?.startsWith("image/") ? <ChatNotice
-      text={`Бинарный ресурс · ${resource.mimeType ?? "неизвестный формат"}. Просмотр пока недоступен.`}
-    /> : null}
-  </section>
-}
-
-/** Переданные ресурсы не загружаются автоматически; бинарные данные не теряются в истории. */
-export function ChatContent(props: Readonly<{content: Content}>) {
-  const block = props.content
-  return <div>
-    {block.type === "text" ? <ChatText
-      text={block.text}
-    /> : null}
-    {block.type === "image" ? <ChatImage
-      data={block.data}
-      mimeType={block.mimeType}
-      label="Изображение в сообщении"
-    /> : null}
-    {block.type === "audio" ? <ChatNotice
-      text={`Аудио · ${block.mimeType}. Воспроизведение в этом представлении пока недоступно.`}
-      media="audio"
-    /> : null}
-    {block.type === "resource_link" ? <ChatText
-      text={resourceMarkdown(block)}
-    /> : null}
-    {block.type === "resource" ? <ChatResource
-      content={block}
-    /> : null}
-  </div>
+export function ChatContent(props: Readonly<{content: Content, plain?: boolean | undefined, onMedia?: ((media: MediaPreview) => void) | undefined}>) {
+  return <MessageView content={props.content} plain={props.plain} onMedia={props.onMedia} />
 }
 
 /**
 Служебное поле форматируется после монтирования раскрытых деталей.
-Readonly CodeEditor сохраняет весь source; высота ограничивает viewport, но не число строк в DOM.
+Readonly CodeEditor сохраняет source одного resident тела и штатно ограничивает окно больших документов.
 Typed value сериализуется один раз; неизменный source переиспользует форматирование и токенизацию.
 */
 function ChatDataView(props: Readonly<{
@@ -152,7 +57,7 @@ function ChatDataView(props: Readonly<{
         width: 100%;
         max-width: 100%;
         min-width: 0;
-        height: 240px;
+        height: auto;
         max-height: 240px;
         overflow: auto;
         flex-shrink: 0;
@@ -165,7 +70,7 @@ function ChatDataView(props: Readonly<{
 export const ChatData = memo(ChatDataView)
 
 /** Исходник embedded resource использует его URI/MIME, не интерпретируя произвольный ACP metadata. */
-function ChatContextResource(props: Readonly<{content: Extract<Content, {type: "resource"}>}>) {
+function ChatContextResource(props: Readonly<{content: Extract<Content, {type: "resource"}>, onMedia?: ((media: MediaPreview) => void) | undefined}>) {
   const resource = props.content.resource
   return <section
     data-chat-resource={resource.uri}
@@ -179,12 +84,13 @@ function ChatContextResource(props: Readonly<{content: Extract<Content, {type: "
     /> : null}
     {"blob" in resource ? <ChatContent
       content={props.content}
+      onMedia={props.onMedia}
     /> : null}
   </section>
 }
 
 /** Отдельная проекция только раскрытых служебных content; обычные сообщения сохраняют Markdown. */
-export function ChatContextContent(props: Readonly<{content: Content, label?: string | undefined}>) {
+export function ChatContextContent(props: Readonly<{content: Content, label?: string | undefined, onMedia?: ((media: MediaPreview) => void) | undefined}>) {
   const block = props.content
   return <div>
     {block.type === "text" ? <ChatData
@@ -193,9 +99,11 @@ export function ChatContextContent(props: Readonly<{content: Content, label?: st
     /> : null}
     {block.type === "resource" ? <ChatContextResource
       content={block}
+      onMedia={props.onMedia}
     /> : null}
     {block.type !== "text" && block.type !== "resource" ? <ChatContent
       content={block}
+      onMedia={props.onMedia}
     /> : null}
   </div>
 }

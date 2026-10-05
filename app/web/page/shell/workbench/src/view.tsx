@@ -1,3 +1,4 @@
+import type {WorkbenchChatContext} from "../contract/workbench"
 import type {WorkbenchViewProps} from "./types.ts"
 import {InspectorRegion} from "./regions/inspector.tsx"
 import {PreviewRegion} from "./regions/preview.tsx"
@@ -87,6 +88,7 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         subject={state["inspector.subject"]}
         selectedId={props.inspectorSelectedId}
         query={props.inspectorQuery}
+        chatContext={state["inspector.values"].chat as WorkbenchChatContext | undefined}
         onCategoryChange={props.onInspectorCategoryChange}
         onQueryChange={props.onInspectorQueryChange}
       >

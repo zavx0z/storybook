@@ -6,6 +6,7 @@ import {join} from "node:path"
 import {createHeadless} from "@zavx0z/immersive-headless"
 import createSessions, {type StorybookChatSession} from "@zavx0z/storybook-chat"
 import StorybookChatView from "../web"
+import {inspect} from "../session/test/inspect"
 
 describe.each([{name: "Одна история в двух средах", props: {address: "/storybook/component", label: "Component", message: "Проверь контракт"}}])("$name", async ({props}) => {
   const directory = await mkdtemp(join(tmpdir(), "chat-domain-"))
@@ -36,16 +37,25 @@ describe.each([{name: "Одна история в двух средах", props:
   let finish!: (snapshot: Awaited<ReturnType<StorybookChatSession.Output["read"]>>) => void
   const completed = new Promise<Awaited<ReturnType<StorybookChatSession.Output["read"]>>>(resolve => {finish = resolve})
   const unsubscribe = await sessions.subscribe(props.address, snapshot => {
-    if (snapshot.status === "idle" && snapshot.messages.length === 2) finish(snapshot)
+    if (snapshot.status === "idle" && snapshot.history.total > 0) finish(snapshot)
   })
   await sessions.prompt(props.address, props.message, "domain-message")
-  const snapshot = await completed
+  await completed
+  const snapshot = await inspect(sessions, props.address)
   unsubscribe()
+  const page = await sessions.history(props.address)
+  const rows = await Promise.all(page.items.map(async header => ({header, body: (await sessions.historyItem(props.address, header.id)).entry, expanded: false, loading: false})))
   const element = await headless.render(
     <StorybookChatView
       address={snapshot.address}
       label={snapshot.label}
-      messages={snapshot.messages}
+      history={{chatId: snapshot.id, revision: page.revision, total: page.total, rows, before: page.before, after: page.after, unread: 0, following: true, loading: false}}
+      onHistoryViewport={() => {}}
+      onHistoryVisible={() => {}}
+      onHistoryExpand={() => {}}
+      onHistoryRetry={() => {}}
+      onHistoryEvidence={() => {}}
+      onHistoryTail={() => {}}
       status={snapshot.status}
       draft=""
       onDraftChange={() => {}}

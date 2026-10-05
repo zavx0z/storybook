@@ -19,7 +19,12 @@
     "@zavx0z/immersive-dom": "^0.0.0",
     "@zavx0z/immersive-ui-component": "^0.0.0",
     "@zavx0z/immersive-template": "^0.0.0",
-    "@zavx0z/immersive-ui-theme-icon": "^0.0.0"
+    "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
+    "@zavx0z/chat": "^0.0.0",
+    "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
+    "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
+    "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
+    "@zavx0z/immersive-ui-component-widget-inspector": "^0.0.0"
   },
   "devDependencies": {
     "@zavx0z/immersive-renderer-html": "^0.0.0",

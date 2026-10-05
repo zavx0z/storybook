@@ -588,11 +588,16 @@
       "name": "@zavx0z/storybook-app-web-page-shell-workbench",
       "version": "0.0.0",
       "dependencies": {
+        "@zavx0z/chat": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
         "@zavx0z/immersive-template": "^0.0.0",
         "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
+        "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
+        "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
+        "@zavx0z/immersive-ui-component-widget-inspector": "^0.0.0",
         "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
         "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": "workspace:*",
@@ -701,18 +706,24 @@
       "name": "@zavx0z/storybook-chat-view",
       "version": "0.0.0",
       "dependencies": {
+        "@zavx0z/chat": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-jsx": "^0.0.0",
         "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
-        "@zavx0z/immersive-markdown": "^0.0.0",
         "@zavx0z/immersive-tech-svg-encode": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
+        "@zavx0z/immersive-ui-component-button-icon": "^0.0.0",
+        "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
+        "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
+        "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
+        "@zavx0z/immersive-ui-component-view-code-editor": "^0.0.0",
+        "@zavx0z/storybook-chat-history": "workspace:*",
         "@zavx0z/storybook-chat-session": "workspace:*",
         "@zavx0z/storybook-tech-json-format": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/immersive-browser": "^0.0.0",
-        "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-headless": "^0.0.0",
         "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
         "@zavx0z/immersive-renderer-html": "^0.0.0",
@@ -1427,6 +1438,7 @@
     "@zavx0z/ai-git-status": "link:@zavx0z/ai-git-status",
     "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
     "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
+    "@zavx0z/chat": "link:@zavx0z/chat",
     "@zavx0z/highlighter": "link:@zavx0z/highlighter",
     "@zavx0z/immersive-browser": "link:@zavx0z/immersive-browser",
     "@zavx0z/immersive-component": "link:@zavx0z/immersive-component",
@@ -1464,10 +1476,15 @@
     "@zavx0z/immersive-typedoc": "link:@zavx0z/immersive-typedoc",
     "@zavx0z/immersive-ui-component": "link:@zavx0z/immersive-ui-component",
     "@zavx0z/immersive-ui-component-button-basic": "link:@zavx0z/immersive-ui-component-button-basic",
+    "@zavx0z/immersive-ui-component-button-icon": "link:@zavx0z/immersive-ui-component-button-icon",
+    "@zavx0z/immersive-ui-component-field-select": "link:@zavx0z/immersive-ui-component-field-select",
+    "@zavx0z/immersive-ui-component-field-text": "link:@zavx0z/immersive-ui-component-field-text",
+    "@zavx0z/immersive-ui-component-surface-panel": "link:@zavx0z/immersive-ui-component-surface-panel",
     "@zavx0z/immersive-ui-component-surface-tab": "link:@zavx0z/immersive-ui-component-surface-tab",
     "@zavx0z/immersive-ui-component-surface-window": "link:@zavx0z/immersive-ui-component-surface-window",
     "@zavx0z/immersive-ui-component-surface-window-control": "link:@zavx0z/immersive-ui-component-surface-window-control",
     "@zavx0z/immersive-ui-component-view-code-editor": "link:@zavx0z/immersive-ui-component-view-code-editor",
+    "@zavx0z/immersive-ui-component-widget-inspector": "link:@zavx0z/immersive-ui-component-widget-inspector",
     "@zavx0z/immersive-ui-theme-icon": "link:@zavx0z/immersive-ui-theme-icon",
     "@zavx0z/immersive-ui-theme-icon-set": "link:@zavx0z/immersive-ui-theme-icon-set",
     "@zavx0z/immersive-webgpu": "link:@zavx0z/immersive-webgpu",
@@ -1567,6 +1584,8 @@
 
     "@zavx0z/ai-workspace": ["@zavx0z/ai-workspace@link:@zavx0z/ai-workspace", {}],
 
+    "@zavx0z/chat": ["@zavx0z/chat@link:@zavx0z/chat", {}],
+
     "@zavx0z/highlighter": ["@zavx0z/highlighter@link:@zavx0z/highlighter", {}],
 
     "@zavx0z/immersive-browser": ["@zavx0z/immersive-browser@link:@zavx0z/immersive-browser", {}],
@@ -1641,6 +1660,14 @@
 
     "@zavx0z/immersive-ui-component-button-basic": ["@zavx0z/immersive-ui-component-button-basic@link:@zavx0z/immersive-ui-component-button-basic", {}],
 
+    "@zavx0z/immersive-ui-component-button-icon": ["@zavx0z/immersive-ui-component-button-icon@link:@zavx0z/immersive-ui-component-button-icon", {}],
+
+    "@zavx0z/immersive-ui-component-field-select": ["@zavx0z/immersive-ui-component-field-select@link:@zavx0z/immersive-ui-component-field-select", {}],
+
+    "@zavx0z/immersive-ui-component-field-text": ["@zavx0z/immersive-ui-component-field-text@link:@zavx0z/immersive-ui-component-field-text", {}],
+
+    "@zavx0z/immersive-ui-component-surface-panel": ["@zavx0z/immersive-ui-component-surface-panel@link:@zavx0z/immersive-ui-component-surface-panel", {}],
+
     "@zavx0z/immersive-ui-component-surface-tab": ["@zavx0z/immersive-ui-component-surface-tab@link:@zavx0z/immersive-ui-component-surface-tab", {}],
 
     "@zavx0z/immersive-ui-component-surface-window": ["@zavx0z/immersive-ui-component-surface-window@link:@zavx0z/immersive-ui-component-surface-window", {}],
@@ -1648,6 +1675,8 @@
     "@zavx0z/immersive-ui-component-surface-window-control": ["@zavx0z/immersive-ui-component-surface-window-control@link:@zavx0z/immersive-ui-component-surface-window-control", {}],
 
     "@zavx0z/immersive-ui-component-view-code-editor": ["@zavx0z/immersive-ui-component-view-code-editor@link:@zavx0z/immersive-ui-component-view-code-editor", {}],
+
+    "@zavx0z/immersive-ui-component-widget-inspector": ["@zavx0z/immersive-ui-component-widget-inspector@link:@zavx0z/immersive-ui-component-widget-inspector", {}],
 
     "@zavx0z/immersive-ui-theme-icon": ["@zavx0z/immersive-ui-theme-icon@link:@zavx0z/immersive-ui-theme-icon", {}],
 

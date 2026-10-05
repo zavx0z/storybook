@@ -2,7 +2,7 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive-headless"
 import type {HTMLButtonElement} from "@zavx0z/immersive-dom"
-import StorybookChatView from "@zavx0z/storybook-chat-view"
+import StorybookChatView from "./fixture/history"
 
 describe.each([{name: "Решение пользователя", error: undefined}, {name: "Ошибка исполнителя", error: "Соединение потеряно"}])("$name", async ({error}) => {
   const onPermission = mock((id: string, optionId: string) => {})

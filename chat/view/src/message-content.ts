@@ -1,7 +1,6 @@
-import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
+import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
 
-type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
-type Content = Extract<Snapshot["timeline"][number], {kind: "message"}>["content"][number]
+type Content = Extract<StorybookChatHistory.Output[number], {kind: "message"}>["content"][number]
 
 /**
 Границы текстовых дельт ACP не являются границами абзацев Markdown.

@@ -1,5 +1,6 @@
 import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 import {CatalogRegion} from "./catalog"
+import type {WorkbenchChatContext} from "../../contract/workbench"
 import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
 import type {
   WorkbenchInspectorSubject,
@@ -13,6 +14,7 @@ export type InspectorRegionProps = Readonly<{
   subject: WorkbenchInspectorSubject | null
   selectedId: string
   query: string
+  chatContext?: WorkbenchChatContext | undefined
   onCategoryChange(id: string): void
   onQueryChange(query: string): void
   children: readonly JSX.Element[]
@@ -35,6 +37,7 @@ export function InspectorRegion(props: InspectorRegionProps) {
       subject={props.subject}
       selectedId={props.selectedId}
       query={props.query}
+      chatContext={props.chatContext}
       onCategoryChange={props.onCategoryChange}
       onQueryChange={props.onQueryChange}
     >

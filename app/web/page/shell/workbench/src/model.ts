@@ -6,7 +6,7 @@
 
 @packageDocumentation
 */
-import {WORKBENCH_STANDARD_WIDGET_REGISTRY, WORKBENCH_CHAT_WIDGET, withWorkbenchChat} from "./inspector/registry"
+import {WORKBENCH_STANDARD_WIDGET_REGISTRY, WORKBENCH_CHAT_WIDGET, WORKBENCH_AGENTS_WIDGET, withWorkbenchChat} from "./inspector/registry"
 import {
   CustomEvent,
   Document,
@@ -286,7 +286,7 @@ export function createWorkbenchModel(options: WorkbenchModel.Input): WorkbenchMo
     return () => listeners.delete(listener)
   }
   const configureInspector = (widgets: readonly WorkbenchInspectorWidgetRegistration[] = []): void => {
-    update("inspector.registry", Object.freeze([WORKBENCH_CHAT_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY, ...widgets]))
+    update("inspector.registry", Object.freeze([WORKBENCH_CHAT_WIDGET, WORKBENCH_AGENTS_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY, ...widgets]))
   }
   const setChatContext = (
     context: WorkbenchChatContext,

@@ -2,7 +2,7 @@
 import {expect, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive-headless"
 import type {HTMLButtonElement} from "@zavx0z/immersive-dom"
-import StorybookChatView, {type StorybookChatView as Contract} from "@zavx0z/storybook-chat-view"
+import StorybookChatView, {type FixtureContract as Contract} from "./fixture/history"
 
 test("дополнение вызова сохраняет раскрытие по id и не создаёт детали закрытого контекста", async () => {
   const headless = createHeadless({width: 400, height: 600})

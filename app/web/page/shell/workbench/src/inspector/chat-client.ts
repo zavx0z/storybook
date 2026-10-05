@@ -1,6 +1,8 @@
+import {pickMedia, type MediaDraftAttachment} from "@zavx0z/chat/media"
+import type {MediaPreview} from "@zavx0z/chat/content"
 import type {StorybookChatView} from "@zavx0z/storybook-chat-view"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
-import readHistory from "@zavx0z/storybook-chat-history"
+import {createChatHistoryWindow} from "./chat-history"
 
 /** Браузерный транспорт передаёт снимки сервера; закрытие представления только отписывает поток. */
 export type ChatBrowserSnapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
@@ -10,10 +12,14 @@ export type ChatBrowserView = Readonly<{
   label: string
   executorId: string | undefined
   executorLabel: string | undefined
+  sessionId: string | undefined
+  sessionLabel: string | undefined
   pending: number
-  messages: StorybookChatView.Input["messages"]
-  timeline: ChatBrowserSnapshot["timeline"]
+  history: StorybookChatView.Input["history"]
   draft: string
+  attachments: readonly MediaDraftAttachment[]
+  attaching: boolean
+  media: MediaPreview | null
   status: StorybookChatView.Input["status"]
   sending: boolean
   settings: NonNullable<ChatBrowserSnapshot["settings"]>
@@ -31,13 +37,29 @@ type ChatClientOptions = Readonly<{
   address: string
   label: string
   executorId?: string
+  sessionId?: string
   fetcher?: typeof fetch
   storage?(): Pick<Storage, "getItem" | "setItem">
   scheduleRetry?(callback: () => void, delayMs: number): () => void
 }>
 
 const drafts = new Map<string, string>()
-const pendingRequests = new Map<string, Readonly<{text: string; requestId: string}>>()
+const pendingRequests = new Map<string, Readonly<{hash: string, requestId: string}>>()
+const rememberDraft = (id: string, text: string): void => {
+  drafts.delete(id)
+  if (text.length > 0 && text.length * 2 <= 1024 * 1024) drafts.set(id, text)
+  let bytes = [...drafts.values()].reduce((sum, value) => sum + value.length * 2, 0)
+  while (drafts.size > 64 || bytes > 1024 * 1024) {
+    const first = drafts.entries().next().value!
+    bytes -= first[1].length * 2
+    drafts.delete(first[0])
+  }
+}
+const requestHash = async (value: string): Promise<string> => {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
+  return [...new Uint8Array(bytes)].map(value => value.toString(16).padStart(2, "0")).join("")
+}
+const pendingStorageKey = (id: string) => `storybook.chat.pending.v1:${id}`
 const draftStorageKey = (id: string) => `storybook.chat.draft.v1:${id}`
 
 /** Общий canonical pathname исключает query выбора вида, варианта и секции. */
@@ -56,17 +78,41 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   const storage = options.storage ?? (() => globalThis.localStorage)
   const lifetime = new AbortController()
   const listeners = new Set<() => void>()
+  let visible = true
+  const pageDocument = globalThis.document
+  let pageActive = true
+  const pageHidden = () => {pageActive = false; visibilityChanged()}
+  const pageShown = () => {pageActive = true; visibilityChanged()}
+  const wantsConnection = () => visible && pageActive && pageDocument?.visibilityState !== "hidden"
+  const visibilityChanged = () => {
+    history.setActive(wantsConnection() && media === null)
+    if (!wantsConnection()) {
+      connectionEpoch++
+      connectionAbort?.abort()
+      finishRetry?.()
+      activeSocket?.close()
+      if (session) session = {...session, settings: [], permissions: []}
+      notify()
+    } else if (started && !connecting && !disposed) void connect()
+  }
   let disposed = false
   let started = false
+  let connecting = false
+  let connectionEpoch = 0
+  let connectionAbort: AbortController | null = null
   let session: ChatBrowserSnapshot | null = null
   let connectionError: string | undefined
   let actionError: string | undefined
+  let attachments: readonly MediaDraftAttachment[] = []
+  let attaching = false
+  let media: MediaPreview | null = null
   let draft = ""
   let draftChanged = false
   let configuring = false
   let submitting = false
   let activeSocket: ChatSocket | null = null
   let finishRetry: (() => void) | null = null
+  const history = createChatHistoryWindow({read: (operation, body, signal) => post(operation, body, undefined, signal), changed: () => notify()})
   let view: ChatBrowserView = deriveView()
 
   function deriveView(): ChatBrowserView {
@@ -75,11 +121,14 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       label: session?.label ?? options.label,
       executorId: session?.executorId,
       executorLabel: session?.executorLabel,
+      sessionId: session?.sessionId,
+      sessionLabel: session?.sessionLabel,
       pending: session?.pending.length ?? 0,
-      messages: session?.messages ?? [],
-      timeline: session?.timeline ?? [],
+      history: history.getSnapshot(),
       draft,
-      status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
+      attachments,
+      attaching,
+      media,      status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
       sending: submitting,
       settings: session?.settings ?? [],
       progress: session?.progress,
@@ -95,14 +144,16 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     view = deriveView()
     for (const listener of listeners) listener()
   }
+  const releaseAttachments = () => {for (const attachment of attachments) attachment.release(); attachments = []}
   const saveDraft = (): void => {
     if (session === null) return
-    drafts.set(session.id, draft)
+    rememberDraft(session.id, draft)
     try { storage().setItem(draftStorageKey(session.id), draft) } catch {}
   }
   const accept = (value: unknown, initial = false): void => {
     if (disposed) return
     const next = readChatBrowserSnapshot(value, address)
+    if (options.sessionId !== undefined && next.sessionId !== options.sessionId) throw new Error("Получен снимок другой сессии")
     if (options.executorId !== undefined && next.executorId !== options.executorId) throw new Error("Получен снимок другого исполнителя")
     if (disposed || !initial && session !== null && next.version < session.version) return
     if (session === null || session.id !== next.id) {
@@ -114,15 +165,16 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       }
     }
     session = next
+    history.accept(next)
     saveDraft()
     notify()
   }
-  const grant = async (): Promise<string> => {
+  const grant = async (signal = lifetime.signal): Promise<string> => {
     const response = await fetcher("/api/browser/registry-session", {
       method: "POST",
       headers: {"content-type": "application/json"},
       body: "{}",
-      signal: lifetime.signal,
+      signal,
     })
     if (!response.ok) throw new Error(`Не удалось открыть browser-сессию: HTTP ${response.status}`)
     const value = await response.json()
@@ -131,14 +183,14 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     }
     return value.readerToken
   }
-  const post = async (operation: string, body: Record<string, unknown>, suppliedToken?: string): Promise<unknown> => {
+  const post = async (operation: string, body: Record<string, unknown>, suppliedToken?: string, signal = lifetime.signal, scope: "session" | "agent" | "address" = "session"): Promise<unknown> => {
     const token = suppliedToken ?? await grant()
     if (disposed) throw new Error("Представление чата закрыто")
     const response = await fetcher(`/api/browser/chat/${operation}`, {
       method: "POST",
       headers: {"content-type": "application/json", "x-storybook-session": token},
-      body: JSON.stringify({address, ...(options.executorId === undefined ? {} : {executorId: options.executorId}), ...body}),
-      signal: lifetime.signal,
+      body: JSON.stringify({address, ...(scope === "address" || options.executorId === undefined ? {} : {executorId: options.executorId}), ...(scope !== "session" || options.sessionId === undefined ? {} : {sessionId: options.sessionId}), ...body}),
+      signal,
     })
     if (!response.ok) {
       let detail = ""
@@ -177,7 +229,8 @@ export function createChatBrowserClient(options: ChatClientOptions) {
         connectionError = undefined
         notify()
         socket.send(JSON.stringify({type: "subscribe", topic: `chat:${address}`,
-          ...(options.executorId === undefined ? {} : {executorId: options.executorId})}))
+          ...(options.executorId === undefined ? {} : {executorId: options.executorId}),
+          ...(options.sessionId === undefined ? {} : {sessionId: options.sessionId})}))
       }
       const message = (event: Event): void => {
         try {
@@ -218,20 +271,32 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     cancelTimer = schedule(finish, delayMs)
   })
   const connect = async (): Promise<void> => {
+    if (connecting || disposed || !wantsConnection()) return
+    connecting = true
+    const epoch = connectionEpoch
+    const controller = new AbortController()
+    connectionAbort = controller
     let attempts = 0
-    while (!disposed) {
-      try {
-        const token = await grant()
-        if (disposed) return
-        accept(await post("session", {}, token), true)
-        if (disposed) return
-        await stream(token, () => { attempts = 0 })
-      } catch (error) {
-        if (disposed) return
-        connectionError = error instanceof Error ? error.message : String(error)
-        notify()
-        await waitForRetry(Math.min(250 * 2 ** Math.min(attempts++, 6), 10_000))
+    try {
+      while (!disposed && wantsConnection() && epoch === connectionEpoch) {
+        try {
+          const token = await grant(controller.signal)
+          if (disposed || controller.signal.aborted || epoch !== connectionEpoch) return
+          const snapshot = await post("session", {}, token, controller.signal)
+          if (disposed || controller.signal.aborted || epoch !== connectionEpoch) return
+          accept(snapshot, true)
+          await stream(token, () => {attempts = 0})
+        } catch (failure) {
+          if (disposed || controller.signal.aborted || !wantsConnection() || epoch !== connectionEpoch) return
+          connectionError = failure instanceof Error ? failure.message : String(failure)
+          notify()
+          await waitForRetry(Math.min(250 * 2 ** Math.min(attempts++, 6), 10_000))
+        }
       }
+    } finally {
+      if (connectionAbort === controller) connectionAbort = null
+      connecting = false
+      if (!disposed && wantsConnection() && started) void connect()
     }
   }
   const perform = async (operation: string, body: Record<string, unknown>): Promise<boolean> => {
@@ -251,6 +316,16 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   }
 
   return {
+    historyViewport: history.viewport,
+    historyVisible(value: boolean) {
+      if (visible === value) return
+      visible = value
+      visibilityChanged()
+    },
+    historyExpand: history.expand,
+    historyRetry: history.retry,
+    historyEvidence: history.evidence,
+    historyTail: history.tail,
     getSnapshot: () => view,
     subscribe(listener: () => void) {
       listeners.add(listener)
@@ -259,13 +334,16 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     start() {
       if (started || disposed) return
       started = true
-      void connect()
+      pageDocument?.addEventListener("visibilitychange", visibilityChanged)
+      globalThis.addEventListener?.("pagehide", pageHidden)
+      globalThis.addEventListener?.("pageshow", pageShown)
+      visibilityChanged()
     },
-    async listExecutors(): Promise<NonNullable<StorybookChatView.Input["executors"]>> {
+    async listExecutors(): Promise<readonly Pick<ChatBrowserSnapshot, "executorId" | "executorLabel" | "status" | "pending">[]> {
       if (disposed) return []
       // Первый список включает текущую default-беседу даже при параллельном открытии потока.
       if (session === null) accept(await post("session", {}), true)
-      const value = await post("list", {})
+      const value = await post("list", {}, undefined, lifetime.signal, "address")
       if (disposed) return []
       if (!Array.isArray(value)) throw new Error("Некорректный список исполнителей")
       return value.map(item => {
@@ -274,8 +352,46 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       })
     },
     async createExecutor(label: string): Promise<ChatBrowserSnapshot> {
-      return readChatBrowserSnapshot(await post("create", {label}), address)
+      return readChatBrowserSnapshot(await post("create", {label}, undefined, lifetime.signal, "address"), address)
     },
+    async listSessions(executorId: string, signal = lifetime.signal): Promise<readonly Readonly<{id: string, title: string}>[]> {
+      const value = await post("sessions", {executorId}, undefined, signal, "agent")
+      if (!Array.isArray(value)) throw new Error("Некорректный список сессий")
+      return value.map(item => {
+        const snapshot = readChatBrowserSnapshot(item, address)
+        if (snapshot.executorId !== executorId) throw new Error("Сессия другого агента")
+        return {id: snapshot.sessionId, title: snapshot.sessionLabel}
+      })
+    },
+    async createSession(executorId: string): Promise<ChatBrowserSnapshot> {
+      return readChatBrowserSnapshot(await post("session-create", {executorId}, undefined, lifetime.signal, "agent"), address)
+    },
+    async renameSession(executorId: string, sessionId: string, label: string): Promise<ChatBrowserSnapshot> {
+      return readChatBrowserSnapshot(await post("session-rename", {executorId, sessionId, label}), address)
+    },
+    async deleteSession(executorId: string, sessionId: string): Promise<void> {
+      await post("session-delete", {executorId, sessionId})
+    },
+    async attach() {
+      if (disposed || attaching || view.sending || !pageDocument) return
+      attaching = true
+      notify()
+      try {
+        const added = await pickMedia({browserDocument: pageDocument, signal: lifetime.signal, existing: attachments, isCurrent: () => !disposed,
+          ...(session?.capabilities === undefined || session.capabilities === null ? {} : {capabilities: {image: session.capabilities.promptCapabilities?.image === true, audio: session.capabilities.promptCapabilities?.audio === true, files: session.capabilities.promptCapabilities?.embeddedContext === true}})})
+        if (!disposed) {attachments = [...attachments, ...added]; actionError = undefined}
+        else for (const attachment of added) attachment.release()
+      } catch (failure) {if (!disposed) actionError = failure instanceof Error ? failure.message : String(failure)}
+      finally {attaching = false; notify()}
+    },
+    removeAttachment(id: string) {
+      const item = attachments.find(item => item.attachment.id === id)
+      if (item && media?.source === item.attachment) {media = null; visibilityChanged()}
+      item?.release()
+      attachments = attachments.filter(item => item.attachment.id !== id)
+      notify()
+    },
+    preview(value: MediaPreview | null) {media = value; visibilityChanged(); notify()},
     setDraft(value: string) {
       if (disposed) return
       draft = value
@@ -284,17 +400,43 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       notify()
     },
     async send() {
-      if (disposed || submitting || configuring || session?.configuring || draft.trim().length === 0 || view.status === "connecting" || view.status === "running") return
+      if (disposed || submitting || configuring || session?.configuring || draft.trim().length === 0 && attachments.length === 0 || view.status === "connecting" || view.status === "running") return
       const text = draft
+      const selectedAttachments = attachments
+      const signature = `${text}\0${selectedAttachments.map(item => item.attachment.id).join(":")}`
       const key = session?.id ?? address
-      const previous = pendingRequests.get(key)
-      const request = previous?.text === text ? previous : {text, requestId: crypto.randomUUID()}
-      pendingRequests.set(key, request)
       submitting = true
       notify()
       try {
-        if (await perform("prompt", request)) {
+        const hash = await requestHash(signature)
+        if (disposed) return
+        let previous = pendingRequests.get(key)
+        if (!previous) {
+          try {
+            const saved = JSON.parse(storage().getItem(pendingStorageKey(key)) ?? "null")
+            if (saved && /^[a-f0-9]{64}$/u.test(saved.hash) && typeof saved.requestId === "string" && saved.requestId.length <= 128) previous = {hash: saved.hash, requestId: saved.requestId}
+          } catch {}
+        }
+        const request = previous?.hash === hash ? previous : {hash, requestId: crypto.randomUUID()}
+        pendingRequests.delete(key)
+        pendingRequests.set(key, request)
+        try {storage().setItem(pendingStorageKey(key), JSON.stringify(request))} catch {}
+        while (pendingRequests.size > 128) pendingRequests.delete(pendingRequests.keys().next().value!)
+        const content = selectedAttachments.map(item => {
+          const value = item.attachment
+          if (value.kind === "image") return {type: "image", mimeType: value.mimeType, data: value.data!}
+          if (value.kind === "audio") return {type: "audio", mimeType: value.mimeType, data: value.data!}
+          return {type: "resource", resource: {uri: `attachment:${value.id}/${encodeURIComponent(value.name)}`, mimeType: value.mimeType,
+            ...(value.text === undefined ? {blob: value.data!} : {text: value.text})}}
+        })
+        if (await perform("prompt", {requestId: request.requestId, ...(selectedAttachments.length === 0 ? {text} : {content: [...(text.length ? [{type: "text", text}] : []), ...content]})})) {
           if (pendingRequests.get(key) === request) pendingRequests.delete(key)
+          try {storage().setItem(pendingStorageKey(key), "")} catch {}
+          const sentIds = new Set(selectedAttachments.map(item => item.attachment.id))
+          for (const item of attachments) if (sentIds.has(item.attachment.id)) item.release()
+          attachments = attachments.filter(item => !sentIds.has(item.attachment.id))
+          media = null
+          visibilityChanged()
           if (draft === text) {
             draft = ""
             saveDraft()
@@ -324,6 +466,14 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       if (disposed) return
       disposed = true
       saveDraft()
+      pageDocument?.removeEventListener("visibilitychange", visibilityChanged)
+      globalThis.removeEventListener?.("pagehide", pageHidden)
+      globalThis.removeEventListener?.("pageshow", pageShown)
+      media = null
+      releaseAttachments()
+      history.dispose()
+      connectionEpoch++
+      connectionAbort?.abort()
       lifetime.abort()
       finishRetry?.()
       activeSocket?.close()
@@ -341,9 +491,11 @@ function readChatBrowserSnapshot(value: unknown, address: string): ChatBrowserSn
   if (value === null || typeof value !== "object") throw new Error("Некорректный снимок чата")
   const snapshot = value as ChatBrowserSnapshot
   if (typeof snapshot.id !== "string" || snapshot.id.length === 0 || snapshot.address !== address ||
+    snapshot.sessionId !== snapshot.id || typeof snapshot.sessionLabel !== "string" || snapshot.sessionLabel.length === 0 ||
     typeof snapshot.executorId !== "string" || !snapshot.executorId || typeof snapshot.executorLabel !== "string" || !snapshot.executorLabel ||
     !Array.isArray(snapshot.pending) || snapshot.pending.some(id => typeof id !== "string" || !id) ||
-    typeof snapshot.label !== "string" || !Array.isArray(snapshot.messages) ||
+    typeof snapshot.label !== "string" || !snapshot.history ||
+    ![snapshot.history.revision, snapshot.history.total, snapshot.history.lastSequence].every(value => Number.isSafeInteger(value) && value >= 0) ||
     !["idle", "connecting", "running", "failed"].includes(snapshot.status) ||
     !(snapshot.error === null || typeof snapshot.error === "string") ||
     !Array.isArray(snapshot.permissions) || !Number.isSafeInteger(snapshot.version) || snapshot.version < 0 ||
@@ -356,22 +508,13 @@ function readChatBrowserSnapshot(value: unknown, address: string): ChatBrowserSn
       !["model", "thought_level"].includes(setting.category) || !Array.isArray(setting.options) || setting.options.some((option: NonNullable<ChatBrowserSnapshot["settings"]>[number]["options"][number]) =>
         !option || typeof option.value !== "string" || typeof option.name !== "string" ||
         option.description !== undefined && typeof option.description !== "string"))) ||
-    snapshot.messages.some(message => message === null || typeof message !== "object" ||
-      typeof message.id !== "string" || !["user", "assistant", "system"].includes(message.role) || typeof message.text !== "string") ||
     snapshot.permissions.some(permission => permission === null || typeof permission !== "object" ||
       typeof permission.id !== "string" || typeof permission.title !== "string" || !Array.isArray(permission.options) ||
       permission.options.some((option: ChatBrowserSnapshot["permissions"][number]["options"][number]) => option === null || typeof option !== "object" ||
         typeof option.id !== "string" || typeof option.name !== "string"))) {
     throw new Error("Некорректный снимок чата")
   }
-  const hasTimeline = Object.prototype.hasOwnProperty.call(value, "timeline")
-  const timeline = readHistory(hasTimeline ? snapshot.timeline : snapshot.messages.map((message, sequence) => ({
-    id: message.id,
-    kind: "message",
-    sequence: sequence + 1,
-    origin: "legacy",
-    role: message.role,
-    content: [{type: "text", text: message.text}],
-  })))
-  return {...snapshot, timeline}
+  // Snapshot identity/config/state только; старые full-history payload не принимаются.
+  if (Object.hasOwn(value, "timeline") || Object.hasOwn(value, "messages")) throw new Error("Полная история в снимке чата запрещена")
+  return snapshot
 }

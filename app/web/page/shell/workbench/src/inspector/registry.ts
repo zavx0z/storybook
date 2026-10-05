@@ -18,6 +18,7 @@ import type {
 } from "../../contract/workbench.ts"
 import {requiredText} from "../validation.ts"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {AgentsWidget} from "./agents-widget"
 import {ChatWidget} from "./chat-widget.tsx"
 import type {WorkbenchChatContext} from "../../contract/workbench.ts"
 import {canonicalChatAddress} from "./chat-client.ts"
@@ -36,6 +37,12 @@ export const WORKBENCH_CHAT_WIDGET = Object.freeze({
   component: ChatWidget as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
 })
 
+/** Агентная организация принадлежит host; UI бесед остаётся общим Chat. */
+export const WORKBENCH_AGENTS_WIDGET = Object.freeze({
+  id: "agents", kind: "custom" as const, label: "Агенты", title: "Агенты", iconSrc: settingsIcon, wrapInPanel: false,
+  component: AgentsWidget as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+})
+
 /** Сохраняет owner widgets и добавляет первым чат канонического предметного адреса. */
 export function withWorkbenchChat(
   context: WorkbenchChatContext,
@@ -46,9 +53,9 @@ export function withWorkbenchChat(
   return Object.freeze({
     inspectorSubject: Object.freeze({
       ...(subject ?? {subjectId: address, workspaceId: address}),
-      widgetIds: Object.freeze(["chat", ...(subject?.widgetIds ?? []).filter(id => id !== "chat")]),
+      widgetIds: Object.freeze(["chat", "agents", ...(subject?.widgetIds ?? []).filter(id => id !== "chat" && id !== "agents")]),
     }),
-    inspectorValues: Object.freeze({...values, chat: Object.freeze({...context, address})}),
+    inspectorValues: Object.freeze({...values, chat: Object.freeze({...context, address}), agents: Object.freeze({...context, address})}),
   })
 }
 

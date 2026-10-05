@@ -2,8 +2,7 @@
 import {expect, test} from "bun:test"
 import {createRoot} from "@zavx0z/immersive-component"
 import {createDocument} from "@zavx0z/immersive-dom"
-import {ChatTimeline} from "../src/timeline"
-import type {StorybookChatView as Contract} from "../contract"
+import {FixtureTimeline as ChatTimeline, type FixtureContract as Contract} from "./fixture/history"
 
 test("потоковый и повторно открытый ответ показывают целые слова и Markdown", async () => {
   const document = createDocument()

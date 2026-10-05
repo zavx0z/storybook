@@ -2,7 +2,7 @@
 import {expect, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive-headless"
 import {InputEvent, KeyboardEvent, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
-import StorybookChatView from "@zavx0z/storybook-chat-view"
+import StorybookChatView from "./fixture/history"
 
 /** Проверяет совместимость с legacy payload; штатный Immersive constructor не принимает keyCode. */
 class LegacyImeKeyboardEvent extends KeyboardEvent {

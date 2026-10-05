@@ -1,7 +1,9 @@
 import {iconSvg} from "@zavx0z/immersive-ui-theme-icon"
-import {Inspector} from "@zavx0z/immersive-ui-component"
-import type {ImmersiveUiComponentWidgetInspector} from "@zavx0z/immersive-ui-component"
+import Inspector from "@zavx0z/immersive-ui-component-widget-inspector"
+import type {ImmersiveUiComponentWidgetInspector} from "@zavx0z/immersive-ui-component-widget-inspector"
 type InspectorCategory = ImmersiveUiComponentWidgetInspector.Input["categories"][number]
+import {ChatSessionHeader} from "./chat-header"
+import type {WorkbenchChatContext} from "../../contract/workbench"
 import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
 import type {
   WorkbenchInspectorSubject,
@@ -15,6 +17,7 @@ export type WorkbenchInspectorProps = Readonly<{
   subject: WorkbenchInspectorSubject | null
   selectedId: string
   query: string
+  chatContext?: WorkbenchChatContext | undefined
   onCategoryChange(id: string): void
   onQueryChange(query: string): void
   children: JSX.Element | readonly JSX.Element[]
@@ -44,11 +47,16 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     categories={categories}
     selectedCategoryId={props.selectedId}
     query={props.query}
+    showSearch={props.selectedId !== "chat"}
     searchLabel="Поиск по инспектору"
     searchPlaceholder="Поиск…"
     onCategoryChange={props.onCategoryChange}
     onQueryChange={props.onQueryChange}
   >
+    {props.selectedId === "chat" && props.chatContext ? <ChatSessionHeader
+      slot="header"
+      context={props.chatContext}
+    /> : null}
     {props.children}
   </Inspector>
 }

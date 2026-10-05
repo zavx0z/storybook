@@ -1,4 +1,4 @@
-import {Button} from "@zavx0z/immersive-ui-component"
+import Button from "@zavx0z/immersive-ui-component-button-basic"
 import type {StorybookChatView as Contract} from "../contract"
 
 export function ChatPermission(props: Readonly<{
