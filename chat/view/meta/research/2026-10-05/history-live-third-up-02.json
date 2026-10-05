@@ -1,0 +1,297 @@
+{
+  "label": "third-up-02",
+  "network": [
+    {
+      "operation": "history-item",
+      "id": "fixture-message-9981",
+      "bytes": 654
+    },
+    {
+      "operation": "history-item",
+      "id": "fixture-message-9982",
+      "bytes": 740
+    },
+    {
+      "operation": "history-item",
+      "id": "fixture-message-9983",
+      "bytes": 836
+    },
+    {
+      "operation": "history-item",
+      "id": "fixture-message-9984",
+      "bytes": 922
+    },
+    {
+      "operation": "history-item",
+      "id": "fixture-message-9985",
+      "bytes": 563
+    },
+    {
+      "operation": "history-item",
+      "id": "fixture-message-9986",
+      "bytes": 649
+    },
+    {
+      "operation": "history-item",
+      "id": "fixture-message-9987",
+      "bytes": 745
+    }
+  ],
+  "recordedAt": "2026-10-05T11:57:49.798Z",
+  "forcedGC": false,
+  "before": {
+    "timeOrigin": 1791176054713.2,
+    "visibility": "visible",
+    "dpr": 2,
+    "frames": 150,
+    "semanticElements": 776,
+    "selectedSession": "4567685d-0b1e-470f-b9f9-497cf4068bcf",
+    "rows": 32,
+    "rowIds": [
+      "fixture-message-9968",
+      "fixture-message-9969",
+      "fixture-message-9970",
+      "fixture-message-9971",
+      "fixture-message-9972",
+      "fixture-message-9973",
+      "fixture-message-9974",
+      "fixture-message-9975",
+      "fixture-message-9976",
+      "fixture-message-9977",
+      "fixture-message-9978",
+      "fixture-message-9979",
+      "fixture-message-9980",
+      "fixture-message-9981",
+      "fixture-message-9982",
+      "fixture-message-9983",
+      "fixture-message-9984",
+      "fixture-message-9985",
+      "fixture-message-9986",
+      "fixture-message-9987",
+      "fixture-message-9988",
+      "fixture-message-9989",
+      "fixture-message-9990",
+      "fixture-message-9991",
+      "fixture-message-9992",
+      "fixture-message-9993",
+      "fixture-message-9994",
+      "fixture-message-9995",
+      "fixture-message-9996",
+      "fixture-message-9997",
+      "fixture-message-9998",
+      "fixture-message-9999"
+    ],
+    "ordinals": [
+      9968,
+      9969,
+      9970,
+      9971,
+      9972,
+      9973,
+      9974,
+      9975,
+      9976,
+      9977,
+      9978,
+      9979,
+      9980,
+      9981,
+      9982,
+      9983,
+      9984,
+      9985,
+      9986,
+      9987,
+      9988,
+      9989,
+      9990,
+      9991,
+      9992,
+      9993,
+      9994,
+      9995,
+      9996,
+      9997,
+      9998,
+      9999
+    ],
+    "bodies": 6,
+    "bodyCharacters": 991,
+    "images": 0,
+    "overlays": 0,
+    "editors": 0,
+    "draftCharacters": 0,
+    "log": {
+      "rect": {
+        "x": 1606.7576969198042,
+        "y": 112.86826979142828,
+        "width": 295.00000756365307,
+        "height": 710.0000127642484,
+        "top": 112.86826979142828,
+        "right": 1901.7577044834572,
+        "bottom": 822.8682825556766,
+        "left": 1606.7576969198042
+      },
+      "scrollTop": 1931,
+      "visible": [
+        {
+          "id": "fixture-message-9990",
+          "top": -48.33333420226114
+        },
+        {
+          "id": "fixture-message-9991",
+          "top": 55.000000988779675
+        },
+        {
+          "id": "fixture-message-9992",
+          "top": 161.66666957307987
+        },
+        {
+          "id": "fixture-message-9993",
+          "top": 317.5000057079561
+        },
+        {
+          "id": "fixture-message-9994",
+          "top": 459.16667492147985
+        },
+        {
+          "id": "fixture-message-9995",
+          "top": 667.5000120001913
+        }
+      ]
+    }
+  },
+  "after": {
+    "timeOrigin": 1791176054713.2,
+    "visibility": "visible",
+    "dpr": 2,
+    "frames": 156,
+    "semanticElements": 776,
+    "selectedSession": "4567685d-0b1e-470f-b9f9-497cf4068bcf",
+    "rows": 32,
+    "rowIds": [
+      "fixture-message-9968",
+      "fixture-message-9969",
+      "fixture-message-9970",
+      "fixture-message-9971",
+      "fixture-message-9972",
+      "fixture-message-9973",
+      "fixture-message-9974",
+      "fixture-message-9975",
+      "fixture-message-9976",
+      "fixture-message-9977",
+      "fixture-message-9978",
+      "fixture-message-9979",
+      "fixture-message-9980",
+      "fixture-message-9981",
+      "fixture-message-9982",
+      "fixture-message-9983",
+      "fixture-message-9984",
+      "fixture-message-9985",
+      "fixture-message-9986",
+      "fixture-message-9987",
+      "fixture-message-9988",
+      "fixture-message-9989",
+      "fixture-message-9990",
+      "fixture-message-9991",
+      "fixture-message-9992",
+      "fixture-message-9993",
+      "fixture-message-9994",
+      "fixture-message-9995",
+      "fixture-message-9996",
+      "fixture-message-9997",
+      "fixture-message-9998",
+      "fixture-message-9999"
+    ],
+    "ordinals": [
+      9968,
+      9969,
+      9970,
+      9971,
+      9972,
+      9973,
+      9974,
+      9975,
+      9976,
+      9977,
+      9978,
+      9979,
+      9980,
+      9981,
+      9982,
+      9983,
+      9984,
+      9985,
+      9986,
+      9987,
+      9988,
+      9989,
+      9990,
+      9991,
+      9992,
+      9993,
+      9994,
+      9995,
+      9996,
+      9997,
+      9998,
+      9999
+    ],
+    "bodies": 6,
+    "bodyCharacters": 1040,
+    "images": 0,
+    "overlays": 0,
+    "editors": 0,
+    "draftCharacters": 0,
+    "log": {
+      "rect": {
+        "x": 1606.7576969198042,
+        "y": 112.86826979142828,
+        "width": 295.00000756365307,
+        "height": 710.0000127642484,
+        "top": 112.86826979142828,
+        "right": 1901.7577044834572,
+        "bottom": 822.8682825556766,
+        "left": 1606.7576969198042
+      },
+      "scrollTop": 991,
+      "visible": [
+        {
+          "id": "fixture-message-9981",
+          "top": -79.16666808991047
+        },
+        {
+          "id": "fixture-message-9982",
+          "top": 27.500000494389752
+        },
+        {
+          "id": "fixture-message-9983",
+          "top": 183.33333662926586
+        },
+        {
+          "id": "fixture-message-9984",
+          "top": 325.0000058427896
+        },
+        {
+          "id": "fixture-message-9985",
+          "top": 533.3333429215011
+        },
+        {
+          "id": "fixture-message-9986",
+          "top": 622.5000111911895
+        }
+      ]
+    }
+  },
+  "heap": {
+    "usedSize": 107482052,
+    "totalSize": 252325888,
+    "embedderHeapUsedSize": 2915208,
+    "backingStorageSize": 147612607
+  },
+  "nativeDom": {
+    "documents": 1,
+    "nodes": 90,
+    "jsEventListeners": 96
+  }
+}

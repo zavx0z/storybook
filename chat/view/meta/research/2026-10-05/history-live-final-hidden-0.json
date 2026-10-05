@@ -1,0 +1,77 @@
+{
+  "label": "final-hidden-0",
+  "network": [],
+  "recordedAt": "2026-10-05T11:58:33.845Z",
+  "forcedGC": false,
+  "before": {
+    "timeOrigin": 1791176054713.2,
+    "visibility": "visible",
+    "dpr": 2,
+    "frames": 326,
+    "semanticElements": 667,
+    "rows": 0,
+    "rowIds": [],
+    "ordinals": [],
+    "bodies": 0,
+    "bodyCharacters": 0,
+    "images": 0,
+    "overlays": 0,
+    "editors": 0,
+    "draftCharacters": 0,
+    "log": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "scrollTop": 0,
+      "visible": []
+    }
+  },
+  "after": {
+    "timeOrigin": 1791176054713.2,
+    "visibility": "visible",
+    "dpr": 2,
+    "frames": 326,
+    "semanticElements": 667,
+    "rows": 0,
+    "rowIds": [],
+    "ordinals": [],
+    "bodies": 0,
+    "bodyCharacters": 0,
+    "images": 0,
+    "overlays": 0,
+    "editors": 0,
+    "draftCharacters": 0,
+    "log": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "scrollTop": 0,
+      "visible": []
+    }
+  },
+  "heap": {
+    "usedSize": 107598336,
+    "totalSize": 137736192,
+    "embedderHeapUsedSize": 2415904,
+    "backingStorageSize": 156267514
+  },
+  "nativeDom": {
+    "documents": 1,
+    "nodes": 90,
+    "jsEventListeners": 108
+  }
+}

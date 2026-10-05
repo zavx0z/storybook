@@ -1,0 +1,760 @@
+{
+  "recordedAt": "2026-10-05T12:00:14.853Z",
+  "forcedGC": false,
+  "scope": "browser-wide process totals; page PID identified by user-timing marker",
+  "pagePid": 99279,
+  "context": {
+    "result": {
+      "type": "object",
+      "value": {
+        "timeOrigin": 1791176054713.2,
+        "viewport": {
+          "width": 1920,
+          "height": 1088,
+          "devicePixelRatio": 2
+        }
+      }
+    }
+  },
+  "dump": {
+    "dumpGuid": "0x949e",
+    "success": true
+  },
+  "names": [
+    {
+      "pid": 83756,
+      "name": "Service: tracing.mojom.TracingService"
+    },
+    {
+      "pid": 19346,
+      "name": "WebUI Top Renderer"
+    },
+    {
+      "pid": 67567,
+      "name": "Browser"
+    },
+    {
+      "pid": 67574,
+      "name": "GPU Process"
+    },
+    {
+      "pid": 67575,
+      "name": "Service: network.mojom.NetworkService"
+    },
+    {
+      "pid": 67576,
+      "name": "Service: storage.mojom.StorageService"
+    },
+    {
+      "pid": 95551,
+      "name": "Renderer"
+    },
+    {
+      "pid": 99279,
+      "name": "Renderer"
+    },
+    {
+      "pid": 99283,
+      "name": "Renderer"
+    }
+  ],
+  "totals": [
+    {
+      "pid": 83756,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "3931000"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 19346,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "3b8b400"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 67567,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "83a8000"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 67574,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "dd30000"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 67575,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "1bcb000"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 67576,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "149b000"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 95551,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "7d8f400"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 99279,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "1ad3d400"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 99283,
+      "totals": {
+        "is_peak_rss_resettable": false,
+        "peak_resident_set_size": "0",
+        "private_footprint_bytes": "19f1000"
+      },
+      "allocators": {}
+    },
+    {
+      "pid": 19346,
+      "allocators": {
+        "blink_gc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "e0f000"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "e0f000"
+            }
+          },
+          "guid": "0"
+        },
+        "gpu": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "1ffc0"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "1ffc0"
+            }
+          },
+          "guid": "a7"
+        },
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "f164b6"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "f531c0"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "0"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "f37000"
+            }
+          },
+          "guid": "ac"
+        },
+        "partition_alloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "3d24bf"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "3e8000"
+            }
+          },
+          "guid": "127"
+        },
+        "skia": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "b551"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "b551"
+            }
+          },
+          "guid": "14c"
+        },
+        "v8": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "8e578c"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "8e578c"
+            }
+          },
+          "guid": "14e"
+        }
+      }
+    },
+    {
+      "pid": 67567,
+      "allocators": {
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "5f9d78c"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "617e050"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "381"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "612f000"
+            }
+          },
+          "guid": "1d8"
+        },
+        "partition_alloc": {
+          "guid": "2b6"
+        },
+        "skia": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "9521"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "9521"
+            }
+          },
+          "guid": "2e9"
+        }
+      }
+    },
+    {
+      "pid": 67574,
+      "allocators": {
+        "gpu": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "319098c9"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "45f4e749"
+            }
+          },
+          "guid": "30a"
+        },
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "332c85a"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "34263f0"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "26c"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "3410000"
+            }
+          },
+          "guid": "51e"
+        },
+        "partition_alloc": {
+          "guid": "59f"
+        },
+        "skia": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "fd467"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "fd467"
+            }
+          },
+          "guid": "5dc"
+        }
+      }
+    },
+    {
+      "pid": 67575,
+      "allocators": {
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "7e1d6a"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "7e1d90"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "9f"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "7c6000"
+            }
+          },
+          "guid": "5e3"
+        },
+        "partition_alloc": {
+          "guid": "653"
+        },
+        "skia": {
+          "guid": "66a"
+        }
+      }
+    },
+    {
+      "pid": 67576,
+      "allocators": {
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "1a9bf9"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "1af970"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "3d"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "1a0000"
+            }
+          },
+          "guid": "679"
+        },
+        "partition_alloc": {
+          "guid": "6e9"
+        },
+        "skia": {
+          "guid": "702"
+        }
+      }
+    },
+    {
+      "pid": 83756,
+      "allocators": {
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "1d584a"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "1d5870"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "1"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "1b9000"
+            }
+          },
+          "guid": "704"
+        },
+        "partition_alloc": {
+          "guid": "777"
+        },
+        "skia": {
+          "guid": "78f"
+        }
+      }
+    },
+    {
+      "pid": 95551,
+      "allocators": {
+        "blink_gc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "6f2050"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "6f2050"
+            }
+          },
+          "guid": "791"
+        },
+        "gpu": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "12ff80"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "12ff80"
+            }
+          },
+          "guid": "7ad"
+        },
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "f0edd6"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "fa9150"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "23"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "f8f000"
+            }
+          },
+          "guid": "7b4"
+        },
+        "partition_alloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "2cc7a78"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "2ccc000"
+            }
+          },
+          "guid": "831"
+        },
+        "skia": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "925"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "925"
+            }
+          },
+          "guid": "85f"
+        },
+        "v8": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "2c9ea24"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "2c9ea24"
+            }
+          },
+          "guid": "861"
+        }
+      }
+    },
+    {
+      "pid": 99279,
+      "allocators": {
+        "blink_gc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "8ac050"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "8ac050"
+            }
+          },
+          "guid": "879"
+        },
+        "gpu": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "554ff40"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "554ff40"
+            }
+          },
+          "guid": "895"
+        },
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "3928b7d"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "39bf4e0"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "bb7"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "38d3000"
+            }
+          },
+          "guid": "8a5"
+        },
+        "partition_alloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "db84a78"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "db89000"
+            }
+          },
+          "guid": "925"
+        },
+        "skia": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "3ebe"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "3ebe"
+            }
+          },
+          "guid": "95c"
+        },
+        "v8": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "a6f6a84"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "a6f6a84"
+            }
+          },
+          "guid": "95e"
+        }
+      }
+    },
+    {
+      "pid": 99283,
+      "allocators": {
+        "blink_gc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "e0000"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "e0000"
+            }
+          },
+          "guid": "976"
+        },
+        "malloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "58a760"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "5997c0"
+            },
+            "syscalls_per_minute": {
+              "type": "scalar",
+              "units": "objects",
+              "value": "0"
+            },
+            "virtual_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "582000"
+            }
+          },
+          "guid": "992"
+        },
+        "partition_alloc": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "77000"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "77000"
+            }
+          },
+          "guid": "a0b"
+        },
+        "skia": {
+          "guid": "a1f"
+        },
+        "v8": {
+          "attrs": {
+            "effective_size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "2c3030"
+            },
+            "size": {
+              "type": "scalar",
+              "units": "bytes",
+              "value": "2c3030"
+            }
+          },
+          "guid": "a21"
+        }
+      }
+    },
+    {
+      "pid": 19346,
+      "allocators": {}
+    }
+  ]
+}

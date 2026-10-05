@@ -1,0 +1,193 @@
+{
+  "label": "final-restored",
+  "network": [],
+  "recordedAt": "2026-10-05T12:00:09.389Z",
+  "forcedGC": false,
+  "before": {
+    "timeOrigin": 1791176054713.2,
+    "visibility": "visible",
+    "dpr": 2,
+    "frames": 442,
+    "semanticElements": 808,
+    "selectedSession": "efecd42050e5c55a6fcd85deb0fe25cfd2904931b840b374c87b0e7b60ce8209",
+    "rows": 15,
+    "rowIds": [
+      "b98a7ca3-f302-46fb-9c18-e043befca2f6",
+      "user:2bd5e563-ed9f-4347-a2f6-61d6977b16a5",
+      "3ba1daf3-7334-4ddc-b04f-a5ae9a32a182",
+      "ab7dfc2d-32c0-4bcd-b582-5efc00bc2402",
+      "3f6fa5c0-7031-4319-8b66-08262b32dabf",
+      "e9695667-0247-4436-a548-f41c9d835bc3",
+      "e7ba82d5-f43d-454e-96dc-f63bd857d09a",
+      "f3a2d3ca-3e47-471e-8a33-d6cba91f0468",
+      "ce9153cb-2879-4d5d-8c29-50ad8d73c6c2",
+      "f85cd7f4-f2d8-4c06-baa4-8a458e4742ce",
+      "a5f1591e-5861-4378-879f-26d412bbab39",
+      "d2a2c791-6e81-4911-90d2-4b938ba09815",
+      "1b82e0d8-060d-4d12-905a-d603081e3b44",
+      "b2c153e3-1baa-4d4e-9c9e-20d0c761f6b5",
+      "6da3a9a4-385a-415c-bf9f-6cf9f6412c6b"
+    ],
+    "ordinals": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "bodies": 1,
+    "bodyCharacters": 833,
+    "images": 0,
+    "overlays": 0,
+    "editors": 0,
+    "draftCharacters": 0,
+    "log": {
+      "rect": {
+        "x": 1606.7576969198042,
+        "y": 112.86826979142828,
+        "width": 295.00000756365307,
+        "height": 710.0000127642484,
+        "top": 112.86826979142828,
+        "right": 1901.7577044834572,
+        "bottom": 822.8682825556766,
+        "left": 1606.7576969198042
+      },
+      "scrollTop": 806.4221874999998,
+      "visible": [
+        {
+          "id": "f85cd7f4-f2d8-4c06-baa4-8a458e4742ce",
+          "top": -152.01849231629348
+        },
+        {
+          "id": "a5f1591e-5861-4378-879f-26d412bbab39",
+          "top": 425.833340988886
+        },
+        {
+          "id": "d2a2c791-6e81-4911-90d2-4b938ba09815",
+          "top": 482.5000086742955
+        },
+        {
+          "id": "1b82e0d8-060d-4d12-905a-d603081e3b44",
+          "top": 539.166676359705
+        },
+        {
+          "id": "b2c153e3-1baa-4d4e-9c9e-20d0c761f6b5",
+          "top": 595.8333440451146
+        },
+        {
+          "id": "6da3a9a4-385a-415c-bf9f-6cf9f6412c6b",
+          "top": 652.5000117305241
+        }
+      ]
+    }
+  },
+  "after": {
+    "timeOrigin": 1791176054713.2,
+    "visibility": "visible",
+    "dpr": 2,
+    "frames": 442,
+    "semanticElements": 808,
+    "selectedSession": "efecd42050e5c55a6fcd85deb0fe25cfd2904931b840b374c87b0e7b60ce8209",
+    "rows": 15,
+    "rowIds": [
+      "b98a7ca3-f302-46fb-9c18-e043befca2f6",
+      "user:2bd5e563-ed9f-4347-a2f6-61d6977b16a5",
+      "3ba1daf3-7334-4ddc-b04f-a5ae9a32a182",
+      "ab7dfc2d-32c0-4bcd-b582-5efc00bc2402",
+      "3f6fa5c0-7031-4319-8b66-08262b32dabf",
+      "e9695667-0247-4436-a548-f41c9d835bc3",
+      "e7ba82d5-f43d-454e-96dc-f63bd857d09a",
+      "f3a2d3ca-3e47-471e-8a33-d6cba91f0468",
+      "ce9153cb-2879-4d5d-8c29-50ad8d73c6c2",
+      "f85cd7f4-f2d8-4c06-baa4-8a458e4742ce",
+      "a5f1591e-5861-4378-879f-26d412bbab39",
+      "d2a2c791-6e81-4911-90d2-4b938ba09815",
+      "1b82e0d8-060d-4d12-905a-d603081e3b44",
+      "b2c153e3-1baa-4d4e-9c9e-20d0c761f6b5",
+      "6da3a9a4-385a-415c-bf9f-6cf9f6412c6b"
+    ],
+    "ordinals": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "bodies": 1,
+    "bodyCharacters": 833,
+    "images": 0,
+    "overlays": 0,
+    "editors": 0,
+    "draftCharacters": 0,
+    "log": {
+      "rect": {
+        "x": 1606.7576969198042,
+        "y": 112.86826979142828,
+        "width": 295.00000756365307,
+        "height": 710.0000127642484,
+        "top": 112.86826979142828,
+        "right": 1901.7577044834572,
+        "bottom": 822.8682825556766,
+        "left": 1606.7576969198042
+      },
+      "scrollTop": 806.4221874999998,
+      "visible": [
+        {
+          "id": "f85cd7f4-f2d8-4c06-baa4-8a458e4742ce",
+          "top": -152.01849231629348
+        },
+        {
+          "id": "a5f1591e-5861-4378-879f-26d412bbab39",
+          "top": 425.833340988886
+        },
+        {
+          "id": "d2a2c791-6e81-4911-90d2-4b938ba09815",
+          "top": 482.5000086742955
+        },
+        {
+          "id": "1b82e0d8-060d-4d12-905a-d603081e3b44",
+          "top": 539.166676359705
+        },
+        {
+          "id": "b2c153e3-1baa-4d4e-9c9e-20d0c761f6b5",
+          "top": 595.8333440451146
+        },
+        {
+          "id": "6da3a9a4-385a-415c-bf9f-6cf9f6412c6b",
+          "top": 652.5000117305241
+        }
+      ]
+    }
+  },
+  "heap": {
+    "usedSize": 88967628,
+    "totalSize": 172445696,
+    "embedderHeapUsedSize": 1711912,
+    "backingStorageSize": 158616186
+  },
+  "nativeDom": {
+    "documents": 1,
+    "nodes": 90,
+    "jsEventListeners": 104
+  }
+}

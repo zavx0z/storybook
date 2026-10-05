@@ -1,0 +1,49 @@
+{
+  "result": {
+    "status": "success",
+    "protocol": "external-storybook-agent-bridge/1",
+    "capabilities": {
+      "inPageUpdates": true
+    },
+    "packageId": "@zavx0z/immersive",
+    "revision": "2f1b3e117d569b6efb3569bc",
+    "graphDigest": "01a611df038ddc111fd4f81067b4f73bc841ff1c264b8cb18f20e0d35eca64ed",
+    "sharedModuleEpoch": "d4542a557a9ef78bfbfae0b77795488231000ce66f7fe3146288e41d4b71bee5",
+    "hostModuleEpoch": "e9bbdc22c0b3bb4977f8dce390b0f3b0b946aca70c08db784bb48070b2d4db4a",
+    "route": "",
+    "pathname": "/immersive",
+    "preview": false,
+    "viewName": "storybook:@zavx0z/immersive",
+    "markers": {
+      "package": "ready",
+      "packageId": "@zavx0z/immersive",
+      "route": "",
+      "revision": "2f1b3e117d569b6efb3569bc"
+    },
+    "ready": true,
+    "presented": true,
+    "error": null,
+    "timeOrigin": 1791176054713.2,
+    "frameSequence": 442,
+    "nativePage": {
+      "visibilityState": "visible",
+      "hasFocus": true
+    },
+    "selected": {
+      "nodeId": "package:@zavx0z/immersive",
+      "directoryId": null,
+      "tabId": "overview:package:@zavx0z/immersive"
+    },
+    "inspector": {
+      "selectedId": "chat",
+      "workspaceId": "/immersive",
+      "parameter": "chat"
+    },
+    "view": {
+      "viewId": "storybook-view-v1_aObBcW4KhSDbUXo4ytyDOMHvlGrLl5P9p9IED30uXCI",
+      "packageId": "@zavx0z/immersive",
+      "route": "",
+      "title": "Immersive"
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "label": "history-before",
+  "recordedAt": "2026-10-05T07:31:46.474Z",
+  "path": "/immersive",
+  "targetFingerprint": "8c4c1c6479ef6c6692389cb58cf4802ed6f57309c22ffffca018714659142fdb",
+  "context": {
+    "timeOrigin": 1791176054713.2,
+    "now": 9446722.100000024,
+    "visibility": "visible",
+    "viewport": {
+      "width": 1920,
+      "height": 1088,
+      "devicePixelRatio": 2
+    }
+  },
+  "forcedGC": false,
+  "start": {
+    "heap": {
+      "usedSize": 54039940,
+      "totalSize": 57593856,
+      "embedderHeapUsedSize": 1258640,
+      "backingStorageSize": 57213602
+    },
+    "dom": {
+      "documents": 1,
+      "nodes": 72,
+      "jsEventListeners": 56
+    },
+    "metrics": {
+      "Timestamp": 870801.337274,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 1,
+      "Frames": 1,
+      "JSEventListeners": 56,
+      "LayoutObjects": 12,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 72,
+      "Resources": 0,
+      "ContextLifecycleStateObservers": 6,
+      "V8PerContextDatas": 1,
+      "WorkerGlobalScopes": 0,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 1,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 3839,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 0,
+      "LayoutDuration": 0,
+      "RecalcStyleDuration": 0,
+      "DevToolsCommandDuration": 0.002283,
+      "ScriptDuration": 0,
+      "V8CompileDuration": 0,
+      "TaskDuration": 0.002327,
+      "TaskOtherDuration": 0.000044,
+      "ThreadTime": 0.002439,
+      "ProcessTime": 95.747326,
+      "JSHeapUsedSize": 54039940,
+      "JSHeapTotalSize": 57593856,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 861355.191268,
+      "NavigationStart": 861354.61398
+    }
+  },
+  "end": {
+    "heap": {
+      "usedSize": 54043968,
+      "totalSize": 57593856,
+      "embedderHeapUsedSize": 1258640,
+      "backingStorageSize": 57213650
+    },
+    "dom": {
+      "documents": 1,
+      "nodes": 72,
+      "jsEventListeners": 56
+    },
+    "metrics": {
+      "Timestamp": 870806.339231,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 1,
+      "Frames": 1,
+      "JSEventListeners": 56,
+      "LayoutObjects": 12,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 72,
+      "Resources": 0,
+      "ContextLifecycleStateObservers": 6,
+      "V8PerContextDatas": 1,
+      "WorkerGlobalScopes": 0,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 1,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 3839,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 0,
+      "LayoutDuration": 0,
+      "RecalcStyleDuration": 0,
+      "DevToolsCommandDuration": 0.003548,
+      "ScriptDuration": 0.000082,
+      "V8CompileDuration": 0,
+      "TaskDuration": 0.006704,
+      "TaskOtherDuration": 0.003074,
+      "ThreadTime": 0.007793,
+      "ProcessTime": 95.761515,
+      "JSHeapUsedSize": 54043968,
+      "JSHeapTotalSize": 57593856,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 861355.191268,
+      "NavigationStart": 861354.61398
+    }
+  },
+  "window": {
+    "seconds": 5.001957000000402,
+    "taskMs": 4.377,
+    "scriptMs": 0.082,
+    "layoutMs": 0
+  }
+}

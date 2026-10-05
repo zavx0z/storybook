@@ -1,0 +1,15 @@
+{
+  "state": {
+    "result": {
+      "type": "object",
+      "value": {
+        "ready": "complete",
+        "title": "Immersive",
+        "text": "",
+        "bridge": "object",
+        "timeOrigin": 1791176054713.2
+      }
+    }
+  },
+  "errors": []
+}

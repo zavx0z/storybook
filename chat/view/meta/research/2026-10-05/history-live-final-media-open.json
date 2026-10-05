@@ -1,0 +1,79 @@
+{
+  "label": "final-media-open",
+  "network": [],
+  "recordedAt": "2026-10-05T11:19:27.580Z",
+  "forcedGC": false,
+  "before": {
+    "timeOrigin": 1791176054713.2,
+    "visibility": "visible",
+    "dpr": 2,
+    "frames": 277,
+    "semanticElements": 656,
+    "selectedSession": "4567685d-0b1e-470f-b9f9-497cf4068bcf",
+    "rows": 0,
+    "rowIds": [],
+    "ordinals": [],
+    "bodies": 0,
+    "bodyCharacters": 0,
+    "images": 0,
+    "overlays": 1,
+    "editors": 0,
+    "draftCharacters": 0,
+    "log": {
+      "rect": {
+        "x": 1606.7576969198042,
+        "y": 112.86826979142828,
+        "width": 295.00000756365307,
+        "height": 710.0000127642484,
+        "top": 112.86826979142828,
+        "right": 1901.7577044834572,
+        "bottom": 822.8682825556766,
+        "left": 1606.7576969198042
+      },
+      "scrollTop": 14851,
+      "visible": []
+    }
+  },
+  "after": {
+    "timeOrigin": 1791176054713.2,
+    "visibility": "visible",
+    "dpr": 2,
+    "frames": 277,
+    "semanticElements": 656,
+    "selectedSession": "4567685d-0b1e-470f-b9f9-497cf4068bcf",
+    "rows": 0,
+    "rowIds": [],
+    "ordinals": [],
+    "bodies": 0,
+    "bodyCharacters": 0,
+    "images": 0,
+    "overlays": 1,
+    "editors": 0,
+    "draftCharacters": 0,
+    "log": {
+      "rect": {
+        "x": 1606.7576969198042,
+        "y": 112.86826979142828,
+        "width": 295.00000756365307,
+        "height": 710.0000127642484,
+        "top": 112.86826979142828,
+        "right": 1901.7577044834572,
+        "bottom": 822.8682825556766,
+        "left": 1606.7576969198042
+      },
+      "scrollTop": 14851,
+      "visible": []
+    }
+  },
+  "heap": {
+    "usedSize": 97104504,
+    "totalSize": 169512960,
+    "embedderHeapUsedSize": 1925096,
+    "backingStorageSize": 123083156
+  },
+  "nativeDom": {
+    "documents": 1,
+    "nodes": 100,
+    "jsEventListeners": 95
+  }
+}
