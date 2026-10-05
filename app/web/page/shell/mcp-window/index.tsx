@@ -11,6 +11,9 @@
 перезагрузки из локальных настроек браузера.
 Выделение текста внутри JSON-поля ограничено этим полем и не захватывает
 содержимое панелей под окном.
+Параметры и ответ прокручиваются независимо. Короткий запрос занимает высоту
+своего содержимого, длинный ограничен долей окна; ответ заполняет остаток.
+Шапка и компактное управление остаются неподвижными при чтении данных.
 
 @packageDocumentation
 */
@@ -84,7 +87,7 @@ export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input
       movable={true}
       resizable={true}
       minWidth={320}
-      minHeight={200}
+      minHeight={320}
     >
       <McpContent
         open={props.open}

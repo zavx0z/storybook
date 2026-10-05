@@ -1,29 +1,36 @@
 import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import {memo, useEffect, useLayoutEffect, useMemo, useRef, useState} from "@zavx0z/immersive-component"
+import {memo, useEffect, useMemo, useState} from "@zavx0z/immersive-component"
 import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
 import Button from "@zavx0z/immersive-ui-component-button-basic"
 import {selectRequest} from "./selected-request"
 import formatJson from "@zavx0z/storybook-tech-json-format"
 
-/** Форматирует полный JSON; выделение, начатое в поле, ограничено его текстом. */
-function JsonFieldView(props: Readonly<{title: string, value: string, active?: boolean}>) {
-  const {text: value, softBreaks, languageId, height} = useMemo(() => {
-    const formatted = props.active === false ? {text: "", softBreaks: [], languageId: "plaintext" as const} : formatJson(props.value)
-    return {
-      ...formatted,
-      height: Math.max(1, formatted.text.split("\n").length + formatted.softBreaks.length) * 16 + 30,
-    }
-  }, [props.value, props.active])
-  return <section style={css`
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    min-width: 0;
-    width: 100%;
-    gap: 2px;
-  `}>
-    <div>{props.title}</div>
+/** Полный JSON использует собственный viewport; input ограничен долей высоты, response заполняет остаток. */
+function JsonFieldView(props: Readonly<{title: string, value: string, active?: boolean, fill?: boolean}>) {
+  const {text: value, softBreaks, languageId} = useMemo(() => props.active === false
+    ? {text: "", softBreaks: [], languageId: "plaintext" as const} : formatJson(props.value), [props.value, props.active])
+  return <section
+    data-journal-field={props.fill ? "response" : "input"}
+    style={css`
+      display: flex;
+      flex-direction: column;
+      flex: 0 1 auto;
+      min-height: 52px;
+      min-width: 0;
+      width: 100%;
+      max-height: 35%;
+      gap: 2px;
+
+      &[data-journal-field="response"] {
+        flex: 1;
+        max-height: none;
+      }
+    `}
+  >
+    <div style={css`
+      flex-shrink: 0;
+    `}>{props.title}</div>
     <CodeEditor
       value={value}
       languageId={languageId}
@@ -32,15 +39,13 @@ function JsonFieldView(props: Readonly<{title: string, value: string, active?: b
       softBreaks={softBreaks}
       showFormattingCharacters={false}
       style={css`
-        --journal-field-height: ${height}px;
-
         width: 100%;
         max-width: 100%;
         min-width: 0;
-        height: var(--journal-field-height);
-        max-height: 400px;
+        height: auto;
+        min-height: 34px;
         overflow-y: auto;
-        flex-shrink: 0;
+        flex: 1;
         user-select: contain;
       `}
     />
@@ -78,6 +83,10 @@ function CapturePreview(props: Readonly<{captureId: string}>) {
     display: flex;
     flex-direction: column;
     width: 100%;
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 25%;
+    overflow: hidden;
   `}>
     <div>Снимок</div>
     {src !== "" ? <CaptureImage src={src} /> : <CaptureMessage text={error || "Загрузка снимка…"} />}
@@ -92,6 +101,7 @@ function CaptureImage(props: Readonly<{src: string}>) {
       width: 240px;
       max-width: 100%;
       height: 140px;
+      min-height: 0;
       object-fit: contain;
     `}
   />
@@ -111,15 +121,28 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord, active?: boolean}>
     flex-direction: column;
     width: 100%;
     min-width: 0;
-    flex-shrink: 0;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
     padding: 6px;
     gap: 4px;
     border-bottom: 1px solid rgb(var(--surface-700));
   `}>
-    <div>{time} · {props.entry.tool} · {props.entry.status} · {duration}</div>
+    <div style={css`
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    `}>{time} · {props.entry.tool} · {props.entry.status} · {duration}</div>
     <div
       hidden={props.entry.agentId === undefined}
       style={css`
+        flex-shrink: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
         &[hidden] {
           display: none;
         }
@@ -131,6 +154,8 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord, active?: boolean}>
       role="status"
       hidden={props.entry.omitted === undefined}
       style={css`
+        flex-shrink: 0;
+
         &[hidden] {
           display: none;
         }
@@ -145,25 +170,23 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord, active?: boolean}>
       value={props.entry.input}
       active={props.active !== false}
     />
-    {props.entry.captureId ? <CapturePreview captureId={props.entry.captureId} /> : null}
+    {props.entry.captureId && props.active !== false ? <CapturePreview captureId={props.entry.captureId} /> : null}
     <JsonField
       title="Ответ"
       value={props.entry.result}
       active={props.active !== false}
+      fill={true}
     />
   </article>
 }
 
 /** Отрисовывает полный ответ только выбранной команды, сохраняя доступ к истории. */
 function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], error: string, history?: boolean, active?: boolean}>) {
-  const list = useRef<HTMLDivElement | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const {entry, index, olderId, newerId} = selectRequest(props.entries, selectedId)
   const selectedEntries = entry === null ? [] : [entry]
-  const position = entry === null ? "" : `Команда ${index + 1} из ${props.entries.length}`
-  useLayoutEffect(() => {
-    if (list.current) list.current.scrollTop = 0
-  }, [entry?.id])
+  const position = entry === null ? "" : `${index + 1} / ${props.entries.length}`
+  const positionLabel = entry === null ? "" : `Команда ${index + 1} из ${props.entries.length}`
   return <div
     style={css`
       box-sizing: border-box;
@@ -184,11 +207,12 @@ function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], 
       hidden={entry === null || props.history === false}
       style={css`
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         flex-shrink: 0;
         align-items: center;
         gap: 6px;
         padding: 6px;
+        overflow: hidden;
 
         &[hidden] {
           display: none;
@@ -196,34 +220,48 @@ function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], 
       `}
     >
       <Button
-        label="Предыдущий вызов"
+        label="Ранее"
+        aria-label="Предыдущий вызов"
+        title="Предыдущий вызов"
         size="small"
         disabled={olderId === null}
         onClick={() => setSelectedId(olderId)}
       />
-      <span>{position}</span>
+      <span
+        aria-label={positionLabel}
+        title={positionLabel}
+        style={css`
+          min-width: 0;
+          white-space: nowrap;
+        `}
+      >{position}</span>
       <Button
-        label="Следующий вызов"
+        label="Новее"
+        aria-label="Следующий вызов"
+        title="Следующий вызов"
         size="small"
         disabled={newerId === null}
         onClick={() => setSelectedId(newerId)}
       />
       <Button
-        label="Следить за последней"
+        label="Последняя"
+        aria-label="Следить за последней"
+        title="Следить за последней"
         size="small"
         disabled={selectedId === null}
         onClick={() => setSelectedId(null)}
       />
     </div>
     <div
-      ref={list}
+      data-journal-fields=""
       style={css`
+        display: flex;
+        flex-direction: column;
         flex: 1;
         min-height: 0;
         width: 100%;
         min-width: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
       `}
     >
       {selectedEntries.map(entry => <RequestRow

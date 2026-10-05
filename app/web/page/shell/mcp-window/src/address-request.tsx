@@ -74,17 +74,35 @@ export function AddressRequest(props: Readonly<{active: boolean, source?: McpAdd
       }
     `}
   >
-    <div style={css`
-      flex-shrink: 0;
-      overflow-x: auto;
-      padding: 0 6px;
-    `}>{addressLabel}</div>
-    <Button
-      label="Обновить ответ"
-      size="small"
-      disabled={!props.source}
-      onClick={() => setRefresh(value => value + 1)}
-    />
+    <div
+      role="toolbar"
+      aria-label="Чтение контекста"
+      style={css`
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        min-width: 0;
+        gap: 6px;
+        padding: 0 6px;
+      `}
+    >
+      <div style={css`
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      `}>{addressLabel}</div>
+      <Button
+        label="Обновить ответ"
+        size="small"
+        disabled={!props.source}
+        onClick={() => setRefresh(value => value + 1)}
+        style={css`
+          flex-shrink: 0;
+        `}
+      />
+    </div>
     <RequestList
       entries={entry === null ? [] : [entry]}
       error=""
