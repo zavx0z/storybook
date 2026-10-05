@@ -5,6 +5,12 @@
 Переход страницы и отписка наблюдателя сохраняют беседу и текущую работу.
 Подключение ACP принадлежит беседе и создаётся по первому сообщению или открытию настроек.
 
+Сырые потоковые обновления сразу добавляются в timeline, version увеличивается
+на каждую мутацию. Наблюдатель получает
+свежий полный snapshot примерно раз в 50 мс, без промежуточных полных копий.
+Управляющие публикации не ждут этого окна; read всегда раскрывает текущую timeline.
+Без наблюдателей поток не создаёт snapshot или publication timer.
+
 @packageDocumentation
 */
 import {createHash, randomUUID} from "node:crypto"
@@ -54,6 +60,7 @@ type State = {
   cursor: Cursor
   lifetime: AbortController
   flushTimer?: ReturnType<typeof setTimeout>
+  publishTimer?: ReturnType<typeof setTimeout>
   listeners: Set<(value: Snapshot) => void>
   permissions: Map<string, {value: Permission, resolve: (value: Awaited<ReturnType<StorybookTechAcp.Input["onPermission"]>>) => void}>
   write: Promise<void>
@@ -77,12 +84,32 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     ...(state.progress === undefined ? {} : {progress: state.progress}),
     settings: state.settings ?? [], configuring: state.configuring === true, usage: state.document.usage ?? null,
   })
-  const publish = (state: State): void => {
-    state.version += 1
+  const clearPublication = (state: State): void => {
+    clearTimeout(state.publishTimer)
+    delete state.publishTimer
+  }
+  const emit = (state: State): void => {
+    if (disposed || state.listeners.size === 0) return
     const value = snapshot(state)
     for (const listener of state.listeners) {
       try { listener(value) } catch { /* Отказ одного наблюдателя не отменяет turn. */ }
     }
+  }
+  const publish = (state: State, streaming = false): void => {
+    state.version += 1
+    if (disposed || state.listeners.size === 0) {
+      clearPublication(state)
+      return
+    }
+    if (streaming) {
+      if (state.publishTimer === undefined) state.publishTimer = setTimeout(() => {
+        delete state.publishTimer
+        emit(state)
+      }, 50)
+      return
+    }
+    clearPublication(state)
+    emit(state)
   }
   const save = (state: State): Promise<void> => {
     const text = `${JSON.stringify(state.document, null, 2)}\n`
@@ -225,7 +252,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
           onUpdate(update) {
             receiveUpdate(state.document.timeline, update, "local", state.cursor)
             scheduleSave(state)
-            publish(state)
+            publish(state, true)
           },
         })
       }
@@ -251,7 +278,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
           if (update.sessionUpdate === "config_option_update") state.settings = readSettings(update.configOptions)
           if (update.sessionUpdate === "usage_update" && Number.isFinite(update.used) && update.used >= 0 && Number.isFinite(update.size) && update.size > 0) state.document.usage = {used: update.used, size: update.size}
           scheduleSave(state)
-          publish(state)
+          publish(state, true)
         },
         onUpdate(update) {
           receiveUpdate(state.document.timeline, update, "live", state.cursor)
@@ -264,7 +291,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
             state.document.usage = {used: update.used, size: update.size}
           }
           scheduleSave(state)
-          publish(state)
+          publish(state, true)
         },
         onPermission(request) {
           if (state.cancelled || disposed) return Promise.resolve({outcome: {outcome: "cancelled"}})
@@ -362,6 +389,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       }
       interrupted ||= state.cancelled || disposed
     } catch (error) {
+      clearPublication(state)
       state.document.historyComplete = false
       interrupted = state.cancelled || disposed
       state.document.status = interrupted ? "idle" : "failed"
@@ -370,6 +398,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       delete state.connection
       await connection?.dispose().catch(() => {})
     } finally {
+      clearPublication(state)
       clearPermissions(state)
       clearTimeout(state.flushTimer)
       delete state.flushTimer
@@ -612,8 +641,8 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       state.turnController?.abort(new Error("Выполнение отменено"))
       clearPermissions(state)
       if (state.connection === undefined) state.lifetime.abort(new Error("Подключение отменено"))
-      await state.connection?.cancel()
       publish(state)
+      await state.connection?.cancel()
       return snapshot(state)
     },
     async permission(target, id, optionId) {
@@ -627,10 +656,14 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     },
     async subscribe(target, listener) {
       const state = await load(target)
+      if (disposed) throw new Error("Чаты остановлены")
       if (relocating.has(state.key)) throw new Error("Беседа переносится на новый адрес")
       state.listeners.add(listener)
       listener(snapshot(state))
-      return () => { state.listeners.delete(listener) }
+      return () => {
+        state.listeners.delete(listener)
+        if (state.listeners.size === 0) clearPublication(state)
+      }
     },
     async relocate({from, to, executorId: selectedId}) {
       if (disposed) throw new Error("Чаты остановлены")
@@ -756,7 +789,8 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       const results = await Promise.allSettled([...states.values()].map(async pending => {
         const state = await pending.catch(() => undefined)
         if (state === undefined) return
-          state.cancelled = true
+        clearPublication(state)
+        state.cancelled = true
         state.turnController?.abort(new Error("Сервер чатов останавливается"))
         state.lifetime.abort(new Error("Сервер чатов останавливается"))
         clearPermissions(state)

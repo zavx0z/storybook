@@ -92,35 +92,19 @@ export function createChatServer(options: Readonly<{
       })
     },
   })
-  /** Один подписчик получает свежий снимок, последующие изменения объединяются за 50 мс. */
+  /** Частоту потоковых snapshots определяет Chat Session до клонирования истории. */
   const subscribe = async (target: Target, listener: (snapshot: Snapshot) => void): Promise<() => void> => {
     let release = () => {}
     let closed = false
-    let latest: Snapshot | null = null
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const emit = () => {
-      if (closed || latest === null) return
-      const value = latest
-      latest = null
-      listener(value)
-    }
     const close = () => {
       if (closed) return
       closed = true
-      clearTimeout(timer)
       release()
       subscriptions.delete(close)
     }
     subscriptions.add(close)
     try {
-      release = await chats.subscribe(target, value => {
-        if (closed) return
-        latest = value
-        if (timer === undefined) {
-          emit()
-          timer = setTimeout(() => { timer = undefined; emit() }, 50)
-        }
-      })
+      release = await chats.subscribe(target, value => { if (!closed) listener(value) })
       if (closed) release()
       return close
     } catch (error) { close(); throw error }

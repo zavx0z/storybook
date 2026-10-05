@@ -101,6 +101,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     try { storage().setItem(draftStorageKey(session.id), draft) } catch {}
   }
   const accept = (value: unknown, initial = false): void => {
+    if (disposed) return
     const next = readChatBrowserSnapshot(value, address)
     if (options.executorId !== undefined && next.executorId !== options.executorId) throw new Error("Получен снимок другого исполнителя")
     if (disposed || !initial && session !== null && next.version < session.version) return
@@ -260,12 +261,17 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       started = true
       void connect()
     },
-    async listExecutors(): Promise<readonly ChatBrowserSnapshot[]> {
+    async listExecutors(): Promise<NonNullable<StorybookChatView.Input["executors"]>> {
+      if (disposed) return []
       // Первый список включает текущую default-беседу даже при параллельном открытии потока.
       if (session === null) accept(await post("session", {}), true)
       const value = await post("list", {})
+      if (disposed) return []
       if (!Array.isArray(value)) throw new Error("Некорректный список исполнителей")
-      return value.map(item => readChatBrowserSnapshot(item, address))
+      return value.map(item => {
+        const snapshot = readChatBrowserSnapshot(item, address)
+        return {executorId: snapshot.executorId, executorLabel: snapshot.executorLabel, status: snapshot.status, pending: snapshot.pending}
+      })
     },
     async createExecutor(label: string): Promise<ChatBrowserSnapshot> {
       return readChatBrowserSnapshot(await post("create", {label}), address)
@@ -322,6 +328,11 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       finishRetry?.()
       activeSocket?.close()
       listeners.clear()
+      session = null
+      draft = ""
+      actionError = undefined
+      connectionError = undefined
+      view = deriveView()
     },
   }
 }

@@ -482,3 +482,51 @@ test("старый snapshot без timeline получает legacy проекц
     expect(client.getSnapshot().timeline).toEqual([])
   } finally { client.dispose() }
 })
+
+test("список специалистов удерживает только compact поля, закрытый client освобождает history и settings", async () => {
+  const fixture = browserChatFixture("/compact")
+  const rich: ChatBrowserSnapshot = {...fixture.snapshot, pending: ["request"],
+    messages: [{id: "message", role: "assistant", text: "Большое сообщение"}],
+    timeline: [{id: "message", kind: "message", role: "assistant", origin: "live", sequence: 1, content: [{type: "text", text: "Большое сообщение"}]}],
+    settings: [{id: "model", category: "model", name: "Модель", value: "a", options: [{value: "a", name: "A"}]}]}
+  const client = createChatBrowserClient({address: "/compact", label: "Compact", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => {
+      if (String(url).endsWith("/list")) return Response.json([rich])
+      if (String(url).endsWith("/session")) return Response.json(rich)
+      return fixture.fetcher(url, init)
+    }) as typeof fetch})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    const members = await client.listExecutors()
+    expect(members).toEqual([{executorId: rich.executorId, executorLabel: rich.executorLabel, status: "idle", pending: ["request"]}])
+    expect(members[0]).not.toHaveProperty("timeline")
+    expect(members[0]).not.toHaveProperty("messages")
+    expect(client.getSnapshot().timeline).toHaveLength(1)
+    client.setDraft("Сохранённый черновик")
+    client.dispose()
+    expect(client.getSnapshot()).toMatchObject({messages: [], timeline: [], settings: [], permissions: [], draft: ""})
+    expect(client.getSnapshot().executorId).toBeUndefined()
+    const calls = fixture.calls.length
+    expect(await client.listExecutors()).toEqual([])
+    expect(fixture.calls).toHaveLength(calls)
+  } finally { client.dispose() }
+})
+
+test("поздний ответ prompt не восстанавливает history закрытого client", async () => {
+  const fixture = browserChatFixture("/late-dispose")
+  const gate = Promise.withResolvers<Response>()
+  const client = createChatBrowserClient({address: "/late-dispose", label: "Late", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => String(url).endsWith("/prompt") ? gate.promise : fixture.fetcher(url, init)) as typeof fetch})
+  client.start()
+  await until(() => fixture.sockets.length === 1)
+  client.setDraft("Вопрос")
+  const sent = client.send()
+  await tick()
+  client.dispose()
+  gate.resolve(Response.json({...fixture.snapshot, version: 1, messages: [{id: "late", role: "assistant", text: "Поздний ответ"}]}))
+  await sent
+  expect(client.getSnapshot().messages).toEqual([])
+  expect(client.getSnapshot().timeline).toEqual([])
+  expect(client.getSnapshot().draft).toBe("")
+})

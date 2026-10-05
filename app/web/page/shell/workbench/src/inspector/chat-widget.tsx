@@ -27,6 +27,8 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
   useEffect(() => {
     const revision = ++epoch.current
     client.start()
+    setCreatingClient(null)
+    creating.current = null
     setTeam({client, items: [], loading: true, error: ""})
     void client.listExecutors().then(items => {
       if (current.current === client && epoch.current === revision) {
@@ -66,7 +68,7 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
     } finally {
       if (creating.current === request) {
         creating.current = null
-        if (current.current === client && epoch.current === revision) setCreatingClient(null)
+        setCreatingClient(value => value === client ? null : value)
       }
     }
   }
