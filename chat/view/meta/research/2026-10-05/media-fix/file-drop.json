@@ -1,0 +1,177 @@
+{
+  "recordedAt": "2026-10-05T14:19:45.656Z",
+  "before": {
+    "timeOrigin": 1791209931856.8,
+    "visibility": "visible",
+    "url": "http://127.0.0.1:50074/immersive?inspector=chat",
+    "rect": {
+      "x": 1617.591030530899,
+      "y": 843.701616263548,
+      "width": 273.3333403414633,
+      "height": 60.00000107866879,
+      "top": 843.701616263548,
+      "right": 1890.9243708723623,
+      "bottom": 903.7016173422168,
+      "left": 1617.591030530899
+    },
+    "draftLength": 0,
+    "composerRect": {
+      "x": 1606.7576969198044,
+      "y": 832.8682827354548,
+      "width": 295.00000756365307,
+      "height": 118.33333546070821,
+      "top": 832.8682827354548,
+      "right": 1901.7577044834575,
+      "bottom": 951.201618196163,
+      "left": 1606.7576969198044
+    },
+    "dropActive": null,
+    "attachDisabled": false,
+    "attachVariant": "text",
+    "attachRect": {
+      "x": 1767.1727400952661,
+      "y": 912.0349508253651,
+      "width": 26.66666735038666,
+      "height": 26.666667146075156,
+      "top": 912.0349508253651,
+      "right": 1793.8394074456528,
+      "bottom": 938.7016179714402,
+      "left": 1767.1727400952661
+    },
+    "cards": [],
+    "errors": []
+  },
+  "hover": {
+    "timeOrigin": 1791209931856.8,
+    "visibility": "visible",
+    "url": "http://127.0.0.1:50074/immersive?inspector=chat",
+    "rect": {
+      "x": 1617.591030530899,
+      "y": 843.701616263548,
+      "width": 273.3333403414633,
+      "height": 60.00000107866879,
+      "top": 843.701616263548,
+      "right": 1890.9243708723623,
+      "bottom": 903.7016173422168,
+      "left": 1617.591030530899
+    },
+    "draftLength": 0,
+    "composerRect": {
+      "x": 1606.7576969198044,
+      "y": 832.8682827354548,
+      "width": 295.00000756365307,
+      "height": 118.33333546070821,
+      "top": 832.8682827354548,
+      "right": 1901.7577044834575,
+      "bottom": 951.201618196163,
+      "left": 1606.7576969198044
+    },
+    "dropActive": "active",
+    "attachDisabled": false,
+    "attachVariant": "text",
+    "attachRect": {
+      "x": 1767.1727400952661,
+      "y": 912.0349508253651,
+      "width": 26.66666735038666,
+      "height": 26.666667146075156,
+      "top": 912.0349508253651,
+      "right": 1793.8394074456528,
+      "bottom": 938.7016179714402,
+      "left": 1767.1727400952661
+    },
+    "cards": [],
+    "errors": []
+  },
+  "after": {
+    "timeOrigin": 1791209931856.8,
+    "visibility": "visible",
+    "url": "http://127.0.0.1:50074/immersive?inspector=chat",
+    "rect": {
+      "x": 1617.591030530899,
+      "y": 843.701616263548,
+      "width": 273.3333403414633,
+      "height": 60.00000107866879,
+      "top": 843.701616263548,
+      "right": 1890.9243708723623,
+      "bottom": 903.7016173422168,
+      "left": 1617.591030530899
+    },
+    "draftLength": 0,
+    "composerRect": {
+      "x": 1606.7576969198044,
+      "y": 702.8682803983389,
+      "width": 295.00000756365307,
+      "height": 248.33333779782413,
+      "top": 702.8682803983389,
+      "right": 1901.7577044834575,
+      "bottom": 951.201618196163,
+      "left": 1606.7576969198044
+    },
+    "dropActive": null,
+    "attachDisabled": false,
+    "attachVariant": "text",
+    "attachRect": {
+      "x": 1767.1727400952661,
+      "y": 912.0349508253651,
+      "width": 26.66666735038666,
+      "height": 26.666667146075156,
+      "top": 912.0349508253651,
+      "right": 1793.8394074456528,
+      "bottom": 938.7016179714402,
+      "left": 1767.1727400952661
+    },
+    "cards": [
+      {
+        "id": "6d2d6906-d9bd-45ea-bbe1-210ba0b6cf9b",
+        "text": "chat-drop-probe.png×",
+        "images": 1
+      }
+    ],
+    "errors": []
+  },
+  "prompts": 0,
+  "events": [
+    {
+      "type": "dragenter",
+      "prevented": false,
+      "types": [
+        "Files"
+      ],
+      "files": 0,
+      "effect": "copy"
+    },
+    {
+      "type": "dragover",
+      "prevented": true,
+      "types": [
+        "Files"
+      ],
+      "files": 0,
+      "effect": "copy"
+    },
+    {
+      "type": "dragover",
+      "prevented": true,
+      "types": [
+        "Files"
+      ],
+      "files": 0,
+      "effect": "copy"
+    },
+    {
+      "type": "drop",
+      "prevented": true,
+      "types": [
+        "Files"
+      ],
+      "files": 1,
+      "effect": "copy"
+    }
+  ],
+  "heap": {
+    "usedSize": 64864244,
+    "totalSize": 123834368,
+    "embedderHeapUsedSize": 1226096,
+    "backingStorageSize": 23717960
+  }
+}
