@@ -51,6 +51,17 @@ test("восемь живых WebSocket бесед получают снимки
     await until(() => tab.messages.some(message => message.type === "subscription.failed"))
     expect(tab.messages.filter(message => message.type === "chat.snapshot")).toHaveLength(1)
     expect(tab.messages.find(message => message.type === "subscription.failed")?.message).toBeString()
+    const createdResponse = await fetch(new URL("/api/browser/chat/create", server.origin), {
+      method: "POST", headers: {Origin: server.origin, "content-type": "application/json", "x-storybook-session": token},
+      body: JSON.stringify({address: "/", label: "Второй специалист"}),
+    })
+    expect(createdResponse.ok).toBeTrue()
+    const created = await createdResponse.json()
+    expect(created.executorId).not.toBe(tab.messages[0].snapshot.executorId)
+    tab.socket.send(JSON.stringify({type: "subscribe", topic: "chat:/", executorId: created.executorId}))
+    await until(() => tab.messages.some(message => message.type === "chat.snapshot" && message.executorId === created.executorId))
+    expect(tab.messages.find(message => message.executorId === created.executorId)?.snapshot)
+      .toMatchObject({address: "/", executorLabel: "Второй специалист", messages: [], status: "idle"})
     const legacy = await fetch(new URL("/api/browser/chat/events", server.origin), {headers: {"x-storybook-session": token}})
     expect(legacy.status).toBe(410)
     expect(await legacy.json()).toHaveProperty("error")

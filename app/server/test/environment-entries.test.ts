@@ -55,7 +55,7 @@ test("чат средового входа сохраняет адрес фай�
     graph: () => graph, entries: () => storybookMcpEntries({catalog, graph}),
     async connect(input) {
       cwd.push(input.cwd)
-      return {sessionId: "entry-session", configOptions: [], async setConfigOption() {return []},
+      return {sessionId: "entry-session", capabilities: {}, configOptions: [], async setConfigOption() {return []},
         async prompt() {return {stopReason: "end_turn"}}, async cancel() {}, async dispose() {}}
     },
   })

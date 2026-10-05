@@ -5,6 +5,11 @@
   "private": true,
   "type": "module",
   "description": "История и выполнение отдельной беседы для каждого канонического адреса Project",
-  "exports": {".": "./index.ts"},
-  "dependencies": {"@zavx0z/storybook-tech-acp": "workspace:*"}
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-tech-acp": "workspace:*",
+    "@zavx0z/storybook-chat-history": "workspace:*"
+  }
 }

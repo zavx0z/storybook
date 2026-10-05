@@ -431,14 +431,14 @@ async function createExternalStorybookShell(
     root.dispatchKey(projection.owner, target, {type: "keydown", ...init})
     root.dispatchKey(projection.owner, target, {type: "keyup", ...init})
   }
-  const dispatchNativeText = (target: SemanticHTMLElement, text: string): void => {
+  const dispatchNativeText = (target: SemanticHTMLElement, text: string): boolean => {
     assertActive(disposed)
     if (!(target instanceof SemanticHTMLElement)) {
       throw new TypeError("Storybook native text target must be an @zavx0z/immersive-dom HTMLElement")
     }
     const projection = projectionFor(target)
     if (projection.kind === "space") throw new Error("Storybook native text target has no Display or HUD projection")
-    root.dispatchText(projection.owner, target, text)
+    return root.dispatchText(projection.owner, target, text)
   }
 
   const shell: ExternalStorybookShell = Object.freeze({

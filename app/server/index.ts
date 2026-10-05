@@ -1,6 +1,8 @@
 /**
 Серверное исполнение приложения Storybook соединяет каталог, сессии пакетов,
 Web-выпуск, browser lifecycle и авторизованный HTTP/WebSocket API в одном процессе.
+Общий вход окружения обслуживает разработчика Project и назначенных исполнителей
+через одни предметные знания и инструменты; подключение модели сохраняет отдельный lifecycle.
 
 @packageDocumentation
 */
@@ -483,6 +485,7 @@ export default async function startExternalStorybookServer(
     origin: () => server.url.origin,
     graph: () => registry.snapshot().graph,
     entries: mcpEntries,
+    ...(options.extensions === undefined ? {} : {extensions: options.extensions}),
     recordRequest: entry => mcpRequests.write(entry),
   })
   try {
@@ -505,6 +508,10 @@ export default async function startExternalStorybookServer(
             }
             return new Response(null, {status: 307, headers: {location: `${address}${url.search}`}})
           }
+        }
+        if (url.pathname === "/api/environment") {
+          server.timeout(request, 0)
+          return await chat.environment.request(request, {origin: server.url.origin, controlToken: serverRecord.controlToken})
         }
         if (url.pathname === "/api/chat/mcp") {
           assertExternalStorybookRequestOrigin(request, server.url.origin)
@@ -1221,26 +1228,30 @@ export default async function startExternalStorybookServer(
           const value = JSON.parse(source) as unknown
           if (value === null || typeof value !== "object") throw new Error("Subscription must be an object")
           const record = value as Record<string, unknown>
-          assertExactRequestKeys(record, ["type", "topic"])
+          assertExactRequestKeys(record, ["type", "topic", "executorId"])
           if (record.type !== "subscribe") throw new Error("Unknown Storybook WebSocket message")
           const topic = requiredText("subscription topic", record.topic)
           if (topic.startsWith("chat:")) {
             if (websocket.data.grant.kind !== "registry") throw new Error("Chat subscription requires a registry reader")
-            if (websocket.data.subscriptions.has(topic)) return
+            if (record.executorId !== undefined && (typeof record.executorId !== "string" || record.executorId.length === 0)) throw new Error("Нужна identity исполнителя")
             const address = topic.slice("chat:".length)
-            websocket.data.subscriptions.add(topic)
+            const target = typeof record.executorId === "string" ? {address, executorId: record.executorId} : address
+            const subscriptionKey = typeof record.executorId === "string" ? `${topic}\0${record.executorId}` : topic
+            if (websocket.data.subscriptions.has(subscriptionKey)) return
+            websocket.data.subscriptions.add(subscriptionKey)
             try {
-              const release = await chat.subscribe(address, snapshot => {
-                if (clients.has(websocket)) websocket.send(JSON.stringify({type: "chat.snapshot", address, snapshot}))
+              const release = await chat.subscribe(target, snapshot => {
+                if (clients.has(websocket)) websocket.send(JSON.stringify({type: "chat.snapshot", address, executorId: snapshot.executorId, snapshot}))
               })
-              if (clients.has(websocket)) websocket.data.unsubscribers.set(topic, release)
+              if (clients.has(websocket)) websocket.data.unsubscribers.set(subscriptionKey, release)
               else release()
             } catch (error) {
-              websocket.data.subscriptions.delete(topic)
+              websocket.data.subscriptions.delete(subscriptionKey)
               throw error
             }
             return
           }
+          if (record.executorId !== undefined) throw new Error("Identity исполнителя относится только к подписке чата")
           if (topic !== "registry" && topic !== "catalog" && !topic.startsWith("package:")) {
             throw new Error(`Invalid Storybook subscription topic: ${topic}`)
           }

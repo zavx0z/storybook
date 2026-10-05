@@ -24,6 +24,7 @@ test("настройки не запускают prompt; модель обнов
       value.onProgress?.("session")
       return {
         sessionId: "persistent-session",
+        capabilities: {},
         get configOptions() { return options },
         async setConfigOption(id, selected) {
           changes.push([id, selected])

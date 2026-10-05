@@ -35,6 +35,7 @@ async function fixture() {
       connections.push(value)
       return {
         sessionId: value.previousSessionId ?? `session:${value.subject.address}`,
+        capabilities: {},
         configOptions: [],
         async setConfigOption() { return [] },
         async prompt() {
@@ -63,7 +64,9 @@ test("Project и две сущности сохраняют истории ка�
   for (const address of ["/", "/a", "/b"]) {
     const document = await Bun.file(f.path(address)).json()
     expect(document.address).toBe(address)
-    expect(document.messages.map((message: {text: string}) => message.text)).toEqual([`Вопрос ${address}`, "Ответ"])
+    expect(document.timeline.filter((item: {kind: string}) => item.kind === "message")
+      .map((item: {content: {text: string}[]}) => item.content.map(block => block.text).join(""))).toEqual([`Вопрос ${address}`, "Ответ"])
+    expect(document.messages).toBeUndefined()
   }
   await expect(readdir(join(f.root, "chats"))).rejects.toThrow()
   const restored = f.create()
@@ -81,7 +84,8 @@ test("перенос старой истории сохраняет сообще
   await Bun.write(legacy, `${JSON.stringify(document, null, 2)}\n`)
   const sessions = f.create()
   expect((await sessions.read("/a")).id).toBe(document.id)
-  expect(await Bun.file(f.path("/a")).json()).toEqual(document)
+  expect(await Bun.file(f.path("/a")).json()).toMatchObject({schemaVersion: 2, id: document.id, sessionId: document.sessionId,
+    timeline: [{id: "old", sequence: 1, kind: "message", origin: "legacy", role: "user", content: [{type: "text", text: "Сохранённый вопрос"}]}]})
   expect(await Bun.file(legacy).json(), "Прежняя история остаётся доступной для восстановления").toEqual(document)
   expect(f.connections).toHaveLength(0)
   await sessions.prompt("/a", "Новый вопрос", "new")
@@ -101,6 +105,31 @@ test("пустое чтение не создаёт meta/chat и не запус
   expect(f.connections).toHaveLength(0)
 })
 
+test("миграция файла владельца сохраняет исходный JSON и identity перед записью timeline", async () => {
+  const f = await fixture()
+  const file = f.path("/a")
+  const original = {schemaVersion: 1, id: "original", address: "/a", cwd: join(f.root, "a"), sessionId: "native-original",
+    messages: [{id: "user:old", role: "user" as const, text: "Старое сообщение"}, {id: "reply", role: "assistant" as const, text: ""}],
+    usage: {used: 25, size: 100}, status: "idle", error: null}
+  const encoded = `${JSON.stringify(original, null, 2)}\n`
+  await Bun.write(file, encoded)
+  const sessions = f.create()
+  const before = await sessions.read("/a")
+  expect(before.messages).toEqual(original.messages)
+  expect(before.executorId).toMatch(/^[a-f0-9-]{36}$/u)
+  expect(await Bun.file(`${file}.schema1`).text()).toBe(encoded)
+  await sessions.prompt("/a", "Продолжение", "new")
+  await settled(sessions, "/a")
+  await sessions.dispose()
+  const saved = await Bun.file(file).json()
+  expect(saved).toMatchObject({schemaVersion: 2, id: "original", executorId: before.executorId, sessionId: "native-original", cwd: original.cwd, usage: original.usage})
+  expect(saved.messages).toBeUndefined()
+  expect(await Bun.file(`${file}.schema1`).text()).toBe(encoded)
+  expect(f.connections[0]?.previousSessionId).toBe("native-original")
+  expect(f.connections[0]?.executorId).toBe(before.executorId)
+  expect(f.connections[0]?.preferResume).toBe(false)
+})
+
 test("пакетный перенос историй не загружает агентов и сохраняет неразрешённые адреса", async () => {
   const f = await fixture()
   const legacy = join(f.root, "chats")
@@ -111,7 +140,7 @@ test("пакетный перенос историй не загружает а�
   const sessions = f.create()
   expect(await sessions.migrateLegacy()).toEqual({migrated: 1, unresolved: ["/deleted"]})
   expect(await sessions.migrateLegacy()).toEqual({migrated: 0, unresolved: ["/deleted"]})
-  expect((await Bun.file(f.path("/a")).json()).messages).toEqual([{id: "1", role: "user", text: "История"}])
+  expect((await Bun.file(f.path("/a")).json()).timeline).toEqual([{id: "1", sequence: 1, origin: "legacy", kind: "message", role: "user", content: [{type: "text", text: "История"}]}])
   expect(await Bun.file(join(legacy, filename("/deleted"))).exists()).toBeTrue()
   expect(f.connections).toHaveLength(0)
 })

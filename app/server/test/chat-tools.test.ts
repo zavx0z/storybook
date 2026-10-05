@@ -12,7 +12,7 @@ import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-re
 const cleanups: (() => unknown | Promise<unknown>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 
-test("native MCP двух адресных агентов вызывает AI напрямую и сохраняет источник журнала", async () => {
+test("переходный MCP-клиент доставляет инструменты общему окружению и сохраняет источник журнала", async () => {
   const root = await mkdtemp(join(tmpdir(), "chat-tools-"))
   cleanups.push(() => rm(root, {recursive: true, force: true}))
   for (const name of ["a", "b"]) await mkdir(join(root, name))
@@ -28,7 +28,7 @@ test("native MCP двух адресных агентов вызывает AI н
     recordRequest: entry => journal.write(entry),
     async connect(input) {
       connections.push(input)
-      return {sessionId: `session-${connections.length}`, configOptions: [], async setConfigOption() { return [] },
+      return {sessionId: `session-${connections.length}`, capabilities: {}, configOptions: [], async setConfigOption() { return [] },
         async prompt() { return {stopReason: "end_turn"} }, async cancel() {}, async dispose() {}}
     },
   })
@@ -44,9 +44,9 @@ test("native MCP двух адресных агентов вызывает AI н
   const keys: string[] = []
   for (const name of ["a", "b"]) {
     await host.chats.prepare(`/${name}`)
-    const configured = connections.at(-1)!.mcpServers[0]!
-    if (!("env" in configured)) throw new Error("Ожидается stdio MCP")
-    const key = configured.env.find(item => item.name === "STORYBOOK_CHAT_KEY")!.value
+    expect(connections.at(-1)!.mcpServers).toEqual([])
+    const {executorId} = await host.chats.read(`/${name}`)
+    const key = (await host.environment.assignExecutor({executorId, address: `/${name}`})).token
     keys.push(key)
     const server = await createMcp({origin: http.url.origin, key})
     const client = new Client({name, version: "1"})
@@ -61,7 +61,8 @@ test("native MCP двух адресных агентов вызывает AI н
   const [a, b] = clients as [Client, Client]
   const catalog = await a.listTools()
   expect(catalog.tools.map(tool => tool.name)).toContain("filesystem.apply-patch")
-  expect(catalog.tools).toHaveLength(11)
+  expect(catalog.tools).toHaveLength(13)
+  expect(catalog.tools.map(tool => tool.name)).toEqual(expect.arrayContaining(["team.list", "team.send"]))
   expect(catalog.tools.map(tool => tool.name)).not.toContain("git.status")
   const read = catalog.tools.find(tool => tool.name === "filesystem.read")!
   expect(read.inputSchema).toMatchObject({type: "object", additionalProperties: false})

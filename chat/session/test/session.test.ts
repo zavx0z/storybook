@@ -57,6 +57,7 @@ test("два turn сохраняют разные ответы, повтор з�
     previous.push(options.previousSessionId)
     return {
       sessionId: "native-session",
+      capabilities: {},
       configOptions: [],
       async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
       async prompt(text) {
@@ -83,6 +84,7 @@ test("два turn сохраняют разные ответы, повтор з�
   cleanup.push(() => restored.dispose())
   expect((await restored.read("/button")).messages).toEqual(done.messages)
   expect((await restored.read("/button")).id).toBe(done.id)
+  expect((await restored.read("/button")).executorId).toBe(done.executorId)
   await restored.prompt("/button", "Три", "request-3")
   await settled(restored, "/button")
   expect(previous).toEqual([undefined, "native-session"])
@@ -93,6 +95,7 @@ test("отписка не отменяет работу, отмена касае
   const cancelled: string[] = []
   const {chats} = await fixture(async options => ({
     sessionId: options.subject.address,
+    capabilities: {},
     configOptions: [],
     async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
     prompt: () => new Promise(resolve => { finish.set(options.subject.address, () => resolve({stopReason: "cancelled"})) }),
@@ -117,6 +120,7 @@ test("разрешение связано с беседой и принимае�
   let permission: unknown
   const {chats} = await fixture(async options => ({
     sessionId: "permission-session",
+    capabilities: {},
     configOptions: [],
     async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
     async prompt() {

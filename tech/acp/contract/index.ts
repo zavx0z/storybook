@@ -5,6 +5,8 @@ import type {
   RequestPermissionResponse,
   SessionUpdate,
   SessionConfigOption,
+  ContentBlock,
+  AgentCapabilities,
 } from "@agentclientprotocol/sdk"
 
 /** Контракт долгоживущего ACP-подключения одного владельца сессии. */
@@ -20,9 +22,10 @@ export declare namespace StorybookTechAcp {
 
   @property [previousSessionId] - Восстанавливаемая ACP-сессия.
   Отсутствие поддержки восстановления вызывает ошибку; новый контекст вместо
-  указанного старого не создаётся. Replay сообщений не передаётся в onUpdate; настройки и usage восстановления сохраняются.
+  указанного старого не создаётся. История загрузки передаётся отдельно в onReplay;
+  без callback replay подавляется, кроме настроек и usage.
 
-  @property onUpdate - Принимает исходный SessionUpdate текущей сессии.
+  @property onUpdate - Принимает исходный live SessionUpdate текущей сессии.
   История, адресная принадлежность и представление остаются у вызывающего кода.
 
   @property onPermission - Явно отвечает на запрос агента средствами ACP.
@@ -65,9 +68,13 @@ export declare namespace StorybookTechAcp {
     cwd: string
     mcpServers: NewSessionRequest["mcpServers"]
     previousSessionId?: string
+    /** При полной локальной истории использует advertised session/resume без replay; иначе session/load. */
+    preferResume?: boolean
     /** Фактический этап подключения; callback не ограничивает длительность работы. */
     onProgress?(phase: "registry" | "spawn" | "initialize" | "session" | "ready"): void
     onUpdate(update: SessionUpdate): void | Promise<void>
+    /** История session/load, отделённая от новых событий; отсутствие callback сохраняет прежнее подавление replay. */
+    onReplay?(update: SessionUpdate): void | Promise<void>
     onPermission(request: RequestPermissionRequest): Promise<RequestPermissionResponse>
     command?: string
     args?: readonly string[]
@@ -84,7 +91,9 @@ export declare namespace StorybookTechAcp {
 
   @property sessionId - Фактически созданная либо восстановленная ACP identity.
 
-  @property prompt - Запускает один turn и возвращает реальный stopReason агента.
+  @property prompt - Передаёт текст либо штатные ContentBlock, запускает один turn
+  и возвращает реальный stopReason агента. Image, audio и embedded context
+  принимаются только при объявленной агентом capability.
   Параллельный prompt той же сессии отклоняется; отмена выполняется через cancel.
 
   @property cancel - Отправляет session/cancel активной сессии.
@@ -96,11 +105,13 @@ export declare namespace StorybookTechAcp {
   */
   type Output = Readonly<{
     sessionId: string
+    /** Штатный negotiated контракт агента; отсутствие modality не заявляет её поддержку. */
+    readonly capabilities: AgentCapabilities
     /** Актуальные варианты и выбранные значения, предоставленные агентом. */
     readonly configOptions: readonly SessionConfigOption[]
     /** Применяет штатный session/set_config_option; возвращает обновлённый список агента. */
     setConfigOption(configId: string, value: string): Promise<readonly SessionConfigOption[]>
-    prompt(text: string): Promise<PromptResponse>
+    prompt(content: string | readonly ContentBlock[]): Promise<PromptResponse>
     cancel(): Promise<void>
     dispose(): Promise<void>
   }>

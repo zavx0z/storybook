@@ -653,6 +653,7 @@ function createFixture(options: Readonly<{
     },
     dispatchNativeText(target: SemanticElement, text: string) {
       calls.nativeTexts.push({target, text})
+      return true
     },
     get presentedFrameSequence() {
       return frameSequence

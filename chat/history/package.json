@@ -1,0 +1,23 @@
+{
+  "name": "@zavx0z/storybook-chat-history",
+  "label": "История беседы",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Чтение общей сохраняемой истории беседы для сервера и представления",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "^1.6.0",
+    "ajv": "^8.17.1",
+    "zod": "^4.4.3"
+  },
+  "scripts": {
+    "generate:validators": "bun scripts/generate-validators.ts",
+    "check:validators": "bun scripts/generate-validators.ts --check"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9"
+  }
+}

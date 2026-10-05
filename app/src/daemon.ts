@@ -4,6 +4,8 @@ const collectUnpublishedStorybookArtifacts = PackageArtifactsOwner
 import ServerState from "@zavx0z/storybook-app-server-state"
 const {externalStorybookArtifactRoot, inspectExternalStorybookServer} = ServerState
 import startExternalStorybookServer from "@zavx0z/storybook-app-server"
+import createApp, {type StorybookApp} from "../index"
+import createControl from "@zavx0z/storybook-app-control"
 import {realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {realpath} from "node:fs/promises"
@@ -28,6 +30,9 @@ export async function runExternalStorybookDaemon(
     throw new Error(`Refusing ambiguous Storybook daemon state: ${inspection.reason}`)
   }
   const project = await resolveDaemonProject(toolRoot, options.declarations ?? [])
+  let controller: StorybookApp.Output | undefined
+  const control = createControl({controller: () => controller ??= createApp({toolRoot})})
+  const extensions: NonNullable<Parameters<typeof startExternalStorybookServer>[0]["extensions"]> = input => input.inspectExecutors ? control.tools : []
   console.error("Storybook startup: artifacts")
   collectUnpublishedStorybookArtifacts(externalStorybookArtifactRoot())
   /** Передаёт этап запуска в диагностический поток родительского controller. */
@@ -38,6 +43,7 @@ export async function runExternalStorybookDaemon(
   try {
     running = await startExternalStorybookServer({createWeb,
       toolRoot,
+      extensions,
       onStartupPhase,
       project,
       migrateChats: (chats, graph) => relocateAppChats(toolRoot, graph, chats),
@@ -49,6 +55,7 @@ export async function runExternalStorybookDaemon(
     if ((options.port ?? 0) === 0 || !addressInUse(error)) throw error
     running = await startExternalStorybookServer({createWeb,
       toolRoot,
+      extensions,
       onStartupPhase,
       project,
       migrateChats: (chats, graph) => relocateAppChats(toolRoot, graph, chats),

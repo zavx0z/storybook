@@ -1,17 +1,17 @@
-import {randomBytes, randomUUID} from "node:crypto"
-import mcpResponse from "@zavx0z/storybook-app-mcp-response"
-import createEntityTools from "@zavx0z/storybook-app-mcp-tools"
-import ToolError from "@zavx0z/ai-tech-failure"
-import {dirname, join} from "node:path"
+import {join} from "node:path"
 import createChatSessions, {type StorybookChatSession} from "@zavx0z/storybook-chat-session"
 import createAcp from "@zavx0z/storybook-tech-acp"
-import storybookRest, {type StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
 import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
+import createServerEnvironment from "./environment"
+import createTeamTools from "./team"
+import type {StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
 
 type Graph = StorybookPackageGraphRead.Input
 type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
+type Target = Parameters<StorybookChatSession.Output["read"]>[0]
 
-/** Соединяет адресные беседы с каталогом, Codex ACP и собственным MCP-входом приложения. */
+/** Соединяет адресные беседы с общим окружением предмета и жизненным циклом ACP. */
 export function createChatServer(options: Readonly<{
   project: string
   projectName(): string
@@ -21,145 +21,120 @@ export function createChatServer(options: Readonly<{
   entries(): StorybookAppMcpRest.Input[1]["entries"]
   connect?: typeof createAcp
   recordRequest?: (entry: Record<string, unknown>) => void
+  extensions?: StorybookAppEnvironment.Input["extensions"]
 }>) {
-  const grants = new Map<string, {address: string, agentId: string, tools: ReturnType<typeof createEntityTools>}>()
+  const environment = createServerEnvironment({...options,
+    extensions: async input => [
+      ...createTeamTools({executorId: input.executorId, address: input.subject.address,
+        inspectExecutors: input.inspectExecutors, graph: options.graph, chats: () => chats}),
+      ...await options.extensions?.(input) ?? [],
+    ],
+  })
   const subscriptions = new Set<() => void>()
-  const resolve = (address: string) => {
-    if (address === "/") return {address, label: options.projectName(), cwd: options.project}
-    if (typeof address !== "string" || !address.startsWith("/") || /[?#]/u.test(address)) throw new TypeError("Нужен канонический адрес предмета")
-    const node = options.graph().nodes.find(node => node.urlPath === address)
-    if (node === undefined || node.kind === "unavailable") throw new Error("Предмет чата отсутствует в текущем Project")
-    return {address: node.urlPath, label: node.label, cwd: node.kind === "package" || node.kind === "entry" ? dirname(node.source.path) : node.source.path}
-  }
   const chats = createChatSessions({
     directory: subject => join(subject.cwd, "meta/chat"),
     legacyDirectory: join(options.project, "chats"),
-    resolve,
-    async connect(input) {
-      const key = randomBytes(32).toString("hex")
-      const selected = options.entries().find(entry => entry.path === input.subject.address.slice(1))
-      const verification = await selected?.readType?.()
-      const type = input.subject.address === "/" ? "Project" : verification?.status === "confirmed" ? verification.type : undefined
-      const tools = createEntityTools({directory: input.subject.cwd, ...(type === undefined ? {} : {type})})
-      grants.set(key, {address: input.subject.address, agentId: randomUUID(), tools})
-      try {
-        const connection = await (options.connect ?? createAcp)({
-          cwd: input.subject.cwd,
-          installation: options.toolRoot,
-          mode: "workspace-write",
-          exclusiveMcp: true,
-          signal: input.signal,
-          ...(input.previousSessionId === undefined ? {} : {previousSessionId: input.previousSessionId}),
-          ...(input.onProgress === undefined ? {} : {onProgress: input.onProgress}),
-          onUpdate: input.onUpdate,
-          onPermission: input.onPermission,
-          mcpServers: [{
-            name: "storybook",
-            command: process.execPath,
-            args: [join(options.toolRoot, "app/src/chat-mcp.ts")],
-            env: [
-              {name: "STORYBOOK_CHAT_ORIGIN", value: options.origin()},
-              {name: "STORYBOOK_CHAT_KEY", value: key},
-            ],
-          }],
+    resolve: environment.resolveSubject,
+    async environment(input) {
+      const assignment = await environment.assignExecutor({executorId: input.executorId, executorLabel: input.executorLabel, address: input.address})
+      const release = environment.subscribe(input.executorId, event => {
+        input.onUpdate(event.phase === "running" ? {
+          sessionUpdate: "tool_call", toolCallId: event.id, title: event.name,
+          status: "in_progress", rawInput: event.arguments,
+        } : {
+          sessionUpdate: "tool_call_update", toolCallId: event.id,
+          status: event.phase === "progress" ? "in_progress" : event.phase === "success" ? "completed" : "failed",
+          rawOutput: event.phase === "progress" ? event.progress : event.phase === "success" ? event.result : {error: event.error},
         })
-        return {...connection, async dispose() {
-          grants.delete(key)
-          await connection.dispose()
-        }}
-      } catch (error) {
-        grants.delete(key)
-        throw error
+      })
+      return {
+        content: [{type: "text", text: JSON.stringify({environment: assignment.bootstrap})}],
+        async execute(command, signal) {
+          const response = await environment.handle(new Request("http://localhost/api/environment", {
+            method: "POST",
+            headers: {authorization: `Bearer ${assignment.token}`, "content-type": "application/json"},
+            body: JSON.stringify(command),
+            signal,
+          }))
+          return [{type: "text", text: await response.text()}]
+        },
+        dispose() {
+          release()
+          environment.revokeExecutor(input.executorId)
+        },
       }
     },
+    async connect(input) {
+      // Назначение принадлежит окружению: освобождение или отказ ACP его не отзывает.
+      return (options.connect ?? createAcp)({
+        cwd: input.subject.cwd,
+        installation: options.toolRoot,
+        mode: "read-only",
+        exclusiveMcp: true,
+        // Штатные ограничения отдельного Codex; это ещё не общий provider no-tools контракт.
+        config: {
+          "features.shell_tool": false,
+          "features.unified_exec": false,
+          "features.view_image": false,
+          "features.multi_agent": false,
+          "features.hooks": false,
+          "skills.include_instructions": false,
+          project_doc_max_bytes: 0,
+          web_search: "disabled",
+        },
+        signal: input.signal,
+        ...(input.previousSessionId === undefined ? {} : {previousSessionId: input.previousSessionId}),
+        ...(input.preferResume === undefined ? {} : {preferResume: input.preferResume}),
+        ...(input.onProgress === undefined ? {} : {onProgress: input.onProgress}),
+        ...(input.onReplay === undefined ? {} : {onReplay: input.onReplay}),
+        onUpdate: input.onUpdate,
+        onPermission: input.onPermission,
+        mcpServers: [],
+      })
+    },
   })
-  const readScopedMcp = async (request: Request, address: string): Promise<Response> => {
-    if (request.method !== "GET" && request.method !== "POST") return Response.json({error: "Ожидается GET или POST"}, {status: 405})
-    resolve(address)
-    const entries = options.entries()
-    if (address === "/") return storybookRest(request, {projectName: options.projectName(), entries})
-    const rootPath = address.slice(1)
-    const graph = options.graph()
-    const root = graph.nodes.find(node => node.urlPath === address)!
-    const permitted = new Set<string>()
-    const byId = new Map(graph.nodes.map(node => [node.id, node]))
-    const visit = (id: string) => {
-      const node = byId.get(id)
-      if (node === undefined || permitted.has(node.urlPath.slice(1))) return
-      permitted.add(node.urlPath.slice(1))
-      for (const child of node.childIds) visit(child)
-    }
-    visit(root.id)
-    const rules = graph.nodes.filter(node => node.kind === "package" && [
-      "@zavx0z/storybook-package-reader", "@zavx0z/storybook-domain", "@zavx0z/storybook-cluster", "@zavx0z/storybook-component",
-      "@zavx0z/storybook-container", "@zavx0z/storybook-contracts", "@zavx0z/storybook-typedoc",
-    ].includes(node.packageId ?? ""))
-    for (const rule of rules) visit(rule.id)
-    const allowed = entries.filter(entry => permitted.has(entry.path))
-    return storybookRest(request, {
-      projectName: options.projectName(),
-      entries: allowed,
-      root: {path: rootPath, references: rules.map(node => node.urlPath.slice(1))},
+  const bootstrap = (request: Request) => environment.handle(new Request(request.url, {
+    headers: request.headers,
+    signal: request.signal,
+  }))
+  const commandRequest = (request: Request, command: unknown) => {
+    const headers = new Headers(request.headers)
+    headers.delete("content-length")
+    return new Request(request.url, {
+      method: "POST", headers, body: JSON.stringify(command), signal: request.signal,
     })
   }
-  /** Источник записи задаёт выданное подключение, независимо от path запроса и результата. */
+  /** Переходная карточка storybook вызывает canonical knowledge.read с тем же назначением и журналом. */
   const scopedMcp = async (request: Request): Promise<Response> => {
-    const key = request.headers.get("authorization")?.replace(/^Bearer /u, "")
-    const grant = key === undefined ? undefined : grants.get(key)
-    if (grant === undefined) return Response.json({error: "Подключение агента недоступно"}, {status: 401})
-    const startedAt = Date.now()
-    const text = request.method === "POST" ? await request.clone().text() : "{}"
-    let input: unknown = text.length > 16_384 ? {error: "Превышен размер запроса MCP", length: text.length} : text
-    if (text.length <= 16_384) try { input = JSON.parse(text || "{}") } catch {}
-    const record = {id: randomUUID(), tool: "storybook", startedAt, address: grant.address, agentId: grant.agentId,
-      input: JSON.stringify(mcpResponse.sanitizeValue(input), null, 2) ?? ""}
-    const write = (value: Record<string, unknown>) => {
-      try { options.recordRequest?.(value) } catch { /* Журнал не отменяет вызов агента. */ }
+    const authorization = await bootstrap(request)
+    if (!authorization.ok) return authorization
+    if (request.method !== "GET" && request.method !== "POST") return Response.json({error: "Ожидается GET или POST"}, {status: 405})
+    let input: unknown = {}
+    if (request.method === "POST") {
+      const text = await request.text()
+      if (text.length > 16_384) return Response.json({error: "Слишком большой запрос знаний"}, {status: 413})
+      try { input = JSON.parse(text || "{}") }
+      catch { return Response.json({error: "Ожидается JSON-объект"}, {status: 400}) }
     }
-    write({...record, status: "running", durationMs: null, result: ""})
-    try {
-      const response = await readScopedMcp(request, grant.address)
-      const text = await response.clone().text()
-      let value: unknown = text
-      try { value = JSON.parse(text) } catch {}
-      write({...record, status: response.ok ? "success" : "failed", durationMs: Date.now() - startedAt,
-        result: JSON.stringify(mcpResponse.sanitizeValue(value), null, 2)})
-      return response
-    } catch (error) {
-      write({...record, status: "failed", durationMs: Date.now() - startedAt,
-        result: JSON.stringify({error: mcpResponse.sanitizeString(error instanceof Error ? error.message : String(error))})})
-      throw error
-    }
+    const response = await environment.handle(commandRequest(request, {name: "knowledge.read", arguments: input}))
+    if (!response.ok) return response
+    const value = await response.json() as {result: Record<string, unknown>}
+    return Response.json(value.result, {status: response.status, headers: response.headers})
   }
-  /** Каталог и вызовы инструментов используют тот же grant и неизменную область агента. */
+  /** Сохраняет прежний каталог MCP; все вызовы доставляются единому обработчику окружения. */
   const scopedTools = async (request: Request, command?: unknown): Promise<Response> => {
-    const key = request.headers.get("authorization")?.replace(/^Bearer /u, "")
-    const grant = key === undefined ? undefined : grants.get(key)
-    if (grant === undefined) return Response.json({error: {code: "UNAUTHORIZED", message: "Подключение агента недоступно"}}, {status: 401})
-    if (request.method === "GET") return Response.json({tools: grant.tools.list()}, {headers: {"cache-control": "no-store"}})
-    if (request.method !== "POST") return Response.json({error: {code: "METHOD_NOT_ALLOWED", message: "Ожидается GET или POST"}}, {status: 405})
-    const startedAt = Date.now()
-    const name = command !== null && typeof command === "object" && "name" in command && typeof command.name === "string" ? command.name : "unknown"
-    const entry = {id: randomUUID(), tool: name.slice(0, 128), startedAt, address: grant.address, agentId: grant.agentId,
-      input: JSON.stringify(mcpResponse.sanitizeValue(command)) ?? ""}
-    const write = (value: Record<string, unknown>) => {
-      try { options.recordRequest?.(value) } catch { /* Журнал не отменяет инструмент. */ }
+    if (request.method === "GET") {
+      const response = await environment.handle(request)
+      if (!response.ok) return response
+      const value = await response.json() as {result: {tools: {name: string}[]}}
+      const tools = value.result.tools.filter(tool => tool.name !== "knowledge.read" && tool.name !== "environment.inspect")
+      return Response.json({tools}, {headers: response.headers})
     }
-    write({...entry, status: "running", durationMs: null, result: ""})
-    try {
-      const result = await grant.tools.call(command, request.signal)
-      write({...entry, status: "success", durationMs: Date.now() - startedAt, result: JSON.stringify(mcpResponse.sanitizeValue(result))})
-      // Содержимое файлов является результатом инструмента: его нельзя очищать как служебную диагностику.
-      return Response.json({result})
-    } catch (cause) {
-      const error = ToolError.from(cause)
-      const value = {code: error.code, message: error.message, ...(error.details === undefined ? {} : {details: error.details})}
-      write({...entry, status: "failed", durationMs: Date.now() - startedAt, result: JSON.stringify(mcpResponse.sanitizeValue({error: value}))})
-      return Response.json({error: value}, {status: error.status})
-    }
+    if (request.method !== "POST") return environment.handle(request)
+    return environment.handle(commandRequest(request, command))
   }
   /** Один подписчик получает свежий снимок, последующие изменения объединяются за 50 мс. */
-  const subscribe = async (address: string, listener: (snapshot: Snapshot) => void): Promise<() => void> => {
+  const subscribe = async (target: Target, listener: (snapshot: Snapshot) => void): Promise<() => void> => {
     let release = () => {}
     let closed = false
     let latest: Snapshot | null = null
@@ -179,7 +154,7 @@ export function createChatServer(options: Readonly<{
     }
     subscriptions.add(close)
     try {
-      release = await chats.subscribe(address, value => {
+      release = await chats.subscribe(target, value => {
         if (closed) return
         latest = value
         if (timer === undefined) {
@@ -193,6 +168,7 @@ export function createChatServer(options: Readonly<{
   }
   return {
     chats,
+    environment,
     scopedMcp,
     scopedTools,
     subscribe,
@@ -203,23 +179,34 @@ export function createChatServer(options: Readonly<{
       }
       if (request.method !== "POST") return Response.json({error: "Ожидается POST"}, {status: 405})
       const text = await request.text()
-      if (text.length > 96_000) return Response.json({error: "Слишком большой запрос чата"}, {status: 413})
+      const maximum = path.endsWith("/prompt") ? 16 * 1024 * 1024 : 96_000
+      if (text.length > maximum) return Response.json({error: "Слишком большой запрос чата"}, {status: 413})
       const body = JSON.parse(text) as Record<string, unknown>
+      if (body === null || typeof body !== "object" || Array.isArray(body)) return Response.json({error: "Ожидается объект запроса чата"}, {status: 400})
+      if ((!Object.hasOwn(body, "content") && text.length > 96_000) ||
+        new TextEncoder().encode(text).byteLength > 16 * 1024 * 1024) {
+        return Response.json({error: "Слишком большой запрос чата"}, {status: 413})
+      }
       if (typeof body?.address !== "string") throw new TypeError("Нужен адрес чата")
-      let value: Snapshot
-      if (path.endsWith("/session")) value = await chats.read(body.address)
-      else if (path.endsWith("/prepare")) value = await chats.prepare(body.address)
-      else if (path.endsWith("/configure")) value = await chats.configure(body.address, body.id as string, body.value as string)
+      if (Object.hasOwn(body, "executorId") && typeof body.executorId !== "string") throw new TypeError("Нужна identity исполнителя")
+      const target: Target = typeof body.executorId === "string" ? {address: body.address, executorId: body.executorId} : body.address
+      let value: Snapshot | readonly Snapshot[]
+      if (path.endsWith("/session")) value = await chats.read(target)
+      else if (path.endsWith("/list")) value = await chats.list(body.address)
+      else if (path.endsWith("/create")) value = await chats.create({address: body.address, label: body.label as string})
+      else if (path.endsWith("/prepare")) value = await chats.prepare(target)
+      else if (path.endsWith("/configure")) value = await chats.configure(target, body.id as string, body.value as string)
       else if (path.endsWith("/prompt")) {
-        value = await chats.prompt(body.address, body.text as string, body.requestId as string)
-      } else if (path.endsWith("/cancel")) value = await chats.cancel(body.address)
-      else if (path.endsWith("/permission")) value = await chats.permission(body.address, body.id as string, body.optionId as string)
+        const content = Object.hasOwn(body, "content") ? body.content : body.text
+        value = await chats.prompt(target, content as Parameters<StorybookChatSession.Output["prompt"]>[1], body.requestId as string)
+      } else if (path.endsWith("/cancel")) value = await chats.cancel(target)
+      else if (path.endsWith("/permission")) value = await chats.permission(target, body.id as string, body.optionId as string)
       else return Response.json({error: "Неизвестное действие чата"}, {status: 404})
       return Response.json(value, {headers: {"cache-control": "no-store"}})
     },
     async dispose() {
       for (const close of subscriptions) close()
-      grants.clear()
+      environment.dispose()
       await chats.dispose()
     },
   }

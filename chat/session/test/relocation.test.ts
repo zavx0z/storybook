@@ -51,6 +51,7 @@ async function settled(chats: StorybookChatSession.Output, address: string) {
 
 const successfulConnect: StorybookChatSession.Input["connect"] = async input => ({
   sessionId: input.previousSessionId ?? "retained-acp-session",
+  capabilities: {},
   configOptions: [],
   async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
   async prompt(text) {
@@ -76,6 +77,7 @@ test("перенос сохраняет историю, id для чернови
   const moved = await relocated.relocate(f.mapping)
   expect(moved).toMatchObject({id: before.id, address: "/new", messages: before.messages})
   expect(moved?.id, "Browser draft key продолжает использовать прежний chat id").toBe(before.id)
+  expect(moved?.executorId).toBe(before.executorId)
   const target = JSON.parse(await readFile(f.file("/new"), "utf8"))
   expect(target).toMatchObject({id: before.id, address: "/new", cwd: f.newCwd, sessionId: "retained-acp-session"})
   expect(JSON.parse(await readFile(f.file("/old"), "utf8"))).toMatchObject({address: "/old", id: before.id})
@@ -90,7 +92,7 @@ test("перенос сохраняет историю, id для чернови
   expect(continued.messages).toHaveLength(before.messages.length + 2)
   const repeated = await relocated.relocate(f.mapping)
   expect(repeated?.messages).toEqual(continued.messages)
-  expect(JSON.parse(await readFile(f.file("/new"), "utf8")).messages).toEqual(continued.messages)
+  expect(JSON.parse(await readFile(f.file("/new"), "utf8")).timeline).toEqual(continued.timeline)
 })
 
 test("занятый новый адрес отказывает без изменения обеих историй", async () => {
@@ -171,6 +173,7 @@ test("активный turn запрещает перенос и сохраня�
   const finish = Promise.withResolvers<{stopReason: "end_turn"}>()
   const f = await fixture(async () => ({
     sessionId: "active-session",
+    capabilities: {},
     configOptions: [],
     async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
     prompt: () => finish.promise,

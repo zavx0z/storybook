@@ -9,6 +9,12 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@zavx0z/storybook-app-environment": "workspace:*",
+    "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
+    "@zavx0z/ai-filesystem-stat": "link:@zavx0z/ai-filesystem-stat",
+    "@zavx0z/ai-filesystem-list": "link:@zavx0z/ai-filesystem-list",
+    "@zavx0z/ai-filesystem-read": "link:@zavx0z/ai-filesystem-read",
+    "@zavx0z/immersive-markdown": "^0.0.0",
     "@zavx0z/storybook-package-build-conformance": "workspace:*",
     "@zavx0z/storybook-chat-session": "workspace:*",
     "@zavx0z/storybook-tech-acp": "workspace:*",
@@ -39,7 +45,6 @@
     "@zavx0z/storybook-app-web": "workspace:*",
     "@zavx0z/storybook-tech-build-environment": "workspace:*",
     "@zavx0z/storybook-package-mcp-source": "workspace:*",
-    "@zavx0z/storybook-app-mcp-tools": "workspace:*",
     "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 import type {StorybookChatView} from "@zavx0z/storybook-chat-view"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
+import readHistory from "@zavx0z/storybook-chat-history"
 
 /** Браузерный транспорт передаёт снимки сервера; закрытие представления только отписывает поток. */
 export type ChatBrowserSnapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
@@ -7,7 +8,11 @@ export type ChatBrowserSnapshot = Awaited<ReturnType<StorybookChatSession.Output
 export type ChatBrowserView = Readonly<{
   address: string
   label: string
+  executorId: string | undefined
+  executorLabel: string | undefined
+  pending: number
   messages: StorybookChatView.Input["messages"]
+  timeline: ChatBrowserSnapshot["timeline"]
   draft: string
   status: StorybookChatView.Input["status"]
   sending: boolean
@@ -25,6 +30,7 @@ type ChatClientOptions = Readonly<{
   createSocket?(path: string): ChatSocket
   address: string
   label: string
+  executorId?: string
   fetcher?: typeof fetch
   storage?(): Pick<Storage, "getItem" | "setItem">
   scheduleRetry?(callback: () => void, delayMs: number): () => void
@@ -67,7 +73,11 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     return Object.freeze({
       address,
       label: session?.label ?? options.label,
+      executorId: session?.executorId,
+      executorLabel: session?.executorLabel,
+      pending: session?.pending.length ?? 0,
       messages: session?.messages ?? [],
+      timeline: session?.timeline ?? [],
       draft,
       status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
       sending: submitting,
@@ -92,6 +102,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   }
   const accept = (value: unknown, initial = false): void => {
     const next = readChatBrowserSnapshot(value, address)
+    if (options.executorId !== undefined && next.executorId !== options.executorId) throw new Error("Получен снимок другого исполнителя")
     if (disposed || !initial && session !== null && next.version < session.version) return
     if (session === null || session.id !== next.id) {
       if (!draftChanged) {
@@ -125,7 +136,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     const response = await fetcher(`/api/browser/chat/${operation}`, {
       method: "POST",
       headers: {"content-type": "application/json", "x-storybook-session": token},
-      body: JSON.stringify({address, ...body}),
+      body: JSON.stringify({address, ...(options.executorId === undefined ? {} : {executorId: options.executorId}), ...body}),
       signal: lifetime.signal,
     })
     if (!response.ok) {
@@ -164,7 +175,8 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       const opened = (): void => {
         connectionError = undefined
         notify()
-        socket.send(JSON.stringify({type: "subscribe", topic: `chat:${address}`}))
+        socket.send(JSON.stringify({type: "subscribe", topic: `chat:${address}`,
+          ...(options.executorId === undefined ? {} : {executorId: options.executorId})}))
       }
       const message = (event: Event): void => {
         try {
@@ -248,6 +260,16 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       started = true
       void connect()
     },
+    async listExecutors(): Promise<readonly ChatBrowserSnapshot[]> {
+      // Первый список включает текущую default-беседу даже при параллельном открытии потока.
+      if (session === null) accept(await post("session", {}), true)
+      const value = await post("list", {})
+      if (!Array.isArray(value)) throw new Error("Некорректный список исполнителей")
+      return value.map(item => readChatBrowserSnapshot(item, address))
+    },
+    async createExecutor(label: string): Promise<ChatBrowserSnapshot> {
+      return readChatBrowserSnapshot(await post("create", {label}), address)
+    },
     setDraft(value: string) {
       if (disposed) return
       draft = value
@@ -308,6 +330,8 @@ function readChatBrowserSnapshot(value: unknown, address: string): ChatBrowserSn
   if (value === null || typeof value !== "object") throw new Error("Некорректный снимок чата")
   const snapshot = value as ChatBrowserSnapshot
   if (typeof snapshot.id !== "string" || snapshot.id.length === 0 || snapshot.address !== address ||
+    typeof snapshot.executorId !== "string" || !snapshot.executorId || typeof snapshot.executorLabel !== "string" || !snapshot.executorLabel ||
+    !Array.isArray(snapshot.pending) || snapshot.pending.some(id => typeof id !== "string" || !id) ||
     typeof snapshot.label !== "string" || !Array.isArray(snapshot.messages) ||
     !["idle", "connecting", "running", "failed"].includes(snapshot.status) ||
     !(snapshot.error === null || typeof snapshot.error === "string") ||
@@ -329,5 +353,14 @@ function readChatBrowserSnapshot(value: unknown, address: string): ChatBrowserSn
         typeof option.id !== "string" || typeof option.name !== "string"))) {
     throw new Error("Некорректный снимок чата")
   }
-  return snapshot
+  const hasTimeline = Object.prototype.hasOwnProperty.call(value, "timeline")
+  const timeline = readHistory(hasTimeline ? snapshot.timeline : snapshot.messages.map((message, sequence) => ({
+    id: message.id,
+    kind: "message",
+    sequence: sequence + 1,
+    origin: "legacy",
+    role: message.role,
+    content: [{type: "text", text: message.text}],
+  })))
+  return {...snapshot, timeline}
 }

@@ -57,7 +57,8 @@ export declare namespace StorybookAppWebPageShell {
     subscribePreviewBounds(listener: (bounds: StorybookPreviewBounds | null) => void): () => void
     mountSpacePreview(label: string, registration: StorybookSpacePreviewRegistration): StorybookSpacePreview
     dispatchNativeKey(target: SemanticHTMLElement, input: ExternalStorybookNativeKey): void
-    dispatchNativeText(target: SemanticHTMLElement, text: string): void
+    /** Передаёт текст штатному input owner; false означает отказ редактирования. */
+    dispatchNativeText(target: SemanticHTMLElement, text: string): boolean
     captureUserState(): StorybookShellUserState
     releaseRoot(): StorybookRetainedRoot
     dispose(): void

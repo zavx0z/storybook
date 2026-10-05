@@ -1,4 +1,4 @@
-import {HTMLElement, HTMLLabelElement, type Node} from "@zavx0z/immersive-dom"
+import {HTMLElement, HTMLInputElement, HTMLLabelElement, HTMLTextAreaElement, type Node} from "@zavx0z/immersive-dom"
 import type {DomInspector, DomInspectorNode} from "@zavx0z/immersive-devtool"
 import type {Request, Target} from "../contract/request"
 import type {Shell} from "../contract/shell"
@@ -44,6 +44,10 @@ export async function applyNodeAction(
   inspector: DomInspector,
   shell: Shell,
 ): Promise<void> {
+  if (action === "fill") {
+    fillTextControl(node, request.value, shell)
+    return
+  }
   const presentedPoint = (target: Node) => {
     const owner = shell.projectionFor(target)
     const projection = owner.kind === "space" ? shell.projectionFor(shell.workbench.element) : owner
@@ -148,6 +152,31 @@ export async function applyNodeAction(
   } else {
     throw new Error(`Unsupported Storybook node action: ${action}`)
   }
+}
+
+/**
+Заменяет текст через публичное выделение и штатный native input того же Document.
+Не присваивает value и не исполняет callback потребителя самостоятельно.
+*/
+export function fillTextControl(
+  node: Node,
+  value: unknown,
+  shell: Pick<Shell, "document" | "dispatchNativeText">,
+): void {
+  const supplied = value !== null && typeof value === "object" && !Array.isArray(value) && "text" in value
+    ? value.text : value
+  const text = boundedFillText(supplied, 4_096)
+  if (!(node instanceof HTMLTextAreaElement) && !(node instanceof HTMLInputElement && node.selectionStart !== null)) {
+    throw new Error("Storybook fill requires a textarea or text-like input")
+  }
+  if (node.disabled || node.readOnly) throw new Error("Storybook fill target is disabled or readonly")
+  if (node.ownerDocument !== shell.document || !node.isConnected) {
+    throw new Error("Storybook fill target does not belong to the active Document")
+  }
+  if (shell.document.activeElement !== node) node.focus()
+  if (shell.document.activeElement !== node) throw new Error("Storybook fill target cannot receive focus")
+  node.select()
+  if (!shell.dispatchNativeText(node, text)) throw new Error("Storybook fill input was rejected")
 }
 
 export function resolveTarget(target: Target | undefined, inspector: DomInspector): Node {
@@ -270,6 +299,14 @@ function finiteNumber(value: unknown, minimum: number, maximum: number, label: s
 export function boundedText(value: unknown, maximum: number, label: string): string {
   if (typeof value !== "string" || value.length === 0 || value.length > maximum || /[\u0000\u000b\u000c]/u.test(value)) {
     throw new Error(`Storybook ${label} must be bounded text`)
+  }
+  return value
+}
+
+/** fill разрешает очистку, сохраняя ограничение размера и допустимых управляющих символов. */
+export function boundedFillText(value: unknown, maximum: number): string {
+  if (typeof value !== "string" || value.length > maximum || /[\u0000\u000b\u000c]/u.test(value)) {
+    throw new Error("Storybook fill value must be bounded text")
   }
   return value
 }

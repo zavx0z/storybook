@@ -9,6 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@zavx0z/storybook-app-control": "workspace:*",
     "@modelcontextprotocol/server": "^2.0.0",
     "@zavx0z/storybook-app-server-state": "workspace:*",
     "@zavx0z/storybook-tech-mcp-progress": "workspace:*",

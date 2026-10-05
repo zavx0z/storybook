@@ -8,10 +8,12 @@ export declare namespace StorybookAppMcpTools {
   type Input = Readonly<{
     directory: string
     type?: "Project" | "Repo" | "Component" | "Container" | "Cluster" | "Domain"
+    /** Расширения предметного владельца; описание и исполнение предоставляются вместе. */
+    extensions?: StorybookPackageMcpTools.Input["extensions"]
   }>
   /** Один набор действует весь срок подключения, независимо от MCP-навигации. */
   type Output = Readonly<{
     list(): readonly Omit<BoundTool, "execute">[]
-    call(command: unknown, signal?: AbortSignal): Promise<Record<string, unknown>>
+    call(command: unknown, signal?: AbortSignal, onProgress?: (progress: Readonly<Record<string, unknown>>) => void | Promise<void>): Promise<Record<string, unknown>>
   }>
 }

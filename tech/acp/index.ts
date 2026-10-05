@@ -22,18 +22,18 @@ import {Readable, Writable} from "node:stream"
 import {fileURLToPath} from "node:url"
 import type {StorybookTechAcp} from "./contract"
 import {prepareExclusiveMcp} from "./src/policy"
+import {promptContent} from "./src/content"
 
 export type {StorybookTechAcp} from "./contract"
 
 /**
 Инициализирует ACP и создаёт либо восстанавливает точную сессию.
-Подготовка ограничена одной минутой; время выполнения prompt не ограничивается
-этим таймаутом и принадлежит вызывающему владельцу.
+Время жизни подготовки и исполнения принадлежит вызывающему владельцу через signal.
 Credentials наследуются дочерним процессом; транспорт не читает их содержимое.
 Конфигурацию sandbox и MCP обеспечивает вызывающий владелец через штатный
 environment адаптера. Сам cwd не является sandbox.
 
-@param input - Каталог, MCP-серверы и callbacks согласно {@link StorybookTechAcp.Input}.
+@param input - Каталог, предоставленные серверы и callbacks согласно {@link StorybookTechAcp.Input}.
 @returns Готовая сессия; после использования требуется вызвать dispose.
 @throws Ошибка запуска, initialize, восстановления, открытия сессии или callback.
 Ошибка восстановления не заменяется созданием нового контекста.
@@ -152,12 +152,12 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
       return response
     })
     .onNotification(methods.client.session.update, ({params}) => {
-      if (disposed || replay && !["config_option_update", "usage_update"].includes(params.update.sessionUpdate)) return
+      if (disposed) return
       if (sessionId === null) {
         early.push(params)
         return
       }
-      enqueue(params)
+      enqueue(params, replay)
     })
     .connect(ndJsonStream(
       Writable.toWeb(child.stdin),
@@ -187,11 +187,14 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     if (connection.signal.aborted) throw new Error("ACP transport закрыт")
   }
 
-  function enqueue(notification: SessionNotification): void {
+  function enqueue(notification: SessionNotification, fromReplay = false): void {
     notifications = notifications.then(async () => {
       if (notification.sessionId !== sessionId) throw new Error("ACP update принадлежит другой сессии")
       if (notification.update.sessionUpdate === "config_option_update") configOptions = notification.update.configOptions
-      await input.onUpdate(notification.update)
+      if (fromReplay) {
+        if (input.onReplay !== undefined) await input.onReplay(notification.update)
+        else if (["config_option_update", "usage_update"].includes(notification.update.sessionUpdate)) await input.onUpdate(notification.update)
+      } else await input.onUpdate(notification.update)
     }).catch(error => {
       fail(error)
       throw error
@@ -249,10 +252,11 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     }
     progress("session")
     if (input.previousSessionId !== undefined) {
-      if (initialized.agentCapabilities?.loadSession !== true) {
+      const resume = input.preferResume === true && initialized.agentCapabilities?.sessionCapabilities?.resume != null
+      if (!resume && initialized.agentCapabilities?.loadSession !== true) {
         throw new Error("ACP agent не поддерживает восстановление session/load")
       }
-      const session = await connection.agent.request(methods.agent.session.load, {
+      const session = await connection.agent.request(resume ? methods.agent.session.resume : methods.agent.session.load, {
         sessionId: input.previousSessionId,
         cwd,
         mcpServers: input.mcpServers,
@@ -274,6 +278,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     const activeSessionId = sessionId!
     return Object.freeze({
       sessionId: activeSessionId,
+      capabilities: structuredClone(initialized.agentCapabilities ?? {}),
       get configOptions() { return structuredClone(configOptions) },
       async setConfigOption(configId: string, value: string) {
         assertOpen()
@@ -286,15 +291,15 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
         configOptions = response.configOptions
         return structuredClone(configOptions)
       },
-      async prompt(text: string) {
+      async prompt(content: Parameters<StorybookTechAcp.Output["prompt"]>[0]) {
         assertOpen()
-        if (!text.trim()) throw new TypeError("ACP prompt не может быть пустым")
+        const blocks = promptContent(content, initialized.agentCapabilities ?? {})
         if (prompting) throw new Error("ACP prompt этой сессии уже выполняется")
         prompting = true
         try {
           const response = await connection.agent.request(methods.agent.session.prompt, {
             sessionId: activeSessionId,
-            prompt: [{type: "text", text}],
+            prompt: blocks,
           })
           await notifications
           assertOpen()

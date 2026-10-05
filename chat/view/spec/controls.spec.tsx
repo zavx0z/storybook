@@ -2,7 +2,7 @@
 import {afterAll, expect, mock, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive-headless"
 import {Event, KeyboardEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
-import StorybookChatView from "../index"
+import StorybookChatView from "@zavx0z/storybook-chat-view"
 
 const headless = createHeadless({width: 360, height: 680})
 afterAll(() => headless.dispose())

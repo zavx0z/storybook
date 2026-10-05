@@ -6,6 +6,57 @@ import StorybookChatView, {type StorybookChatView as Contract} from "@zavx0z/sto
 
 describe.each([
   {
+    name: "Участники беседы",
+    props: {
+      address: "/team",
+      label: "Команда предмета",
+      executorId: "executor-1",
+      executors: [
+        {executorId: "executor-1", executorLabel: "Главный", status: "idle", pending: ["task-1"]},
+        {executorId: "executor-2", executorLabel: "Исследователь", status: "running", pending: []},
+      ],
+      pendingTasks: 1,
+      messages: [],
+      draft: "",
+      status: "idle",
+      sending: false,
+    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    sendEnabled: false,
+    cancelEnabled: false,
+    statusLabel: "Готов",
+  },
+  {
+    name: "События и медиа",
+    props: {
+      address: "/timeline",
+      label: "История исполнения",
+      messages: [
+        {id: "user-media", role: "user", text: "Посмотри изображение"},
+        {id: "assistant-media", role: "assistant", text: "Изображение получено"},
+      ],
+      timeline: [
+        {id: "user-media", kind: "message", sequence: 1, origin: "local", role: "user", content: [
+          {type: "text", text: "Посмотри изображение"},
+          {type: "image", mimeType: "image/png", data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="},
+        ]},
+        {id: "context", kind: "context", sequence: 2, origin: "local", content: [{type: "text", text: "Переданный исходник"}]},
+        {id: "thought", kind: "message", sequence: 3, origin: "live", role: "thought", content: [{type: "text", text: "Сверяю размеры"}]},
+        {id: "tool", kind: "tool", sequence: 4, origin: "live", toolCallId: "read-1", call: {
+          sessionUpdate: "tool_call", toolCallId: "read-1", title: "Чтение файла", status: "completed",
+          content: [{type: "content", content: {type: "text", text: "Результат инструмента"}}], rawInput: {path: "image.png"},
+        }, updates: []},
+        {id: "event", kind: "event", sequence: 5, origin: "live", update: {sessionUpdate: "usage_update", used: 42, size: 100}},
+        {id: "assistant-media", kind: "message", sequence: 6, origin: "live", role: "assistant", content: [{type: "text", text: "Изображение получено"}]},
+      ],
+      draft: "",
+      status: "idle",
+      sending: false,
+    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    sendEnabled: false,
+    cancelEnabled: false,
+    statusLabel: "Готов",
+  },
+  {
     name: "Настройки и код",
     props: {
       address: "/settings",
@@ -147,13 +198,21 @@ describe.each([
   const onCancel = mock(() => {})
   const onPrepareSettings = mock(() => {})
   const onConfigure = mock((id: string, value: string) => {})
+  const onSelectExecutor = mock((id: string) => {})
+  const onCreateExecutor = mock((label: string) => {})
   const headless = createHeadless({width: 400, height: 600})
   afterAll(() => headless.dispose())
   const element = await headless.render(
     <StorybookChatView
       address={props.address}
       label={props.label}
+      executorId={props.executorId}
+      executors={props.executors}
+      pendingTasks={props.pendingTasks}
+      onSelectExecutor={onSelectExecutor}
+      onCreateExecutor={onCreateExecutor}
       messages={props.messages}
+      timeline={props.timeline}
       draft={props.draft}
       status={props.status}
       sending={props.sending}
@@ -175,7 +234,7 @@ describe.each([
   })
 
   test("Состояние исполнения", () => {
-    expect(element.querySelector('[role="status"]')?.textContent, "Пользователь видит подключение, готовность или исполнение").toBe(props.status === "connecting" || props.status === "running" ? statusLabel : undefined)
+    expect(element.querySelector('[data-chat-status]')?.textContent, "Пользователь видит состояние исполнения, независимо от очереди и других уведомлений").toBe(props.status === "connecting" || props.status === "running" ? statusLabel : undefined)
   })
 
   test("История сообщений", () => {
@@ -205,6 +264,48 @@ describe.each([
     expect(cancel !== null, "Кнопка остановки существует только во время выполнения").toBe(cancelEnabled)
     cancel?.click()
     expect(onCancel.mock.calls, "Доступная отмена передаёт действие владельцу исполнения").toEqual(cancelEnabled ? [[]] : [])
+  })
+
+  /** @remarks Выбор участника доступен только при предоставленном списке исполнителей. */
+  describe.skipIf(props.executors === undefined)("Участники", () => {
+    test("Выбор исполнителя", () => {
+      const select = element.querySelector('[data-chat-executors] select') as HTMLSelectElement
+      select.value = "executor-2"
+      select.dispatchEvent(new Event("change", {bubbles: true}))
+      expect(onSelectExecutor.mock.calls, "Выбор передаёт ключ участника владельцу адреса").toEqual([["executor-2"]])
+      expect(onSend.mock.calls, "Выбор участника не ставит задачу").toEqual([])
+    })
+
+    test("Очередь", () => {
+      expect(element.querySelector("[data-chat-executors]")?.textContent,
+        "Очередь показывается отдельно от состояния текущего ответа").toContain("Задач в очереди: 1")
+    })
+  })
+
+  /** @remarks Богатая история предоставляет записи протокола и изображение. */
+  describe.skipIf(props.timeline === undefined)("История исполнения", () => {
+    test("Изображение сообщения", () => {
+      expect(element.querySelector('[data-chat-image]')?.getAttribute("src"),
+        "Изображение использует сохранённые данные ContentBlock в общем Document").toStartWith("data:image/png;base64,")
+    })
+
+    test("Скрытые детали", () => {
+      expect([...element.querySelectorAll("[data-chat-entry]")].map(entry => entry.getAttribute("data-chat-kind")),
+        "Контекст, мысль, инструмент и событие имеют отдельные записи в исходном порядке").toEqual(["context", "message", "tool", "event"])
+      expect(element.querySelector("[data-chat-details]"),
+        "До раскрытия содержание инструмента и контекста не создаётся").toBeNull()
+    })
+
+    test("Раскрытие инструмента", async () => {
+      const tool = element.querySelector('[data-chat-entry="tool"]')!
+      const button = tool.querySelector("button") as HTMLButtonElement
+      button.click()
+      await headless.capture(element)
+      expect(tool.querySelector("[data-chat-details]")?.textContent,
+        "Раскрытый инструмент показывает результат и аргументы того же вызова").toContain("Результат инструмента")
+      expect(tool.querySelector('[data-chat-data="Аргументы"]')?.textContent,
+        "Аргументы не восстанавливаются из обычного сообщения").toContain("image.png")
+    })
   })
 
   /** @remarks Начальный пустой черновик даёт однозначную позицию вставки без изменения selection. */

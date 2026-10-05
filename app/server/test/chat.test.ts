@@ -43,6 +43,7 @@ async function fixture(
       connections.push(input)
       return {
         sessionId: "acp-session",
+        capabilities: {},
         get configOptions() { return configOptions },
         async setConfigOption(id, value) {
           configOptions = configOptions.map(option => option.type === "select" && option.id === id ? {...option, currentValue: value} : option)
@@ -61,6 +62,11 @@ async function fixture(
   return {server, connections, journal, prompts: () => prompts}
 }
 
+async function assignmentKey(server: ReturnType<typeof createChatServer>, address: string) {
+  const {executorId} = await server.chats.read(address)
+  return (await server.environment.assignExecutor({executorId, address})).token
+}
+
 const scopedRequest = (key: string, input: object) => new Request("http://127.0.0.1:12345/api/chat/mcp", {
   method: "POST", headers: {authorization: `Bearer ${key}`, "content-type": "application/json"}, body: JSON.stringify(input),
 })
@@ -69,11 +75,8 @@ test("вызовы двух агентов разделяются по исто�
   const {server, connections, journal} = await fixture()
   await server.chats.prepare("/repo/button")
   await server.chats.prepare("/repo/button-other")
-  const keys = connections.map(connection => {
-    const mcp = connection.mcpServers[0]!
-    if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
-    return mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
-  })
+  expect(connections.every(connection => connection.mcpServers.length === 0)).toBeTrue()
+  const keys = await Promise.all(["/repo/button", "/repo/button-other"].map(address => assignmentKey(server, address)))
   await server.scopedMcp(scopedRequest(keys[0]!, {}))
   await server.scopedMcp(scopedRequest(keys[0]!, {path: "./repo/button-other"}))
   await server.scopedMcp(scopedRequest(keys[1]!, {}))
@@ -86,15 +89,17 @@ test("вызовы двух агентов разделяются по исто�
   expect(first.every(entry => entry.agentId === first[0]?.agentId)).toBeTrue()
   expect(first[0]?.agentId).not.toBe(second[0]?.agentId)
   expect(first[0]?.agentId).toBeTruthy()
+  expect(first.every(entry => entry.tool === "knowledge.read"),
+    "Переходная карточка storybook записывает исполненную команду окружения, а не название MCP-карточки").toBeTrue()
+  expect(first[0]?.agentId, "Источник журнала совпадает с устойчивой identity исполнителя беседы")
+    .toBe((await server.chats.read("/repo/button")).executorId)
   for (const key of keys) expect(JSON.stringify(journal.read())).not.toContain(key)
 })
 
 test("общие правила остаются доступными переходами от root адресного чата", async () => {
   const {server, connections} = await fixture([], undefined, true)
   await server.chats.prepare("/repo/button")
-  const mcp = connections[0]!.mcpServers[0]!
-  if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
-  const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
+  const key = await assignmentKey(server, "/repo/button")
   const root = await (await server.scopedMcp(scopedRequest(key, {}))).json()
   const rules = root.children.find((child: {path: string}) => child.path === "./rules/storybook/package/reader")
   expect(rules).toBeDefined()
@@ -110,17 +115,23 @@ test("пустой MCP-вызов открывает назначенный пр
   const {server, connections} = await fixture()
   await server.chats.prompt("/repo/button", "Привет", "1")
   while (connections.length === 0) await Bun.sleep(5)
-  const mcp = connections[0]!.mcpServers[0]!
-  if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
-  const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
+  const key = await assignmentKey(server, "/repo/button")
   const root = await server.scopedMcp(scopedRequest(key, {}))
   expect(root.status).toBe(200)
-  expect(await root.json()).toEqual({description: "Button", path: ".", children: [{description: "Part", path: "./part"}]})
+  expect(await root.json()).toEqual({description: "Button", path: ".", children: [
+    {description: "Part", path: "./part"},
+    {path: "./meta/notes", description: "Заметки назначенного владельца из meta/notes"},
+    {path: "./rules/documents", description: "Основания и нормативные документы Storybook"},
+  ]})
   const part = await (await server.scopedMcp(scopedRequest(key, {path: "part"}))).json()
   expect(part).toEqual({description: "Part", path: "./part", children: [{description: "Deep", path: "./part/deep"}]})
   expect((await server.scopedMcp(scopedRequest(key, {path: part.children[0].path}))).status).toBe(200)
   expect((await server.scopedMcp(scopedRequest(key, {path: "deep"}))).status).toBe(403)
-  expect(await (await server.scopedMcp(scopedRequest(key, {}))).json()).toEqual({description: "Button", path: ".", children: [{description: "Part", path: "./part"}]})
+  expect(await (await server.scopedMcp(scopedRequest(key, {}))).json()).toEqual({description: "Button", path: ".", children: [
+    {description: "Part", path: "./part"},
+    {path: "./meta/notes", description: "Заметки назначенного владельца из meta/notes"},
+    {path: "./rules/documents", description: "Основания и нормативные документы Storybook"},
+  ]})
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button/part"}))).status).toBe(403)
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo"}))).status).toBe(403)
@@ -144,7 +155,7 @@ test("подписка передаёт историю и её закрытие 
   expect(await retired.json()).toEqual({error: "События чата доступны через WebSocket /api/events"})
 })
 
-test("адресный чат выбирает предметный MCP после проверки grant", async () => {
+test("адресный чат выбирает инструменты окружения после проверки grant", async () => {
   let reads = 0
   const {server, connections} = await fixture([], async () => {
     reads += 1
@@ -152,9 +163,7 @@ test("адресный чат выбирает предметный MCP посл
   })
   await server.chats.prepare("/repo/button")
   expect(reads, "Подключение выбирает набор инструментов по подтверждённому типу").toBe(1)
-  const mcp = connections[0]!.mcpServers[0]!
-  if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
-  const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
+  const key = await assignmentKey(server, "/repo/button")
   expect(await (await server.scopedMcp(scopedRequest(key, {}))).json())
     .toMatchObject({path: ".", description: "Button",
       verification: {status: "confirmed", type: "Component", revision: "verified"}})
@@ -173,6 +182,11 @@ test("HTTP настройки используют ту же ACP-сессию б
   expect(await (await request("prepare")).json()).toMatchObject({settings: [{id: "selected-model", value: "a"}], messages: [], configuring: false})
   expect(await (await request("configure", {id: "selected-model", value: "b"})).json()).toMatchObject({settings: [{value: "b"}], messages: []})
   expect(f.connections).toHaveLength(1)
-  expect(f.connections[0]!.config, "Начальные модели и мышление определяет адаптер, не жёстко заданный config приложения").toBeUndefined()
+  expect(f.connections[0]!.config, "Модель и мышление определяет адаптер, приложение ограничивает собственные средства исполнения")
+    .toMatchObject({"features.shell_tool": false, "features.unified_exec": false, "skills.include_instructions": false, project_doc_max_bytes: 0, web_search: "disabled"})
+  expect(f.connections[0]!.config).not.toHaveProperty("model")
+  expect(f.connections[0]!.config).not.toHaveProperty("model_reasoning_effort")
+  expect(f.connections[0]!.mode).toBe("read-only")
+  expect(f.connections[0]!.mcpServers).toEqual([])
   expect(f.prompts()).toBe(0)
 })

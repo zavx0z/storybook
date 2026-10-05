@@ -1,0 +1,18 @@
+{
+  "name": "@zavx0z/storybook-app-environment",
+  "label": "Окружение исполнителя",
+  "description": "Назначенные области, знания и инструменты исполнителей одного Project",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-app-mcp-tools": "workspace:*",
+    "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure"
+  },
+  "devDependencies": {
+    "@zavx0z/storybook-app-mcp-rest": "workspace:*"
+  }
+}

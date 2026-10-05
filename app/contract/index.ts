@@ -1,22 +1,4 @@
-import type {
-  StorybookControllerResult,
-  StorybookEnsureInput,
-  StorybookStatusInput,
-  StorybookAttachInput,
-  StorybookDetachInput,
-  StorybookSearchInput,
-  StorybookOpenInput,
-  StorybookWaitInput,
-  StorybookInspectInput,
-  StorybookInteractInput,
-  StorybookCaptureInput,
-  StorybookCheckInput,
-  StorybookCloseInput,
-  StorybookStopInput,
-  StorybookCaptureResult,
-  StorybookResourceResult,
-  StorybookControllerContext
-} from "./control"
+import type {StorybookAppControl} from "@zavx0z/storybook-app-control"
 
 /** Контракт единого приложения Storybook. */
 export declare namespace StorybookApp {
@@ -58,20 +40,5 @@ export declare namespace StorybookApp {
   @property stop - Останавливает принадлежащий сервер при явном подтверждении.
   @property readResource - Читает текстовый либо бинарный ресурс по URI.
   */
-  interface Output {
-    ensure(input: StorybookEnsureInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    status(input: StorybookStatusInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    attach(input: StorybookAttachInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    detach(input: StorybookDetachInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    search(input: StorybookSearchInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    open(input: StorybookOpenInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    wait(input: StorybookWaitInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    inspect(input: StorybookInspectInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    interact(input: StorybookInteractInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    capture(input: StorybookCaptureInput, context: StorybookControllerContext): Promise<StorybookCaptureResult>
-    check(input: StorybookCheckInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    close(input: StorybookCloseInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    stop(input: StorybookStopInput, context: StorybookControllerContext): Promise<StorybookControllerResult>
-    readResource(uri: string, context: StorybookControllerContext): Promise<StorybookResourceResult>
-  }
+  type Output = Awaited<ReturnType<StorybookAppControl.Input["controller"]>>
 }

@@ -16,7 +16,8 @@ export type Request = Readonly<{
   cursor?: string
   target?: Target
   destination?: Target
-  action?: "hover" | "focus" | "click" | "pointerDown" | "pointerUp" | "drag" | "key" | "type" | "wheel" | "scenario"
+  /** fill заменяет весь текст writable textarea/text-like input; пустая строка очищает поле. */
+  action?: "hover" | "focus" | "click" | "pointerDown" | "pointerUp" | "drag" | "key" | "type" | "fill" | "wheel" | "scenario"
   value?: unknown
   timeoutMs?: number
 }>

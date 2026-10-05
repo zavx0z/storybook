@@ -15,6 +15,7 @@ describe.each([{name: "Одна история в двух средах", props:
     async connect(input) {
       return {
         sessionId: "controlled-domain-session",
+        capabilities: {},
         configOptions: [],
         async setConfigOption() {throw new Error("Сценарий не меняет настройки")},
         async prompt() {

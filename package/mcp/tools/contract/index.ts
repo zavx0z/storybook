@@ -1,13 +1,23 @@
 import type {AiWorkspace} from "@zavx0z/ai-workspace"
 
-/** Исполнимая возможность с описанием от владельца реализации. */
+/**
+Исполнимая возможность с описанием от владельца реализации.
+
+@property execute - Получает аргументы и контекст одного вызова.
+Signal отменяет ожидание исполнителя; progress сообщает промежуточные состояния
+без изменения результата. Существующие синхронные инструменты используют только input.
+*/
 type Tool = Readonly<{
   name: string
+  title?: string
   description: string
   inputSchema: Record<string, unknown>
   outputSchema: Record<string, unknown>
-  annotations: Readonly<{readOnlyHint: boolean, destructiveHint: boolean}>
-  execute(input: unknown): unknown | Promise<unknown>
+  annotations: Readonly<{readOnlyHint: boolean, destructiveHint: boolean, idempotentHint?: boolean}>
+  execute(input: unknown, context?: Readonly<{
+    signal: AbortSignal
+    onProgress?(progress: Readonly<Record<string, unknown>>): void | Promise<void>
+  }>): unknown | Promise<unknown>
 }>
 
 /** Общие инструменты Package и явные расширения предметной сущности. */

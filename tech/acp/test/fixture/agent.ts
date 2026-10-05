@@ -21,7 +21,10 @@ if (process.argv.includes("cli")) {
 const connection = agent({name: "ACP process fixture"})
   .onRequest(methods.agent.initialize, async () => {
     if (behavior === "stall") await new Promise(() => {})
-    return {protocolVersion: PROTOCOL_VERSION, agentCapabilities: {loadSession: behavior !== "no-load"}}
+    return {protocolVersion: PROTOCOL_VERSION, agentCapabilities: {
+      loadSession: behavior !== "no-load", promptCapabilities: {image: true, embeddedContext: true},
+      ...(behavior === "resume" ? {sessionCapabilities: {resume: {}}} : {}),
+    }}
   })
   .onRequest(methods.agent.session.new, ({params}) => {
     if (behavior === "no-new") throw new Error("Новый контекст создавать запрещено")
@@ -39,6 +42,10 @@ const connection = agent({name: "ACP process fixture"})
       sessionId: params.sessionId, update: {sessionUpdate: "usage_update", used: 427000, size: 828000},
     })
     return behavior === "settings" ? {configOptions} : {}
+  })
+  .onRequest(methods.agent.session.resume, ({params}) => {
+    input = {...params, mcpServers: params.mcpServers ?? []}
+    return {configOptions}
   })
   .onRequest(methods.agent.session.setConfigOption, ({params}) => {
     const selected = configOptions.find(option => option.id === params.configId)
@@ -70,6 +77,7 @@ const connection = agent({name: "ACP process fixture"})
       update: {sessionUpdate: "agent_message_chunk", content: {type: "text", text: JSON.stringify({
         input,
         text: message,
+        ...(message === "content" ? {blocks: params.prompt} : {}),
         mode: process.env.INITIAL_AGENT_MODE,
         config: process.env.CODEX_CONFIG === undefined ? null : JSON.parse(process.env.CODEX_CONFIG),
         ...(process.env.DISABLE_MCP_CONFIG_FILTERING === undefined ? {} : {filtering: process.env.DISABLE_MCP_CONFIG_FILTERING}),

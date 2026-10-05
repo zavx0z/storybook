@@ -20,5 +20,5 @@ export type Shell = Readonly<{
   projectionFor(node: Node): RootProjection
   presentFrame(): number
   dispatchNativeKey(target: HTMLElement, input: Pick<KeyboardEvent, "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey">): void
-  dispatchNativeText(target: HTMLElement, text: string): void
+  dispatchNativeText(target: HTMLElement, text: string): boolean
 }>

@@ -1,6 +1,11 @@
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {Snapshot, Subject} from "./state"
 import type {Relocation} from "./relocation"
+import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
+import type {Environment, EnvironmentInput} from "./environment"
+import type {Target} from "./target"
+
+type TimelineContent = Extract<StorybookChatHistory.Output[number], {kind: "message"}>["content"][number]
 
 /** Контракт адресных бесед одного Project. */
 export declare namespace StorybookChatSession {
@@ -11,17 +16,26 @@ export declare namespace StorybookChatSession {
   @property [legacyDirectory] - Прежний общий каталог для переноса существующих историй без изменения сообщений и identity.
   @property resolve - Разрешает точный адрес по действующему каталогу и возвращает его владельца.
   @property connect - Создаёт ACP-подключение с контекстом указанного предмета при первом сообщении или явной подготовке настроек.
+  @property [environment] - Назначает окружение до подключения модели. Сессия доставляет
+  начальный контекст и исполняет полные сообщения-команды до итогового ответа без MCP.
   */
   type Input = Readonly<{
     directory(subject: Pick<Subject, "address" | "cwd">): string
     legacyDirectory?: string
     resolve(address: string): Subject
+    environment?(input: EnvironmentInput): Promise<Environment>
     connect(input: Readonly<{
       subject: Subject
+      /** UUID сохраняемого исполнителя, независимый от адреса и provider session. */
+      executorId: string
+      /** Имя исполнителя внутри предмета, независимое от имени самого предмета. */
+      executorLabel: string
       previousSessionId?: string
+      preferResume?: boolean
       signal: AbortSignal
       onProgress?: StorybookTechAcp.Input["onProgress"]
       onUpdate: StorybookTechAcp.Input["onUpdate"]
+      onReplay?: StorybookTechAcp.Input["onReplay"]
       onPermission: StorybookTechAcp.Input["onPermission"]
     }>): Promise<StorybookTechAcp.Output>
   }>
@@ -29,8 +43,11 @@ export declare namespace StorybookChatSession {
   /**
   История, поток состояния и действия над беседой.
 
-  @property read - Читает историю, не запуская модель и не создавая пустой файл.
-  @property prompt - Сохраняет сообщение и начинает один turn; requestId предотвращает повторную отправку.
+  @property read - Читает историю, не создавая пустой файл. Сохранённые pending
+  при загрузке восстанавливают ранее принятую работу; обычное чтение без них не запускает модель.
+  @property prompt - Сохраняет текст либо штатные ACP ContentBlock и начинает один turn;
+  requestId предотвращает повторную отправку. Текст ограничен 64000 символами,
+  уже сохранённая история не обрезается.
   @property cancel - Запрашивает отмену только текущего turn выбранной беседы.
   @property permission - Разрешает ожидающий запрос ровно одним из переданных исполнителем вариантов.
   @property subscribe - Передаёт текущий снимок и изменения; отписка не отменяет выполнение.
@@ -42,16 +59,22 @@ export declare namespace StorybookChatSession {
   Истории неразрешённых адресов сохраняются на прежнем месте; существующие назначения не перезаписываются.
   */
   type Output = Readonly<{
+    /** Явно создаёт независимого именованного исполнителя и сохраняет его пустую историю. */
+    create(input: Readonly<{address: string, label: string}>): Promise<Snapshot>
+    /** Перечисляет только беседы выбранного адреса, включая уже загруженный empty default; сохранённые pending восстанавливаются. */
+    list(address: string): Promise<readonly Snapshot[]>
     migrateLegacy(): Promise<Readonly<{migrated: number, unresolved: readonly string[]}>>
-    read(address: string): Promise<Snapshot>
-    /** Подключает агента для получения настроек без prompt и генерации ответа. */
-    prepare(address: string): Promise<Snapshot>
+    read(target: Target): Promise<Snapshot>
+    /** Получает настройки без собственного prompt; после подготовки может продолжить ранее сохранённые pending. */
+    prepare(target: Target): Promise<Snapshot>
     /** Меняет выбранную настройку вне turn; применённые значения подтверждает агент. */
-    configure(address: string, id: string, value: string): Promise<Snapshot>
-    prompt(address: string, text: string, requestId: string): Promise<Snapshot>
-    cancel(address: string): Promise<Snapshot>
-    permission(address: string, id: string, optionId: string): Promise<Snapshot>
-    subscribe(address: string, listener: (value: Snapshot) => void): Promise<() => void>
+    configure(target: Target, id: string, value: string): Promise<Snapshot>
+    prompt(target: Target, content: string | readonly TimelineContent[], requestId: string): Promise<Snapshot>
+    /** Сохраняет идемпотентную входящую задачу и запускает её после текущей работы. */
+    enqueue(target: Target, content: string | readonly TimelineContent[], requestId: string): Promise<Snapshot>
+    cancel(target: Target): Promise<Snapshot>
+    permission(target: Target, id: string, optionId: string): Promise<Snapshot>
+    subscribe(target: Target, listener: (value: Snapshot) => void): Promise<() => void>
     relocate(input: Relocation): Promise<Snapshot | null>
     dispose(): Promise<void>
   }>

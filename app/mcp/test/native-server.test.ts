@@ -40,7 +40,7 @@ describe("Storybook MCP stdio", () => {
       }})
       expect(result.isError).not.toBeTrue()
       expect(result.structuredContent).toMatchObject({
-        path: "example/button",
+        path: "./example/button",
         label: "Кнопка",
         description: "Действие пользователя",
         children: [],
@@ -73,8 +73,9 @@ describe("Storybook MCP stdio", () => {
       const result = await client.callTool({name: "storybook", arguments: {}})
       expect(result.structuredContent).toEqual({
         label: "Fixture Project",
+        path: ".",
         description: expect.stringContaining("path"),
-        children: [{path: "example", label: "Пример", description: "Проект с примерами"}],
+        children: [{path: "./example", label: "Пример", description: "Проект с примерами"}],
       })
       expect(result.isError).not.toBeTrue()
       const root = result.structuredContent as {children: {path: string, label: string, description: string}[]}

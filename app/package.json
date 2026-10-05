@@ -9,6 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@zavx0z/storybook-app-control": "workspace:*",
     "@zavx0z/storybook-app-server-state": "workspace:*",
     "@zavx0z/storybook-app-mcp": "workspace:*",
     "@zavx0z/storybook-tech-mcp-stdio": "workspace:*",

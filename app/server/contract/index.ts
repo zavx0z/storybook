@@ -1,4 +1,5 @@
 import type {StorybookAppWeb} from "@zavx0z/storybook-app-web"
+import type {StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
 import {type StorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-app-server-browser"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
 import {type StorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
@@ -64,6 +65,10 @@ export declare namespace StorybookAppServer {
 
   @property [previousAddress] - Разрешает прежний пользовательский адрес в существующий адрес текущего каталога.
   Возвращаемый путь проверяется сервером; query сохраняется отдельно.
+
+  @property [extensions] - Приложение добавляет готовые команды конкретному назначению.
+  Управление Storybook предоставляет App только доверенному инспектору Project.
+  Server не загружает App controller; JSON и NDJSON используют тот же endpoint.
   */
   type Input = Readonly<{
     createWeb: typeof import("@zavx0z/storybook-app-web").default
@@ -76,6 +81,8 @@ export declare namespace StorybookAppServer {
     hostname?: string
     port?: number
     toolRoot?: string
+    /** App предоставляет дополнительные команды назначению; Server сохраняет общую проверку grant. */
+    extensions?: StorybookAppEnvironment.Input["extensions"]
     statePath?: string
     artifactRoot?: string
     landingEntryPath?: string

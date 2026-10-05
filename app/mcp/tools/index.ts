@@ -20,13 +20,13 @@ export type {StorybookAppMcpTools} from "./contract"
 const owners = {Project: project, Repo: repo, Component: component, Container: container, Cluster: cluster, Domain: domain}
 
 /** Создаёт самостоятельную область; изменение cwd или адреса чтения её не меняет. */
-export default function createEntityTools({directory, type}: Contract.Input): Contract.Output {
+export default function createEntityTools({directory, type, extensions}: Contract.Input): Contract.Output {
   const workspace = createWorkspace({directory})
-  const tools = (type === undefined ? packageMcp : owners[type]).tools({workspace})
+  const tools = (type === undefined ? packageMcp : owners[type]).tools({workspace, ...(extensions === undefined ? {} : {extensions})})
   const byName = new Map(tools.map(tool => [tool.name, tool]))
   return Object.freeze({
     list: () => tools.map(({execute: _execute, ...description}) => structuredClone(description)),
-    async call(command, signal) {
+    async call(command, signal, onProgress) {
       signal?.throwIfAborted()
       if (command === null || typeof command !== "object" || Array.isArray(command)
         || Object.keys(command).some(key => key !== "name" && key !== "arguments")) {
@@ -39,7 +39,7 @@ export default function createEntityTools({directory, type}: Contract.Input): Co
       const tool = byName.get(name)
       if (tool === undefined) throw new ToolError("UNKNOWN_TOOL", "Инструмент недоступен в этой области", 404)
       try {
-        const result = await tool.execute(args)
+        const result = await tool.execute(args, {signal: signal ?? new AbortController().signal, ...(onProgress === undefined ? {} : {onProgress})})
         if (result === null || typeof result !== "object" || Array.isArray(result)) {
           throw new ToolError("INVALID_RESULT", "Инструмент должен вернуть объект", 500)
         }

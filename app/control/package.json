@@ -1,0 +1,14 @@
+{
+  "name": "@zavx0z/storybook-app-control",
+  "label": "Управление Storybook",
+  "description": "Общие проверенные команды управления Storybook для REST и MCP",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {".": "./index.ts"},
+  "dependencies": {
+    "zod": "^4.4.3",
+    "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
+    "@zavx0z/storybook-package-mcp-tools": "workspace:*"
+  }
+}

@@ -35,6 +35,11 @@ describe.each([
       .toMatchObject([{currentValue: "model-b"}, {currentValue: "low", options: [{value: "low"}]}])
     expect(connection.configOptions, "Публичный снимок соответствует подтверждённым настройкам").toEqual(selected)
   })
+  test("Возможности подключения", () => {
+    expect(connection.capabilities.promptCapabilities,
+      "Negotiated capabilities сохраняют только возможности, реально объявленные агентом")
+      .toMatchObject({image: true, embeddedContext: true})
+  })
   test("Обновления восстановления", () => {
     expect(restored, "Replay истории подавляется, фактическая статистика восстановления сохраняется")
       .toEqual(props.previousSessionId === null ? [] : [{sessionUpdate: "usage_update", used: 427000, size: 828000}])
