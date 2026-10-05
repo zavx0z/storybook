@@ -1,0 +1,797 @@
+{
+  "recordedAt": "2026-10-05T04:32:13.824Z",
+  "forcedGC": false,
+  "label": "before-profile",
+  "context": {
+    "result": {
+      "type": "object",
+      "value": {
+        "timeOrigin": 1791171826414,
+        "viewport": {
+          "width": 1920,
+          "height": 1088,
+          "devicePixelRatio": 2
+        }
+      }
+    }
+  },
+  "samples": [
+    {
+      "action": "fill",
+      "elapsedMs": 718.6279389999997,
+      "hotFunctions": [
+        {
+          "name": "(program)",
+          "url": "",
+          "line": -1,
+          "selfMs": 1450.824
+        },
+        {
+          "name": "(idle)",
+          "url": "",
+          "line": -1,
+          "selfMs": 82.596
+        },
+        {
+          "name": "(garbage collector)",
+          "url": "",
+          "line": -1,
+          "selfMs": 66.711
+        },
+        {
+          "name": "nodeForId",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 52,
+          "selfMs": 40.259
+        },
+        {
+          "name": "prepareUpdate",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-4ah6bxpf.js",
+          "line": 663,
+          "selfMs": 22.501
+        },
+        {
+          "name": "isReusableDisplayItem",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8868,
+          "selfMs": 17.506
+        },
+        {
+          "name": "markPreparedRangesValidatedDeep",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-4ah6bxpf.js",
+          "line": 1306,
+          "selfMs": 12.243
+        },
+        {
+          "name": "createRetainedClipSpace",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8967,
+          "selfMs": 10.443
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 8.709
+        },
+        {
+          "name": "placeInlineLayout",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 2984,
+          "selfMs": 8.708
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 7.732
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 7.613
+        },
+        {
+          "name": "#prepareFrame",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 7742,
+          "selfMs": 7.409
+        },
+        {
+          "name": "applyDeclarations",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-rbrn2m59.js",
+          "line": 3200,
+          "selfMs": 7.344
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 6.333
+        },
+        {
+          "name": "attributes",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 210,
+          "selfMs": 5.113
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 5.098
+        },
+        {
+          "name": "readValue",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-rbrn2m59.js",
+          "line": 4426,
+          "selfMs": 5.085
+        },
+        {
+          "name": "copyClip",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 315,
+          "selfMs": 5.081
+        },
+        {
+          "name": "isReusableClipCacheSource",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8918,
+          "selfMs": 5.072
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 4.95
+        },
+        {
+          "name": "#resolveFont",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8095,
+          "selfMs": 4.834
+        },
+        {
+          "name": "",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 3146,
+          "selfMs": 4.491
+        },
+        {
+          "name": "runPreparedPhaseDeep",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-4ah6bxpf.js",
+          "line": 1384,
+          "selfMs": 4.353
+        },
+        {
+          "name": "isReusableRenderClipChain",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8922,
+          "selfMs": 3.871
+        },
+        {
+          "name": "buildLayoutTree",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 2814,
+          "selfMs": 3.791
+        },
+        {
+          "name": "resolveLogicalPadding",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-rbrn2m59.js",
+          "line": 2910,
+          "selfMs": 3.728
+        },
+        {
+          "name": "isReusableRenderClipChain",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8922,
+          "selfMs": 3.726
+        },
+        {
+          "name": "parseDeclarations",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-rbrn2m59.js",
+          "line": 2937,
+          "selfMs": 3.71
+        },
+        {
+          "name": "get childNodes",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-a3ht029j.js",
+          "line": 596,
+          "selfMs": 3.67
+        }
+      ],
+      "taskMs": 638.322,
+      "scriptMs": 3.357,
+      "heap": {
+        "usedSize": 131349300,
+        "totalSize": 167899136,
+        "embedderHeapUsedSize": 1274984,
+        "backingStorageSize": 117306566
+      }
+    },
+    {
+      "action": "clear",
+      "elapsedMs": 359.17028400000027,
+      "hotFunctions": [
+        {
+          "name": "(program)",
+          "url": "",
+          "line": -1,
+          "selfMs": 238.615
+        },
+        {
+          "name": "(idle)",
+          "url": "",
+          "line": -1,
+          "selfMs": 83.721
+        },
+        {
+          "name": "(garbage collector)",
+          "url": "",
+          "line": -1,
+          "selfMs": 33.003
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 21.167
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 13.616
+        },
+        {
+          "name": "isReusableDisplayItem",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8868,
+          "selfMs": 11.64
+        },
+        {
+          "name": "resolveTarget",
+          "url": "http://127.0.0.1:50074/__storybook/shared/host/aa224758fc90bc525156d0b0f040050f8b38f2c3fa64225a0a4247d861686372/page-entry-gzkkpk02.js",
+          "line": 213446,
+          "selfMs": 8.964
+        },
+        {
+          "name": "updateTextData",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 5603,
+          "selfMs": 5.067
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 4.993
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 4.941
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 3.878
+        },
+        {
+          "name": "isReusableClipCacheSource",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8918,
+          "selfMs": 3.874
+        },
+        {
+          "name": "markPreparedRangesValidatedDeep",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-4ah6bxpf.js",
+          "line": 1306,
+          "selfMs": 3.756
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 3.75
+        },
+        {
+          "name": "textPaintBounds",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8473,
+          "selfMs": 3.693
+        },
+        {
+          "name": "inlineLayout",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 2897,
+          "selfMs": 3.37
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 3.131
+        },
+        {
+          "name": "#applyBaseFrame",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 6720,
+          "selfMs": 2.758
+        },
+        {
+          "name": "attributes",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 210,
+          "selfMs": 2.626
+        },
+        {
+          "name": "scrollBox",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 4565,
+          "selfMs": 2.624
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 2.621
+        },
+        {
+          "name": "isReusableRenderClipChain",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8922,
+          "selfMs": 2.609
+        },
+        {
+          "name": "indexDisplay",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 246,
+          "selfMs": 2.608
+        },
+        {
+          "name": "idForNode",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 37,
+          "selfMs": 2.591
+        },
+        {
+          "name": "attributes",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 210,
+          "selfMs": 2.576
+        },
+        {
+          "name": "place",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 3393,
+          "selfMs": 2.574
+        },
+        {
+          "name": "liveState",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 216,
+          "selfMs": 2.572
+        },
+        {
+          "name": "attributes",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 210,
+          "selfMs": 2.519
+        },
+        {
+          "name": "",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 79,
+          "selfMs": 2.516
+        },
+        {
+          "name": "idForNode",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 37,
+          "selfMs": 2.411
+        }
+      ],
+      "taskMs": 276.67399999999986,
+      "scriptMs": 4.352,
+      "heap": {
+        "usedSize": 81270976,
+        "totalSize": 184365056,
+        "embedderHeapUsedSize": 767272,
+        "backingStorageSize": 117481165
+      }
+    },
+    {
+      "action": "context-open",
+      "elapsedMs": 552.8290440000001,
+      "hotFunctions": [
+        {
+          "name": "(program)",
+          "url": "",
+          "line": -1,
+          "selfMs": 190.1
+        },
+        {
+          "name": "(garbage collector)",
+          "url": "",
+          "line": -1,
+          "selfMs": 91.316
+        },
+        {
+          "name": "(idle)",
+          "url": "",
+          "line": -1,
+          "selfMs": 82.483
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 12.223
+        },
+        {
+          "name": "isReusableDisplayItem",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8868,
+          "selfMs": 10.512
+        },
+        {
+          "name": "",
+          "url": "http://127.0.0.1:50074/__storybook/shared/host/aa224758fc90bc525156d0b0f040050f8b38f2c3fa64225a0a4247d861686372/page-entry-gzkkpk02.js",
+          "line": 213460,
+          "selfMs": 10.231
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 9.956
+        },
+        {
+          "name": "placeInlineLayout",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 2984,
+          "selfMs": 6.376
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 5.177
+        },
+        {
+          "name": "get",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 192,
+          "selfMs": 4.975
+        },
+        {
+          "name": "parseDeclarations",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-rbrn2m59.js",
+          "line": 2937,
+          "selfMs": 4.957
+        },
+        {
+          "name": "computeStyle",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-rbrn2m59.js",
+          "line": 2633,
+          "selfMs": 4.541
+        },
+        {
+          "name": "place",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 3393,
+          "selfMs": 4.49
+        },
+        {
+          "name": "createRetainedClipSpace",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8967,
+          "selfMs": 3.805
+        },
+        {
+          "name": "isReusableRenderClipChain",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8922,
+          "selfMs": 3.727
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 3.717
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 3.704
+        },
+        {
+          "name": "readFrame",
+          "url": "http://127.0.0.1:50074/__storybook/shared/host/aa224758fc90bc525156d0b0f040050f8b38f2c3fa64225a0a4247d861686372/page-entry-gzkkpk02.js",
+          "line": 213599,
+          "selfMs": 3.629
+        },
+        {
+          "name": "createHit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 5448,
+          "selfMs": 3.485
+        },
+        {
+          "name": "#resolveFont",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8095,
+          "selfMs": 2.701
+        },
+        {
+          "name": "readValue",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-rbrn2m59.js",
+          "line": 4426,
+          "selfMs": 2.651
+        },
+        {
+          "name": "textAdvance",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 5554,
+          "selfMs": 2.644
+        },
+        {
+          "name": "#prepareFrame",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 7742,
+          "selfMs": 2.623
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 2.621
+        },
+        {
+          "name": "",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 7972,
+          "selfMs": 2.603
+        },
+        {
+          "name": "#resolveFont",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8095,
+          "selfMs": 2.597
+        },
+        {
+          "name": "readFrame",
+          "url": "http://127.0.0.1:50074/__storybook/shared/host/aa224758fc90bc525156d0b0f040050f8b38f2c3fa64225a0a4247d861686372/page-entry-gzkkpk02.js",
+          "line": 213599,
+          "selfMs": 2.591
+        },
+        {
+          "name": "textBaseline",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 5553,
+          "selfMs": 2.59
+        },
+        {
+          "name": "isReusableClipCacheSource",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 8918,
+          "selfMs": 2.58
+        },
+        {
+          "name": "liveState",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 216,
+          "selfMs": 2.573
+        }
+      ],
+      "taskMs": 490.9469999999998,
+      "scriptMs": 0.0020000000000002655,
+      "heap": {
+        "usedSize": 81127860,
+        "totalSize": 170471424,
+        "embedderHeapUsedSize": 775680,
+        "backingStorageSize": 117189517
+      }
+    },
+    {
+      "action": "context-close",
+      "elapsedMs": 210.24277699999993,
+      "hotFunctions": [
+        {
+          "name": "(program)",
+          "url": "",
+          "line": -1,
+          "selfMs": 186.038
+        },
+        {
+          "name": "(idle)",
+          "url": "",
+          "line": -1,
+          "selfMs": 87.363
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 20.053
+        },
+        {
+          "name": "(garbage collector)",
+          "url": "",
+          "line": -1,
+          "selfMs": 8.823
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 7.406
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 6.063
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 5.278
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 4.744
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 4.637
+        },
+        {
+          "name": "nodeForId",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 52,
+          "selfMs": 3.894
+        },
+        {
+          "name": "readFrame",
+          "url": "http://127.0.0.1:50074/__storybook/shared/host/aa224758fc90bc525156d0b0f040050f8b38f2c3fa64225a0a4247d861686372/page-entry-gzkkpk02.js",
+          "line": 213599,
+          "selfMs": 3.888
+        },
+        {
+          "name": "",
+          "url": "http://127.0.0.1:50074/__storybook/shared/host/aa224758fc90bc525156d0b0f040050f8b38f2c3fa64225a0a4247d861686372/page-entry-gzkkpk02.js",
+          "line": 213460,
+          "selfMs": 3.866
+        },
+        {
+          "name": "resolveTarget",
+          "url": "http://127.0.0.1:50074/__storybook/shared/host/aa224758fc90bc525156d0b0f040050f8b38f2c3fa64225a0a4247d861686372/page-entry-gzkkpk02.js",
+          "line": 213446,
+          "selfMs": 3.378
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 2.587
+        },
+        {
+          "name": "get",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 192,
+          "selfMs": 2.583
+        },
+        {
+          "name": "copyClip",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 315,
+          "selfMs": 2.508
+        },
+        {
+          "name": "visit",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 71,
+          "selfMs": 2.349
+        },
+        {
+          "name": "idForNode",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 37,
+          "selfMs": 2.336
+        },
+        {
+          "name": "syncHidden",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 3579,
+          "selfMs": 1.781
+        },
+        {
+          "name": "synchronizeOptionalGeometryAttribute",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-8ggag47v.js",
+          "line": 5800,
+          "selfMs": 1.331
+        },
+        {
+          "name": "copyTransform",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 330,
+          "selfMs": 1.308
+        },
+        {
+          "name": "attributes",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 210,
+          "selfMs": 1.304
+        },
+        {
+          "name": "attributes",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 210,
+          "selfMs": 1.304
+        },
+        {
+          "name": "get",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/chunks/159c774ed0d0dd29d4d3217ccee0463ab3297b65b46b5a9666ed744a73151be0-k6ef0tdc.js",
+          "line": 192,
+          "selfMs": 1.297
+        },
+        {
+          "name": "readFrame",
+          "url": "http://127.0.0.1:50074/__storybook/shared/host/aa224758fc90bc525156d0b0f040050f8b38f2c3fa64225a0a4247d861686372/page-entry-gzkkpk02.js",
+          "line": 213599,
+          "selfMs": 1.296
+        },
+        {
+          "name": "copyTransform",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 330,
+          "selfMs": 1.296
+        },
+        {
+          "name": "copyEdges",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 294,
+          "selfMs": 1.296
+        },
+        {
+          "name": "attributes",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 210,
+          "selfMs": 1.296
+        },
+        {
+          "name": "",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 79,
+          "selfMs": 1.296
+        },
+        {
+          "name": "copyBorder",
+          "url": "http://127.0.0.1:50074/__storybook/shared/kernel/0a00259e75e349847b4b597e356df2531feb1b788c719cbcdbb79578986c1cf3/d78873b99311c476707d8343c948609cee3999206e83195dafd8197c03102253-12n067fb.js",
+          "line": 300,
+          "selfMs": 1.294
+        }
+      ],
+      "taskMs": 126.42599999999993,
+      "scriptMs": 0.009000000000000327,
+      "heap": {
+        "usedSize": 98875048,
+        "totalSize": 170860544,
+        "embedderHeapUsedSize": 1254072,
+        "backingStorageSize": 117189654
+      }
+    }
+  ],
+  "note": "Elapsed/task include environment interaction and snapshot overhead; not pure input latency. Empty draft was verified before run. No message was sent."
+}

@@ -536,6 +536,7 @@
         "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
         "@zavx0z/immersive-ui-component-view-code-editor": "^0.0.0",
         "@zavx0z/storybook-app-server-requests": "workspace:*",
+        "@zavx0z/storybook-tech-json-format": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/immersive-dom": "^0.0.0",
@@ -707,6 +708,7 @@
         "@zavx0z/immersive-tech-svg-encode": "^0.0.0",
         "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-chat-session": "workspace:*",
+        "@zavx0z/storybook-tech-json-format": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/immersive-dom": "^0.0.0",
@@ -1365,6 +1367,10 @@
       "name": "@zavx0z/storybook-tech-http-client",
       "version": "0.0.0",
     },
+    "tech/json/format": {
+      "name": "@zavx0z/storybook-tech-json-format",
+      "version": "0.0.0",
+    },
     "tech/limits": {
       "name": "@zavx0z/storybook-tech-limits",
       "version": "0.0.0",
@@ -1870,6 +1876,8 @@
     "@zavx0z/storybook-tech-hmr-page": ["@zavx0z/storybook-tech-hmr-page@workspace:tech/hmr/page"],
 
     "@zavx0z/storybook-tech-http-client": ["@zavx0z/storybook-tech-http-client@workspace:tech/http/client"],
+
+    "@zavx0z/storybook-tech-json-format": ["@zavx0z/storybook-tech-json-format@workspace:tech/json/format"],
 
     "@zavx0z/storybook-tech-limits": ["@zavx0z/storybook-tech-limits@workspace:tech/limits"],
 

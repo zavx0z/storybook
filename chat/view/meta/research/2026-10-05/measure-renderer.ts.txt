@@ -1,0 +1,44 @@
+import {StorybookCdpClient} from '../app/server/browser/src/chrome-client.ts'
+import {StorybookCdpConnection} from '../app/server/browser/src/cdp-connection.ts'
+const label=process.argv[2]??'before'
+const api=new StorybookCdpClient({launchIfMissing:false})
+const targets=await(await fetch(new URL('/json/list',await api.cdpOrigin()))).json()
+const matches=targets.filter((t:any)=>t.type==='page'&&new URL(t.url).pathname==='/immersive')
+if(matches.length!==1)throw new Error('Expected one Immersive page')
+const target=matches[0]
+const cdp=await StorybookCdpConnection.connect(target.webSocketDebuggerUrl)
+const props=async(id:string):Promise<any>=>cdp.command('Runtime.getProperties',{objectId:id,ownProperties:true})
+const child=async(id:string,name:string)=>{const p=await props(id);return p.result.find((v:any)=>v.name===name)?.value?.objectId}
+const binding=async(fn:string,name:string)=>{
+ const d=await props(fn)
+ const id=d.internalProperties?.find((p:any)=>p.name==='[[Scopes]]')?.value?.objectId
+ if(!id)return undefined
+ for(const s of (await props(id)).result){
+  if(!/^\d+$/.test(s.name)||!s.value?.objectId||s.value.description==='Global')continue
+  const result=await child(s.value.objectId,name)
+  if(result)return result
+ }
+}
+try{
+ const fn:any=await cdp.command('Runtime.evaluate',{expression:'globalThis.__EXTERNAL_STORYBOOK_AGENT_BRIDGE__.invoke',objectGroup:'renderer-census'})
+ const options=await binding(fn.result.objectId,'options')
+ const shell=await child(options!,'shell')
+ const root=await child(shell!,'root')
+ const render=await child(root!,'render')
+ const runtime=await binding(render!,'runtime')
+ const renderer=await child(runtime!,'engineRenderer')
+ if(!renderer)throw new Error('Active renderer not found')
+ const scene:any=await cdp.command('Runtime.callFunctionOn',{objectId:runtime!,functionDeclaration:`function(){const seen=new Set();const stack=[this.space];const kinds={};let skinned=0;while(stack.length){const object=stack.pop();if(!object||seen.has(object))continue;seen.add(object);const kind=object.constructor?.name||'unknown';kinds[kind]=(kinds[kind]||0)+1;if(object.skeleton)skinned+=1;for(const child of object.children||[])stack.push(child)}return {objects:seen.size,skinned,kinds}}`,returnByValue:true})
+ const semantic:any=await cdp.command('Runtime.callFunctionOn',{objectId:runtime!,functionDeclaration:`function(){const d=this.document;return {elements:d.querySelectorAll('*').length,chatMessages:d.querySelectorAll('[data-chat-message]').length,chatParagraphs:d.querySelectorAll('[data-chat-message] p').length,codeEditors:d.querySelectorAll('[data-language-id]').length,codeRows:d.querySelectorAll('code [data-line-index]').length}}`,returnByValue:true})
+ const result:any=await cdp.command('Runtime.callFunctionOn',{objectId:renderer,functionDeclaration:`function(){
+   const texture=(t)=>t?({label:t.label,width:t.width,height:t.height,format:t.format,samples:t.sampleCount,mips:t.mipLevelCount}):null;
+   const cpu=new Set();let geometryGpuBytes=0;
+   for(const [g,b] of this.geometryCache){for(const value of Object.values(g.attributes||{})){if(value?.array?.buffer)cpu.add(value.array.buffer)}if(g.index?.array?.buffer)cpu.add(g.index.array.buffer);for(const value of Object.values(b))if(value&&typeof value.size==='number'&&typeof value.usage==='number')geometryGpuBytes+=value.size}
+   return {keys:Object.keys(this),canvas:{width:this.canvas.width,height:this.canvas.height},sampleCount:this.sampleCount,perObjectCapacity:this.perObjectCapacity,uniformCpuBytes:this.perObjectDataCPU?.byteLength,bonesCpuBytes:this.boneMatricesDataCPU?.byteLength,uniformGpuBytes:this.perObjectUniformBuffer?.size,bonesGpuBytes:this.boneMatricesBuffer?.size,geometry:{entries:this.geometryCache.size,cpuBuffers:cpu.size,cpuBytes:[...cpu].reduce((n,b)=>n+b.byteLength,0),gpuBytes:geometryGpuBytes},textures:{depth:texture(this.depthTexture),multisample:texture(this.multisampleTexture),presented:texture(this.presentedFrameTexture),displays:[...this.displayRasterTargets.values()].map(t=>({color:texture(t.texture),msaa:texture(t.multisample),depth:texture(t.depth)}))}};
+ }`,returnByValue:true})
+ const value=result.result.value
+ const context:any=await cdp.command('Runtime.evaluate',{expression:'({timeOrigin:performance.timeOrigin,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio}})',returnByValue:true})
+ const report={label,context:context.result.value,semantic:semantic.result.value,...value,recordedAt:new Date().toISOString(),forcedGC:false,scene:scene.result.value,heap:await cdp.command('Runtime.getHeapUsage')}
+ await Bun.write(`chat/view/meta/research/2026-10-05/renderer-${label}.json`,JSON.stringify(report,null,2))
+ console.log(JSON.stringify({...report,keys:undefined},null,2))
+}finally{await cdp.command('Runtime.releaseObjectGroup',{objectGroup:'renderer-census'}).catch(()=>{});cdp.close()}

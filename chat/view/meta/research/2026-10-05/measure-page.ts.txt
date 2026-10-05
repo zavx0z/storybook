@@ -1,0 +1,26 @@
+import {createHash} from "node:crypto"
+import {StorybookCdpClient} from "../app/server/browser/src/chrome-client"
+import {StorybookCdpConnection} from "../app/server/browser/src/cdp-connection"
+const label = process.argv[2] ?? "before"
+const browser = new StorybookCdpClient({launchIfMissing: false})
+const targets = await (await fetch(new URL("/json/list", await browser.cdpOrigin()))).json()
+const matches = targets.filter((target: {type:string,url:string}) => target.type === "page" && new URL(target.url).pathname === "/immersive")
+if (matches.length !== 1) throw new Error("Нужна одна существующая страница Immersive")
+const selected = matches[0]
+const cdp = await StorybookCdpConnection.connect(selected.webSocketDebuggerUrl)
+try {
+  await cdp.command("Performance.enable")
+  const context = await cdp.command("Runtime.evaluate", {expression: "({timeOrigin:performance.timeOrigin,now:performance.now(),visibility:document.visibilityState,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio}})", returnByValue: true}) as {result:{value:unknown}}
+  const read = async () => {
+    const metrics = await cdp.command("Performance.getMetrics") as {metrics:{name:string,value:number}[]}
+    return {heap:await cdp.command("Runtime.getHeapUsage"), dom:await cdp.command("Memory.getDOMCounters"), metrics:Object.fromEntries(metrics.metrics.map(m => [m.name,m.value]))}
+  }
+  const start = await read()
+  await new Promise(resolve => setTimeout(resolve, 5000))
+  const end = await read()
+  const wall = end.metrics.Timestamp - start.metrics.Timestamp
+  const result = {label, recordedAt:new Date().toISOString(), path:"/immersive", targetFingerprint:createHash("sha256").update(selected.id).digest("hex"), context:context.result.value, forcedGC:false, start,end,
+    window:{seconds:wall,taskMs:1000*(end.metrics.TaskDuration-start.metrics.TaskDuration),scriptMs:1000*(end.metrics.ScriptDuration-start.metrics.ScriptDuration),layoutMs:1000*(end.metrics.LayoutDuration-start.metrics.LayoutDuration)}}
+  await Bun.write(`chat/view/meta/research/2026-10-05/${label}.json`, JSON.stringify(result,null,2))
+  console.log(JSON.stringify(result))
+} finally { await cdp.command("Performance.disable").catch(() => {}); cdp.close() }

@@ -1,0 +1,69 @@
+{
+  "recordedAt": "2026-10-05T05:00:58.999Z",
+  "forcedGC": false,
+  "label": "after-a-visible",
+  "context": {
+    "result": {
+      "type": "object",
+      "value": {
+        "timeOrigin": 1791176054713.2,
+        "viewport": {
+          "width": 1920,
+          "height": 1088,
+          "devicePixelRatio": 2
+        }
+      }
+    }
+  },
+  "samples": [
+    {
+      "action": "fill",
+      "elapsedMs": 467.11936799999995,
+      "taskMs": 380.217,
+      "scriptMs": 1.279,
+      "heap": {
+        "usedSize": 83405000,
+        "totalSize": 102264832,
+        "embedderHeapUsedSize": 1259808,
+        "backingStorageSize": 42433255
+      }
+    },
+    {
+      "action": "clear",
+      "elapsedMs": 244.36814900000002,
+      "taskMs": 159.229,
+      "scriptMs": 2.1659999999999995,
+      "heap": {
+        "usedSize": 79612156,
+        "totalSize": 127967232,
+        "embedderHeapUsedSize": 1342720,
+        "backingStorageSize": 42433255
+      }
+    },
+    {
+      "action": "context-open",
+      "elapsedMs": 449.9651809999999,
+      "taskMs": 388.246,
+      "scriptMs": 0.011000000000000593,
+      "heap": {
+        "usedSize": 49229336,
+        "totalSize": 137523200,
+        "embedderHeapUsedSize": 741544,
+        "backingStorageSize": 42503214
+      }
+    },
+    {
+      "action": "context-close",
+      "elapsedMs": 177.04595700000004,
+      "taskMs": 79.73099999999988,
+      "scriptMs": 0.008999999999998592,
+      "heap": {
+        "usedSize": 73556004,
+        "totalSize": 138256384,
+        "embedderHeapUsedSize": 1062608,
+        "backingStorageSize": 42292151
+      }
+    }
+  ],
+  "note": "Elapsed/task include environment interaction and snapshot overhead; not pure input latency. Empty draft was verified before run. No message was sent."
+}

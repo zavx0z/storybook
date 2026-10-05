@@ -1,8 +1,9 @@
-import {useState} from "@zavx0z/immersive-component"
+import {useMemo, useState} from "@zavx0z/immersive-component"
 import {Panel} from "@zavx0z/immersive-ui-component"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 import type {StorybookChatView} from "../contract"
-import {ChatContent, ChatData} from "./content"
+import {ChatContent, ChatContextContent, ChatData} from "./content"
+import {messageContent} from "./message-content"
 import {EmptyHistory, ChatNotice} from "./feedback"
 
 type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
@@ -60,6 +61,7 @@ function TimelineToolContent(props: Readonly<{content: ToolContent}>) {
 
 function TimelineMessage(props: Readonly<{item: Extract<Item, {kind: "message"}>}>) {
   const user = props.item.role === "user"
+  const blocks = useMemo(() => messageContent(props.item.content), [props.item.content])
   return <article
     data-chat-message={props.item.id}
     data-chat-role={props.item.role}
@@ -100,7 +102,7 @@ function TimelineMessage(props: Readonly<{item: Extract<Item, {kind: "message"}>
         }
       `}
     >
-      {props.item.content.map((content, index) => <TimelineMessageContent
+      {blocks.map((content, index) => <TimelineMessageContent
         key={index}
         content={content}
         user={user}
@@ -114,14 +116,28 @@ function TimelineMessage(props: Readonly<{item: Extract<Item, {kind: "message"}>
 
 function TimelineContentDetails(props: Readonly<{item: Extract<Item, {kind: "message" | "context"}>}>) {
   const item = props.item
+  const blocks = useMemo(() => messageContent(item.content), [item.content])
+  const service = item.kind === "context" || item.purpose === "command"
   const diagnostic = item.kind === "message" ? item.diagnostic : undefined
   return <div>
-    {item.content.map((content, index) => <ChatContent
+    {blocks.map((content, index) => <TimelineDetailContent
       key={index}
       content={content}
+      service={service}
     />)}
     {diagnostic ? <ChatNotice
       text={diagnostic}
+    /> : null}
+  </div>
+}
+
+function TimelineDetailContent(props: Readonly<{content: Content, service: boolean}>) {
+  return <div>
+    {props.service ? <ChatContextContent
+      content={props.content}
+    /> : null}
+    {!props.service ? <ChatContent
+      content={props.content}
     /> : null}
   </div>
 }

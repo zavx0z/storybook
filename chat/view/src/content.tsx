@@ -1,6 +1,10 @@
 import {Markdown} from "@zavx0z/immersive-markdown"
+import formatJson from "@zavx0z/storybook-tech-json-format"
+import {memo, useMemo} from "@zavx0z/immersive-component"
+import {CodeEditor} from "@zavx0z/immersive-ui-component"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 import {ChatNotice} from "./feedback"
+import {serviceDocumentSource, serviceLanguageForMime} from "./service-document"
 
 type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
 type Item = Snapshot["timeline"][number]
@@ -109,19 +113,87 @@ export function ChatContent(props: Readonly<{content: Content}>) {
   </div>
 }
 
-/** Протокольные детали форматируются только при открытом разделе. */
-export function ChatData(props: Readonly<{label: string, value: unknown}>) {
-  const text = typeof props.value === "string" ? props.value : JSON.stringify(props.value, null, 2)
-  return <section data-chat-data={props.label}>
+/**
+Служебное поле форматируется после монтирования раскрытых деталей.
+Readonly CodeEditor сохраняет весь source; высота ограничивает viewport, но не число строк в DOM.
+Typed value сериализуется один раз; неизменный source переиспользует форматирование и токенизацию.
+*/
+function ChatDataView(props: Readonly<{
+  label: string
+  value: unknown
+  languageId?: string | undefined
+  path?: string | undefined
+}>) {
+  const source = useMemo(() => serviceDocumentSource(props.value), [props.value])
+  const document = useMemo(() => formatJson(source), [source])
+  const languageId = props.languageId ?? (props.path === undefined ? document.languageId : undefined)
+  return <section
+    data-chat-data={props.label}
+    style={css`
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-width: 0;
+      flex-shrink: 0;
+      gap: 4px;
+    `}
+  >
     <strong>{props.label}</strong>
-    <pre
+    <CodeEditor
+      title={props.label}
+      value={document.text}
+      languageId={languageId}
+      path={props.path}
+      readOnly={true}
+      showLineNumbers={false}
       style={css`
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
+        width: 100%;
+        max-width: 100%;
         min-width: 0;
+        height: 240px;
+        max-height: 240px;
+        overflow: auto;
+        flex-shrink: 0;
+        user-select: contain;
       `}
-    >
-      {text}
-    </pre>
+    />
   </section>
+}
+
+export const ChatData = memo(ChatDataView)
+
+/** Исходник embedded resource использует его URI/MIME, не интерпретируя произвольный ACP metadata. */
+function ChatContextResource(props: Readonly<{content: Extract<Content, {type: "resource"}>}>) {
+  const resource = props.content.resource
+  return <section
+    data-chat-resource={resource.uri}
+    data-chat-mime-type={resource.mimeType ?? undefined}
+  >
+    {"text" in resource ? <ChatData
+      label={resource.uri}
+      value={resource.text}
+      languageId={serviceLanguageForMime(resource.mimeType)}
+      path={resource.uri}
+    /> : null}
+    {"blob" in resource ? <ChatContent
+      content={props.content}
+    /> : null}
+  </section>
+}
+
+/** Отдельная проекция только раскрытых служебных content; обычные сообщения сохраняют Markdown. */
+export function ChatContextContent(props: Readonly<{content: Content, label?: string | undefined}>) {
+  const block = props.content
+  return <div>
+    {block.type === "text" ? <ChatData
+      label={props.label ?? "Контекст"}
+      value={block.text}
+    /> : null}
+    {block.type === "resource" ? <ChatContextResource
+      content={block}
+    /> : null}
+    {block.type !== "text" && block.type !== "resource" ? <ChatContent
+      content={block}
+    /> : null}
+  </div>
 }

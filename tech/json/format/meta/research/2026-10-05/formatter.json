@@ -1,0 +1,39 @@
+{
+  "kind": "formatter-only synthetic source; no CodeEditor/DOM/GPU",
+  "sourceCharacters": 534919,
+  "sourceBytes": 534919,
+  "logicalSourceLines": 13000,
+  "samples": [
+    {
+      "elapsedMs": 25.068475000000003,
+      "outputBytes": 599931,
+      "softBreaks": 13000,
+      "completeTail": true,
+      "rssBefore": 21114880,
+      "rssAfter": 42643456,
+      "heapUsedBefore": 1592320,
+      "heapUsedAfter": 1620265
+    },
+    {
+      "elapsedMs": 24.348068000000005,
+      "outputBytes": 599931,
+      "softBreaks": 13000,
+      "completeTail": true,
+      "rssBefore": 42659840,
+      "rssAfter": 58716160,
+      "heapUsedBefore": 1620265,
+      "heapUsedAfter": 1620265
+    },
+    {
+      "elapsedMs": 16.506957999999997,
+      "outputBytes": 599931,
+      "softBreaks": 13000,
+      "completeTail": true,
+      "rssBefore": 58716160,
+      "rssAfter": 64372736,
+      "heapUsedBefore": 1620265,
+      "heapUsedAfter": 8303028
+    }
+  ],
+  "memoryMeaning": "per-process before/after snapshots, not peak or retained document cost"
+}

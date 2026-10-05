@@ -18,7 +18,8 @@
     "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
     "@zavx0z/storybook-chat-session": "workspace:*",
     "@zavx0z/immersive-markdown": "^0.0.0",
-    "@zavx0z/immersive-component": "^0.0.0"
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/storybook-tech-json-format": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/immersive-headless": "^0.0.0",

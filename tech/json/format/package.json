@@ -1,0 +1,14 @@
+{
+  "name": "@zavx0z/storybook-tech-json-format",
+  "label": "Форматирование JSON",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Пробельное форматирование полного JSON source с сохранением лексем и визуальных переносов",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec"
+  }
+}

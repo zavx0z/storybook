@@ -4,12 +4,12 @@ import {memo, useEffect, useLayoutEffect, useMemo, useRef, useState} from "@zavx
 import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
 import Button from "@zavx0z/immersive-ui-component-button-basic"
 import {selectRequest} from "./selected-request"
-import {formatJson} from "./format-json"
+import formatJson from "@zavx0z/storybook-tech-json-format"
 
 /** Форматирует полный JSON; выделение, начатое в поле, ограничено его текстом. */
 function JsonFieldView(props: Readonly<{title: string, value: string, active?: boolean}>) {
-  const {text: value, softBreaks, height} = useMemo(() => {
-    const formatted = props.active === false ? {text: "", softBreaks: []} : formatJson(props.value)
+  const {text: value, softBreaks, languageId, height} = useMemo(() => {
+    const formatted = props.active === false ? {text: "", softBreaks: [], languageId: "plaintext" as const} : formatJson(props.value)
     return {
       ...formatted,
       height: Math.max(1, formatted.text.split("\n").length + formatted.softBreaks.length) * 16 + 30,
@@ -26,7 +26,7 @@ function JsonFieldView(props: Readonly<{title: string, value: string, active?: b
     <div>{props.title}</div>
     <CodeEditor
       value={value}
-      languageId="json"
+      languageId={languageId}
       readOnly={true}
       showLineNumbers={false}
       softBreaks={softBreaks}

@@ -1,0 +1,40 @@
+import {StorybookCdpClient} from '../app/server/browser/src/chrome-client.ts'
+import {StorybookCdpConnection} from '../app/server/browser/src/cdp-connection.ts'
+const label=process.argv[2]??'before'
+const api=new StorybookCdpClient({launchIfMissing:false})
+const targets=await(await fetch(new URL('/json/list',await api.cdpOrigin()))).json()
+const matches=targets.filter((t:any)=>t.type==='page'&&new URL(t.url).pathname==='/immersive')
+if(matches.length!==1)throw new Error('Expected one Immersive page')
+const target=matches[0]
+const cdp=await StorybookCdpConnection.connect(target.webSocketDebuggerUrl)
+const props=async(id:string):Promise<any>=>cdp.command('Runtime.getProperties',{objectId:id,ownProperties:true})
+const child=async(id:string,name:string)=>{const p=await props(id);return p.result.find((v:any)=>v.name===name)?.value?.objectId}
+const binding=async(fn:string,name:string)=>{
+ const d=await props(fn)
+ const id=d.internalProperties?.find((p:any)=>p.name==='[[Scopes]]')?.value?.objectId
+ if(!id)return undefined
+ for(const s of (await props(id)).result){
+  if(!/^\d+$/.test(s.name)||!s.value?.objectId||s.value.description==='Global')continue
+  const result=await child(s.value.objectId,name)
+  if(result)return result
+ }
+}
+try{
+ const fn:any=await cdp.command('Runtime.evaluate',{expression:'globalThis.__EXTERNAL_STORYBOOK_AGENT_BRIDGE__.invoke',objectGroup:'renderer-census'})
+ const options=await binding(fn.result.objectId,'options')
+ const shell=await child(options!,'shell')
+ const root=await child(shell!,'root')
+ const render=await child(root!,'render')
+ const runtime=await binding(render!,'runtime')
+ const renderer=await child(runtime!,'engineRenderer')
+ if(!renderer)throw new Error('Active renderer not found')
+ const result:any=await cdp.command('Runtime.callFunctionOn',{objectId:runtime!,functionDeclaration:`function(){
+ const stack=[this.space];const constructors=new Set();const liveGeometry=new Set();
+ while(stack.length){const n=stack.pop();if(!n)continue;if(n.isCachedText){constructors.add(Object.getPrototypeOf(n.constructor));liveGeometry.add(n.stencilGeometry);liveGeometry.add(n.coverGeometry)}for(const c of n.children||[])stack.push(c)}
+ return [...constructors].map(Type=>{const entries=[...Type.layoutCache.entries()];const arrays=new Set();const sizes=entries.map(([key,value])=>{let bytes=0;for(const name of ['stencilVerts','stencilIndices','coverVerts','coverIndices']){const a=value[name];if(a?.buffer){arrays.add(a.buffer);bytes+=a.byteLength}}return {constructionDefault:key.split(":")[3]==="default",keyCharacters:key.length,bytes,active:liveGeometry.has(value.sharedStencilGeometry)||liveGeometry.has(value.sharedCoverGeometry)}});return {leaseStats:Type.getLayoutCacheStats?.(),name:Type.name,entries:entries.length,cpuBytes:[...arrays].reduce((n,a)=>n+a.byteLength,0),inactiveBytes:sizes.filter(x=>!x.active).reduce((n,x)=>n+x.bytes,0),inactiveEntries:sizes.filter(x=>!x.active).length,constructionDefaults:{entries:sizes.filter(x=>x.constructionDefault).length,bytes:sizes.filter(x=>x.constructionDefault).reduce((n,x)=>n+x.bytes,0),active:sizes.filter(x=>x.constructionDefault&&x.active).length},largest:sizes.sort((a,b)=>b.bytes-a.bytes).slice(0,8)}})
+ }`,returnByValue:true})
+ const context:any=await cdp.command('Runtime.evaluate',{expression:'({timeOrigin:performance.timeOrigin,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio}})',returnByValue:true})
+ const report={label,context:context.result.value,textCaches:result.result.value,heap:await cdp.command('Runtime.getHeapUsage')}
+ await Bun.write(`chat/view/meta/research/2026-10-05/text-${label}.json`,JSON.stringify(report,null,2))
+ console.log(JSON.stringify(report,null,2))
+}finally{await cdp.command('Runtime.releaseObjectGroup',{objectGroup:'renderer-census'}).catch(()=>{});cdp.close()}

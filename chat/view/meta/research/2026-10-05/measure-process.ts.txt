@@ -1,0 +1,33 @@
+import {StorybookCdpClient} from '../app/server/browser/src/chrome-client'
+import {StorybookCdpConnection} from '../app/server/browser/src/cdp-connection'
+const api = new StorybookCdpClient({launchIfMissing: false})
+const origin = await api.cdpOrigin()
+const version = await (await fetch(new URL('/json/version', origin))).json()
+const cdp = await StorybookCdpConnection.connect(version.webSocketDebuggerUrl)
+const label = process.argv[2] ?? 'before'
+const targets = await (await fetch(new URL('/json/list', origin))).json()
+const target = targets.find((item: any) => item.type === 'page' && new URL(item.url).pathname === '/immersive')
+if (!target) throw new Error('Immersive page missing')
+const page = await StorybookCdpConnection.connect(target.webSocketDebuggerUrl)
+const marker = `chat-memory-${crypto.randomUUID()}`
+const events: any[] = []
+let complete: (() => void) | undefined
+const done = new Promise<void>(resolve => { complete = resolve })
+const off = cdp.onMessage(message => {
+  if (message.method === 'Tracing.dataCollected') events.push(...(message.params as any).value)
+  if (message.method === 'Tracing.tracingComplete') complete?.()
+})
+try {
+  await cdp.command('Tracing.start', {categories: '-*,disabled-by-default-memory-infra,blink.user_timing', transferMode: 'ReportEvents'})
+  const context = await page.command('Runtime.evaluate', {expression: `({timeOrigin: performance.timeOrigin, viewport: {width:innerWidth,height:innerHeight,devicePixelRatio}})`, returnByValue:true})
+  await page.command('Runtime.evaluate', {expression: `performance.mark(${JSON.stringify(marker)}); performance.clearMarks(${JSON.stringify(marker)})`})
+  const dump = await cdp.command('Tracing.requestMemoryDump', {deterministic: false, levelOfDetail: 'light'})
+  await cdp.command('Tracing.end')
+  await Promise.race([done, Bun.sleep(10_000).then(() => { throw new Error('Trace completion timed out') })])
+  const totals = events.filter(e => e.name === 'periodic_interval').map(e => ({pid: e.pid, totals: e.args?.dumps?.process_totals, allocators: Object.fromEntries(Object.entries(e.args?.dumps?.allocators ?? {}).filter(([name]) => /^(v8|malloc|partition_alloc|gpu|skia|blink_gc)$/.test(name)))}))
+  const names = events.filter(e => e.name === 'process_name').map(e => ({pid: e.pid, name: e.args?.name}))
+  const pagePid = events.find(e => e.name === marker)?.pid
+  const report = {recordedAt: new Date().toISOString(), forcedGC: false, scope: 'browser-wide process totals; page PID identified by user-timing marker', pagePid, context, dump, names, totals}
+  await Bun.write(`chat/view/meta/research/2026-10-05/process-memory-${label}.json`, JSON.stringify(report, null, 2))
+  console.log(JSON.stringify({dump, pagePid, names, totals: totals.map(t => ({pid: t.pid, totals: t.totals}))}, null, 2))
+} finally { off(); page.close(); cdp.close() }

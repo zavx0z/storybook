@@ -1,0 +1,54 @@
+import State from '@zavx0z/storybook-app-server-state'
+import {StorybookCdpClient} from '../app/server/browser/src/chrome-client'
+import {StorybookCdpConnection} from '../app/server/browser/src/cdp-connection'
+const label = process.argv[2]
+if (!label) throw new Error('Measurement label required')
+const record = State.readExternalStorybookServerRecord(State.externalStorybookServerStatePath())
+const client = State.client(record)
+const invoke = async (name: string, args: Record<string, unknown>) => {
+  const result: any = await client.control('/api/environment', {name, arguments: {schemaVersion: 1, ...args}})
+  if (result.error || result.result?.status !== 'success') throw new Error(JSON.stringify(result))
+  return result.result
+}
+const status = await invoke('storybook_status', {scope: '@zavx0z/immersive', includeViews: true})
+const viewId = status.views.find((view: any) => view.packageId === '@zavx0z/immersive' && view.route === '')?.viewId
+if (!viewId) throw new Error('View missing')
+const api = new StorybookCdpClient({launchIfMissing: false})
+const targets = await (await fetch(new URL('/json/list', await api.cdpOrigin()))).json()
+const target = targets.find((item: any) => item.type === 'page' && new URL(item.url).pathname === '/immersive')
+const cdp = await StorybookCdpConnection.connect(target.webSocketDebuggerUrl)
+const samples = []
+const metrics = async () => {
+  const result: any = await cdp.command('Performance.getMetrics')
+  return Object.fromEntries(result.metrics.map((item: any) => [item.name, item.value]))
+}
+try {
+  await cdp.command('Performance.enable')
+  const context = await cdp.command('Runtime.evaluate', {expression: '({timeOrigin:performance.timeOrigin, viewport:{width:innerWidth,height:innerHeight,devicePixelRatio}})', returnByValue: true})
+  const actions = [
+    {label:'fill', action:'fill', target:{role:'textbox',name:'Сообщение'}, value:'Проверка производительности чата'},
+    {label:'clear', action:'fill', target:{role:'textbox',name:'Сообщение'}, value:''},
+    {label:'context-open', action:'click', target:{role:'button',name:'Переданный контекст'}},
+    {label:'context-close', action:'click', target:{role:'button',name:'Переданный контекст'}},
+  ]
+  for (const action of actions) {
+    await cdp.command('Profiler.enable')
+    await cdp.command('Profiler.start')
+    const before = await metrics()
+    const started = performance.now()
+    await invoke('storybook_interact', {viewId, ...action, label: undefined})
+    const elapsedMs = performance.now() - started
+    const after = await metrics()
+    const {profile}: any = await cdp.command('Profiler.stop')
+    await cdp.command('Profiler.disable')
+    const weights = new Map<number, number>()
+    for (let i=0;i<(profile.samples?.length??0);i++) weights.set(profile.samples[i], (weights.get(profile.samples[i])??0)+(profile.timeDeltas?.[i]??0))
+    const hotFunctions = profile.nodes.filter((n:any)=>weights.has(n.id)).map((n:any)=>({name:n.callFrame.functionName,url:n.callFrame.url,line:n.callFrame.lineNumber,selfMs:weights.get(n.id)!/1000})).sort((a:any,b:any)=>b.selfMs-a.selfMs).slice(0,30)
+    samples.push({action: action.label, elapsedMs, hotFunctions, taskMs:(after.TaskDuration-before.TaskDuration)*1000,
+      scriptMs:(after.ScriptDuration-before.ScriptDuration)*1000, heap:await cdp.command('Runtime.getHeapUsage')})
+  }
+  const report = {recordedAt:new Date().toISOString(), forcedGC:false, label, context, samples,
+    note:'Elapsed/task include environment interaction and snapshot overhead; not pure input latency. Empty draft was verified before run. No message was sent.'}
+  await Bun.write(`chat/view/meta/research/2026-10-05/interaction-${label}.json`, JSON.stringify(report,null,2))
+  console.log(JSON.stringify(report,null,2))
+} finally { await cdp.command('Performance.disable').catch(()=>{}); cdp.close() }

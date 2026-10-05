@@ -1,0 +1,9 @@
+{
+  "scenario": "Formatted multiline JSON; current visual rows and equivalent CodeLine DOM; real Browser clipboard with fake OS access; no softBreaks",
+  "outcome": {
+    "status": "copied"
+  },
+  "exactSource": false,
+  "validJson": true,
+  "characters": 125
+}
