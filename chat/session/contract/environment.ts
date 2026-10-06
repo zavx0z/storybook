@@ -29,4 +29,6 @@ export type EnvironmentInput = Readonly<{
   executorLabel: string
   address: string
   onUpdate(update: Extract<Item, {kind: "tool"}>["call"]): void | Promise<void>
+  /** Хост вызывает перед каждым эффектом назначенного инструмента, включая прямую доставку. */
+  authorize(id: string, command: Command, signal: AbortSignal): Promise<void>
 }>

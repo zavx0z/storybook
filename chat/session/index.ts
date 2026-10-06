@@ -8,7 +8,7 @@
 */
 import {createHash, randomUUID} from "node:crypto"
 import {AsyncLocalStorage} from "node:async_hooks"
-import {readdir, readFile, open, unlink} from "node:fs/promises"
+import {readdir, readFile} from "node:fs/promises"
 import {basename, dirname, isAbsolute, join} from "node:path"
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {StorybookChatSession} from "./contract"
@@ -22,6 +22,7 @@ import {openArchive, readArchiveMetadata, readArchiveState} from "./src/archive"
 type Document = ArchiveMetadata & {schemaVersion: 3}
 
 import {chatFile, copyHistory, readChatDocument, importLegacy} from "./src/storage"
+import {softDelete, readTrash, restoreTrash, purgeTrash} from "./src/trash"
 import {readSettings} from "./src/settings"
 import readCommand from "./src/command"
 import {executorIdentity, targetParts, targetKey} from "./src/target"
@@ -31,6 +32,11 @@ import {movedSource, readMoveIntent, sameMove, writeMoveIntent} from "./src/relo
 import {inputContent} from "./src/timeline"
 
 export type {StorybookChatSession} from "./contract"
+export type {HistoryGroup, HistoryOccurrence, HistoryContentPage, HistoryContentCursor, HistoryDetailPage, HistoryTerminalPage, HistoryTerminalCursor} from "./contract/history"
+export {createMediaStore, isMediaReference, projectMedia} from "./src/media"
+export {fetchExternalImage} from "./src/external-media"
+export {collectMedia} from "./src/media-gc"
+export type {MediaCollectionOptions, MediaCollectionResult} from "./src/media-gc"
 
 type State = {
   key: string
@@ -59,12 +65,14 @@ type State = {
   turn?: Promise<void>
   turnController?: AbortController
   cancelled: boolean
+  approvalMode?: "ask" | "scoped-autonomous"
+  approvalPolicyRevision?: number
   cursor: ArchiveCursor
   lifetime: AbortController
   flushTimer?: ReturnType<typeof setTimeout>
   publishTimer?: ReturnType<typeof setTimeout>
   listeners: Set<(value: Snapshot) => void>
-  permissions: Map<string, {value: Permission, resolve: (value: Awaited<ReturnType<StorybookTechAcp.Input["onPermission"]>>) => void}>
+  permissions: Map<string, {value: Permission, cancelled?: boolean, resolve: (value: Awaited<ReturnType<StorybookTechAcp.Input["onPermission"]>>) => void}>
   write: Promise<void>
 }
 
@@ -198,10 +206,10 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
   const refreshExecution = async (state: Pick<State, "document" | "subject" | "settings" | "execution">, executorSelection?: ExecutionSelection): Promise<ExecutionResolution> => {
     const selection = state.document.executionSelection ?? {}
     const pinnedConnectionId = state.document.sessionId === undefined ? undefined : state.document.connectionId ?? "codex"
-    const resolved = await input.resolveExecution?.({subject: state.subject, executorId: state.document.executorId, selection,
+    const resolved = await input.resolveExecution?.({subject: state.subject, executorId: state.document.executorId, sessionId: state.document.id, selection,
       ...(executorSelection === undefined ? {} : {executorSelection}),
       ...(pinnedConnectionId === undefined ? {} : {pinnedConnectionId})}) ?? {
-      selection, executorSelection: {}, effective: {connectionId: pinnedConnectionId ?? selection.connectionId ?? "codex", ...selection},
+      selection, executorSelection: {}, effective: {connectionId: pinnedConnectionId ?? selection.connectionId ?? "codex", ...Object.fromEntries(Object.entries(selection).filter(([key]) => key !== "approvalMode"))},
       sources: {connectionId: (selection.connectionId === undefined ? pinnedConnectionId === undefined ? "general" : "native" : "session") as ExecutionSource,
         ...(selection.model === undefined ? {} : {model: "session" as const}), ...(selection.thoughtLevel === undefined ? {} : {thoughtLevel: "session" as const})},
       connections: [{id: "codex", provider: "codex" as const, label: "Codex", enabled: true}],
@@ -210,6 +218,12 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
   }
   const applyExecution = async (state: State, connection: StorybookTechAcp.Output, resolved?: ExecutionResolution, document = state.document): Promise<void> => {
     const current = resolved ?? await refreshExecution(state)
+    const nativeMode = state.settings?.find(option => option.category === "mode")
+    if (nativeMode !== undefined && nativeMode.value !== "read-only") {
+      if (!nativeMode.options.some(option => option.value === "read-only")) throw new Error("Исполнитель не предоставляет ограниченный native режим")
+      state.settings = readSettings(await connection.setConfigOption(nativeMode.id, "read-only"))
+      if (state.settings.find(option => option.id === nativeMode.id)?.value !== "read-only") throw new Error("Исполнитель не подтвердил ограниченный native режим")
+    }
     for (const [field, category] of [["model", "model"], ["thoughtLevel", "thought_level"]] as const) {
       const execution = projectExecution({document, settings: state.settings ?? []}, current)
       const selected = execution.effective[field]
@@ -223,14 +237,17 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     }
     state.execution = projectExecution({document, settings: state.settings ?? []}, current)
   }
-  const snapshot = (state: Pick<State, "id" | "document" | "subject" | "version" | "permissions" | "connection" | "progress" | "settings" | "configuring" | "execution"> & {archive: Pick<Archive, "stats">}): Snapshot => structuredClone({
+  const snapshot = (state: Pick<State, "id" | "document" | "subject" | "version" | "permissions" | "connection" | "progress" | "settings" | "configuring" | "execution"> & {archive: Pick<Archive, "stats" | "displayStats">}): Snapshot => structuredClone({
     id: state.id, sessionId: state.id, sessionLabel: state.document.sessionLabel ?? "Новая беседа", executorId: state.document.executorId, executorLabel: state.document.executorLabel, pending: state.document.pending, address: state.subject.address, label: state.subject.label,
-    history: state.archive.stats(), capabilities: state.connection?.capabilities ?? null, status: state.document.status,
+    history: state.archive.stats(), displayHistory: state.archive.displayStats(), capabilities: state.connection?.capabilities ?? null, status: state.document.status,
     error: state.document.error, permissions: [...state.permissions.values()].map(item => item.value),
     version: state.version,
     ...(state.progress === undefined ? {} : {progress: state.progress}),
     settings: state.settings ?? [], configuring: state.configuring === true, usage: state.document.usage ?? null,
     ...(state.execution === undefined ? {} : {execution: state.execution}),
+    activity: state.document.status === "running" && "cancelled" in state && state.cancelled ? "cancelling"
+      : state.permissions.size > 0 ? "waiting_for_approval" : state.document.status === "failed" && state.document.activeRequest !== undefined
+        ? "recovery_required" : "responding",
   })
   const clearPublication = (state: State): void => {
     clearTimeout(state.publishTimer)
@@ -299,6 +316,14 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       listeners: new Set(), permissions: new Map(), write: Promise.resolve(),
     }
     await refreshExecution(state)
+    for (const id of document.pendingPermissions ?? []) {
+      const request = archive.lookup(`permission:${id}:request`) === null ? null : archive.body(`permission:${id}:request`).entry
+      if (request?.kind === "permission" && archive.lookup(`permission:${id}:decision`) === null) {
+        const {request: _request, sequence: _sequence, ...entry} = request
+        await append(state, {...entry, id: `permission:${id}:decision`, phase: "interrupted"})
+      }
+    }
+    if (document.pendingPermissions?.length) { document.pendingPermissions = []; await save(state) }
     if (document.status === "connecting" || document.status === "running") {
       document.historyComplete = false
       document.status = "failed"
@@ -327,16 +352,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     }
     return undefined
   }
-  const deletedMetadata = async (file: string): Promise<ArchiveMetadata | null> => {
-    const text = await readFile(`${file}.deleted`, "utf8").catch(error => {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
-      return null
-    })
-    if (text === null) return null
-    const value = JSON.parse(text)
-    if (value?.schemaVersion !== 1 || typeof value.metadata?.id !== "string" || typeof value.metadata.executorId !== "string") throw new Error("Повреждена отметка удаления сессии")
-    return value.metadata
-  }
+  const deletedMetadata = async (file: string): Promise<ArchiveMetadata | null> => (await readTrash(file))?.metadata ?? null
   const sessionRecords = async (subject: Subject): Promise<{file: string, document: Document, isDefault: boolean, deleted: boolean}[]> => {
     const directory = input.directory(subject)
     const main = chatFile(directory, subject.address)
@@ -467,7 +483,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     const saved = deleted ? null : await readArchiveState(file)
     if (saved !== null) {
       const current = {...saved.metadata, schemaVersion: 3 as const}
-      return snapshot({id: current.id, document: current, subject, archive: {stats: () => saved.history},
+      return snapshot({id: current.id, document: current, subject, archive: {stats: () => saved.history, displayStats: () => saved.displayHistory ?? saved.history},
         version: current.controlVersion ?? 0, permissions: new Map(),
         execution: await refreshExecution({document: current, subject}),
       })
@@ -481,9 +497,140 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       })
     } finally { await archive.dispose() }
   }
-  const clearPermissions = (state: State): void => {
-    for (const permission of state.permissions.values()) permission.resolve({outcome: {outcome: "cancelled"}})
-    state.permissions.clear()
+  type PermissionResponse = Awaited<ReturnType<StorybookTechAcp.Input["onPermission"]>>
+  const finishPermission = async (state: State, id: string, response: PermissionResponse, actor: "user" | "policy" = "user", hash?: string): Promise<void> => {
+    await exclusive(state, async () => {
+      const previousId = state.archive.lookup(`permission:${id}:dispatch-cancelled`) === null ? `permission:${id}:decision` : `permission:${id}:dispatch-cancelled`
+      const previous = state.archive.lookup(previousId) === null ? null : state.archive.body(previousId).entry
+      if (previous?.kind === "permission") {
+        if (hash !== undefined && previous.requestHash !== hash) throw new Error("Запрос разрешения изменился")
+        if (response.outcome.outcome === "selected" && previous.phase === "decided" && previous.optionId === response.outcome.optionId) return
+        if (response.outcome.outcome === "cancelled" && previous.phase !== "decided") return
+        throw new Error("По запросу уже принято другое решение")
+      }
+      const pending = state.permissions.get(id)
+      if (!pending) throw new Error("Запрос разрешения больше не доступен")
+      const request = pending.value
+      if (hash !== undefined && hash !== request.requestHash) throw new Error("Запрос разрешения изменился")
+      const outcome = response.outcome
+      if (outcome.outcome === "selected" && (state.cancelled || pending.cancelled || !request.options.some(option => option.id === outcome.optionId))) throw new Error("Вариант разрешения больше не доступен")
+      const remaining = (state.document.pendingPermissions ?? []).filter(value => value !== id)
+      const previousPending = state.document.pendingPermissions
+      state.document.pendingPermissions = remaining
+      const {schemaVersion, ...metadata} = state.document
+      state.write = state.write.catch(() => {}).then(() => state.archive.commit(structuredClone(metadata), [{type: "append", item: {
+        id: `permission:${id}:decision`, origin: "local", kind: "permission", permissionId: id,
+        requestId: state.document.activeRequest ?? "preparation", requestHash: request.requestHash!,
+        source: request.source!, phase: response.outcome.outcome === "selected" ? "decided" : "cancelled",
+        title: request.title, actor,
+        ...(response.outcome.outcome === "selected" ? {optionId: response.outcome.optionId} : {}),
+      }}]))
+      try { await state.write } catch (error) {
+        if (previousPending === undefined) delete state.document.pendingPermissions
+        else state.document.pendingPermissions = previousPending
+        throw error
+      }
+      let delivered = response
+      if (response.outcome.outcome === "selected" && (state.cancelled || pending.cancelled || disposed)) {
+        delivered = {outcome: {outcome: "cancelled"}}
+        try { await append(state, {id: `permission:${id}:dispatch-cancelled`, origin: "local", kind: "permission", permissionId: id,
+          requestId: state.document.activeRequest ?? "preparation", requestHash: request.requestHash!, source: request.source!, phase: "cancelled", title: request.title}) }
+        finally { state.permissions.delete(id); pending.resolve(delivered) }
+      }
+      state.permissions.delete(id)
+      pending.resolve(delivered)
+      publish(state)
+    })
+  }
+  const clearPermissions = async (state: State): Promise<void> => {
+    const failures: unknown[] = []
+    for (const [id, pending] of [...state.permissions]) {
+      try { await finishPermission(state, id, {outcome: {outcome: "cancelled"}}) }
+      catch (error) { failures.push(error) }
+      finally {
+        // Отказ диска не оставляет provider callback и процесс навечно ожидающими.
+        state.permissions.delete(id)
+        pending.resolve({outcome: {outcome: "cancelled"}})
+      }
+    }
+    if (failures.length) throw new AggregateError(failures, "Не удалось сохранить отмену запросов разрешения")
+  }
+  const askPermission = async (state: State, request: Parameters<StorybookTechAcp.Input["onPermission"]>[0], source: "provider" | "environment", signal?: AbortSignal): Promise<PermissionResponse> => {
+    if (state.cancelled || disposed || signal?.aborted) return {outcome: {outcome: "cancelled"}}
+    clearPublication(state)
+    request = structuredClone(request)
+    const id = randomUUID()
+    const encoded = JSON.stringify(request)
+    const requestHash = createHash("sha256").update(encoded).digest("hex")
+    const detailsId = `permission:${id}:request`
+    const maximum = 64 * 1024
+    const rawOversized = Buffer.byteLength(encoded) > maximum
+    const value: Permission = rawOversized
+      ? {id, requestHash, detailsId, source, title: "Большой запрос подтверждения", options: []}
+      : {id, requestHash, detailsId, source, title: request.toolCall.title ?? "Разрешение действия",
+        request, options: request.options.map(option => ({id: option.optionId, name: option.name, kind: option.kind}))}
+    const bytes = rawOversized ? maximum + 1 : Buffer.byteLength(JSON.stringify(value))
+    const result = Promise.withResolvers<PermissionResponse>()
+    let unsupported = false
+    await exclusive(state, async () => {
+      const pendingBytes = Buffer.byteLength(JSON.stringify([...state.permissions.values()].map(item => item.value)))
+      if (bytes + pendingBytes + Number(state.permissions.size > 0) > maximum) {
+        const error = "Объём условий подтверждения превышает лимит интерфейса 64 КиБ. Это действие отменено и не разрешалось. Полный запрос сохранён в истории; разбейте действие на меньшие части."
+        const previousError = state.document.error
+        state.document.error = error
+        const {schemaVersion, ...metadata} = state.document
+        state.write = state.write.catch(() => {}).then(() => state.archive.commit(structuredClone(metadata), [
+          {type: "append", item: {id: detailsId, origin: "local", kind: "permission", permissionId: id,
+            requestId: state.document.activeRequest ?? "preparation", requestHash, source, phase: "requested",
+            title: "Запрос подтверждения превышает предел интерфейса", request,
+            policy: {mode: state.approvalMode ?? "ask", ...(state.approvalPolicyRevision === undefined ? {} : {revision: state.approvalPolicyRevision})}}},
+          {type: "append", item: {id: `permission:${id}:decision`, origin: "local", kind: "permission", permissionId: id,
+            requestId: state.document.activeRequest ?? "preparation", requestHash, source, phase: "cancelled",
+            title: "Подтверждение недоступно: слишком большой запрос", error}},
+        ]))
+        try {await state.write} catch (failure) {state.document.error = previousError; throw failure}
+        unsupported = true
+        publish(state)
+        return
+      }
+      const ids = [...state.document.pendingPermissions ?? [], id]
+      const previousPending = state.document.pendingPermissions
+      state.document.pendingPermissions = ids
+      const {schemaVersion, ...metadata} = state.document
+      state.write = state.write.catch(() => {}).then(() => state.archive.commit(structuredClone(metadata), [{type: "append", item: {
+        id: `permission:${id}:request`, origin: "local", kind: "permission", permissionId: id,
+        requestId: state.document.activeRequest ?? "preparation", requestHash, source, phase: "requested",
+        title: value.title, request: structuredClone(request),
+        policy: {mode: state.approvalMode ?? "ask", ...(state.approvalPolicyRevision === undefined ? {} : {revision: state.approvalPolicyRevision})},
+      }}]))
+      try { await state.write } catch (error) {
+        if (previousPending === undefined) delete state.document.pendingPermissions
+        else state.document.pendingPermissions = previousPending
+        throw error
+      }
+      state.permissions.set(id, {value, resolve: result.resolve})
+    })
+    if (unsupported) return {outcome: {outcome: "cancelled"}}
+    const cancel = () => {
+      const pending = state.permissions.get(id)
+      if (pending) pending.cancelled = true
+      void finishPermission(state, id, {outcome: {outcome: "cancelled"}}).catch(() => {
+        state.permissions.delete(id)
+        result.resolve({outcome: {outcome: "cancelled"}})
+        publish(state)
+      })
+    }
+    signal?.addEventListener("abort", cancel, {once: true})
+    try {
+      if (state.cancelled || disposed || signal?.aborted) cancel()
+      else if (state.approvalMode === "scoped-autonomous" && source === "environment") {
+        // Разрешение один раз не создаёт скрытого persistent prefix/network правила.
+        const option = request.options.find(option => option.kind === "allow_once")
+        if (option) await finishPermission(state, id, {outcome: {outcome: "selected", optionId: option.optionId}}, "policy")
+        else publish(state)
+      } else publish(state)
+      return await result.promise
+    } finally { signal?.removeEventListener("abort", cancel) }
   }
   /** Одна ACP-сессия для настроек и сообщений; подготовка не запускает prompt. */
   const connect = async (state: State): Promise<StorybookTechAcp.Output> => {
@@ -511,6 +658,16 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
           address: state.subject.address,
           async onUpdate(update) {
             return receive(state, update, "local")
+          },
+          async authorize(id, command, signal) {
+            if (state.document.activeRequest === undefined || state.cancelled || disposed) throw new Error("У действия нет активного выполнения")
+            const response = await askPermission(state, {sessionId: state.id,
+              toolCall: {toolCallId: id, title: command.name, status: "pending", rawInput: structuredClone(command.arguments)},
+              options: [{optionId: "allow-once", name: "Разрешить действие", kind: "allow_once"},
+                {optionId: "reject-once", name: "Отклонить действие", kind: "reject_once"}],
+            }, "environment", signal)
+            signal.throwIfAborted()
+            if (state.cancelled || response.outcome.outcome !== "selected" || response.outcome.optionId !== "allow-once") throw new Error(state.document.error ?? "Действие не разрешено")
           },
         })
       }
@@ -551,21 +708,11 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
           }
           scheduleSave(state)
         },
-        onPermission(request) {
-          if (state.cancelled || disposed) return Promise.resolve({outcome: {outcome: "cancelled"}})
-          const id = randomUUID()
-          return new Promise(resolve => {
-            state.permissions.set(id, {value: {
-              id, title: request.toolCall.title ?? "Разрешение действия",
-              options: request.options.map(option => ({id: option.optionId, name: option.name})),
-            }, resolve})
-            publish(state)
-          })
-        },
+        onPermission(request, signal) { return askPermission(state, request, "provider", signal) },
       })
       state.connection = connection
       state.settings = readSettings(connection.configOptions ?? [])
-      state.document.executionBaseline ??= Object.fromEntries(state.settings.map(option => [option.category === "model" ? "model" : "thoughtLevel", option.value]))
+      state.document.executionBaseline ??= Object.fromEntries(state.settings.filter(option => option.category !== "mode").map(option => [option.category === "model" ? "model" : "thoughtLevel", option.value]))
       if (state.document.sessionId !== undefined && state.document.connectionId === undefined) state.document.preserveNativeSettings = true
       state.document.sessionId = connection.sessionId
       state.document.connectionId = execution.effective.connectionId
@@ -598,6 +745,9 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         return
       }
       const connection = await connect(state)
+      state.approvalMode = state.execution?.effective.approvalMode ?? "ask"
+      if (state.execution?.approvalPolicyRevision === undefined) delete state.approvalPolicyRevision
+      else state.approvalPolicyRevision = state.execution.approvalPolicyRevision
       if (state.cancelled || disposed) {
         interrupted = true
         return
@@ -656,6 +806,11 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         publish(state)
       }
       interrupted ||= state.cancelled || disposed
+      if (!interrupted && stopReason !== undefined && stopReason !== "end_turn") {
+        state.document.status = "failed"
+        state.document.error = stopReason === "max_tokens" ? "Достигнут лимит токенов ответа" : stopReason === "max_turn_requests"
+          ? "Достигнут лимит обращений модели" : stopReason === "refusal" ? "Исполнитель отказался продолжать" : `Выполнение завершилось: ${stopReason}`
+      }
     } catch (error) {
       clearPublication(state)
       state.document.historyComplete = false
@@ -668,27 +823,37 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       state.releaseSlot?.()
     } finally {
       clearPublication(state)
-      clearPermissions(state)
+      await clearPermissions(state).catch(error => { state.document.error = `Не удалось сохранить отмену разрешения: ${error instanceof Error ? error.message : String(error)}` })
       clearTimeout(state.flushTimer)
       delete state.flushTimer
       delete state.cursor.message
       if (!started && state.cancelled && !disposed) state.document.pending = state.document.pending.filter(id => id !== `user:${requestId}`)
       if (!started && state.document.status === "failed") state.retryBlocked = true
       if (state.document.status !== "failed") state.document.status = "idle"
-      if (interrupted && state.document.status === "idle") {
-        await append(state, {id: randomUUID(), origin: "local", kind: "message", role: "system", content: [{type: "text", text: "Выполнение остановлено."}]})
-      }
-      await append(state, {id: randomUUID(), origin: "local", kind: "turn",
-        requestId, state: state.document.status === "failed" ? "failed" : interrupted ? "cancelled" : "completed",
-        ...(stopReason === undefined ? {} : {stopReason}),
-        ...(state.document.error === null ? {} : {error: state.document.error}),
-      })
-      delete state.document.activeRequest
-      delete state.turn
-      delete state.turnController
-      try { await save(state) } catch (error) {
+      try {
+        await state.write
+        const {schemaVersion, activeRequest, ...metadata} = state.document
+        await state.archive.commit(metadata, [
+          ...(interrupted && state.document.status === "idle" ? [{type: "append" as const, item: {
+            id: randomUUID(), origin: "local" as const, kind: "message" as const, role: "system" as const,
+            content: [{type: "text" as const, text: "Выполнение остановлено."}],
+          }}] : []),
+          {type: "append", item: {id: randomUUID(), origin: "local", kind: "turn", requestId,
+            state: state.document.status === "failed" ? "failed" : interrupted ? "cancelled" : "completed",
+            ...(stopReason === undefined ? {} : {stopReason}),
+            ...(state.document.error === null ? {} : {error: state.document.error}),
+          }},
+        ])
+        delete state.document.activeRequest
+      } catch (error) {
         state.document.status = "failed"
-        state.document.error = `Не удалось сохранить историю: ${error instanceof Error ? error.message : String(error)}`
+        state.document.historyComplete = false
+        state.retryBlocked = true
+        state.document.error = `Не удалось сохранить завершение: ${error instanceof Error ? error.message : String(error)}`
+      } finally {
+        // Освобождение исполнения не зависит от доступности диска.
+        delete state.turn
+        delete state.turnController
       }
       publish(state)
     }
@@ -698,14 +863,14 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     if (disposed || state.draining !== undefined || state.retryBlocked || state.moveBlocked || !state.document.pending.length || relocating.has(state.key)) return
     const draining = (async () => {
       while (!disposed && !state.retryBlocked) {
-        const selected = await exclusive(state, () => {
+        const selected = await exclusive(state, async () => {
           if (disposed || state.moveBlocked || relocating.has(state.key) || state.turn !== undefined || state.configuring || state.connecting !== undefined) return undefined
           const messageId = state.document.pending[0]
           if (messageId === undefined) return undefined
           const requestId = messageId.slice(5)
           const message = state.archive.lookup(messageId)
           if (message?.kind !== "message" || message.role !== "user") throw new Error("Входящая задача не имеет canonical user message")
-          const blocks = state.archive.content(messageId)
+          const blocks = await state.archive.media.materialize(state.archive.content(messageId)) as ReturnType<Archive["content"]>
           const content = blocks.length === 1 && blocks[0]?.type === "text" && Object.keys(blocks[0]).every(key => key === "type" || key === "text") ? blocks[0].text : blocks
           state.cancelled = false
           if (state.lifetime.signal.aborted) state.lifetime = new AbortController()
@@ -744,36 +909,44 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       const id = `user:${requestId}`
       const previous = state.archive.lookup(id)
       if (previous !== null) {
-        if (previous.kind !== "message" || JSON.stringify(state.archive.content(id)) !== JSON.stringify(content)) throw new Error("Идентификатор отправки уже использован для другого сообщения")
-        return
+        if (previous.kind !== "message" || JSON.stringify(state.archive.content(id)) !== JSON.stringify(await state.archive.media.normalize(content))) throw new Error("Идентификатор отправки уже использован для другого сообщения")
+        if (state.document.pending.includes(id) || state.archive.hasStarted(requestId) || state.archive.hasTerminal(requestId)) return
+        // Подтверждённое сообщение без durable start и очереди можно принять повторно.
       }
       if (!queued && (state.configuring || state.turn !== undefined || state.connecting !== undefined || state.document.pending.length)) {
         throw new Error("Дождитесь завершения текущего ответа")
       }
       if (state.document.pending.length >= maxPending) throw new Error("Очередь беседы заполнена")
+      const before = structuredClone(state.document)
       if (state.document.sessionLabelSource !== "manual" && !state.document.sessionLabelAssigned && (state.document.sessionLabel === undefined || state.document.sessionLabel === "Новая беседа")) {
         const text = content.flatMap(block => block.type === "text" ? [block.text] : []).join(" ").trim()
         state.document.sessionLabel = text ? text.split(/\s+/u).slice(0, 6).join(" ").slice(0, 64) : content.some(block => block.type === "image") ? "Изображение" : "Вложение"
         state.document.sessionLabelSource = "auto"
         state.document.sessionLabelAssigned = true
       }
-      await append(state, {id, origin: "local", kind: "message", role: "user", content})
-      const contexts = content.filter(block => block.type === "resource" || block.type === "resource_link")
-      if (contexts.length) await append(state, {id: randomUUID(), origin: "local", kind: "context", content: contexts, requestId})
       state.document.pending.push(id)
       if (!queued || !state.retryBlocked && state.turn === undefined && !state.configuring && state.connecting === undefined) {
         state.document.status = state.connection === undefined ? "connecting" : "running"
         state.document.error = null
       }
-      publish(state)
-      try { await save(state) } catch (error) {
-        state.document.pending = state.document.pending.filter(item => item !== id)
-        await state.archive.commit(undefined, [{type: "remove", id}])
+      const {schemaVersion, ...metadata} = structuredClone(state.document)
+      const contexts = content.filter(block => block.type === "resource" || block.type === "resource_link")
+      state.write = state.write.catch(() => {}).then(() => state.archive.commit(metadata, previous === null ? [
+        {type: "append", item: {id, origin: "local", kind: "message", role: "user", content}},
+        ...(contexts.length ? [{type: "append" as const, item: {id: randomUUID(), origin: "local" as const,
+          kind: "context" as const, content: contexts, requestId}}] : []),
+      ] : []))
+      try {
+        await state.write
+        state.retryBlocked = false
+      } catch (error) {
+        state.document = before
         state.document.status = "failed"
         state.document.error = `Не удалось сохранить сообщение: ${error instanceof Error ? error.message : String(error)}`
         publish(state)
         throw error
       }
+      publish(state)
     })
     wake(state)
     return snapshot(state)
@@ -849,6 +1022,10 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     async deleteSession(target) {
       const parts = targetParts(target)
       if (parts.sessionId === undefined) throw new Error("Выберите точную сессию для удаления")
+      const subject = input.resolve(parts.address)
+      const existing = (await sessionRecords(subject)).find(record => record.deleted && record.document.id === parts.sessionId &&
+        (parts.executorId === undefined || record.document.executorId === parts.executorId))
+      if (existing !== undefined) return
       const state = await load(target)
       await exclusive(state, async () => {
         if (busy(state) || state.document.status === "connecting" || state.document.status === "running") throw new Error("Завершите текущую работу и очередь сессии перед удалением")
@@ -858,26 +1035,51 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         delete state.flushTimer
         await state.write
         await state.archive.flush()
-        const header = state.archive.sourceHeader()
-        const metadata: ArchiveMetadata = {id: state.id, executorId: state.document.executorId, executorLabel: state.document.executorLabel,
-          sessionLabel: state.document.sessionLabel ?? "Новая беседа", address: state.subject.address, pending: [], historyComplete: true, status: "idle", error: null}
-        const marker = await open(`${state.file}.deleted`, "wx", 0o600)
-        try {
-          await marker.writeFile(`${JSON.stringify({schemaVersion: 1, metadata})}\n`)
-          await marker.sync()
-        } finally { await marker.close() }
-        const directory = await open(dirname(state.file), "r")
-        try { await directory.sync() } finally { await directory.close() }
+        await softDelete({file: state.file, sessionId: state.id})
         state.moveBlocked = true
         await state.archive.dispose()
         states.delete(state.key)
         state.listeners.clear()
-        for (const file of [state.file, join(dirname(state.file), header.journal), state.archive.cacheFile, `${state.file}.schema1`, `${state.file}.schema2`]) {
-          await unlink(file).catch(error => { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error })
-        }
-        state.listeners.clear()
-        states.delete(state.key)
       })
+    },
+    async listDeletedSessions(target) {
+      const parts = targetParts(target)
+      const subject = input.resolve(parts.address)
+      const records = await sessionRecords(subject)
+      const executorId = parts.executorId ?? records.find(record => record.isDefault)?.document.executorId
+      const values: (Snapshot & {deletedAt?: string, recoverable: boolean})[] = []
+      for (const record of records) {
+        if (!record.deleted || record.document.executorId !== executorId) continue
+        const removed = await readTrash(record.file)
+        if (removed === null || removed.purgedAt !== undefined) continue
+        const saved = await readArchiveState(record.file)
+        const history = saved?.history ?? {revision: 0, total: 0, lastSequence: 0}
+        const value = snapshot({id: record.document.id, document: record.document, subject,
+          archive: {stats: () => history, displayStats: () => saved?.displayHistory ?? history},
+          version: record.document.controlVersion ?? 0, permissions: new Map(),
+          execution: await refreshExecution({document: record.document, subject}),
+        })
+        values.push({...value, ...(removed.deletedAt === undefined ? {} : {deletedAt: removed.deletedAt}), recoverable: !removed.purging && saved !== null})
+      }
+      return values
+    },
+    async restoreSession(target) {
+      const parts = targetParts(target)
+      if (parts.sessionId === undefined || parts.executorId === undefined) throw new Error("Нужны точные identity агента и удалённой беседы")
+      const subject = input.resolve(parts.address)
+      const record = (await sessionRecords(subject)).find(record => record.document.id === parts.sessionId && record.document.executorId === parts.executorId)
+      if (record === undefined) throw new Error("Удалённая беседа не найдена")
+      if (!record.deleted) return snapshot(await load(target))
+      await restoreTrash({file: record.file, sessionId: parts.sessionId})
+      return snapshot(await load(target))
+    },
+    async purgeSession(target) {
+      const parts = targetParts(target)
+      if (parts.sessionId === undefined || parts.executorId === undefined) throw new Error("Нужны точные identity агента и удалённой беседы")
+      const subject = input.resolve(parts.address)
+      const record = (await sessionRecords(subject)).find(record => record.deleted && record.document.id === parts.sessionId && record.document.executorId === parts.executorId)
+      if (record === undefined) throw new Error("Удалённая беседа не найдена")
+      await purgeTrash({file: record.file, sessionId: parts.sessionId})
     },
     async list(address) {
       if (disposed) throw new Error("Чаты остановлены")
@@ -968,6 +1170,21 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       const value = snapshot(state)
       return value
     },
+    async displayHistory(target, query = {}) {
+      const state = await load(target)
+      await state.archive.flush()
+      return state.archive.display(query)
+    },
+    async groupHistory(target, groupId, query = {}) {
+      const state = await load(target)
+      await state.archive.flush()
+      return state.archive.groupPage(groupId, query)
+    },
+    async groupHistoryItem(target, groupId, id) {
+      const state = await load(target)
+      await state.archive.flush()
+      return state.archive.groupBody(groupId, id)
+    },
     async history(target, query = {}) {
       const state = await load(target)
       await state.archive.flush()
@@ -979,6 +1196,32 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       await state.archive.flush()
       const value = state.archive.body(id)
       return value
+    },
+    async historyContent(target, id, query = {}) {
+      const state = await load(target)
+      await state.archive.flush()
+      return state.archive.contentPage(id, query)
+    },
+    async historyTerminal(target, id, query = {}) {
+      const state = await load(target)
+      await state.archive.flush()
+      return state.archive.terminalPage(id, query)
+    },
+    async historyDetail(target, id, query = {}) {
+      const state = await load(target)
+      await state.archive.flush()
+      return state.archive.detailPage(id, query)
+    },
+    async hasMedia(target, digest) {
+      const state = await load(target)
+      await state.archive.flush()
+      return state.archive.hasMedia(digest)
+    },
+    async copyMessage(target, id) {
+      const state = await load(target)
+      await state.archive.flush()
+      const content = await state.archive.media.materialize(state.archive.content(id)) as ReturnType<Archive["content"]>
+      return content.flatMap(block => block.type === "text" ? [block.text] : []).join("")
     },
     async historyEvidence(target, id, query = {}) {
       const state = await load(target)
@@ -1006,6 +1249,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       const state = await load(target)
       if (state.turn !== undefined || state.configuring) throw new Error("Дождитесь завершения текущей операции чата")
       const option = state.settings?.find(item => item.id === id)
+      if (option?.category === "mode") throw new Error("Native sandbox не меняется: выберите режим подтверждений в пределах назначения")
       if (!option || !option.options.some(item => item.value === value)) throw new Error("Выберите доступный вариант настройки")
       if (state.lifetime.signal.aborted) state.lifetime = new AbortController()
       state.cancelled = false
@@ -1040,13 +1284,14 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       }
       if (affected.some(other => busy(other))) throw new Error("Завершите работу и очереди всех бесед агента перед изменением его настроек")
       const selected = change.selection
-      if (selected === null || typeof selected !== "object" || Array.isArray(selected) || Object.keys(selected).some(key => !["connectionId", "model", "thoughtLevel"].includes(key)) ||
+      if (selected === null || typeof selected !== "object" || Array.isArray(selected) || Object.keys(selected).some(key => !["connectionId", "model", "thoughtLevel", "approvalMode"].includes(key)) ||
         Object.values(selected).some(value => typeof value !== "string" || !value.trim() || value.length > 256)) throw new TypeError("Недопустимый выбор исполнения")
       if (selected.connectionId !== undefined && selected.connectionId !== (state.document.connectionId ?? "codex")) throw new Error("Подключение существующей native сессии отличается: несовместимое восстановление запрещено")
       for (const [field, category] of [["model", "model"], ["thoughtLevel", "thought_level"]] as const) {
         const option = state.settings?.find(item => item.category === category)
         if (selected[field] !== undefined && option !== undefined && !(category === "thought_level" && selected.model !== undefined) && !option.options.some(item => item.value === selected[field])) throw new Error(`Выбранная настройка ${category} недоступна`)
       }
+      if (selected.approvalMode !== undefined && selected.approvalMode !== "ask" && selected.approvalMode !== "scoped-autonomous") throw new TypeError("Режим подтверждений не поддерживается")
       const previous = state.document.executionSelection
       const previousPreserve = state.document.preserveNativeSettings
       for (const other of affected) {
@@ -1063,7 +1308,12 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
           if (input.saveExecutorSelection === undefined) throw new Error("Хранилище выбора исполнителя не подключено")
           await input.saveExecutorSelection({subject: state.subject, executorId: state.document.executorId, selection: structuredClone(selected)})
         }
-        if (change.scope === "session") state.document.executionSelection = structuredClone(selected)
+        if (change.scope === "session") {
+          if (input.saveSessionApproval !== undefined) await input.saveSessionApproval({sessionId: state.id, ...(selected.approvalMode === undefined ? {} : {approvalMode: selected.approvalMode})})
+          else if (selected.approvalMode !== undefined) throw new Error("Доверенное хранилище политики не подключено")
+          const {approvalMode: _mode, ...portable} = selected
+          state.document.executionSelection = structuredClone(portable)
+        }
         state.document.preserveNativeSettings = false
         await save(state)
       } catch (error) {
@@ -1093,18 +1343,26 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       if (state.turn === undefined && !state.connecting && state.document.status !== "connecting" && state.document.status !== "running") return snapshot(state)
       state.cancelled = true
       state.turnController?.abort(new Error("Выполнение отменено"))
-      clearPermissions(state)
+      await clearPermissions(state).catch(error => { state.document.error = String(error) })
       if (state.connection === undefined) state.lifetime.abort(new Error("Подключение отменено"))
       publish(state)
       await state.connection?.cancel()
       return snapshot(state)
     },
-    async permission(target, id, optionId) {
+    async permission(target, id, optionId, requestHash) {
       const state = await load(target)
-      const pending = state.permissions.get(id)
-      if (pending === undefined || !pending.value.options.some(option => option.id === optionId)) throw new Error("Запрос разрешения или вариант больше не доступен")
-      state.permissions.delete(id)
-      pending.resolve({outcome: {outcome: "selected", optionId}})
+      await finishPermission(state, id, {outcome: {outcome: "selected", optionId}}, "user", requestHash)
+      return snapshot(state)
+    },
+    async stop(target) {
+      const state = await load(target)
+      state.retryBlocked = true
+      state.cancelled = true
+      state.turnController?.abort(new Error("Исполнение остановлено пользователем"))
+      await clearPermissions(state).catch(() => {})
+      state.lifetime.abort(new Error("Подключение завершено пользователем"))
+      await releaseConnection(state)
+      await state.turn
       publish(state)
       return snapshot(state)
     },
@@ -1254,24 +1512,26 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         state.cancelled = true
         state.turnController?.abort(new Error("Сервер чатов останавливается"))
         state.lifetime.abort(new Error("Сервер чатов останавливается"))
-        clearPermissions(state)
-        try {
-          await state.mutations
-          await state.connecting?.catch(() => {})
-          await releaseConnection(state)
-        } finally {
-          await state.turn
-          await state.draining
-          if (state.flushTimer !== undefined) {
-            clearTimeout(state.flushTimer)
-            delete state.flushTimer
-            await save(state)
-          }
-          await state.write
-          state.listeners.clear()
-          state.environment?.dispose()
-          await state.archive.dispose()
+        await clearPermissions(state).catch(() => {})
+        const errors: unknown[] = []
+        const release = async (action: () => unknown | Promise<unknown>) => {
+          try { await action() } catch (error) { errors.push(error) }
         }
+        await release(() => state.mutations)
+        await release(() => state.connecting)
+        await release(() => releaseConnection(state))
+        await release(() => state.turn)
+        await release(() => state.draining)
+        if (state.flushTimer !== undefined) {
+          clearTimeout(state.flushTimer)
+          delete state.flushTimer
+          await release(() => save(state))
+        }
+        await release(() => state.write)
+        state.listeners.clear()
+        await release(() => state.environment?.dispose())
+        await release(() => state.archive.dispose())
+        if (errors.length) throw new AggregateError(errors, "Ошибки освобождения беседы")
       }))
       const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected")
       if (failures.length) throw new AggregateError(failures.map(result => result.reason), "Не все чаты удалось освободить")

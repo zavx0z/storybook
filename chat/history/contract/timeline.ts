@@ -1,4 +1,4 @@
-import type {ContentBlock, SessionUpdate} from "@agentclientprotocol/sdk"
+import type {ContentBlock, SessionUpdate, RequestPermissionRequest} from "@agentclientprotocol/sdk"
 
 /** Реально переданное содержимое ACP; контекст провайдера из него не достраивается. */
 export type Content = ContentBlock
@@ -13,6 +13,8 @@ type Entry = Readonly<{
   id: string
   sequence: number
   origin: Origin
+  /** Время приёма средой; старым событиям время не приписывается. */
+  receivedAt?: string
   /** Одна загрузка replay; не подменяет identity отдельного provider event. */
   batchId?: string
 }>
@@ -24,7 +26,8 @@ export type ToolEvent = Entry & Readonly<{
 
 /**
 История беседы с готовыми предметными записями для представления.
-ContentBlock сохраняется в штатной форме ACP. message объединяет chunks одной
+Публичные блоки сохраняют форму ACP; дисковый архив заменяет бинарные данные
+обратимыми ссылками и материализует wire payload только перед отправкой. message объединяет chunks одной
 подтверждённой provider identity; без неё границу определяет последовательность
 live-событий одного turn. Replay без identity получает отдельную запись и diagnostic.
 Tool содержит актуальное накопленное состояние и исходные изменения как свидетельства.
@@ -58,6 +61,22 @@ export type TimelineItem = Entry & (
     state: "started" | "completed" | "cancelled" | "failed"
     stopReason?: string
     error?: string
+  }>
+  | Readonly<{
+    /** Решение относится к конкретному запросу и не является повторяемой командой. */
+    kind: "permission"
+    permissionId: string
+    requestId: string
+    requestHash: string
+    source: "provider" | "environment"
+    phase: "requested" | "decided" | "cancelled" | "interrupted"
+    title: string
+    request?: RequestPermissionRequest
+    optionId?: string
+    actor?: "user" | "policy"
+    /** Причина технического отказа; полный запрос остаётся в requested записи. */
+    error?: string
+    policy?: Readonly<{mode: "ask" | "scoped-autonomous", revision?: number}>
   }>
   | Readonly<{
     kind: "event"

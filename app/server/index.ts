@@ -480,6 +480,7 @@ export default async function startExternalStorybookServer(
   let server!: Bun.Server<WebSocketData>
   const chat = createChatServer({
     project: project.root,
+    authorityDirectory: join(dirname(statePath), "chat-policy"),
     projectName: () => project.name,
     toolRoot,
     graph: () => registry.snapshot().graph,

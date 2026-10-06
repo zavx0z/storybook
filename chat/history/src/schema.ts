@@ -8,6 +8,7 @@ const base = {
   id: z.string().min(1),
   sequence: z.number().int().positive(),
   origin: z.enum(["local", "live", "replay", "legacy"]),
+  receivedAt: z.string().datetime().optional(),
   batchId: z.string().min(1).optional(),
 }
 const toolEvent = z.looseObject({...base, update: updateSchema}).refine(value =>
@@ -22,6 +23,13 @@ const item = z.discriminatedUnion("kind", [
   z.looseObject({...base, kind: z.literal("turn"), requestId: z.string().min(1),
     state: z.enum(["started", "completed", "cancelled", "failed"]), stopReason: z.string().optional(), error: z.string().optional()}),
   z.looseObject({...base, kind: z.literal("event"), update: updateSchema}),
+  z.looseObject({...base, kind: z.literal("permission"), permissionId: z.string().min(1), requestId: z.string().min(1),
+    requestHash: z.string().regex(/^[a-f0-9]{64}$/u), source: z.enum(["provider", "environment"]),
+    phase: z.enum(["requested", "decided", "cancelled", "interrupted"]), title: z.string(),
+    request: z.looseObject({sessionId: z.string(), toolCall: z.looseObject({toolCallId: z.string()}),
+      options: z.array(z.looseObject({optionId: z.string(), name: z.string(), kind: z.string()}))}).optional(),
+    optionId: z.string().optional(), actor: z.enum(["user", "policy"]).optional(), error: z.string().optional(),
+    policy: z.object({mode: z.enum(["ask", "scoped-autonomous"]), revision: z.number().int().nonnegative().optional()}).optional()}),
 ])
 
 /** Не переписывает ContentBlock/SessionUpdate: native schema применяется как validator. */

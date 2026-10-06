@@ -25,13 +25,20 @@ export type Message = Readonly<{
 export type Permission = Readonly<{
   id: string
   title: string
-  options: readonly Readonly<{id: string, name: string}>[]
+  options: readonly Readonly<{id: string, name: string, kind?: string}>[]
+  source?: "provider" | "environment"
+  requestHash?: string
+  /** Identity полного durable запроса, доступного через bounded history details. */
+  detailsId?: string
+  toolCall?: Parameters<StorybookTechAcp.Input["onPermission"]>[0]["toolCall"]
+  /** Полный малый запрос; суммарная pending projection ограничена 64 КиБ. Большие запросы отменяются с сохранением источника. */
+  request?: Parameters<StorybookTechAcp.Input["onPermission"]>[0]
 }>
 
 /** Выбор модели или мышления из предоставленных агентом вариантов. */
 export type Setting = Readonly<{
   id: string
-  category: "model" | "thought_level"
+  category: "model" | "thought_level" | "mode"
   name: string
   value: string
   options: readonly Readonly<{value: string; name: string; description?: string}>[]
@@ -66,6 +73,8 @@ export type Snapshot = Readonly<{
   address: string
   label: string
   history: HistoryState
+  /** Счётчик пользовательской проекции: служебная группа занимает одну строку. */
+  displayHistory?: HistoryState
   /** Ссылки на сохранённые user messages, ещё не начатые этим исполнителем. */
   pending: readonly string[]
   /** Реальные возможности подключённого агента; null до подключения. */
@@ -81,6 +90,7 @@ export type Snapshot = Readonly<{
   progress?: string
   usage?: ContextUsage | null
   execution?: ExecutionResolution
+  activity?: "responding" | "waiting_for_approval" | "cancelling" | "recovery_required"
 }>
 
 /**

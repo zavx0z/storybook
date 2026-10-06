@@ -122,7 +122,7 @@ test("без слушателей и после последней отписк�
   expect(history.messages[0]!.text).toBe("Без наблюдателя и дополнение после закрытия")
 })
 
-test("permission публикуется сразу вместе с pending delta и отменяет отложенную публикацию", async () => {
+test("permission публикуется после durable request вместе с pending delta без debounce", async () => {
   const f = await fixture()
   const snapshots: Snapshot[] = []
   const unsubscribe = await f.sessions.subscribe("/", value => snapshots.push(value))
@@ -132,6 +132,7 @@ test("permission публикуется сразу вместе с pending delta
   await f.connection.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Перед разрешением"}})
   const permission = f.connection.onPermission({sessionId: "publication-session", toolCall: {toolCallId: "tool", title: "Действие"},
     options: [{optionId: "reject", name: "Отклонить", kind: "reject_once"}]})
+  for (let attempt = 0; attempt < 100 && snapshots.length < 2; attempt++) await pause(5)
   expect(snapshots).toHaveLength(2)
   expect(clones()).toBe(1)
   expect(snapshots[1]!.version).toBe(version + 2)

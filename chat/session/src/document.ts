@@ -29,6 +29,8 @@ export type Document = {
   environmentContext?: string
   /** Начатая задача: durable start и dequeue сохраняются одним commit. */
   activeRequest?: string
+  /** Только identity незавершённых решений; исходные запросы лежат в timeline. */
+  pendingPermissions?: string[]
   /** Последняя управляющая версия сохраняется при освобождении resident state. */
   controlVersion?: number
   timeline: TimelineItem[]

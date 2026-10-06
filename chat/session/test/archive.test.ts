@@ -256,11 +256,11 @@ test.each([
   const header = JSON.parse(await readFile(f.file, "utf8"))
   const journal = join(f.root, "meta/chat", header.journal)
   const source = await readFile(journal, "utf8")
-  const assertProjection = () => {
+  const assertProjection = async () => {
     expect(archive.page().items.find(item => item.id === id)).toMatchObject({kind: "context"})
     const body = archive.body(id)
-    expect(body.entry).toMatchObject({kind: "context", requestId: "picture", content: props.bootstrap ? [bootstrap] : content})
-    expect(archive.body("user:picture").entry).toMatchObject({kind: "message", role: "user", content})
+    expect(body.entry).toMatchObject({kind: "context", requestId: "picture", content: props.bootstrap ? [bootstrap] : await archive.media.normalize(content)})
+    expect(archive.body("user:picture").entry).toMatchObject({kind: "message", role: "user", content: await archive.media.normalize(content)})
     const evidence: unknown[] = []
     let after: number | undefined
     for (;;) {
@@ -269,14 +269,16 @@ test.each([
       if (page.after === null) break
       after = page.after
     }
-    expect(evidence).toEqual(events)
+    expect(await archive.media.materialize(evidence)).toEqual(events)
+    expect(await archive.media.materialize(archive.content("user:picture"))).toEqual(content)
+    expect(source).not.toContain(content[1]!.data)
     expect(archive.residency().entries).toBe(0)
   }
-  assertProjection()
+  await assertProjection()
   await archive.dispose()
   await rm(archive.cacheFile)
   archive = await f.open()
-  assertProjection()
+  await assertProjection()
   expect(await readFile(journal, "utf8")).toBe(source)
   expect(JSON.parse(await readFile(f.file, "utf8"))).toEqual(header)
 })
@@ -298,7 +300,8 @@ test.each([
   await archive.receive({sessionUpdate: "user_message_chunk", messageId: "native-picture", content: {type: "text", text: echo}}, "replay", {})
   const id = archive.findProvider("user", "native-picture")!.id
   expect(archive.page().items.find(item => item.id === id)).toMatchObject({kind: "message", role: "user"})
-  expect(archive.body(id).entry).toMatchObject({kind: "message", content: [{type: "text", text: echo}]})
+  expect(archive.body(id).entry).toMatchObject({kind: "message", content: archive.media.project(await archive.media.normalize([{type: "text", text: echo}]))})
+  expect(await archive.media.materialize(archive.content(id))).toEqual([{type: "text", text: echo}])
 })
 
 test.each([1, 2])("потоковая миграция schema%d сохраняет original bytes, identities и незавершённый start", async version => {
@@ -371,29 +374,31 @@ test("ACP media и supplied resource blocks сохраняются без изм
     {type: "resource_link" as const, uri: "file:///fixture.txt", name: "fixture.txt", mimeType: "text/plain"},
   ]
   await archive.commit(undefined, [{type: "append", item: {id: "media", kind: "message", role: "user", origin: "local", content}}])
-  expect(archive.content("media")).toEqual(content)
+  expect(await archive.media.materialize(archive.content("media"))).toEqual(content)
   await archive.dispose()
   await rm(archive.cacheFile)
   archive = await f.open()
-  expect(archive.content("media")).toEqual(content)
-  expect(archive.body("media").entry).toMatchObject({content})
+  expect(await archive.media.materialize(archive.content("media"))).toEqual(content)
+  expect(archive.body("media").entry).toMatchObject({content: await archive.media.normalize(content)})
+  expect(archive.hasMedia("6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d")).toBeTrue()
 })
 
-test("body и одиночный raw event больше 16 MiB остаются в source и дают явную ошибку чтения", async () => {
+test("большой tool body читается порциями; oversized evidence не загружается целиком", async () => {
   const f = await fixture()
   const archive = await f.open()
   await archive.receive({sessionUpdate: "tool_call", toolCallId: "oversized", title: "Большой результат", rawOutput: "a".repeat(17 * 1024 * 1024)}, "live", {})
   const entry = archive.findTool("oversized")!
   expect(entry.bodyBytes).toBeGreaterThan(16 * 1024 * 1024)
   expect(Buffer.byteLength(JSON.stringify(archive.page()))).toBeLessThan(1024)
-  expect(() => archive.body(entry.id)).toThrow("16 MiB")
+  expect(archive.body(entry.id).bytes).toBeLessThan(65536)
+  expect(archive.body(entry.id).detail?.next).toBeGreaterThan(0)
   expect(() => archive.evidence(entry.id)).toThrow("16 MiB")
   const header = JSON.parse(await readFile(f.file, "utf8"))
   expect((await stat(join(f.root, "meta/chat", header.journal))).size).toBeGreaterThan(17 * 1024 * 1024)
   await archive.dispose()
   const restored = await f.open()
   expect(restored.findTool("oversized")!.id).toBe(entry.id)
-  expect(() => restored.body(entry.id)).toThrow("16 MiB")
+  expect(restored.body(entry.id).detail?.sourceBytes).toBeGreaterThan(16 * 1024 * 1024)
 }, 30_000)
 
 test("два handle одного файла не могут затереть подтверждённую запись stale writer", async () => {
@@ -568,4 +573,17 @@ test("удаление отдельного маркера не сканируе
       expect(plan.some(row => row.detail.includes(`SCAN ${table}`))).toBe(false)
     }
   } finally {db.close()}
+})
+
+test("перенос корпуса между владельцами переносит binary originals до публикации header", async () => {
+  const f = await fixture()
+  const archive = await f.open()
+  const content = [{type: "image" as const, mimeType: "image/png", data: "AQID"}]
+  await archive.commit(undefined, [{type: "append", item: {id: "image", kind: "message", role: "user", origin: "local", content}}])
+  const destination = join(f.root, "other/meta/chat/copy.json")
+  await copyArchive(f.file, destination, {...f.metadata, address: "/copy"})
+  const copied = await f.open(destination, {...f.metadata, address: "/copy"})
+  expect(await copied.media.materialize(copied.content("image"))).toEqual(content)
+  expect(await archive.media.materialize(archive.content("image"))).toEqual(content)
+  expect(copied.hasMedia("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81")).toBeTrue()
 })

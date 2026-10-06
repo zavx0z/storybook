@@ -273,7 +273,7 @@ test("две сессии агента разделяют полномочия, 
   const events = [[], []] as unknown[][]
   const leases = await Promise.all(["first-session", "second-session"].map((sessionId, index) => server.environment.acquireSession({
     executorId: agent.executorId, executorLabel: agent.executorLabel, address: agent.address, sessionId,
-  }, event => {events[index]!.push(event)})))
+  }, event => {events[index]!.push(event)}, async () => {})))
   const first = leases[0]!
   const second = leases[1]!
   expect(first.token).toBe(second.token)
@@ -286,4 +286,52 @@ test("две сессии агента разделяют полномочия, 
   expect(events[1]).toHaveLength(2)
   second.dispose()
   expect((await server.environment.handle(scopedRequest(second.token, {}))).status).toBe(401)
+})
+
+test("bearer агента не обходит policy gate без session context; lease использует явный callback хоста", async () => {
+  const {server} = await fixture()
+  const agent = await server.chats.read("/repo/button")
+  let decisions = 0
+  const lease = await server.environment.acquireSession({executorId: agent.executorId, executorLabel: agent.executorLabel,
+    address: agent.address, sessionId: "authorized-session"}, () => {}, async action => {
+    expect(action.command.name).toBe("filesystem.list")
+    decisions += 1
+  })
+  const request = () => new Request("http://localhost/api/environment", {method: "POST", headers: {authorization: `Bearer ${lease.token}`},
+    body: JSON.stringify({name: "filesystem.list", arguments: {path: "."}})})
+  expect((await server.environment.handle(request())).status).toBe(403)
+  expect(decisions).toBe(0)
+  expect((await lease.execute(request())).status).toBe(200)
+  expect(decisions).toBe(1)
+  lease.dispose()
+  expect((await server.environment.handle(request())).status).toBe(401)
+})
+
+
+test("полный HTTP-маршрут принимает media-put больше 96 КБ и сохраняет бинарные байты без prompt", async () => {
+  const {server, connections, prompts} = await fixture()
+  const bytes = Buffer.alloc(128 * 1024)
+  for (let index = 0; index < bytes.length; index++) bytes[index] = index % 251
+  const data = bytes.toString("base64")
+  const response = await server.request(chatRequest("media-put", {
+    address: "/repo/button", name: "screen.png", kind: "image", mimeType: "image/png", data,
+  }))
+  expect(response.status).toBe(200)
+  const content = await response.json()
+  expect(content.uri).toMatch(/^chat-media:[a-f0-9]{64}$/u)
+  expect(JSON.stringify(content).length).toBeLessThan(2048)
+  const original = await server.request(chatRequest("media-read", {address: "/repo/button", uri: content.uri}))
+  expect(original.status).toBe(200)
+  expect(Buffer.from(await original.arrayBuffer()).equals(bytes)).toBeTrue()
+  expect(connections).toHaveLength(0)
+  expect(prompts()).toBe(0)
+})
+
+test("лимит служебных маршрутов измеряется в UTF-8 байтах и не расширяется полем content", async () => {
+  const {server, connections} = await fixture()
+  for (const extra of [{padding: "я".repeat(60_000)}, {content: "x".repeat(100_000)}]) {
+    const response = await server.request(chatRequest("session", {address: "/repo/button", ...extra}))
+    expect(response.status).toBe(413)
+  }
+  expect(connections).toHaveLength(0)
 })
