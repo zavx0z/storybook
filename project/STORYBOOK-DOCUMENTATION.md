@@ -1,7 +1,7 @@
 # Storybook как общая документационная среда
 
 Эта заметка хранит ещё не перенесённый в код смысл и открытые вопросы. Действующие
-правила находятся у [Archetypes](../package/meta/notes/draft-structure.md),
+правила находятся у [Archetypes](../package/src/architecture.md),
 [владельца документации](../package/meta/notes/draft-documentation.md), в контрактах
 и исполняемых сценариях. Заметка не задаёт отдельный протокол MCP.
 

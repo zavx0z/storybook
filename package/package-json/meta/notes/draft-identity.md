@@ -43,7 +43,7 @@ script. Читатель пакетов сохраняет порядок шаб
 ## Идентичность и классификация
 
 Имя и подпись не определяют Repo, Domain, Component или
-[Container](../../../../container/meta/notes/structure.md). Класс подтверждается полным
+[Container](../../../../container/src/architecture.md). Класс подтверждается полным
 прохождением применимых проверок
 [сценария Package](../../../reader/spec/scenario.spec.ts).
 

@@ -10,17 +10,19 @@ children на любой глубине отсчитываются от той �
 @packageDocumentation
 */
 import resolveKnowledgeAddress from "@zavx0z/storybook-app-knowledge-address"
-import readProjectMcp from "@zavx0z/storybook-project-mcp"
-import readPackageMcp from "@zavx0z/storybook-package-mcp"
+import readProjectMcp from "@zavx0z/storybook-app-knowledge-project"
+import navigation from "@zavx0z/storybook-app-knowledge-navigation"
+import content from "@zavx0z/storybook-app-knowledge-content"
+import readPackageMcp from "@zavx0z/storybook-package-env"
 import type {StorybookAppKnowledge} from "./contract"
 import {rootEntries} from "./src/root"
-import readRepoMcp from "@zavx0z/storybook-repo-mcp"
-import readComponentMcp from "@zavx0z/storybook-component-mcp"
-import readContainerMcp from "@zavx0z/storybook-container-mcp"
-import readClusterMcp from "@zavx0z/storybook-cluster-mcp"
-import readDomainMcp from "@zavx0z/storybook-domain-mcp"
+import readRepoMcp from "@zavx0z/storybook-repo-env"
+import readComponentMcp from "@zavx0z/storybook-component-env"
+import readContainerMcp from "@zavx0z/storybook-container-env"
+import readClusterMcp from "@zavx0z/storybook-cluster-env"
+import readDomainMcp from "@zavx0z/storybook-domain-env"
 
-const entityMcp = {
+const entityEnv = {
   Repo: readRepoMcp,
   Component: readComponentMcp,
   Container: readContainerMcp,
@@ -81,16 +83,21 @@ export default async function storybookRest(request: StorybookAppKnowledge.Input
     if (selected.readType !== undefined) {
       const verification = await selected.readType()
       if (verification.status === "confirmed") {
-        return Response.json({...await entityMcp[verification.type]({selected, entries}), verification})
+        const sources = selected.sources
+        const declaration = entityEnv[verification.type]({...(selected.directory === undefined ? {} : {directory: selected.directory}), sources})
+        return Response.json({...navigation({path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}), description: selected.description, entries}),
+          ...await content(sources, declaration.documents), verification})
       }
       return Response.json({
-        ...await readPackageMcp({selected, entries, includeContent: false}),
+        ...navigation({path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}), description: selected.description, entries}),
         status: "type-unconfirmed",
         message: "Тип сущности ещё не подтверждён нормативным сценарием Package.",
         verification,
       })
     }
-    return Response.json(await readPackageMcp({selected, entries}))
+    const sources = selected.sources
+    return Response.json({...navigation({path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}), description: selected.description, entries}),
+      ...await content(sources, readPackageMcp({...(selected.directory === undefined ? {} : {directory: selected.directory}), sources}).documents)})
   } catch (error) {
     return Response.json({status: "failed", error: error instanceof Error ? error.message : String(error)},
       {status: error instanceof TypeError ? 400 : 404})

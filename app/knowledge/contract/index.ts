@@ -1,5 +1,5 @@
-import type {StorybookProjectMcp} from "@zavx0z/storybook-project-mcp"
-import type {StorybookPackageMcpSource} from "@zavx0z/storybook-package-mcp-source"
+import type {StorybookAppKnowledgeProject} from "@zavx0z/storybook-app-knowledge-project"
+import type {StorybookPackageEnvSource} from "@zavx0z/storybook-package-env-source"
 
 /** Контракт чтения знаний выбранного направления Storybook. */
 export declare namespace StorybookAppKnowledge {
@@ -11,8 +11,8 @@ export declare namespace StorybookAppKnowledge {
   type Input = readonly [
     request: Request,
     options: Readonly<{
-      projectName: StorybookProjectMcp.Input["projectName"]
-      entries: StorybookPackageMcpSource.Output
+      projectName: StorybookAppKnowledgeProject.Input["projectName"]
+      entries: StorybookPackageEnvSource.Output
       /** Неизменная точка входа, заданная хостом; без неё root соответствует Project. */
       root?: Readonly<{
         path: string

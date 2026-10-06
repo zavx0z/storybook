@@ -1,0 +1,1 @@
+{"name": "@fixture/example-summary", "type": "module", "exports": {".": "./index.ts", "./description.json": "./description.json"}}

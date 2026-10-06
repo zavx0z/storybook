@@ -10,12 +10,12 @@
 
 | Требования | Владелец |
 | --- | --- |
-| R01–R04: одна сущность и её публичные средовые возможности | [Domain](../../../domain/meta/notes/structure.md) |
-| R01–R04: группировка самостоятельных возможностей, доступ и публичные имена | [Cluster](../../../cluster/meta/notes/structure.md), общий механизм — [Package](./draft-exports.md) |
+| R01–R04: одна сущность и её публичные средовые возможности | [Domain](../../../domain/src/architecture.md) |
+| R01–R04: группировка самостоятельных возможностей, доступ и публичные имена | [Cluster](../../../cluster/src/architecture.md), общий механизм — [Package](./draft-exports.md) |
 | R05–R06: реальные среды и входы без обязательного общего индекса | [Среды Domain](../../../domain/meta/notes/environments.md) |
-| R07: принадлежность частей одной сущности и смысловая группировка | [Domain](../../../domain/meta/notes/structure.md), [Cluster](../../../cluster/meta/notes/structure.md) |
+| R07: принадлежность частей одной сущности и смысловая группировка | [Domain](../../../domain/src/architecture.md), [Cluster](../../../cluster/src/architecture.md) |
 | R08: дублирование и идентичность | [Публичные экспорты](./draft-exports.md) |
-| R09–R11: default, именованные типы и имя реализации | [Component](../../../component/meta/notes/draft-placement.md) |
+| R09–R11: default, именованные типы и имя реализации | [Component](../../../component/src/architecture.md) |
 | R12–R13: тип у владельца, без универсального types-пакета | [Контракты](../../../contracts/meta/notes/draft-contracts.md) |
 | R14: внутренние импорты владельцев | [Импорты Component](../../../component/meta/notes/imports.md) |
 | R15–R16: Input из Output и доказательство pipeline | [Контракты](../../../contracts/meta/notes/draft-contracts.md), [зависимости](../../../specs/deps/meta/notes/draft-dependencies.md) |

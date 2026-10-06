@@ -76,7 +76,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-app-environment-binding": "workspace:*",
         "zod": "^4.4.3",
       },
     },
@@ -85,10 +85,41 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
+        "@zavx0z/storybook-app-environment-declaration": "workspace:*",
         "@zavx0z/storybook-app-environment-tools": "workspace:*",
+        "@zavx0z/storybook-cluster-env": "workspace:*",
+        "@zavx0z/storybook-component-env": "workspace:*",
+        "@zavx0z/storybook-container-env": "workspace:*",
+        "@zavx0z/storybook-domain-env": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
+        "@zavx0z/storybook-project-env": "workspace:*",
+        "@zavx0z/storybook-repo-env": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-app-knowledge": "workspace:*",
+      },
+    },
+    "app/environment/binding": {
+      "name": "@zavx0z/storybook-app-environment-binding",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
+        "@zavx0z/storybook-package-env": "workspace:*",
+      },
+    },
+    "app/environment/declaration": {
+      "name": "@zavx0z/storybook-app-environment-declaration",
+      "dependencies": {
+        "@zavx0z/storybook-cluster-env": "workspace:*",
+        "@zavx0z/storybook-component-env": "workspace:*",
+        "@zavx0z/storybook-container-env": "workspace:*",
+        "@zavx0z/storybook-contracts-env": "workspace:*",
+        "@zavx0z/storybook-domain-env": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
+        "@zavx0z/storybook-project-env": "workspace:*",
+        "@zavx0z/storybook-repo-env": "workspace:*",
+        "@zavx0z/storybook-specs-env": "workspace:*",
+        "@zavx0z/storybook-typedoc-env": "workspace:*",
       },
     },
     "app/environment/tools": {
@@ -97,14 +128,15 @@
       "dependencies": {
         "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
         "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
-        "@zavx0z/storybook-cluster-mcp": "workspace:*",
-        "@zavx0z/storybook-component-mcp": "workspace:*",
-        "@zavx0z/storybook-container-mcp": "workspace:*",
-        "@zavx0z/storybook-domain-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
-        "@zavx0z/storybook-project-mcp": "workspace:*",
-        "@zavx0z/storybook-repo-mcp": "workspace:*",
+        "@zavx0z/storybook-app-environment-binding": "workspace:*",
+        "@zavx0z/storybook-app-environment-declaration": "workspace:*",
+        "@zavx0z/storybook-cluster-env": "workspace:*",
+        "@zavx0z/storybook-component-env": "workspace:*",
+        "@zavx0z/storybook-container-env": "workspace:*",
+        "@zavx0z/storybook-domain-env": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
+        "@zavx0z/storybook-project-env": "workspace:*",
+        "@zavx0z/storybook-repo-env": "workspace:*",
       },
     },
     "app/knowledge": {
@@ -112,15 +144,17 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-app-knowledge-address": "workspace:*",
-        "@zavx0z/storybook-cluster-mcp": "workspace:*",
-        "@zavx0z/storybook-component-mcp": "workspace:*",
-        "@zavx0z/storybook-container-mcp": "workspace:*",
-        "@zavx0z/storybook-domain-mcp": "workspace:*",
+        "@zavx0z/storybook-app-knowledge-content": "workspace:*",
+        "@zavx0z/storybook-app-knowledge-navigation": "workspace:*",
+        "@zavx0z/storybook-app-knowledge-project": "workspace:*",
+        "@zavx0z/storybook-cluster-env": "workspace:*",
+        "@zavx0z/storybook-component-env": "workspace:*",
+        "@zavx0z/storybook-container-env": "workspace:*",
+        "@zavx0z/storybook-domain-env": "workspace:*",
         "@zavx0z/storybook-package-build-conformance": "workspace:*",
-        "@zavx0z/storybook-package-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp-source": "workspace:*",
-        "@zavx0z/storybook-project-mcp": "workspace:*",
-        "@zavx0z/storybook-repo-mcp": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
+        "@zavx0z/storybook-package-env-source": "workspace:*",
+        "@zavx0z/storybook-repo-env": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
@@ -129,6 +163,21 @@
     },
     "app/knowledge/address": {
       "name": "@zavx0z/storybook-app-knowledge-address",
+      "version": "0.0.0",
+    },
+    "app/knowledge/content": {
+      "name": "@zavx0z/storybook-app-knowledge-content",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-env-source": "workspace:*",
+      },
+    },
+    "app/knowledge/navigation": {
+      "name": "@zavx0z/storybook-app-knowledge-navigation",
+      "version": "0.0.0",
+    },
+    "app/knowledge/project": {
+      "name": "@zavx0z/storybook-app-knowledge-project",
       "version": "0.0.0",
     },
     "app/response": {
@@ -146,6 +195,7 @@
         "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
         "@zavx0z/immersive-markdown": "^0.0.0",
         "@zavx0z/storybook-app-environment": "workspace:*",
+        "@zavx0z/storybook-app-environment-declaration": "workspace:*",
         "@zavx0z/storybook-app-knowledge": "workspace:*",
         "@zavx0z/storybook-app-response": "workspace:*",
         "@zavx0z/storybook-app-server-browser": "workspace:*",
@@ -162,8 +212,8 @@
         "@zavx0z/storybook-package-build-conformance": "workspace:*",
         "@zavx0z/storybook-package-build-prepare": "workspace:*",
         "@zavx0z/storybook-package-build-scheduler": "workspace:*",
+        "@zavx0z/storybook-package-env-source": "workspace:*",
         "@zavx0z/storybook-package-graph-read": "workspace:*",
-        "@zavx0z/storybook-package-mcp-source": "workspace:*",
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-package-resources": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
@@ -187,13 +237,13 @@
         "@zavx0z/storybook-app-control": "workspace:*",
         "@zavx0z/storybook-app-web-build": "workspace:*",
         "@zavx0z/storybook-app-web-release": "workspace:*",
-        "@zavx0z/storybook-cluster-mcp": "workspace:*",
-        "@zavx0z/storybook-component-mcp": "workspace:*",
-        "@zavx0z/storybook-container-mcp": "workspace:*",
-        "@zavx0z/storybook-domain-mcp": "workspace:*",
+        "@zavx0z/storybook-cluster-env": "workspace:*",
+        "@zavx0z/storybook-component-env": "workspace:*",
+        "@zavx0z/storybook-container-env": "workspace:*",
+        "@zavx0z/storybook-domain-env": "workspace:*",
         "@zavx0z/storybook-package-artifacts": "workspace:*",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
-        "@zavx0z/storybook-repo-mcp": "workspace:*",
+        "@zavx0z/storybook-repo-env": "workspace:*",
         "@zavx0z/storybook-tech-build-artifacts": "workspace:*",
         "@zavx0z/storybook-tech-build-environment": "workspace:*",
       },
@@ -791,14 +841,11 @@
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
     },
-    "cluster/mcp": {
-      "name": "@zavx0z/storybook-cluster-mcp",
+    "cluster/env": {
+      "name": "@zavx0z/storybook-cluster-env",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp-content": "workspace:*",
-        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
       },
     },
     "component": {
@@ -808,14 +855,11 @@
         "@zavx0z/storybook-package-reader": "workspace:*",
       },
     },
-    "component/mcp": {
-      "name": "@zavx0z/storybook-component-mcp",
+    "component/env": {
+      "name": "@zavx0z/storybook-component-env",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp-content": "workspace:*",
-        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
       },
     },
     "container": {
@@ -828,14 +872,11 @@
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
     },
-    "container/mcp": {
-      "name": "@zavx0z/storybook-container-mcp",
+    "container/env": {
+      "name": "@zavx0z/storybook-container-env",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp-content": "workspace:*",
-        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
       },
     },
     "contracts": {
@@ -851,6 +892,12 @@
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
     },
+    "contracts/env": {
+      "name": "@zavx0z/storybook-contracts-env",
+      "dependencies": {
+        "@zavx0z/storybook-package-env": "workspace:*",
+      },
+    },
     "domain": {
       "name": "@zavx0z/storybook-domain",
       "version": "0.0.0",
@@ -862,14 +909,11 @@
         "@zavx0z/storybook-component": "workspace:*",
       },
     },
-    "domain/mcp": {
-      "name": "@zavx0z/storybook-domain-mcp",
+    "domain/env": {
+      "name": "@zavx0z/storybook-domain-env",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp-content": "workspace:*",
-        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
       },
     },
     "package/activation": {
@@ -973,6 +1017,32 @@
       "name": "@zavx0z/storybook-package-documentation",
       "version": "0.0.0",
     },
+    "package/env": {
+      "name": "@zavx0z/storybook-package-env",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/ai-filesystem-apply-patch": "link:@zavx0z/ai-filesystem-apply-patch",
+        "@zavx0z/ai-filesystem-create": "link:@zavx0z/ai-filesystem-create",
+        "@zavx0z/ai-filesystem-list": "link:@zavx0z/ai-filesystem-list",
+        "@zavx0z/ai-filesystem-mkdir": "link:@zavx0z/ai-filesystem-mkdir",
+        "@zavx0z/ai-filesystem-read": "link:@zavx0z/ai-filesystem-read",
+        "@zavx0z/ai-filesystem-read-many": "link:@zavx0z/ai-filesystem-read-many",
+        "@zavx0z/ai-filesystem-remove": "link:@zavx0z/ai-filesystem-remove",
+        "@zavx0z/ai-filesystem-rename": "link:@zavx0z/ai-filesystem-rename",
+        "@zavx0z/ai-filesystem-stat": "link:@zavx0z/ai-filesystem-stat",
+        "@zavx0z/ai-filesystem-write": "link:@zavx0z/ai-filesystem-write",
+        "@zavx0z/storybook-package-env-source": "workspace:*",
+      },
+    },
+    "package/env-source": {
+      "name": "@zavx0z/storybook-package-env-source",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-build-conformance": "workspace:*",
+        "@zavx0z/storybook-package-graph-create": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+      },
+    },
     "package/graph": {
       "name": "@zavx0z/storybook-package-graph",
       "version": "0.0.0",
@@ -1017,55 +1087,6 @@
     "package/index": {
       "name": "@zavx0z/storybook-package-index",
       "version": "0.0.0",
-    },
-    "package/mcp": {
-      "name": "@zavx0z/storybook-package-mcp",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/storybook-package-mcp-content": "workspace:*",
-        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
-        "@zavx0z/storybook-package-mcp-source": "workspace:*",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
-      },
-    },
-    "package/mcp-source": {
-      "name": "@zavx0z/storybook-package-mcp-source",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/storybook-package-build-conformance": "workspace:*",
-        "@zavx0z/storybook-package-graph-create": "workspace:*",
-        "@zavx0z/storybook-package-mcp-content": "workspace:*",
-        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
-        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
-      },
-    },
-    "package/mcp/content": {
-      "name": "@zavx0z/storybook-package-mcp-content",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
-      },
-    },
-    "package/mcp/navigation": {
-      "name": "@zavx0z/storybook-package-mcp-navigation",
-      "version": "0.0.0",
-    },
-    "package/mcp/tools": {
-      "name": "@zavx0z/storybook-package-mcp-tools",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/ai-filesystem-apply-patch": "link:@zavx0z/ai-filesystem-apply-patch",
-        "@zavx0z/ai-filesystem-create": "link:@zavx0z/ai-filesystem-create",
-        "@zavx0z/ai-filesystem-list": "link:@zavx0z/ai-filesystem-list",
-        "@zavx0z/ai-filesystem-mkdir": "link:@zavx0z/ai-filesystem-mkdir",
-        "@zavx0z/ai-filesystem-read": "link:@zavx0z/ai-filesystem-read",
-        "@zavx0z/ai-filesystem-read-many": "link:@zavx0z/ai-filesystem-read-many",
-        "@zavx0z/ai-filesystem-remove": "link:@zavx0z/ai-filesystem-remove",
-        "@zavx0z/ai-filesystem-rename": "link:@zavx0z/ai-filesystem-rename",
-        "@zavx0z/ai-filesystem-stat": "link:@zavx0z/ai-filesystem-stat",
-        "@zavx0z/ai-filesystem-write": "link:@zavx0z/ai-filesystem-write",
-        "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
-      },
     },
     "package/metadata": {
       "name": "@zavx0z/storybook-package-metadata",
@@ -1238,22 +1259,19 @@
         "@zavx0z/storybook-package-package-json": "workspace:*",
       },
     },
-    "project/mcp": {
-      "name": "@zavx0z/storybook-project-mcp",
+    "project/env": {
+      "name": "@zavx0z/storybook-project-env",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
       },
     },
-    "repo/mcp": {
-      "name": "@zavx0z/storybook-repo-mcp",
+    "repo/env": {
+      "name": "@zavx0z/storybook-repo-env",
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/ai-git-status": "link:@zavx0z/ai-git-status",
-        "@zavx0z/storybook-package-mcp": "workspace:*",
-        "@zavx0z/storybook-package-mcp-content": "workspace:*",
-        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
-        "@zavx0z/storybook-package-mcp-tools": "workspace:*",
+        "@zavx0z/storybook-package-env": "workspace:*",
       },
     },
     "repo/reader": {
@@ -1268,6 +1286,12 @@
       "version": "0.0.0",
       "devDependencies": {
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+      },
+    },
+    "specs/env": {
+      "name": "@zavx0z/storybook-specs-env",
+      "dependencies": {
+        "@zavx0z/storybook-package-env": "workspace:*",
       },
     },
     "specs/guide": {
@@ -1471,6 +1495,12 @@
       },
       "devDependencies": {
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+      },
+    },
+    "typedoc/env": {
+      "name": "@zavx0z/storybook-typedoc-env",
+      "dependencies": {
+        "@zavx0z/storybook-package-env": "workspace:*",
       },
     },
   },
@@ -1743,11 +1773,21 @@
 
     "@zavx0z/storybook-app-environment": ["@zavx0z/storybook-app-environment@workspace:app/environment"],
 
+    "@zavx0z/storybook-app-environment-binding": ["@zavx0z/storybook-app-environment-binding@workspace:app/environment/binding"],
+
+    "@zavx0z/storybook-app-environment-declaration": ["@zavx0z/storybook-app-environment-declaration@workspace:app/environment/declaration"],
+
     "@zavx0z/storybook-app-environment-tools": ["@zavx0z/storybook-app-environment-tools@workspace:app/environment/tools"],
 
     "@zavx0z/storybook-app-knowledge": ["@zavx0z/storybook-app-knowledge@workspace:app/knowledge"],
 
     "@zavx0z/storybook-app-knowledge-address": ["@zavx0z/storybook-app-knowledge-address@workspace:app/knowledge/address"],
+
+    "@zavx0z/storybook-app-knowledge-content": ["@zavx0z/storybook-app-knowledge-content@workspace:app/knowledge/content"],
+
+    "@zavx0z/storybook-app-knowledge-navigation": ["@zavx0z/storybook-app-knowledge-navigation@workspace:app/knowledge/navigation"],
+
+    "@zavx0z/storybook-app-knowledge-project": ["@zavx0z/storybook-app-knowledge-project@workspace:app/knowledge/project"],
 
     "@zavx0z/storybook-app-response": ["@zavx0z/storybook-app-response@workspace:app/response"],
 
@@ -1831,21 +1871,23 @@
 
     "@zavx0z/storybook-cluster": ["@zavx0z/storybook-cluster@workspace:cluster"],
 
-    "@zavx0z/storybook-cluster-mcp": ["@zavx0z/storybook-cluster-mcp@workspace:cluster/mcp"],
+    "@zavx0z/storybook-cluster-env": ["@zavx0z/storybook-cluster-env@workspace:cluster/env"],
 
     "@zavx0z/storybook-component": ["@zavx0z/storybook-component@workspace:component"],
 
-    "@zavx0z/storybook-component-mcp": ["@zavx0z/storybook-component-mcp@workspace:component/mcp"],
+    "@zavx0z/storybook-component-env": ["@zavx0z/storybook-component-env@workspace:component/env"],
 
     "@zavx0z/storybook-container": ["@zavx0z/storybook-container@workspace:container"],
 
-    "@zavx0z/storybook-container-mcp": ["@zavx0z/storybook-container-mcp@workspace:container/mcp"],
+    "@zavx0z/storybook-container-env": ["@zavx0z/storybook-container-env@workspace:container/env"],
 
     "@zavx0z/storybook-contracts": ["@zavx0z/storybook-contracts@workspace:contracts"],
 
+    "@zavx0z/storybook-contracts-env": ["@zavx0z/storybook-contracts-env@workspace:contracts/env"],
+
     "@zavx0z/storybook-domain": ["@zavx0z/storybook-domain@workspace:domain"],
 
-    "@zavx0z/storybook-domain-mcp": ["@zavx0z/storybook-domain-mcp@workspace:domain/mcp"],
+    "@zavx0z/storybook-domain-env": ["@zavx0z/storybook-domain-env@workspace:domain/env"],
 
     "@zavx0z/storybook-package-activation": ["@zavx0z/storybook-package-activation@workspace:package/activation"],
 
@@ -1869,6 +1911,10 @@
 
     "@zavx0z/storybook-package-documentation": ["@zavx0z/storybook-package-documentation@workspace:package/documentation"],
 
+    "@zavx0z/storybook-package-env": ["@zavx0z/storybook-package-env@workspace:package/env"],
+
+    "@zavx0z/storybook-package-env-source": ["@zavx0z/storybook-package-env-source@workspace:package/env-source"],
+
     "@zavx0z/storybook-package-graph": ["@zavx0z/storybook-package-graph@workspace:package/graph"],
 
     "@zavx0z/storybook-package-graph-create": ["@zavx0z/storybook-package-graph-create@workspace:package/graph/create"],
@@ -1878,16 +1924,6 @@
     "@zavx0z/storybook-package-identity": ["@zavx0z/storybook-package-identity@workspace:package/identity"],
 
     "@zavx0z/storybook-package-index": ["@zavx0z/storybook-package-index@workspace:package/index"],
-
-    "@zavx0z/storybook-package-mcp": ["@zavx0z/storybook-package-mcp@workspace:package/mcp"],
-
-    "@zavx0z/storybook-package-mcp-content": ["@zavx0z/storybook-package-mcp-content@workspace:package/mcp/content"],
-
-    "@zavx0z/storybook-package-mcp-navigation": ["@zavx0z/storybook-package-mcp-navigation@workspace:package/mcp/navigation"],
-
-    "@zavx0z/storybook-package-mcp-source": ["@zavx0z/storybook-package-mcp-source@workspace:package/mcp-source"],
-
-    "@zavx0z/storybook-package-mcp-tools": ["@zavx0z/storybook-package-mcp-tools@workspace:package/mcp/tools"],
 
     "@zavx0z/storybook-package-metadata": ["@zavx0z/storybook-package-metadata@workspace:package/metadata"],
 
@@ -1925,13 +1961,15 @@
 
     "@zavx0z/storybook-project": ["@zavx0z/storybook-project@workspace:project"],
 
-    "@zavx0z/storybook-project-mcp": ["@zavx0z/storybook-project-mcp@workspace:project/mcp"],
+    "@zavx0z/storybook-project-env": ["@zavx0z/storybook-project-env@workspace:project/env"],
 
-    "@zavx0z/storybook-repo-mcp": ["@zavx0z/storybook-repo-mcp@workspace:repo/mcp"],
+    "@zavx0z/storybook-repo-env": ["@zavx0z/storybook-repo-env@workspace:repo/env"],
 
     "@zavx0z/storybook-repo-reader": ["@zavx0z/storybook-repo-reader@workspace:repo/reader"],
 
     "@zavx0z/storybook-specs-document": ["@zavx0z/storybook-specs-document@workspace:specs/document"],
+
+    "@zavx0z/storybook-specs-env": ["@zavx0z/storybook-specs-env@workspace:specs/env"],
 
     "@zavx0z/storybook-specs-guide": ["@zavx0z/storybook-specs-guide@workspace:specs/guide"],
 
@@ -1980,6 +2018,8 @@
     "@zavx0z/storybook-tech-testing-browser-root": ["@zavx0z/storybook-tech-testing-browser-root@workspace:tech/testing/browser-root"],
 
     "@zavx0z/storybook-typedoc": ["@zavx0z/storybook-typedoc@workspace:typedoc"],
+
+    "@zavx0z/storybook-typedoc-env": ["@zavx0z/storybook-typedoc-env@workspace:typedoc/env"],
 
     "ajv": ["ajv@8.20.0", "", { "dependencies": { "fast-deep-equal": "^3.1.3", "fast-uri": "^3.0.1", "json-schema-traverse": "^1.0.0", "require-from-string": "^2.0.2" } }, "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA=="],
 

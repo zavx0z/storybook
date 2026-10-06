@@ -6,7 +6,7 @@ import storybookRest from "@zavx0z/storybook-app-knowledge"
 import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
 import type {StorybookAppServerCatalog} from "@zavx0z/storybook-app-server-catalog"
 import {readMcpEntityType} from "../src/mcp-type"
-import storybookMcpEntries from "@zavx0z/storybook-package-mcp-source"
+import storybookMcpEntries from "@zavx0z/storybook-package-env-source"
 
 type Snapshot = ReturnType<StorybookAppServerCatalog.Output["snapshot"]>
 const releases: (() => Promise<void>)[] = []

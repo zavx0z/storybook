@@ -1,0 +1,15 @@
+{
+  "name": "@zavx0z/storybook-repo-env",
+  "label": "Окружение Repo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-env": "workspace:*",
+    "@zavx0z/ai-git-status": "link:@zavx0z/ai-git-status"
+  },
+  "description": "Формирует декларацию окружения repo: ссылки на правила, знания и инструменты без их исполнения"
+}

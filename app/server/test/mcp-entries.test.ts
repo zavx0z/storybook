@@ -8,7 +8,7 @@ import {describe, expect, test} from "bun:test"
 import {join, resolve} from "node:path"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
-import storybookMcpEntries from "@zavx0z/storybook-package-mcp-source"
+import storybookMcpEntries from "@zavx0z/storybook-package-env-source"
 import resolveRoute from "@zavx0z/storybook-package-route-resolve"
 
 describe("Код владельца через общий каталог", async () => {

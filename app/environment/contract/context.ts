@@ -15,6 +15,8 @@ export type Subject = Readonly<{
   address: string
   label: string
   directory: StorybookAppEnvironmentTools.Input["directory"]
+  /** Корень происхождения правил; не меняет область файловых инструментов. */
+  projectDirectory?: string
   type?: StorybookAppEnvironmentTools.Input["type"]
 }>
 

@@ -1,0 +1,14 @@
+{
+  "name": "@zavx0z/storybook-cluster-env",
+  "label": "Окружение Cluster",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-env": "workspace:*"
+  },
+  "description": "Формирует декларацию окружения cluster: ссылки на правила, знания и инструменты без их исполнения"
+}

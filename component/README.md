@@ -2,7 +2,7 @@
 
 [Публичное описание](./index.ts).
 
-- [Размещение компонента](./meta/notes/draft-placement.md)
+- [Размещение компонента](src/architecture.md)
 - [Импорты](./meta/notes/imports.md)
 - [Контракты и владение типами](../contracts/meta/notes/draft-contracts.md)
 - [Представления](./meta/notes/presentation-ownership.md)

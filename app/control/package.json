@@ -9,6 +9,6 @@
   "dependencies": {
     "zod": "^4.4.3",
     "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
-    "@zavx0z/storybook-package-mcp-tools": "workspace:*"
+    "@zavx0z/storybook-app-environment-binding": "workspace:*"
   }
 }

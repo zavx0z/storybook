@@ -1,0 +1,15 @@
+{
+  "name": "@zavx0z/storybook-app-environment-binding",
+  "label": "Инструменты Package",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-env": "workspace:*",
+    "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace"
+  },
+  "description": "Связывает ссылки декларации с инструментами назначенной области"
+}

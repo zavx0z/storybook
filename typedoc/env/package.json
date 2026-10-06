@@ -1,0 +1,12 @@
+{
+  "name": "@zavx0z/storybook-typedoc-env",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-env": "workspace:*"
+  },
+  "description": "Формирует декларацию окружения typedoc: ссылки на правила, знания и инструменты без их исполнения"
+}

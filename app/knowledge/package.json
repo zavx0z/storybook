@@ -12,16 +12,18 @@
     "test": "bun test ./spec"
   },
   "dependencies": {
-    "@zavx0z/storybook-repo-mcp": "workspace:*",
-    "@zavx0z/storybook-component-mcp": "workspace:*",
-    "@zavx0z/storybook-container-mcp": "workspace:*",
-    "@zavx0z/storybook-cluster-mcp": "workspace:*",
-    "@zavx0z/storybook-domain-mcp": "workspace:*",
+    "@zavx0z/storybook-repo-env": "workspace:*",
+    "@zavx0z/storybook-component-env": "workspace:*",
+    "@zavx0z/storybook-container-env": "workspace:*",
+    "@zavx0z/storybook-cluster-env": "workspace:*",
+    "@zavx0z/storybook-domain-env": "workspace:*",
     "@zavx0z/storybook-package-build-conformance": "workspace:*",
     "@zavx0z/storybook-app-knowledge-address": "workspace:*",
-    "@zavx0z/storybook-project-mcp": "workspace:*",
-    "@zavx0z/storybook-package-mcp": "workspace:*",
-    "@zavx0z/storybook-package-mcp-source": "workspace:*"
+    "@zavx0z/storybook-package-env": "workspace:*",
+    "@zavx0z/storybook-package-env-source": "workspace:*",
+    "@zavx0z/storybook-app-knowledge-project": "workspace:*",
+    "@zavx0z/storybook-app-knowledge-navigation": "workspace:*",
+    "@zavx0z/storybook-app-knowledge-content": "workspace:*"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

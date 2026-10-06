@@ -1,3 +1,6 @@
+import {fileURLToPath} from "node:url"
+import declaration from "@zavx0z/storybook-app-environment-declaration"
+import {relative, sep, isAbsolute} from "node:path"
 import createWorkspace, {type AiWorkspace} from "@zavx0z/ai-workspace"
 import statPath from "@zavx0z/ai-filesystem-stat"
 import listFiles from "@zavx0z/ai-filesystem-list"
@@ -10,38 +13,23 @@ const notesRoot = "./meta/notes"
 const rulesRoot = "./rules/documents"
 
 /** Явно опубликованные источники норм из AGENTS, Оснований и указателей структурного стандарта. */
-const normativeSources = [
-  {path: "project/meta/notes/foundations/index.md", description: "Основания"},
-  {path: "project/meta/notes/foundations/meaning.md", description: "Смысл и выразительность"},
-  {path: "project/meta/notes/foundations/emergence.md", description: "Эмерджентность и естественные ограничения"},
-  {path: "project/meta/notes/foundations/coherence.md", description: "Единство и узнаваемость"},
-  {path: "project/meta/notes/foundations/simplicity.md", description: "Простота и сложность"},
-  {path: "project/meta/notes/foundations/knowledge.md", description: "Знание и понимание"},
-  {path: "project/meta/notes/foundations/creation.md", description: "Созидание и свобода"},
-  {path: "project/meta/notes/design.md", description: "Проектирование"},
-  {path: "repo/meta/notes/architecture.md", description: "Предметная архитектура проекта"},
-  {path: "package/meta/notes/draft-structure.md", description: "Структура Project, Repo и пакетов"},
-  {path: "package/meta/notes/development.md", description: "Развитие структуры"},
-  {path: "package/meta/notes/draft-documentation.md", description: "Документация поведения и ответственности"},
-  {path: "package/meta/notes/draft-exports.md", description: "Публичные входы и происхождение экспортов"},
-  {path: "package/meta/notes/draft-projections.md", description: "Переходная проекция директорий"},
-  {path: "package/meta/notes/archetype-transition.md", description: "Переход архетипов и состояние проверок"},
-  {path: "package/meta/notes/note-lifecycle.md", description: "Жизненный цикл заметок"},
-  {path: "contracts/meta/notes/draft-contracts.md", description: "Модель контрактов"},
-  {path: "component/meta/notes/draft-placement.md", description: "Размещение и ответственность Component"},
-  {path: "component/meta/notes/verification.md", description: "Границы проверки Component"},
-  {path: "component/meta/notes/presentation-ownership.md", description: "Принадлежность представлений Component"},
-  {path: "container/meta/notes/structure.md", description: "Структура Container"},
-  {path: "cluster/meta/notes/structure.md", description: "Структура Cluster"},
-  {path: "domain/meta/notes/structure.md", description: "Структура Domain"},
-  {path: "domain/meta/notes/environments.md", description: "Средовые реализации Domain"},
-  {path: "typedoc/meta/notes/authoring.md", description: "Документация объявлений кода"},
-  {path: "specs/meta/notes/structure.md", description: "Спецификации владельца"},
-  {path: "specs/scenarios/meta/notes/presentation.md", description: "Авторство и представление сценария"},
-  {path: "specs/presentation/meta/notes/presentation.md", description: "Представление исполняемых спецификаций"},
-  {path: "meta/notes/scenario-development.md", description: "Уточнение сценариев по мере разработки"},
-  {path: "meta/notes/environment-workflow.md", description: "Рабочий процесс агентского окружения Storybook"},
-] as const
+function normativeDocuments(toolRoot?: string) {
+  if (toolRoot === undefined) return []
+  const documents = ([undefined, "Project", "Repo", "Component", "Container", "Cluster", "Domain", "Contracts", "TypeDoc", "Specs"] as const).flatMap(type =>
+    Object.entries(declaration(type === undefined ? {} : {type} ).documents))
+  documents.push(
+    ["Рабочий процесс среды", {path: fileURLToPath(new URL("../../../meta/notes/environment-workflow.md", import.meta.url))}],
+    ["Сборка и обновление Storybook", {path: fileURLToPath(new URL("../../src/build-requirements.md", import.meta.url))}],
+    ["Уточнение сценариев", {path: fileURLToPath(new URL("../../../meta/notes/scenario-development.md", import.meta.url))}],
+  )
+  const seen = new Set<string>()
+  return documents.flatMap(([description, source]) => {
+    const path = relative(fileURLToPath(new URL("../../../", import.meta.url)), source.path).split(sep).join("/")
+    if (path === ".." || path.startsWith("../") || isAbsolute(path) || seen.has(path)) return []
+    seen.add(path)
+    return [{path, description}]
+  })
+}
 
 /** Кодирует адрес из физических сегментов; модель использует точное значение children. */
 function address(root: string, path: string): string {
@@ -83,6 +71,7 @@ export async function knowledgePath(request: Request): Promise<string | undefine
 Пути норм являются ссылками на реальные источники Storybook, а их тексты не кешируются.
 */
 export default function createKnowledgeNotes(toolRoot?: string) {
+  const normativeSources = normativeDocuments(toolRoot)
   const rules = toolRoot === undefined ? undefined : createWorkspace({directory: toolRoot})
   const owners = new Map<string, AiWorkspace.Output>()
   const menus = [

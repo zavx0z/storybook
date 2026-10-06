@@ -2,7 +2,7 @@
 
 Общие принципы задают [Основания](./foundations/index.md),
 их применение к Storybook — [архитектура](../../../ARCHITECTURE.md),
-размещение ответственности — [Archetypes](../../../package/meta/notes/draft-structure.md).
+размещение ответственности — [Archetypes](../../../package/src/architecture.md).
 
 ## Структурная модель
 

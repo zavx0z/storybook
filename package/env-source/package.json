@@ -1,0 +1,16 @@
+{
+  "name": "@zavx0z/storybook-package-env-source",
+  "label": "Источники окружения",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Раскрывает данные владельца из сохранённых метаданных для предметных деклараций окружения",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+    "@zavx0z/storybook-package-graph-create": "workspace:*",
+    "@zavx0z/storybook-package-build-conformance": "workspace:*"
+  }
+}

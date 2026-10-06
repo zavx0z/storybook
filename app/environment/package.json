@@ -10,7 +10,15 @@
   },
   "dependencies": {
     "@zavx0z/storybook-app-environment-tools": "workspace:*",
-    "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure"
+    "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
+    "@zavx0z/storybook-package-env": "workspace:*",
+    "@zavx0z/storybook-project-env": "workspace:*",
+    "@zavx0z/storybook-repo-env": "workspace:*",
+    "@zavx0z/storybook-component-env": "workspace:*",
+    "@zavx0z/storybook-container-env": "workspace:*",
+    "@zavx0z/storybook-cluster-env": "workspace:*",
+    "@zavx0z/storybook-domain-env": "workspace:*",
+    "@zavx0z/storybook-app-environment-declaration": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/storybook-app-knowledge": "workspace:*"

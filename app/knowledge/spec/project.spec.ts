@@ -26,7 +26,7 @@ describe.each([
     expect(response.status, "Корень открывается без чтения контрактов участвующих Repo").toBe(200)
     expect(result, "HTTP передаёт предметный ответ Project с его именем и только первым уровнем Repo")
       .toEqual({
-        description: "Выберите Repo текущего Project по описанию. Для перехода передайте path выбранного элемента children в следующий вызов storybook. Выбранный владелец раскрывает input и output как JSON Schema с описаниями. Пустой вызов возвращает к этому входу.",
+        description: "Выберите Repo текущего Project по описанию. Для перехода передайте path выбранного элемента children в следующий вызов knowledge.read. Выбранный владелец раскрывает input и output как JSON Schema с описаниями. Пустой вызов возвращает к этому входу.",
         path: ".",
         label: "Мастерская",
         children: [{description: "Продажа товаров.", path: "./shop", label: "Магазин"}],

@@ -18,6 +18,9 @@ import type {StorybookAppEnvironment as Contract} from "./contract"
 import type {Bootstrap} from "./contract/context"
 import type {CallEvent} from "./contract/events"
 import {inspectDescription, knowledgeDescription, protocol} from "./src/descriptions"
+import declaration from "@zavx0z/storybook-app-environment-declaration"
+import {readSource} from "./src/source"
+import {relative} from "node:path"
 import {failure, identity, object, readCommand, reply} from "./src/http"
 
 export type {StorybookAppEnvironment} from "./contract"
@@ -27,6 +30,7 @@ type BoundAssignment = {
   address: string
   digest: string
   tools: ReturnType<typeof createEntityTools>
+  declaration: ReturnType<typeof declaration>
   bootstrap: Bootstrap
   inspectExecutors: boolean
 }
@@ -83,12 +87,25 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
     }
     return result as Record<string, unknown>
   }
+  const readAssignmentDocument = async (assignment: BoundAssignment, args: Record<string, unknown>, signal: AbortSignal): Promise<Record<string, unknown>> => {
+      const root = "./environment/documents"
+      const documents = Object.entries(assignment.declaration.documents)
+      if (args.path === root) return {path: root, description: "Документы окружения", children: documents.map(([key]) => ({path: `${root}/${encodeURIComponent(key)}`, description: key}))}
+      const source = documents.find(([key]) => args.path === `${root}/${encodeURIComponent(key)}`)
+      if (source !== undefined) {
+        const result = await readSource(source[1].path)
+        assertActive(assignment)
+        signal.throwIfAborted()
+        return {path: args.path, ...result, children: []}
+      }
+      return readDocument(assignment.address, args, signal)
+  }
   const execute = async (assignment: BoundAssignment, command: Awaited<ReturnType<typeof readCommand>>, signal: AbortSignal,
     onProgress?: (progress: Readonly<Record<string, unknown>>) => void | Promise<void>) => {
     assertActive(assignment)
     signal.throwIfAborted()
     if (command.name === "knowledge.read") {
-      return readDocument(assignment.address, object(command.arguments, ["path"]), signal)
+      return readAssignmentDocument(assignment, object(command.arguments, ["path"]), signal)
     }
     if (command.name === "environment.inspect") {
       if (!assignment.inspectExecutors) throw new ToolError("FORBIDDEN", "Инспекция исполнителей не назначена", 403)
@@ -97,7 +114,7 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
       const target = executors.get(executorId)
       if (target === undefined) throw new ToolError("NOT_FOUND", "Назначение исполнителя отсутствует", 404)
       if (Object.hasOwn(args, "path")) {
-        const document = await readDocument(target.address, args, signal)
+        const document = await readAssignmentDocument(target, args, signal)
         assertActive(assignment)
         if (executors.get(executorId) !== target) throw new ToolError("NOT_FOUND", "Назначение исполнителя отозвано во время инспекции", 404)
         return {...structuredClone(target.bootstrap), document}
@@ -138,10 +155,15 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
         if (address === "/" && subject.type !== "Project" || address !== "/" && subject.type === "Project") {
           throw new ToolError("INVALID_CONFIGURATION", "Тип Project соответствует только корневому адресу", 500)
         }
+        const declared = declaration({directory: subject.directory, ...(subject.type === undefined ? {} : {type: subject.type})})
         const extensions = await options.extensions?.({executorId, subject, inspectExecutors})
         assertOpen()
         if (pending.get(executorId) !== reservation) throw new ToolError("UNAUTHORIZED", "Назначение отозвано до подготовки инструментов", 401)
-        const instructions = await options.instructions?.({executorId, subject, inspectExecutors}) ?? []
+        const inherited = await options.instructions?.({executorId, subject, inspectExecutors}) ?? []
+        const local = await Promise.all(Object.values(declared.rules).map(async source => ({
+          source: relative(subject.projectDirectory ?? subject.directory, source.path).split("\\").join("/"), ...await readSource(source.path),
+        })))
+        const instructions = [...inherited, ...local]
         assertOpen()
         if (pending.get(executorId) !== reservation) throw new ToolError("UNAUTHORIZED", "Назначение отозвано до завершения чтения правил", 401)
         if (!Array.isArray(instructions) || instructions.some(instruction => instruction === null || typeof instruction !== "object"
@@ -153,7 +175,7 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
           || instruction.contentHash !== undefined && (typeof instruction.contentHash !== "string" || !/^[a-f0-9]{64}$/u.test(instruction.contentHash)))) {
           throw new ToolError("INVALID_RESULT", "Правила возвращают source относительно Project и полный content", 500)
         }
-        const tools = createEntityTools({directory: subject.directory, ...(subject.type === undefined ? {} : {type: subject.type}),
+        const tools = createEntityTools({directory: subject.directory, declaration: declared, ...(subject.type === undefined ? {} : {type: subject.type}),
           ...(extensions === undefined ? {} : {extensions})})
         const descriptions = tools.list()
         if (descriptions.some(tool => [knowledgeDescription.name, inspectDescription.name].includes(tool.name))) {
@@ -165,12 +187,12 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
           subject: {address, label: subject.label, ...(subject.type === undefined ? {} : {type: subject.type})},
           protocol,
           tools: [...descriptions, knowledgeDescription, ...(inspectExecutors ? [inspectDescription] : [])],
-          knowledge: [{path: ".", description: "Начальная точка знаний назначенного предмета; children раскрывает доступные подробности и общие правила."}],
+          knowledge: [{path: "./environment/documents", description: "Документы объявленного окружения по требованию"}, {path: ".", description: "Начальная точка знаний назначенного предмета; children раскрывает доступные подробности и общие правила."}],
           instructions: structuredClone(instructions),
         }
         const token = randomBytes(32).toString("base64url")
         const digest = createHash("sha256").update(token).digest("hex")
-        const assignment = {executorId, address, digest, tools, bootstrap: structuredClone(bootstrap), inspectExecutors}
+        const assignment = {executorId, address, digest, tools, declaration: declared, bootstrap: structuredClone(bootstrap), inspectExecutors}
         executors.set(executorId, assignment)
         grants.set(digest, assignment)
         return Object.freeze({token, bootstrap: structuredClone(bootstrap)})

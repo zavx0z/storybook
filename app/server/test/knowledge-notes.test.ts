@@ -22,8 +22,8 @@ async function fixture(toolRoot = storybookRoot) {
     entries: () => nodes.map(node => ({path: node.id, label: node.label, parent: null, description: `Предмет ${node.id}`})),
   })
   cleanups.push(() => environment.dispose())
-  const assignment = await environment.assignExecutor({executorId: "worker", address: "/a"})
-  const request = (name: string, arguments_: Record<string, unknown>) => environment.handle(new Request("http://localhost/environment", {
+  const assignment = await environment.acquireSession({executorId: "worker", executorLabel: "Пример", address: "/a", sessionId: "knowledge-fixture"}, () => {}, async () => {})
+  const request = (name: string, arguments_: Record<string, unknown>) => assignment.execute(new Request("http://localhost/environment", {
     method: "POST", headers: {authorization: `Bearer ${assignment.token}`}, body: JSON.stringify({name, arguments: arguments_}),
   }))
   const read = async (path?: string) => {
@@ -56,8 +56,8 @@ test("root знаний публикует точные переходы к owne
     "./rules/documents/project/meta/notes/foundations/creation.md",
   ])
   expect(document.body.result.contentHash).toMatch(/^[a-f0-9]{64}$/u)
-  const structure = rules.body.result.children.find((item: {path: string}) => item.path.endsWith("package/meta/notes/draft-structure.md"))
-  expect((await f.read(structure.path)).body.result.content).toBe(await readFile(join(storybookRoot, "package/meta/notes/draft-structure.md"), "utf8"))
+  const structure = rules.body.result.children.find((item: {path: string}) => item.path.endsWith("package/src/architecture.md"))
+  expect((await f.read(structure.path)).body.result.content).toBe(await readFile(join(storybookRoot, "package/src/architecture.md"), "utf8"))
 })
 
 test("меню не читает и не разрешает все Markdown заранее, недоступный источник отказывает только при выборе", async () => {
@@ -67,11 +67,12 @@ test("меню не читает и не разрешает все Markdown за
   await writeFile(join(toolRoot, "project/meta/notes/foundations/index.md"), "# Доступный источник")
   const f = await fixture(toolRoot)
   await symlink(join(f.project, "b"), join(f.project, "a/meta"))
-  await symlink(join(f.project, "a/file.txt"), join(toolRoot, "project/meta/notes/design.md"))
+  await mkdir(join(toolRoot, "project/src"), {recursive: true})
+  await symlink(join(f.project, "a/file.txt"), join(toolRoot, "project/src/architecture.md"))
   expect((await f.read()).response.status).toBe(200)
   expect((await f.read("./rules/documents")).response.status).toBe(200)
   expect((await f.read("./rules/documents/project/meta/notes/foundations/index.md")).body.result.content).toBe("# Доступный источник")
-  expect((await f.read("./rules/documents/project/meta/notes/design.md")).response.status).toBe(403)
+  expect((await f.read("./rules/documents/project/src/architecture.md")).response.status).toBe(403)
   expect((await f.read("./meta/notes")).response.status).toBe(403)
   expect((await f.read("./rules/documents/contracts/meta/notes/draft-contracts.md")).response.status).toBe(404)
 })

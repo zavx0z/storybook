@@ -4,7 +4,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {spawnSync} from "node:child_process"
 import createTools from "@zavx0z/storybook-app-environment-tools"
-import component from "@zavx0z/storybook-component-mcp"
+import component from "@zavx0z/storybook-component-env"
 import createWorkspace from "@zavx0z/ai-workspace"
 
 const roots: string[] = []
@@ -60,10 +60,10 @@ test("сущность расширяет набор без копировани
   const workspace = createWorkspace({directory: root})
   const extra = {name: "component.example", description: "Пример расширения", inputSchema: {type: "object"},
     outputSchema: {type: "object"}, annotations: {readOnlyHint: true, destructiveHint: false}, execute: () => ({value: 42})}
-  const tools = component.tools({workspace, extensions: [extra]})
-  expect(tools).toHaveLength(11)
-  expect(await tools.find(tool => tool.name === extra.name)!.execute({})).toEqual({value: 42})
-  expect(() => component.tools({workspace, extensions: [{...extra, name: "filesystem.read"}]})).toThrow("Повтор имени")
+  const tools = createTools({directory: root, declaration: component({directory: root}), extensions: [extra]})
+  expect(tools.list()).toHaveLength(11)
+  expect(await tools.call({name: extra.name, arguments: {}})).toEqual({value: 42})
+  expect(() => createTools({directory: root, extensions: [{...extra, name: "filesystem.read"}]})).toThrow("Повтор имени")
 })
 
 test("отмена до вызова не изменяет файл; замена корня не переназначает область", async () => {

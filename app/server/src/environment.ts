@@ -112,7 +112,7 @@ export default function createServerEnvironment(options: Options) {
       const subject = await resolveExecutionSubject(address)
       notes.bind(subject.cwd)
       const type = subject.type
-      return {address: subject.address, label: subject.label, directory: subject.cwd, ...(type === undefined ? {} : {type})}
+      return {address: subject.address, label: subject.label, directory: subject.cwd, projectDirectory: options.project, ...(type === undefined ? {} : {type})}
     },
     ...(options.extensions === undefined ? {} : {extensions: options.extensions}),
     readKnowledge({address, path, signal}) {

@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {join, resolve} from "node:path"
-import {mkdtemp, rm} from "node:fs/promises"
+import {mkdtemp, rm, cp, realpath} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {createChatServer} from "../src/chat"
 import discover from "@zavx0z/storybook-package-metadata-collect"
@@ -8,7 +8,7 @@ import createGraph from "@zavx0z/storybook-package-graph-create"
 import revision from "@zavx0z/storybook-package-revision"
 import rest from "@zavx0z/storybook-app-knowledge"
 import resolveRoute from "@zavx0z/storybook-package-route-resolve"
-import storybookMcpEntries from "@zavx0z/storybook-package-mcp-source"
+import storybookMcpEntries from "@zavx0z/storybook-package-env-source"
 import {resolveStorybookRoute} from "../src/route"
 
 test("MCP и сериализованная ревизия сохраняют оба средовых протокола без смешения", async () => {
@@ -44,8 +44,9 @@ test("MCP и сериализованная ревизия сохраняют о
 
 
 test("чат средового входа сохраняет адрес файла и рабочий каталог владельца", async () => {
-  const root = resolve(import.meta.dir, "../../../domain/spec/fixture/domain")
-  const project = await mkdtemp(join(tmpdir(), "environment-entry-chat-"))
+  const project = await realpath(await mkdtemp(join(tmpdir(), "environment-entry-chat-")))
+  const root = join(project, "domain")
+  await cp(resolve(import.meta.dir, "../../../domain/spec/fixture/domain"), root, {recursive: true})
   const catalog = await discover([root])
   const graph = createGraph(catalog)
   const entry = graph.nodes.find(node => node.kind === "entry" && node.source.path.endsWith("/web.ts"))!

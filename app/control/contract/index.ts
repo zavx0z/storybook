@@ -1,6 +1,6 @@
 import type {z} from "zod"
 import type {Controller} from "./types"
-import type {StorybookPackageMcpTools} from "@zavx0z/storybook-package-mcp-tools"
+import type {StorybookAppEnvironmentBinding} from "@zavx0z/storybook-app-environment-binding"
 
 /** Общая проверенная граница существующих операций приложения. */
 export declare namespace StorybookAppControl {
@@ -32,7 +32,7 @@ export declare namespace StorybookAppControl {
   JSON Schema инструментов описывает форму, а refine/superRefine исполняются общим контролем.
   */
   type Output = Readonly<{
-    tools: StorybookPackageMcpTools.Output
+    tools: StorybookAppEnvironmentBinding.Output
     schemas: Readonly<Record<string, z.ZodType>>
   }>
 }

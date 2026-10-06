@@ -1,0 +1,14 @@
+{
+  "name": "@zavx0z/storybook-domain-env",
+  "label": "Окружение Domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-env": "workspace:*"
+  },
+  "description": "Формирует декларацию окружения domain: ссылки на правила, знания и инструменты без их исполнения"
+}

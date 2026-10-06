@@ -1,3 +1,4 @@
+import declareEnvironment from "@zavx0z/storybook-app-environment-declaration"
 /**
 Выбирает инструменты предметной сущности и закрепляет их за областью назначения.
 Package предоставляет общий набор, предметный владелец добавляет свои возможности.
@@ -5,24 +6,18 @@ Package предоставляет общий набор, предметный �
 
 @packageDocumentation
 */
+import bindTools from "@zavx0z/storybook-app-environment-binding"
 import createWorkspace from "@zavx0z/ai-workspace"
 import ToolError from "@zavx0z/ai-tech-failure"
-import packageMcp from "@zavx0z/storybook-package-mcp"
-import project from "@zavx0z/storybook-project-mcp"
-import repo from "@zavx0z/storybook-repo-mcp"
-import component from "@zavx0z/storybook-component-mcp"
-import container from "@zavx0z/storybook-container-mcp"
-import cluster from "@zavx0z/storybook-cluster-mcp"
-import domain from "@zavx0z/storybook-domain-mcp"
 import type {StorybookAppEnvironmentTools as Contract} from "./contract"
 export type {StorybookAppEnvironmentTools} from "./contract"
 
-const owners = {Project: project, Repo: repo, Component: component, Container: container, Cluster: cluster, Domain: domain}
 
 /** Создаёт самостоятельную область; изменение cwd или адреса чтения её не меняет. */
-export default function createEntityTools({directory, type, extensions}: Contract.Input): Contract.Output {
+export default function createEntityTools({directory, type, extensions, declaration}: Contract.Input): Contract.Output {
   const workspace = createWorkspace({directory})
-  const tools = (type === undefined ? packageMcp : owners[type]).tools({workspace, ...(extensions === undefined ? {} : {extensions})})
+  const tools = bindTools({workspace, declaration: declaration ?? declareEnvironment({directory, ...(type === undefined ? {} : {type})}),
+    ...(extensions === undefined ? {} : {extensions})})
   const byName = new Map(tools.map(tool => [tool.name, tool]))
   return Object.freeze({
     list: () => tools.map(({execute: _execute, ...description}) => structuredClone(description)),

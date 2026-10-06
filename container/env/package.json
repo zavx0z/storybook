@@ -1,0 +1,14 @@
+{
+  "name": "@zavx0z/storybook-container-env",
+  "label": "Окружение Container",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-env": "workspace:*"
+  },
+  "description": "Формирует декларацию окружения container: ссылки на правила, знания и инструменты без их исполнения"
+}

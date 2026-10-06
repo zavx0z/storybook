@@ -1,0 +1,12 @@
+{
+  "name": "@zavx0z/storybook-app-knowledge-project",
+  "label": "Навигация Project",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {},
+  "description": "Формирует навигационный ответ Project из сохранённого каталога"
+}

@@ -7,7 +7,7 @@
 
 [Основания](./project/meta/notes/foundations/index.md) задают общие принципы замысла.
 Их применение к Storybook раскрыто в [архитектуре](./ARCHITECTURE.md).
-Формируемая [предметная архитектура проекта](./repo/meta/notes/architecture.md)
+Формируемая [предметная архитектура проекта](repo/src/architecture.md)
 сохраняется в заметке Repo до раскрытия правил через среду.
 Пока архитектура формируется, заметки сохраняют единое место уточнения правил.
 Далее их смысл переносится к владельцам в код и раскрывается через среду.
@@ -16,12 +16,12 @@
 ## Правила и неперенесённый смысл
 
 - [Как переносить смысл заметок в код](./package/meta/notes/note-lifecycle.md).
-- [Где искать правила структуры](./package/meta/notes/draft-structure.md).
+- [Где искать правила структуры](package/src/architecture.md).
 - [Как описывать код и его контракты](./package/meta/notes/draft-documentation.md).
 - [Как уточнять сценарии и ответы среды](./meta/notes/scenario-development.md).
 - [Какие вопросы раскрытия ещё не решены](./project/STORYBOOK-DOCUMENTATION.md).
 
-[Структурный стандарт](./package/meta/notes/draft-structure.md) определяет архетипы;
+[Структурный стандарт](package/src/architecture.md) определяет архетипы;
 [план перехода](./package/meta/notes/archetype-transition.md) указывает границы их текущей проверки.
 
 ## Владельцы реализации
@@ -29,7 +29,7 @@
 - [Пакеты и физическая структура](package/metadata/collect/index.ts).
 - [Общий граф](package/graph/create/index.ts) и [разрешение структурных адресов](package/route/resolve/index.ts).
 - [Сборка пакета](package/build/prepare/index.ts) и [общей Web-оболочки](app/web/build/README.md).
-- [Проекция проекта](project/mcp/index.ts), [пакетные переходы](package/mcp/navigation/index.ts)
+- [Проекция проекта](project/env/index.ts), [пакетные переходы](app/knowledge/navigation/index.ts)
   и [граница адресации](app/knowledge/address/index.ts).
 - [Исполняемые спецификации](specs/README.md).
 - [Читатель Domain](./domain/index.ts) и [читатель Component](./component/index.ts).

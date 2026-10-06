@@ -1,8 +1,8 @@
 # Внешняя архитектура Storybook
 
 Общие принципы замысла заданы в [Основаниях](./project/meta/notes/foundations/index.md),
-размещение ответственности — в [правилах структуры](./package/meta/notes/draft-structure.md).
-Формирование целевой [предметной архитектуры](./repo/meta/notes/architecture.md)
+размещение ответственности — в [правилах структуры](package/src/architecture.md).
+Формирование целевой [предметной архитектуры](repo/src/architecture.md)
 ведётся в заметке Repo.
 
 Для Storybook из этих принципов следует направление «код — знание».
@@ -48,7 +48,7 @@ one external Storybook serve process
 
 ## Owner law
 
-Границы пакетов и их авторских данных заданы в [нормативном контракте](./package/meta/notes/draft-structure.md).
+Границы пакетов и их авторских данных заданы в [нормативном контракте](package/src/architecture.md).
 
 Корневой `@zavx0z/storybook` владеет discovery, validation, canonical
 graph, search/routing derived views, областями Workbench, package
@@ -322,10 +322,10 @@ registry и summary statuses.
 Публичный вход `storybook` принимает только необязательный `path` из доступных
 переходов. [Address](app/knowledge/address/index.ts) проверяет точное присутствие адреса
 в публичной структуре и отклоняет query и fragment. Корневой ответ принадлежит
-[Проекция Project](project/mcp/index.ts): имя проекта и переходы к его Repo.
-[Навигация Package](package/mcp/navigation/index.ts) раскрывает непосредственные переходы
+[Проекция Project](project/env/index.ts): имя проекта и переходы к его Repo.
+[Навигация Package](app/knowledge/navigation/index.ts) раскрывает непосредственные переходы
 выбранного владельца. Проекция соответствующей сущности формирует свой ответ из
-навигации и [содержимого Package](package/mcp/content/index.ts): JSON Schema
+навигации и [содержимого Package](app/knowledge/content/index.ts): JSON Schema
 доступных контрактов и исходников сценариев. [REST](app/knowledge/index.ts)
 разрешает адрес и вызывает предметный вход. Схемы берутся из сохранённых
 метаданных Package, код сценариев читается
@@ -416,13 +416,13 @@ accepted baseline, visual diff или owner acceptance state.
 
 ## Repository navigation and isolated package content
 
-Глобальный граф несёт иерархию из [контракта структуры](./package/meta/notes/draft-structure.md).
+Глобальный граф несёт иерархию из [контракта структуры](package/src/architecture.md).
 Immutable `storybook-package-graph/6` содержит структурные узлы и документацию своего пакета;
 данные предков передаются как metadata, а не как исполняемые зависимости.
 
 
 Состав пакетов, физические директории и размещение компонентов
-определены у [владельцев структурных правил](./package/meta/notes/draft-structure.md).
+определены у [владельцев структурных правил](package/src/architecture.md).
 Эта страница описывает применение и устройство инструмента, не отдельные правила структуры.
 
 Обе страницы Workbench используют общий граф навигации. Private browser lifecycle

@@ -3,13 +3,13 @@ import {mkdir, mkdtemp, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import Catalog from "@zavx0z/storybook-app-server-catalog"
-import sources from "@zavx0z/storybook-package-mcp-source"
+import sources from "@zavx0z/storybook-package-env-source"
 import rest from "@zavx0z/storybook-app-knowledge"
-import repo from "@zavx0z/storybook-repo-mcp"
-import component from "@zavx0z/storybook-component-mcp"
-import container from "@zavx0z/storybook-container-mcp"
-import cluster from "@zavx0z/storybook-cluster-mcp"
-import domain from "@zavx0z/storybook-domain-mcp"
+import repo from "@zavx0z/storybook-repo-env"
+import component from "@zavx0z/storybook-component-env"
+import container from "@zavx0z/storybook-container-env"
+import cluster from "@zavx0z/storybook-cluster-env"
+import domain from "@zavx0z/storybook-domain-env"
 
 let root: string
 const reader = new Catalog()
@@ -40,18 +40,20 @@ test.each([
   const verification = {status: "confirmed" as const, type, revision: "working"}
   const entries = sources(reader.snapshot(), async () => verification)
   const selected = entries.find(entry => entry.path === "owner")!
-  const direct = await read({selected, entries})
-  expect(direct).toEqual({
+  const direct = read({...(selected.directory === undefined ? {} : {directory: selected.directory}), sources: selected.sources})
+  expect(direct.documents.input?.path).toBe(selected.sources?.input?.path)
+  const expected = {
     description: "Сохранённое назначение.", path: "./owner", label: "Владелец",
     children: [{path: "./owner/child", label: "Участник", description: "Назначение ребёнка."}],
     input: {type: "string"}, output: {type: "number"},
     slots: {type: "object", properties: {header: {type: "string"}}, required: ["header"]},
     scenarios: [scenario],
-  })
+  }
   const response = await rest(new Request("http://localhost", {method: "POST", body: JSON.stringify({path: "owner"})}), {projectName: "Project", entries})
   expect(response.status).toBe(200)
-  expect(await response.json()).toEqual({...direct, verification})
+  const value = await response.json()
+  expect(value).toEqual({...expected, verification})
   expect(reader.metrics().resolverCalls).toBe(0)
   expect(reader.metrics().typescriptApiSessions.total).toBe(0)
-  expect(JSON.stringify(direct)).not.toContain(root)
+  expect(JSON.stringify(value)).not.toContain(root)
 })

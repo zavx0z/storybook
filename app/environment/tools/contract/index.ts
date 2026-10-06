@@ -1,15 +1,17 @@
-import type {StorybookPackageMcpTools} from "@zavx0z/storybook-package-mcp-tools"
+import type {StorybookPackageEnv} from "@zavx0z/storybook-package-env"
+import type {StorybookAppEnvironmentBinding} from "@zavx0z/storybook-app-environment-binding"
 
-type BoundTool = StorybookPackageMcpTools.Output[number]
+type BoundTool = StorybookAppEnvironmentBinding.Output[number]
 
 /** Описание и исполнение инструментов назначенной сущности. */
 export declare namespace StorybookAppEnvironmentTools {
   /** Directory и подтверждённый тип приходят от хоста, а не из вызова агента. */
   type Input = Readonly<{
     directory: string
+    declaration?: StorybookPackageEnv.Output
     type?: "Project" | "Repo" | "Component" | "Container" | "Cluster" | "Domain"
     /** Расширения предметного владельца; описание и исполнение предоставляются вместе. */
-    extensions?: StorybookPackageMcpTools.Input["extensions"]
+    extensions?: StorybookAppEnvironmentBinding.Input["extensions"]
   }>
   /** Один набор действует весь срок подключения, независимо от MCP-навигации. */
   type Output = Readonly<{
