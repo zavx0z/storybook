@@ -94,6 +94,8 @@ export function DirectorySettingsWindow(props: Readonly<{client: Client}>) {
     <Window
       id="storybook-directory-settings"
       title="Настройки"
+      message={error ? {message: error, tone: "error"} : undefined}
+      onMessageDismiss={() => setError("")}
       open={open}
       onOpenChange={setOpen}
       geometry={geometry}
@@ -109,7 +111,6 @@ export function DirectorySettingsWindow(props: Readonly<{client: Client}>) {
         loading={loading}
         busy={busy}
         canSave={valid && dirty}
-        error={error}
         notice={notice}
         onChange={change}
         onRetry={() => {if (lifetime.current !== null) void read(lifetime.current)}}
@@ -139,7 +140,6 @@ function DirectorySettingsContent(props: Readonly<{
   loading: boolean
   busy: boolean
   canSave: boolean
-  error: string
   notice: string
   onChange(patch: Partial<DirectorySettingsDraft>): void
   onRetry(): void
@@ -172,7 +172,6 @@ function DirectorySettingsContent(props: Readonly<{
       onInput={value => props.onChange({repositoriesDirectory: value})}
     />
     {props.loading ? <DirectorySettingsMessage role="status" text="Загрузка настроек…" /> : null}
-    {props.error ? <DirectorySettingsMessage role="alert" text={props.error} /> : null}
     {props.notice ? <DirectorySettingsMessage role="status" text={props.notice} /> : null}
     <div style={css`
       display: flex;

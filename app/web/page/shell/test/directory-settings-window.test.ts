@@ -65,7 +65,11 @@ test("ошибка сохраняет черновик, повтор подтв�
     await edit(host, 0, "~/projects")
     await edit(host, 1, "~/repos")
     await host.click("Сохранить")
-    expect(host.container.querySelector('[role="alert"]')?.textContent).toBe("Каталог недоступен")
+    expect(host.container.querySelector('[role="alert"]')?.children[1]?.textContent).toBe("Каталог недоступен")
+    expect(fields(host).map(field => field.value)).toEqual(["~/projects", "~/repos"])
+    await host.click("Закрыть уведомление")
+    expect(host.container.querySelector('[role="alert"]')).toBeNull()
+    expect(host.container.querySelector("[data-window]")!.hasAttribute("hidden")).toBeFalse()
     expect(fields(host).map(field => field.value)).toEqual(["~/projects", "~/repos"])
     await host.click("Сохранить")
     expect(calls).toEqual([
@@ -89,7 +93,16 @@ test("ошибку чтения можно повторить, удаление 
   }, save: async () => configured})
   try {
     expect(host.container.querySelector("[data-window]")!.hasAttribute("hidden")).toBeFalse()
-    expect(host.container.querySelector('[role="alert"]')?.textContent).toBe("Настройки недоступны")
+    expect(host.container.querySelector('[role="alert"]')?.children[1]?.textContent).toBe("Настройки недоступны")
+    const window = host.container.querySelector('[data-window]')!
+    const notification = window.querySelector('[data-window-message] [role="alert"]')!
+    expect(window.querySelector('[data-window-body]')!.contains(notification)).toBeFalse()
+    expect(notification.getAttribute("data-tone")).toBe("error")
+    const frame = host.bounds(window)
+    const message = host.bounds(notification)
+    expect(message.x >= frame.x && message.x < frame.x + 12).toBeTrue()
+    expect(message.y + message.height <= frame.y + frame.height).toBeTrue()
+    expect(message.y + message.height > frame.y + frame.height - 12).toBeTrue()
     await host.click("Повторить загрузку")
     expect(fields(host).map(field => field.value)).toEqual(["/projects", "/repos"])
     expect(host.container.querySelector('[role="alert"]')).toBeNull()
