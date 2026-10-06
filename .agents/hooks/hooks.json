@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/Users/zavx0z/.bun/bin/bun\" \"/Users/zavx0z/repozitarium/storybook/.agents/hooks/model-selection.ts\"",
+            "command": "bun \"$(git rev-parse --show-toplevel)/.agents/hooks/model-selection.ts\"",
             "timeout": 5,
             "statusMessage": "Проверка выбора модели"
           }

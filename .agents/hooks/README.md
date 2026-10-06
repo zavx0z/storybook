@@ -22,9 +22,9 @@ fail-open согласно runtime Codex.
 
 ## Подключение на этом Mac
 
-Версионируемое определение находится в `hooks.json`. Пользовательский
-`~/.codex/hooks.json` содержит такое же определение и подключает файл из
-канонического checkout:
+Версионируемое определение находится в `hooks.json`. При запуске в этом Repo
+путь к скрипту определяется относительно Git-корня, а Bun находится через PATH.
+Перемещение Repo целиком не требует правки команды:
 
 ```json
 {
@@ -36,7 +36,7 @@ fail-open согласно runtime Codex.
         "hooks": [
           {
             "type": "command",
-            "command": "\"/Users/zavx0z/.bun/bin/bun\" \"/Users/zavx0z/repozitarium/storybook/.agents/hooks/model-selection.ts\"",
+            "command": "bun \"$(git rev-parse --show-toplevel)/.agents/hooks/model-selection.ts\"",
             "timeout": 5,
             "statusMessage": "Проверка выбора модели"
           }
@@ -49,6 +49,12 @@ fail-open согласно runtime Codex.
 
 Новый или изменённый hook не исполняется, пока пользователь не проверит и не
 доверит точное определение. Trust hash программно не изменяется.
+На этом Mac глобальная установка использует отдельную копию
+`~/.codex/hooks/model-selection.ts` и команду
+`"$HOME/.bun/bin/bun" "$HOME/.codex/hooks/model-selection.ts"` в `~/.codex/hooks.json`.
+Она не зависит от рабочего каталога задачи или расположения исходного Repo.
+При изменении самого hook установленная копия обновляется отдельно; перенос
+Repo этого не требует.
 
 Официальный контракт событий, matcher, trust и deny output:
 [Hooks](https://learn.chatgpt.com/docs/hooks).
