@@ -13,7 +13,7 @@ test.each([
   if (report.preview?.kind !== "function") return
   expect(report.preview.variants, "Каждый авторский вариант доступен для выбора").toHaveLength(count)
   if (name === "Руководство сценариев") {
-    expect(report.preview.variants[0]?.points, "Согласованные правила сохраняются в пунктах руководства и не исчезают при смене представления")
+    expect(report.preview.variants[0]?.points.map(({assertions: _assertions, ...point}) => point), "Согласованные правила сохраняются в пунктах руководства и не исчезают при смене представления")
       .toStrictEqual(await Bun.file(new URL("./__snapshots__/guide-preview.test.json", import.meta.url)).json())
   }
   for (const variant of report.preview.variants) {

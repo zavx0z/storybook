@@ -13,7 +13,7 @@ Host подключает компонент к stage один раз и обн�
 */
 export default function StorybookAppWebPagePackageScenarioPreview(props: Contract.Input) {
   const selected = useSyncExternalStore(props.app.subscribe, props.app.getSnapshot)
-  const visible = selected.execution === undefined || selected.execution.status === "passed"
+  const visible = selected.assertion === undefined && (selected.execution === undefined || selected.execution.status === "passed")
   return <section
     data-scenario-preview=""
     style={css`

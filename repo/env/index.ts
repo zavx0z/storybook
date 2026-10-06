@@ -12,10 +12,12 @@ export default function environment(input: Contract.Input = {}): Contract.Output
   if (Object.hasOwn(base.tools, "git.status")) throw new Error("Повтор имени инструмента: git.status")
   return {
     ...base,
+    rules: {...base.rules, "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))}},
     documents: {
+      "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))},
       "Проектирование Repo": {path: fileURLToPath(new URL("../src/design.md", import.meta.url))},
 
-      "Предметная архитектура проекта": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url))},
+      "Архитектура Repo": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url))},
       ...base.documents,
     },
     tools: {...base.tools, "git.status": {

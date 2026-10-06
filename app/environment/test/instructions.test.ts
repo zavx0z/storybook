@@ -18,7 +18,7 @@ test("optional instructions default[] и delivered rules принадлежат 
   const options = {resolve: (address: string) => ({address, label: "Subject", directory: root}), readKnowledge: async () => Response.json({})}
   const empty = createEnvironment(options)
   cleanups.push(() => empty.dispose())
-  expect((await empty.assign({executorId: "empty", address: "/subject"})).bootstrap.instructions).toEqual([])
+  expect((await empty.assign({executorId: "empty", address: "/subject"})).bootstrap.instructions).toEqual([{source: `./environment/documents/${encodeURIComponent("Начало работы")}`, content: expect.stringContaining("назначенной области subject"), contentHash: expect.any(String)}])
   const inputs: Parameters<NonNullable<StorybookAppEnvironment.Input["instructions"]>>[0][] = []
   const actual = createEnvironment({...options, instructions: input => {
     inputs.push(input)
@@ -27,7 +27,8 @@ test("optional instructions default[] и delivered rules принадлежат 
   cleanups.push(() => actual.dispose())
   const assigned = await actual.assign({executorId: "worker", address: "/subject"})
   expect(inputs[0]).toMatchObject({executorId: "worker", subject: {address: "/subject", directory: root}, inspectExecutors: false})
-  expect(assigned.bootstrap.instructions).toEqual([{source: "meta/notes/agent-rules.md", content: "Действующие правила"}])
+  expect(assigned.bootstrap.instructions[0]).toEqual({source: "meta/notes/agent-rules.md", content: "Действующие правила"})
+  expect(assigned.bootstrap.instructions[1]?.content).toContain("назначенной области subject")
   expect(assigned.bootstrap.tools.some(tool => tool.name === "environment.inspect")).toBeFalse()
 })
 

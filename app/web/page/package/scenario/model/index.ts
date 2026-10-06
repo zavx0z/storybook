@@ -71,11 +71,30 @@ export default function createScenarioApp(input: StorybookAppWebPagePackageScena
       if (disposed) return
       const variant = byId.get(id)
       if (variant === undefined) throw new Error(`Неизвестный вариант сценария: ${id}`)
-      if (variant.id === selected.id) return
+      if (variant.id === selected.id) {
+        if (selected.assertion !== undefined) {
+          const {assertion: _assertion, ...snapshot} = selected
+          selected = snapshot
+          notify()
+        }
+        return
+      }
       controller?.abort()
       selected = variant
       if (input.run !== undefined && variant.execution === undefined) start()
       else notify()
+    },
+    selectAssertion(id: string) {
+      if (disposed || selected.execution?.status === "running") return
+      for (const point of selected.points) {
+        const assertion = point.assertions?.find(item => item.id === id)
+        if (assertion !== undefined) {
+          selected = {...selected, assertion: {...assertion, title: point.title}}
+          notify()
+          return
+        }
+      }
+      throw new Error(`Неизвестная проверка выбранного варианта: ${id}`)
     },
     run() {
       if (disposed || selected.execution?.status === "running") return

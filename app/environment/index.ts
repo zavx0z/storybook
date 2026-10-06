@@ -160,9 +160,15 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
         assertOpen()
         if (pending.get(executorId) !== reservation) throw new ToolError("UNAUTHORIZED", "Назначение отозвано до подготовки инструментов", 401)
         const inherited = await options.instructions?.({executorId, subject, inspectExecutors}) ?? []
-        const local = await Promise.all(Object.values(declared.rules).map(async source => ({
-          source: relative(subject.projectDirectory ?? subject.directory, source.path).split("\\").join("/"), ...await readSource(source.path),
-        })))
+        const local = await Promise.all([...new Map(Object.values(declared.rules).map(source => [source.path, source])).values()].map(async source => {
+          const document = Object.entries(declared.documents).find(([, item]) => item.path === source.path)
+          return {
+            source: document === undefined
+              ? relative(subject.projectDirectory ?? subject.directory, source.path).split("\\").join("/")
+              : `./environment/documents/${encodeURIComponent(document[0])}`,
+            ...await readSource(source.path),
+          }
+        }))
         const instructions = [...inherited, ...local]
         assertOpen()
         if (pending.get(executorId) !== reservation) throw new ToolError("UNAUTHORIZED", "Назначение отозвано до завершения чтения правил", 401)

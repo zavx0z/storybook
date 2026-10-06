@@ -8,7 +8,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/storybook-package-env-source": "workspace:*",
     "@zavx0z/ai-filesystem-stat": "link:@zavx0z/ai-filesystem-stat",
     "@zavx0z/ai-filesystem-read": "link:@zavx0z/ai-filesystem-read",
     "@zavx0z/ai-filesystem-read-many": "link:@zavx0z/ai-filesystem-read-many",

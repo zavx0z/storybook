@@ -36,9 +36,16 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
   const view = createStorybookComponentPresentation(document, template, {placement, app}, "[data-scenario-preview]")
   const stage = view.element.querySelector("[data-scenario-stage]")!
   const fixtureRoot = createRoot(stage)
+  let renderedVariant: string | undefined
+  let renderedProps: unknown
   const updateFixture = () => {
+    const selected = app.getSnapshot()
+    if (app.getSnapshot().assertion !== undefined) return
     if (input.run !== undefined && app.getSnapshot().execution?.status !== "passed") return
+    if ("props" in selected && selected.id === renderedVariant && selected.props === renderedProps) return
     fixtureRoot.render(input.template, fixtureProps())
+    renderedVariant = selected.id
+    renderedProps = "props" in selected ? selected.props : undefined
   }
   try {
     updateFixture()
@@ -62,6 +69,7 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
     },
     app,
     center() {
+      if (app.getSnapshot().assertion !== undefined) return false
       if (input.run !== undefined && app.getSnapshot().execution?.status !== "passed") return false
       const element = stage.firstElementChild
       if (element === null || !view.element.isConnected) return false

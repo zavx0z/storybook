@@ -1,25 +1,25 @@
 /**
-Раскрывает авторские сведения сохранённого Package для его представлений окружения.
+Проецирует каталог приложения на адреса знаний и ссылки на источники владельцев.
 Маршруты следуют общему дереву, а описания, контракты и сценарии читаются
 из данных точного владельца. Ленивые поля файлового снимка обращаются к PackageMetadata.
 Чтение типа делегируется сохранённой проверке и не запускает сборку.
 
 @packageDocumentation
 */
-import type {StorybookPackageEnvSource as Contract} from "./contract"
+import type {StorybookAppKnowledgeCatalog as Contract} from "./contract"
 import {dirname, join} from "node:path"
 
-export type {StorybookPackageEnvSource} from "./contract"
+export type {StorybookAppKnowledgeCatalog} from "./contract"
 
 /**
-Передаёт в MCP публичную структуру того же каталога, который показывает Workbench.
+Передаёт читателю знаний публичную структуру того же каталога, который показывает Workbench.
 Категории сохраняют своё место; контракты и сценарии принадлежат точному узлу.
 Пути исходников используются читателем и не становятся полями публичного ответа.
 У пакетов чтение типа делегируется сохранённой нормативной проверке их ревизии.
 Директории и входы сред не наследуют тип содержащего пакета.
 Описания и схемы раскрываются по обращению, а не для всех узлов заранее.
 */
-export default function storybookMcpEntries(
+export default function knowledgeCatalog(
   snapshot: Contract.Input[0],
   readType: NonNullable<Contract.Input[1]> = async () => ({status: "unknown", reason: "missing-report"}),
 ): Contract.Output {

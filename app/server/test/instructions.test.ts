@@ -88,7 +88,8 @@ test("bootstrap и инспекция сохраняют доставленны�
   })
   cleanups.push(() => host.dispose())
   const assignment = await host.assignExecutor({executorId: "worker", address: "/package"})
-  expect(assignment.bootstrap.instructions.map(item => item.content)).toEqual(["Общие", "Первая редакция"])
+  expect(assignment.bootstrap.instructions.some(item => item.content.includes("Перед любым изменением"))).toBeTrue()
+  expect(assignment.bootstrap.instructions.map(item => item.content)).not.toContain("Первая редакция")
   const own = async (arguments_: Record<string, unknown>) => {
     const response = await host.handle(new Request("http://localhost/environment", {
       method: "POST", headers: {authorization: `Bearer ${assignment.token}`},

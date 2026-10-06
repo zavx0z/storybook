@@ -6,8 +6,8 @@ import type {StorybookAppWebPagePackageScenarioInspector as Contract} from "./co
 export type {StorybookAppWebPagePackageScenarioInspector} from "./contract"
 import {ScenarioTree} from "./src/tree"
 import {useSyncExternalStore} from "@zavx0z/immersive-component"
-import {CodeEditor} from "@zavx0z/immersive-ui-component"
-import {Button} from "@zavx0z/immersive-ui-component"
+import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
+import Button from "@zavx0z/immersive-ui-component-button-basic"
 import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
 type ScenarioApp = StorybookAppWebPagePackageScenarioModel.Output

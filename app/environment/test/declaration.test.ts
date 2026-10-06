@@ -25,7 +25,7 @@ test("исполнитель получает локальные правила 
   const assignment = await env.assign({executorId: "own", address: "/example"})
   expect(assignment.bootstrap.instructions).toContainEqual({source: ".agent/rules/development.md", content: "# Правило примера\n\nИзменения относятся к собственному пакету.\n", contentHash: expect.any(String)})
   expect(assignment.bootstrap.tools.map(tool => tool.name)).toContain("example.summary")
-  expect(JSON.stringify(assignment.bootstrap)).not.toContain("# Единая структура")
+  expect(JSON.stringify(assignment.bootstrap)).not.toContain("# Общие правила Package")
   const call = async (name: string, args: Record<string, unknown>) => {
     const response = await env.handle(new Request("http://localhost/environment", {method: "POST", headers: {authorization: `Bearer ${assignment.token}`}, body: JSON.stringify({name, arguments: args})}))
     expect(response.status).toBe(200)
@@ -33,8 +33,8 @@ test("исполнитель получает локальные правила 
   }
   expect(await call("example.summary", {})).toEqual({summary: "Локальный инструмент"})
   const menu = await call("knowledge.read", {path: "./environment/documents"})
-  expect(menu.children).toContainEqual({path: `./environment/documents/${encodeURIComponent("Структура Project, Repo и пакетов")}`, description: "Структура Project, Repo и пакетов"})
-  expect((await call("knowledge.read", {path: `./environment/documents/${encodeURIComponent("Структура Project, Repo и пакетов")}`})).content).toContain("# Единая структура")
+  expect(menu.children).toContainEqual({path: `./environment/documents/${encodeURIComponent("Общие правила Package")}`, description: "Общие правила Package"})
+  expect((await call("knowledge.read", {path: `./environment/documents/${encodeURIComponent("Общие правила Package")}`})).content).toContain("# Общие правила Package")
 })
 
 test("назначение и чтение описания не исполняют модуль; первый вызов исполняет его", async () => {

@@ -1,10 +1,10 @@
 {
-  "name": "@zavx0z/storybook-package-env-source",
-  "label": "Источники окружения",
+  "name": "@zavx0z/storybook-app-knowledge-catalog",
+  "label": "Каталог знаний",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Раскрывает данные владельца из сохранённых метаданных для предметных деклараций окружения",
+  "description": "Связывает сохранённые метаданные и граф приложения с адресами знаний и источниками владельцев",
   "exports": {
     ".": "./index.ts"
   },

@@ -158,6 +158,12 @@ interface ComponentScenarioPreview {
     readonly points: readonly {
       readonly title: string
       readonly content?: string
+      /** Снимки отдельных expect из того же запуска; выполнение при выборе не повторяется. */
+      readonly assertions?: readonly {
+        readonly id: string
+        readonly label: string
+        readonly value: TraceValue
+      }[]
     }[]
   }[]
 }

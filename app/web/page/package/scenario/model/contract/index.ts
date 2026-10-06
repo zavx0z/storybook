@@ -60,6 +60,8 @@ export declare namespace StorybookAppWebPagePackageScenarioModel {
     readonly kind: Input["kind"]
     readonly variants: Input["variants"]
     getSnapshot(): Input["variants"][number] & {
+      /** Выбранный expect; value ссылается на сохранённый снимок без дополнительной копии. */
+      readonly assertion?: {readonly id: string, readonly title: string, readonly label: string, readonly value: unknown}
       readonly execution?: {
         readonly status: "running" | "passed" | "failed"
         readonly message?: string
@@ -72,6 +74,8 @@ export declare namespace StorybookAppWebPagePackageScenarioModel {
     }
     subscribe(listener: () => void): () => void
     select(id: string): void
+    /** Выбирает сохранённое значение expect текущего варианта, не запуская тест. */
+    selectAssertion(id: string): void
     run(): void
     dispose(): void
   }

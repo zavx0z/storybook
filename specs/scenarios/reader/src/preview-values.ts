@@ -23,6 +23,12 @@ export function previewPoints(execution: ScenarioExecution, variantId: number): 
     if (current !== variantId) return []
     const content = test.assertions.map(assertion => assertion.customFailMessage)
       .filter((value): value is string => value !== null).join("\n")
-    return [{title: labels.join(" / "), ...(content ? {content} : {})}]
+    return [{title: labels.join(" / "), ...(content ? {content} : {}),
+      assertions: execution.assertions.filter(assertion => assertion.testId === test.id).map((assertion, index) => ({
+        id: String(assertion.id),
+        label: assertion.customFailMessage ?? `expect ${index + 1}: ${assertion.matcher}`,
+        value: assertion.actual,
+      })),
+    }]
   })
 }

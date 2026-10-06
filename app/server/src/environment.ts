@@ -107,7 +107,9 @@ export default function createServerEnvironment(options: Options) {
       await authorize(action)
     },
     stream: streamAppOperation,
-    instructions: input => readInstructions(input.subject.directory),
+    // Внешний разработчик получает правила входа целиком. Внутренний специалист
+    // получает короткие промпты декларации; полная цепочка доступна по ./instructions.
+    instructions: input => input.executorId === "developer:project" ? readInstructions(input.subject.directory) : [],
     async resolve(address) {
       const subject = await resolveExecutionSubject(address)
       notes.bind(subject.cwd)

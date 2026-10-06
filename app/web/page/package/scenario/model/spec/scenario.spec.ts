@@ -113,6 +113,7 @@ describe.each([
       variants: originalVariants,
       getSnapshot: expect.any(Function),
       select: expect.any(Function),
+      selectAssertion: expect.any(Function),
       run: expect.any(Function),
       subscribe: expect.any(Function),
       dispose: expect.any(Function),

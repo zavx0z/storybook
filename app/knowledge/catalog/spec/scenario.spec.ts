@@ -2,9 +2,9 @@ import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import collect from "@zavx0z/storybook-package-metadata-collect"
 import createGraph from "@zavx0z/storybook-package-graph-create"
-import source from "@zavx0z/storybook-package-env-source"
+import source from "@zavx0z/storybook-app-knowledge-catalog"
 
-describe.each([{name: "Сведения выбранного Package", props: {path: resolve(import.meta.dir, "../../metadata/collect/fixtures/valid/standalone")}}])("$name", async ({props}) => {
+describe.each([{name: "Сведения выбранного Package", props: {path: resolve(import.meta.dir, "../../../../package/metadata/collect/fixtures/valid/standalone")}}])("$name", async ({props}) => {
   const catalog = await collect([props.path])
   const graph = createGraph(catalog)
   const entries = source({catalog, graph})

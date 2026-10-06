@@ -30,7 +30,7 @@ test("инструменты пакета не наследуются детьм
   const child = join(directory, "child")
   await mkdir(child)
   expect(Object.keys(environment({directory: child}).tools)).toHaveLength(10)
-  expect(environment({directory: child}).rules).toEqual({})
+  expect(environment({directory: child}).rules).not.toHaveProperty("development")
   await cp(join(directory, ".agent"), join(child, ".agent"), {recursive: true})
   await rm(join(directory, ".agent"), {recursive: true})
   expect(Object.keys(environment({directory}).tools)).toHaveLength(10)

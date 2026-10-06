@@ -6,7 +6,8 @@ import type {StorybookAppWebPagePackageScenarioResult as Contract} from "./contr
 export type {StorybookAppWebPagePackageScenarioResult} from "./contract"
 import {useSyncExternalStore} from "@zavx0z/immersive-component"
 import {Typography} from "@zavx0z/immersive-ui-component"
-import {CodeEditor} from "@zavx0z/immersive-ui-component"
+import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
+import {ScenarioAssertionResult} from "./src/assertion"
 import {ScenarioCallResult} from "./src/call"
 
 /**
@@ -16,7 +17,8 @@ import {ScenarioCallResult} from "./src/call"
 */
 export default function StorybookAppWebPagePackageScenarioResult(props: Contract.Input) {
   const selected = useSyncExternalStore(props.app.subscribe, props.app.getSnapshot)
-  const calls = "calls" in selected ? selected.calls : []
+  const assertion = selected.assertion
+  const calls = assertion === undefined && "calls" in selected ? selected.calls : []
   const failedTests = selected.execution?.tests?.filter(test => test.status === "failed" || test.status === "error") ?? []
   const progress = selected.execution?.progress
   const stage = progress?.phase === "queued" ? "Ожидание запуска"
@@ -56,7 +58,8 @@ export default function StorybookAppWebPagePackageScenarioResult(props: Contract
         text={`${test.label}: ${test.message ?? test.status}`}
       />
     ))}
-    {calls.length === 0 && selected.execution === undefined ? <Typography text="В этом варианте нет выполненных вызовов" /> : null}
+    {assertion !== undefined ? <ScenarioAssertionResult assertion={assertion} /> : null}
+    {assertion === undefined && calls.length === 0 && selected.execution === undefined ? <Typography text="В этом варианте нет выполненных вызовов" /> : null}
     {calls.map((call, index) => <ScenarioCallResult
       key={String(index)}
       call={call}

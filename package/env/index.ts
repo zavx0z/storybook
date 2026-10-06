@@ -17,17 +17,15 @@ export default function packageEnvironment({directory, sources}: Contract.Input 
   const standard = tools()
   for (const name of Object.keys(extra.tools)) if (Object.hasOwn(standard, name)) throw new Error(`Повтор имени инструмента: ${name}`)
   const documents: Record<string, Contract.Output["rules"][string]> = {
-    "Хранение данных владельцев": {path: fileURLToPath(new URL("../src/storage.md", import.meta.url))},
-
-    "Структура Project, Repo и пакетов": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url))},
-    "Развитие структуры": {path: fileURLToPath(new URL("../meta/notes/development.md", import.meta.url))},
-    "Документация поведения и ответственности": {path: fileURLToPath(new URL("../meta/notes/draft-documentation.md", import.meta.url))},
-    "Публичные входы и происхождение экспортов": {path: fileURLToPath(new URL("../meta/notes/draft-exports.md", import.meta.url))},
-    "Переходная проекция директорий": {path: fileURLToPath(new URL("../meta/notes/draft-projections.md", import.meta.url))},
-    "Переход архетипов и состояние проверок": {path: fileURLToPath(new URL("../meta/notes/archetype-transition.md", import.meta.url))},
-    "Жизненный цикл заметок": {path: fileURLToPath(new URL("../meta/notes/note-lifecycle.md", import.meta.url))},
+    "Общие правила Package": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url))},
+    "Имена пакетов": {path: fileURLToPath(new URL("../name/spec/scenario.spec.ts", import.meta.url))},
+    "Публичные границы пакета": {path: fileURLToPath(new URL("../meta/notes/draft-exports.md", import.meta.url))},
+    "Документация пакета": {path: fileURLToPath(new URL("../meta/notes/draft-documentation.md", import.meta.url))},
+    "Дополнения окружения пакета": {path: fileURLToPath(new URL("./src/architecture.md", import.meta.url))},
+    "Данные работы пакета": {path: fileURLToPath(new URL("../src/storage.md", import.meta.url))},
+    "Начало работы": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))},
   }
   for (const key of ["input", "output", "slots"] as const) if (sources?.[key]) documents[key] = {path: sources[key].path}
   for (const [index, path] of (sources?.scenarios ?? []).entries()) documents[`scenario.${index + 1}`] = {path}
-  return {rules: extra.rules, documents, tools: {...standard, ...extra.tools}}
+  return {rules: {"Начало работы": documents["Начало работы"]!, ...extra.rules}, documents, tools: {...standard, ...extra.tools}}
 }

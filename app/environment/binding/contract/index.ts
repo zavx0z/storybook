@@ -8,7 +8,7 @@ import type {AiWorkspace} from "@zavx0z/ai-workspace"
 Signal отменяет ожидание исполнителя; progress сообщает промежуточные состояния
 без изменения результата. Существующие синхронные инструменты используют только input.
 */
-export type Tool = Readonly<{
+type Tool = Readonly<{
   name: string
   title?: string
   description: string

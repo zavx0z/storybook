@@ -183,3 +183,14 @@ test("вложенные describe.each сохраняют дерево, JSX ро
   expect(selected.preview?.variants[0]?.source).toBe(child.source)
   expect(selected.preview?.variants[0]).toMatchObject({selection: [1, 1], path: ["children", "Справа"]})
 }, 30_000)
+
+
+test("значения выполненных expect доступны для выбора в просмотре", () => {
+  const variant = result.preview?.variants[0]
+  const point = variant?.points.find(point => point.title === "Использование / Подпись")
+  expect(point?.assertions).toEqual([{
+    id: expect.any(String),
+    label: "Название действия, переданное в компонент",
+    value: "Продолжить",
+  }])
+})

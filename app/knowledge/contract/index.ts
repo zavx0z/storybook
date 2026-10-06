@@ -1,5 +1,5 @@
 import type {StorybookAppKnowledgeProject} from "@zavx0z/storybook-app-knowledge-project"
-import type {StorybookPackageEnvSource} from "@zavx0z/storybook-package-env-source"
+import type {StorybookAppKnowledgeCatalog} from "@zavx0z/storybook-app-knowledge-catalog"
 
 /** Контракт чтения знаний выбранного направления Storybook. */
 export declare namespace StorybookAppKnowledge {
@@ -12,7 +12,7 @@ export declare namespace StorybookAppKnowledge {
     request: Request,
     options: Readonly<{
       projectName: StorybookAppKnowledgeProject.Input["projectName"]
-      entries: StorybookPackageEnvSource.Output
+      entries: StorybookAppKnowledgeCatalog.Output
       /** Неизменная точка входа, заданная хостом; без неё root соответствует Project. */
       root?: Readonly<{
         path: string

@@ -5,7 +5,7 @@ import type {EnvContentSources} from "./types"
 import type {StorybookPackageBuildConformance} from "@zavx0z/storybook-package-build-conformance"
 
 /** Источники общего пакетного содержания для предметных деклараций окружения. */
-export declare namespace StorybookPackageEnvSource {
+export declare namespace StorybookAppKnowledgeCatalog {
   type Input = readonly [
     snapshot: Readonly<{catalog: StorybookPackageMetadataCollect.Output, graph: StorybookPackageGraphCreate.Output}>,
     readType?: (packageId: string) => ReturnType<NonNullable<Output[number]["readType"]>>,

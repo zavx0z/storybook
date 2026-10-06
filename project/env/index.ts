@@ -11,7 +11,9 @@ export default function environment(input: Contract.Input = {}): Contract.Output
   const base = packageEnvironment(input)
   return {
     ...base,
+    rules: {...base.rules, "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))}},
     documents: {
+      "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))},
       "Агентная организация разработки": {path: fileURLToPath(new URL("../src/agents.md", import.meta.url))},
 
       "Основания": {path: fileURLToPath(new URL("../meta/notes/foundations/index.md", import.meta.url))},
