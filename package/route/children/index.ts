@@ -21,6 +21,7 @@ const {readPackageManifest, readWorkspaceChildNames} = structure
 Возвращает зарегистрированные корни либо непосредственных детей выбранного overview.
 Каждый ребёнок заново проходит полный resolver, поэтому результат отражает текущее
 состояние файловой системы.
+Workspace-ветка раскрывает детей и при наличии модульных src или index.tsx.
 
 @param input - Адрес родителя и зарегистрированные корни.
 @returns Разрешённые непосредственные маршруты.
@@ -40,7 +41,17 @@ export default async function readRouteChildren({route, roots}: StorybookPackage
   if (visibility === null) return []
   const {repository} = visibility
 
-  if (parent.relativePath !== "") {
+  const position = {
+    packageId: parent.package.id,
+    packagePath: parent.package.path,
+    relativeSegments: parent.relativePath === "" ? [] : parent.relativePath.split("/"),
+    directory: parent.directory,
+    scenarioOwner: false,
+    moduleOwner: false,
+    stopsTraversal: false,
+  }
+  const names = new Set(readWorkspaceChildNames(position, manifest))
+  if (parent.relativePath !== "" && names.size === 0) {
     const ownerDirectories = await readRouteDirectories({
       root: parent.package.path,
       parent: dirname(parent.directory),
@@ -52,16 +63,6 @@ export default async function readRouteChildren({route, roots}: StorybookPackage
     if (descriptor?.module === true) return []
   }
 
-  const position = {
-    packageId: parent.package.id,
-    packagePath: parent.package.path,
-    relativeSegments: parent.relativePath === "" ? [] : parent.relativePath.split("/"),
-    directory: parent.directory,
-    scenarioOwner: false,
-    moduleOwner: false,
-    stopsTraversal: false,
-  }
-  const names = new Set(readWorkspaceChildNames(position, manifest))
   const directories = await readRouteDirectories({
     root: parent.package.path,
     parent: parent.directory,

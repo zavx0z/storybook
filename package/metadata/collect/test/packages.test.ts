@@ -77,6 +77,36 @@ test("Вложенный пакет сохраняет физические ди
   expect(graph.nodes.find(node => node.id === "package:@structure/child")?.parentId).toBe("directory:package:structure/module/packages")
 })
 
+test.each(["src", "index.tsx"])("Workspace сохраняет физическую иерархию через %s при первом чтении и обновлении", async marker => {
+  const root = await fixture()
+  await writeFile(join(root, "package.json"), JSON.stringify({name: "structure", workspaces: ["packages/**"]}))
+  await mkdir(join(root, "packages/group/nested"), {recursive: true})
+  await writeFile(join(root, "packages/group/nested/package.json"), JSON.stringify({name: "@structure/nested"}))
+  await mkdir(join(root, "packages/child/module/internal"), {recursive: true})
+  const previous = await discoverStorybookPackages([root])
+  if (marker === "src") await mkdir(join(root, "packages/src"))
+  else await writeFile(join(root, "packages/index.tsx"), "export const value = 1\n")
+
+  for (const catalog of [
+    await discoverStorybookPackages([root]),
+    await discoverStorybookPackages([root], previous, {dirtyScopeRoots: [root]}),
+  ]) {
+    const graph = createExternalStorybookGraph(catalog)
+    const byId = new Map(graph.nodes.map(node => [node.id, node]))
+    expect(byId.get("package:structure")?.childIds).toEqual(["directory:package:structure/packages"])
+    expect(byId.get("package:@structure/child")?.parentId).toBe("directory:package:structure/packages")
+    expect(byId.get("package:@structure/nested")?.structuralPath).toEqual([
+      "package:structure",
+      "directory:package:structure/packages",
+      "directory:package:structure/packages/group",
+      "package:@structure/nested",
+    ])
+    expect(byId.get("package:@structure/nested")?.urlPath).toBe("/structure/packages/group/nested")
+    expect(graph.nodes.some(node => node.urlPath.endsWith("/module/internal"))).toBeFalse()
+    expect(graph.nodes.some(node => node.kind === "directory" && node.label === "src")).toBeFalse()
+  }
+})
+
 test("Symlink вместо точного package root отклоняется", async () => {
   const root = await fixture()
   await symlink(join(root, "packages/child"), join(root, "packages/linked"))

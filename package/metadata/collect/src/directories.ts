@@ -11,7 +11,7 @@ import readPackageIndex from "@zavx0z/storybook-package-index"
 import readContract from "@zavx0z/storybook-contracts"
 import {readDependencySpecs} from "./dependency-spec.ts"
 import {readContractDocumentationResults, type ContractDocumentationResult} from "./contract-documentation.ts"
-import {basename, dirname, join, relative, resolve} from "node:path"
+import {basename, dirname, join, relative, resolve, sep} from "node:path"
 import type {StorybookDirectory, StorybookEntry} from "../contract/catalog"
 
 type ViewMetadata = Pick<StorybookDirectory, "moduleDocumentation" | "scenarioSpec" | "contractDocumentation" | "dependencySpec"> & {entries?: readonly StorybookEntry[]}
@@ -142,7 +142,8 @@ export async function prepareStorybookDirectories(
       inputs.add(join(path, "src"))
       const isModule = entry.module
       await collectViews(path, isModule || publicEntry !== undefined)
-      const children = isModule ? [] : await visit(path)
+      const containsPackages = [...packageRoots].some(packageRoot => packageRoot.startsWith(`${path}${sep}`))
+      const children = isModule && !containsPackages ? [] : await visit(path)
       result.push(Object.freeze({
         path,
         relativePath: relative(root, path),

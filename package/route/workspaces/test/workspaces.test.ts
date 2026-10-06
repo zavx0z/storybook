@@ -101,6 +101,25 @@ test("route refuses invalid workspace patterns and symlink branches", async () =
   expect(await resolveRoute({route: "root/linked", roots: registered})).toBeNull()
 })
 
+test.each(["src", "index.tsx"])("дети workspace-ветки с %s совпадают с физическими маршрутами", async marker => {
+  const root = await fixture()
+  await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/root", workspaces: ["packages/**", "!packages/excluded/**"]}))
+  if (marker === "src") await mkdir(join(root, "packages/src"))
+  else await Bun.write(join(root, "packages/index.tsx"), "export const value = 1\n")
+  const registered = [{name: "root", path: root}]
+  expect((await readRouteChildren({route: "root/packages", roots: registered})).map(({node}) => node)).toEqual([
+    "root/packages/a",
+    "root/packages/group",
+    "root/packages/z",
+  ])
+  expect((await readRouteChildren({route: "root/packages/group", roots: registered})).map(({node}) => node)).toEqual([
+    "root/packages/group/nested",
+  ])
+  await mkdir(join(root, "module/src"), {recursive: true})
+  await mkdir(join(root, "module/internal"))
+  expect(await readRouteChildren({route: "root/module", roots: registered})).toEqual([])
+})
+
 test("публичный workspaces module открывает собственный contract view", async () => {
   const storybook = resolve(import.meta.dir, "../../../..")
   expect(await resolveRoute({
