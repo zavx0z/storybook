@@ -31,6 +31,9 @@ export declare namespace StorybookAppEnvironment {
     /** Предметный владелец добавляет инструменты конкретного назначения до выдачи bootstrap. */
     extensions?(input: Readonly<{executorId: string, subject: Subject, inspectExecutors: boolean}>): StorybookAppEnvironmentTools.Input["extensions"] | Promise<StorybookAppEnvironmentTools.Input["extensions"]>
     onCall?(event: CallEvent): void | Promise<void>
+    /** Обязательное решение хоста перед эффектом. Callback не доставляется модели как аргумент. */
+    authorize?(input: Readonly<{id: string, executorId: string, address: string,
+      command: Readonly<{name: string, arguments: Readonly<Record<string, unknown>>}>, signal: AbortSignal}>): Promise<void>
     /** Необязательная штатная доставка NDJSON; execute возвращает ту же result/error оболочку, что JSON. */
     stream?(signal: AbortSignal, subscribe: (listener: (progress: Readonly<Record<string, unknown>>) => void) => () => void,
       execute: () => Promise<Record<string, unknown>>): Response

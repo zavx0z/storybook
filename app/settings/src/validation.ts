@@ -7,7 +7,7 @@ type Execution = Awaited<ReturnType<StorybookAppSettings.Output["resolve"]>>
 type EntityType = NonNullable<ExecutorInput["subject"]["type"]>
 
 export const entityTypes = ["Project", "Repo", "Domain", "Cluster", "Container", "Component"] as const
-export const fields = ["connectionId", "model", "thoughtLevel"] as const
+export const fields = ["connectionId", "model", "thoughtLevel", "approvalMode"] as const
 export const initial = (): Document => ({schemaVersion: 1, revision: 0,
   connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}], general: {connectionId: "codex"}, types: {}})
 
@@ -19,6 +19,7 @@ export function selection(input: unknown): Selection {
   const value = object(input, fields)
   for (const key of fields) if (Object.hasOwn(value, key) && (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 256)) throw new TypeError(`Настройка ${key} должна быть непустой строкой`)
   if (value.connectionId !== undefined && value.connectionId !== "codex") throw new TypeError("Подключение не поддерживается: доступен Codex")
+  if (value.approvalMode !== undefined && value.approvalMode !== "ask" && value.approvalMode !== "scoped-autonomous") throw new TypeError("Режим подтверждений не поддерживается")
   return structuredClone(value) as Selection
 }
 export function document(input: unknown): Document {

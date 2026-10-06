@@ -38,6 +38,7 @@ export default function createServerEnvironment(options: Options) {
   const observers = new Map<string, Set<(event: CallEvent) => void>>()
   const sessionCalls = new AsyncLocalStorage<string>()
   const sessionObservers = new Map<string, Set<(event: CallEvent) => void>>()
+  const sessionAuthorization = new Map<string, NonNullable<StorybookAppEnvironment.Input["authorize"]>>()
   const leases = new Map<string, Set<symbol>>()
   const resolveSubject = (address: string) => {
     if (address === "/") return {address, label: options.projectName(), cwd: options.project}
@@ -98,6 +99,13 @@ export default function createServerEnvironment(options: Options) {
     return Response.json({...value, children: [...value.children, ...notes.menus, instructionsEntry]}, {status: response.status, headers: response.headers})
   }
   const environment = createEnvironment({
+    async authorize(action) {
+      if (action.executorId === "developer:project") return
+      const sessionId = sessionCalls.getStore()
+      const authorize = sessionId === undefined ? undefined : sessionAuthorization.get(sessionId)
+      if (authorize === undefined) throw new ToolError("FORBIDDEN", "Действию агента требуется активная беседа и политика подтверждений", 403)
+      await authorize(action)
+    },
     stream: streamAppOperation,
     instructions: input => readInstructions(input.subject.directory),
     async resolve(address) {
@@ -167,7 +175,8 @@ export default function createServerEnvironment(options: Options) {
     readSubject,
     assignExecutor,
     /** Сессии одного агента разделяют полномочия, но не события и время жизни наблюдения. */
-    async acquireSession(input: {executorId: string, executorLabel: string, address: string, sessionId: string}, observer: (event: CallEvent) => void) {
+    async acquireSession(input: {executorId: string, executorLabel: string, address: string, sessionId: string}, observer: (event: CallEvent) => void,
+      authorize?: NonNullable<StorybookAppEnvironment.Input["authorize"]>) {
       const lease = Symbol(input.sessionId)
       const owned = leases.get(input.executorId) ?? new Set<symbol>()
       leases.set(input.executorId, owned)
@@ -178,6 +187,7 @@ export default function createServerEnvironment(options: Options) {
       const listeners = sessionObservers.get(input.sessionId) ?? new Set()
       sessionObservers.set(input.sessionId, listeners)
       listeners.add(observer)
+      if (authorize !== undefined) sessionAuthorization.set(input.sessionId, authorize)
       let released = false
       return {
         ...assignment,
@@ -190,6 +200,7 @@ export default function createServerEnvironment(options: Options) {
           released = true
           listeners.delete(observer)
           if (!listeners.size) sessionObservers.delete(input.sessionId)
+          if (sessionAuthorization.get(input.sessionId) === authorize) sessionAuthorization.delete(input.sessionId)
           owned.delete(lease)
           if (!owned.size) {
             leases.delete(input.executorId)
@@ -238,6 +249,7 @@ export default function createServerEnvironment(options: Options) {
       assignments.clear()
       observers.clear()
       sessionObservers.clear()
+      sessionAuthorization.clear()
       leases.clear()
       notes.dispose()
       developer = undefined

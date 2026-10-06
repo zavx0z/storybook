@@ -166,10 +166,10 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
   const flow = notificationFlow()
   const early: SessionNotification[] = []
   const connection = client({name: "storybook"})
-    .onRequest(methods.client.session.requestPermission, async ({params}) => {
+    .onRequest(methods.client.session.requestPermission, async ({params, signal}) => {
       assertOpen()
       if (params.sessionId !== sessionId) throw new Error("ACP permission принадлежит другой сессии")
-      const response = await input.onPermission(params)
+      const response = await input.onPermission(params, signal)
       const outcome = response.outcome
       if (outcome.outcome === "selected" &&
         !params.options.some(option => option.optionId === outcome.optionId)) {

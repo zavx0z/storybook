@@ -25,7 +25,7 @@ export const save = async (path: string, value: unknown): Promise<void> => {
   await mkdir(dirname(path), {recursive: true})
   const temporary = `${path}.${randomUUID()}.tmp`
   try {
-    await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, {flag: "wx"})
+    await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, {flag: "wx", mode: 0o600})
     await rename(temporary, path)
   } finally {
     await unlink(temporary).catch(error => { if (error.code !== "ENOENT") throw error })

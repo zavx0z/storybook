@@ -75,7 +75,7 @@ export declare namespace StorybookTechAcp {
     onUpdate(update: SessionUpdate): void | Promise<void>
     /** История session/load, отделённая от новых событий; отсутствие callback сохраняет прежнее подавление replay. */
     onReplay?(update: SessionUpdate): void | Promise<void>
-    onPermission(request: RequestPermissionRequest): Promise<RequestPermissionResponse>
+    onPermission(request: RequestPermissionRequest, signal?: AbortSignal): Promise<RequestPermissionResponse>
     command?: string
     args?: readonly string[]
     env?: Readonly<Record<string, string | undefined>>

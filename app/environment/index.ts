@@ -197,6 +197,11 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
         if (request.method !== "POST") throw new ToolError("METHOD_NOT_ALLOWED", "Ожидается GET или POST", 405)
         const command = await readCommand(request)
         assertActive(assignment)
+        if (assignment.tools.list().some(tool => tool.name === command.name)) {
+          await options.authorize?.({id, executorId: assignment.executorId, address: assignment.address, command, signal: request.signal})
+          assertActive(assignment)
+          request.signal.throwIfAborted()
+        }
         const startedAt = Date.now()
         const event = {id, executorId: assignment.executorId, address: assignment.address,
           name: command.name, arguments: command.arguments, startedAt}

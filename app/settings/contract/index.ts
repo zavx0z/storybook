@@ -17,7 +17,7 @@ type ExecutorInput = Readonly<{subject: Subject, executorId: string}>
 /** Сохранение переносимых настроек среды без запуска исполнителей. */
 export declare namespace StorybookAppSettings {
   /** Project задаёт место общего файла; subject приходит от доверенного resolver. */
-  type Input = Readonly<{project: string}>
+  type Input = Readonly<{project: string, authorityDirectory?: string}>
   type Output = Readonly<{
     read(): Promise<Document>
     /** Полная замена настроек при совпадении текущей revision; неизвестные подключения отклоняются. */
@@ -25,7 +25,9 @@ export declare namespace StorybookAppSettings {
     readExecutor(input: ExecutorInput): Promise<Selection>
     /** Полная замена override агента; пустой объект возвращает наследование. */
     updateExecutor(input: ExecutorInput & Readonly<{selection: Selection}>): Promise<void>
+    /** Только доверенный управляющий канал: значение не читается из истории или файлов агента. */
+    updateSessionApproval(input: Readonly<{sessionId: string, approvalMode?: Selection["approvalMode"]}>): Promise<void>
     /** Разрешает general → подтверждённый тип → агент → беседа по каждому полю отдельно. */
-    resolve(input: ExecutorInput & Readonly<{selection: Selection, executorSelection?: Selection, pinnedConnectionId?: string}>): Promise<Execution>
+    resolve(input: ExecutorInput & Readonly<{selection: Selection, sessionId?: string, executorSelection?: Selection, pinnedConnectionId?: string}>): Promise<Execution>
   }>
 }
