@@ -1,6 +1,13 @@
 import type {Snapshot, ContextUsage} from "../contract/state"
 import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
 import type {ExecutionSelection} from "../contract/execution"
+import {isAbsolute} from "node:path"
+
+/** Рабочая папка относится к владельцу истории; старый абсолютный cwd читается без привязки к машине. */
+export function ownerCwd(value: string | undefined): "." {
+  if (value === undefined || value === "." || isAbsolute(value)) return "."
+  throw new TypeError("Рабочая папка беседы должна совпадать с владельцем истории")
+}
 
 type TimelineItem = StorybookChatHistory.Output[number]
 
@@ -24,6 +31,7 @@ export type Document = {
   preserveNativeSettings?: boolean
   /** Подтверждённые начальные native значения для возврата после удаления override. */
   executionBaseline?: ExecutionSelection
+  /** `.` относительно текущего владельца; абсолютные значения поддерживаются только для старых архивов. */
   cwd?: string
   /** Последний подтверждённо доставленный контекст, связанный с provider session. */
   environmentContext?: string

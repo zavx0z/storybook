@@ -80,7 +80,7 @@ test("перенос сохраняет историю, id для чернови
   expect(moved?.id, "Browser draft key продолжает использовать прежний chat id").toBe(before.id)
   expect(moved?.executorId).toBe(before.executorId)
   const target = await persisted(f.file("/new"))
-  expect(target).toMatchObject({id: before.id, address: "/new", cwd: f.newCwd, sessionId: "retained-acp-session"})
+  expect(target).toMatchObject({id: before.id, address: "/new", cwd: ".", sessionId: "retained-acp-session"})
   expect(await persisted(f.file("/old"))).toMatchObject({address: "/old", id: before.id})
   expect(calls).toEqual([{cwd: f.oldCwd, previousSessionId: undefined}])
 

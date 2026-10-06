@@ -4,7 +4,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import createChatSessions, {type StorybookChatSession} from "@zavx0z/storybook-chat-session"
+import createChatSessions, {createMediaStore, type StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
 describe.each([
   {name: "Project", props: {address: "/", label: "Проект", environment: false}},
@@ -26,8 +26,8 @@ describe.each([
           content: bootstrap,
           async execute(value: typeof command) {
             commands.push(value)
-            input.onUpdate({sessionUpdate: "tool_call", toolCallId: "example-tool", title: "Проверка", status: "in_progress"})
-            input.onUpdate({sessionUpdate: "tool_call_update", toolCallId: "example-tool", status: "completed", rawOutput: {checked: true}})
+            await input.onUpdate({sessionUpdate: "tool_call", toolCallId: "example-tool", title: "Проверка", status: "in_progress"})
+            await input.onUpdate({sessionUpdate: "tool_call_update", toolCallId: "example-tool", status: "completed", rawOutput: {checked: true}})
             return [{type: "text" as const, text: '{"checked":true}'}]
           },
           dispose() {},
@@ -45,17 +45,17 @@ describe.each([
           generations += 1
           if (props.environment && generations === 1) {
             const encoded = JSON.stringify(command)
-            input.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "example-command", content: {type: "text", text: encoded.slice(0, 10)}})
-            input.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "example-command", content: {type: "text", text: encoded.slice(10)}})
+            await input.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "example-command", content: {type: "text", text: encoded.slice(0, 10)}})
+            await input.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "example-command", content: {type: "text", text: encoded.slice(10)}})
             return {stopReason: "end_turn"}
           }
-          input.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Первая часть. "}})
-          input.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Продолжение."}})
+          await input.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Первая часть. "}})
+          await input.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Продолжение."}})
           if (!props.environment) {
-            input.onUpdate({sessionUpdate: "tool_call", toolCallId: "example-tool", title: "Проверка", status: "in_progress"})
-            input.onUpdate({sessionUpdate: "tool_call_update", toolCallId: "example-tool", status: "completed", rawOutput: {checked: true}})
+            await input.onUpdate({sessionUpdate: "tool_call", toolCallId: "example-tool", title: "Проверка", status: "in_progress"})
+            await input.onUpdate({sessionUpdate: "tool_call_update", toolCallId: "example-tool", status: "completed", rawOutput: {checked: true}})
           }
-          input.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "example-image", content: {type: "image", mimeType: "image/png", data: "AA=="}})
+          await input.onUpdate({sessionUpdate: "agent_message_chunk", messageId: "example-image", content: {type: "image", mimeType: "image/png", data: "AA=="}})
           return {stopReason: "end_turn"}
         },
         async cancel() {},
@@ -102,10 +102,14 @@ describe.each([
       "Timeline сохраняет один вызов инструмента с подтверждённым результатом и исходными updates")
       .toMatchObject({toolCallId: "example-tool", status: "completed", rawOutput: {checked: true}})
   })
-  test("Мультимодальное содержимое", () => {
+  test("Мультимодальное содержимое", async () => {
     const image = actual.timeline.find(item => item.kind === "message" && item.providerMessageId === "example-image")
-    expect(image?.kind === "message" ? image.content : null,
-      "Полученный image ContentBlock сохраняется в штатной форме ACP и не подменяется текстом")
+    const content = image?.kind === "message" ? image.content : null
+    expect(content, "История содержит адрес бинарного оригинала и его тип вместо base64 внутри сообщения")
+      .toMatchObject([{type: "resource_link", mimeType: "image/png", size: 1,
+        uri: "chat-media:6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"}])
+    expect(await createMediaStore(directory).materialize(content),
+      "Оригинал из отдельного файла восстанавливает исходный ACP ContentBlock без потери байтов")
       .toEqual([{type: "image", mimeType: "image/png", data: "AA=="}])
   })
   test("Явный перенос", () => {
@@ -170,7 +174,7 @@ describe.each([
         expect(replay.kind, "Точный replay supplied context и вопроса остаётся свёрнутым контекстом").toBe("context")
         expect((await restored.historyItem("/subject", replay.id)).entry, "Контекст связан с исходным requestId и не склеен с вопросом")
           .toMatchObject({kind: "context", requestId: "request", content: [bootstrap]})
-        expect((await restored.historyEvidence("/subject", replay.id)).items.map(event => (event.update as {content: unknown}).content),
+        expect(await createMediaStore(root).materialize((await restored.historyEvidence("/subject", replay.id)).items.map(event => (event.update as {content: unknown}).content)),
           "Native replay blocks остаются исходными свидетельствами, image echo сохраняет точный текст адаптера")
           .toEqual([bootstrap, question, ...(imageInput ? [imageEcho] : [])])
       } finally {

@@ -30,6 +30,7 @@ import {defaultExecutorId} from "./src/identity"
 import {requestIdentity} from "./src/queue"
 import {movedSource, readMoveIntent, sameMove, writeMoveIntent} from "./src/relocation"
 import {inputContent} from "./src/timeline"
+import {ownerCwd} from "./src/document"
 
 export type {StorybookChatSession} from "./contract"
 export type {HistoryGroup, HistoryOccurrence, HistoryContentPage, HistoryContentCursor, HistoryDetailPage, HistoryTerminalPage, HistoryTerminalCursor} from "./contract/history"
@@ -278,6 +279,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     emit(state)
   }
   const save = (state: State): Promise<void> => {
+    if (state.document.cwd !== undefined) state.document.cwd = ownerCwd(state.document.cwd)
     const {schemaVersion, ...current} = state.document
     const metadata = structuredClone(current)
     state.write = state.write.catch(() => {}).then(() => state.archive.commit(metadata))
@@ -307,8 +309,11 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     return pending
   }
   const makeState = async (subject: Subject, file: string, document: Document, isDefault: boolean): Promise<State> => {
+    const previousCwd = document.cwd
+    if (previousCwd !== undefined) document.cwd = ownerCwd(previousCwd)
     const {schemaVersion, ...metadata} = document
     const archive = await openArchive(file, metadata)
+    if (previousCwd !== document.cwd) await archive.commit(metadata)
     const state: State = {
       key: targetKey(subject.address, isDefault ? undefined : document.executorId, basename(file).endsWith(`.${document.executorId}.${document.id}.json`) ? document.id : undefined), isDefault,
       mutations: Promise.resolve(), retryBlocked: false, moveBlocked: false, subject, id: document.id, file, document,
@@ -647,9 +652,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     delete state.idleTimer
     const pending = (async () => {
       await acquireSlot(state)
-      if (state.document.cwd !== undefined && state.document.cwd !== state.subject.cwd) {
-        throw new Error("Физический контекст сохранённой ACP-сессии изменился")
-      }
+      ownerCwd(state.document.cwd)
       if (state.environment === undefined && input.environment !== undefined) {
         state.environment = await input.environment({
           executorId: state.document.executorId,
@@ -716,7 +719,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       if (state.document.sessionId !== undefined && state.document.connectionId === undefined) state.document.preserveNativeSettings = true
       state.document.sessionId = connection.sessionId
       state.document.connectionId = execution.effective.connectionId
-      state.document.cwd = state.subject.cwd
+      state.document.cwd = "."
       await save(state)
       await applyExecution(state, connection, execution)
       await save(state)
@@ -1420,7 +1423,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         if (current !== undefined && (current.id !== source.id || current.document.address !== from.address)) throw new Error("Загруженная беседа не совпадает с сохранённой историей")
         if (current !== undefined) source.executorId = current.document.executorId
         if (executorId !== undefined && source.executorId !== executorId) throw new Error("История принадлежит другому исполнителю")
-        if (source.cwd !== undefined && source.cwd !== from.cwd) throw new Error("Сохранённый cwd не совпадает с прежним владельцем беседы")
+        ownerCwd(source.cwd)
         const sourceKey = targetKey(from.address, isDefault ? undefined : source.executorId)
         const destinationKey = targetKey(to.address, isDefault ? undefined : source.executorId)
         hold(sourceKey, destinationKey)
@@ -1428,8 +1431,8 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         const existing = await loaded(to.address, isDefault ? undefined : source.executorId)
         await existing?.mutations
         const destination = await readChatDocument(newFile, to.address)
-        if (destination !== null && (destination.id !== source.id || destination.executorId !== source.executorId ||
-          destination.cwd !== undefined && destination.cwd !== to.cwd)) throw new Error("Новый адрес уже занят другой беседой")
+        if (destination !== null && (destination.id !== source.id || destination.executorId !== source.executorId)) throw new Error("Новый адрес уже занят другой беседой")
+        if (destination !== null) ownerCwd(destination.cwd)
         if (existing !== undefined && (existing.id !== source.id || existing.document.executorId !== source.executorId || existing.isDefault !== isDefault)) {
           throw new Error("Новый адрес уже занят другой беседой")
         }
@@ -1458,7 +1461,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         let document: Document
         try {
           document = destination ?? await copyHistory(newFile, {...source, address: to.address,
-            ...(source.cwd === undefined ? {} : {cwd: to.cwd})}, oldFile)
+            ...(source.cwd === undefined ? {} : {cwd: "."})}, oldFile)
         } catch (error) {
           throw new Error("Перенос ожидает завершения; исходная история сохранена. Повторите то же соответствие адресов.", {cause: error})
         }

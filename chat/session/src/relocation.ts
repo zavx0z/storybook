@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto"
 import {link, mkdir, readFile, unlink, writeFile} from "node:fs/promises"
-import {dirname, isAbsolute} from "node:path"
+import {dirname, isAbsolute, relative, resolve} from "node:path"
 import type {Document} from "./document"
 
 /** Durable intent закрывает source до копирования, оставляя исходную историю для восстановления. */
@@ -20,13 +20,17 @@ export async function readMoveIntent(file: string): Promise<MoveIntent | null> {
   if (text === null) return null
   const value: unknown = JSON.parse(text)
   if (value === null || typeof value !== "object") throw new Error("Повреждён intent переноса беседы")
-  const move = value as Partial<MoveIntent>
-  if (move.schemaVersion !== 1 || typeof move.id !== "string" || typeof move.executorId !== "string" ||
+  const move = value as Partial<Omit<MoveIntent, "schemaVersion">> & {schemaVersion?: number}
+  if (![1, 2].includes(move.schemaVersion!) || typeof move.id !== "string" || typeof move.executorId !== "string" ||
     typeof move.from?.address !== "string" || typeof move.to?.address !== "string" ||
-    typeof move.from.cwd !== "string" || typeof move.to.cwd !== "string" || !isAbsolute(move.from.cwd) || !isAbsolute(move.to.cwd)) {
+    typeof move.from.cwd !== "string" || typeof move.to.cwd !== "string" ||
+    !move.from.cwd || !move.to.cwd ||
+    (move.schemaVersion === 1 ? !isAbsolute(move.from.cwd) || !isAbsolute(move.to.cwd) : isAbsolute(move.from.cwd) || isAbsolute(move.to.cwd))) {
     throw new Error("Повреждён intent переноса беседы")
   }
-  return {schemaVersion: 1, id: move.id, executorId: move.executorId, from: move.from, to: move.to}
+  return {schemaVersion: 1, id: move.id, executorId: move.executorId,
+    from: {...move.from, cwd: resolve(dirname(file), move.from.cwd)},
+    to: {...move.to, cwd: resolve(dirname(file), move.to.cwd)}}
 }
 
 export function sameMove(a: MoveIntent, b: MoveIntent): boolean {
@@ -39,7 +43,10 @@ export async function writeMoveIntent(file: string, intent: MoveIntent): Promise
   await mkdir(dirname(file), {recursive: true})
   const temporary = `${file}.${randomUUID()}.move.tmp`
   try {
-    await writeFile(temporary, `${JSON.stringify(intent, null, 2)}\n`, {mode: 0o600, flag: "wx"})
+    const stored = {...intent, schemaVersion: 2,
+      from: {...intent.from, cwd: relative(dirname(file), intent.from.cwd) || "."},
+      to: {...intent.to, cwd: relative(dirname(file), intent.to.cwd) || "."}}
+    await writeFile(temporary, `${JSON.stringify(stored, null, 2)}\n`, {mode: 0o600, flag: "wx"})
     await link(temporary, `${file}.relocated`)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
