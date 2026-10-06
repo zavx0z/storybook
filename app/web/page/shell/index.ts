@@ -110,7 +110,9 @@ async function createExternalStorybookShell(
   application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
     title: options.title,
     directorySettingsClient: createDirectorySettingsClient(globalThis.fetch, () =>
-      browserDocument.querySelector?.<HTMLMetaElement>('meta[name="external-storybook-browser-session"]')?.content),
+      browserDocument.location.pathname === "/"
+        ? browserDocument.querySelector?.<HTMLMetaElement>('meta[name="external-storybook-browser-session"]')?.content
+        : undefined),
     userState: options.userState?.workbench,
     viewPointControls,
     statusOwner: options.statusOwner ?? options.title,
