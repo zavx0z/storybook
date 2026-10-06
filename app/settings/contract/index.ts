@@ -16,7 +16,11 @@ type ExecutorInput = Readonly<{subject: Subject, executorId: string}>
 
 /** Сохранение переносимых настроек среды без запуска исполнителей. */
 export declare namespace StorybookAppSettings {
-  /** Project задаёт место общего файла; subject приходит от доверенного resolver. */
+  /**
+  Project задаёт место общего файла; subject приходит от доверенного resolver.
+  Доверенная политика вне Project следует за физическим каталогом при rename
+  на том же диске. Копия и перенос на другой диск не наследуют выданные права.
+  */
   type Input = Readonly<{project: string, authorityDirectory?: string}>
   type Output = Readonly<{
     read(): Promise<Document>

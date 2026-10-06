@@ -6,7 +6,7 @@ import type {CatalogWorkerInput, CatalogWorkerMessage} from "./worker-protocol"
 import {saveCatalogMetadata, renameMetadataProject} from "./metadata"
 import {readLegacyMetadata, readMetadataSnapshot} from "./storage"
 import createGraph from "@zavx0z/storybook-package-graph-create"
-import {join} from "node:path"
+import {isAbsolute, join, relative, sep} from "node:path"
 
 if (parentPort === null) throw new Error("Catalog worker requires a parent")
 const port = parentPort
@@ -22,7 +22,15 @@ try {
     let legacy: ReturnType<typeof readLegacyMetadata> | undefined
     if (await treeFile.exists()) {
       const tree = await treeFile.json()
-      if (tree.schemaVersion === 2) previous = readMetadataSnapshot(input.project.root, () => input.styles)
+      if (tree.schemaVersion === 2) {
+        // meta/data — пересоздаваемый индекс. Старый физический корень после
+        // переноса Project не должен мешать запуску из текущего каталога.
+        const moved = Array.isArray(tree.entries) && tree.entries.some((entry: {declarationPath: string}) => {
+          const local = relative(input.project.root, entry.declarationPath)
+          return isAbsolute(local) || local === ".." || local.startsWith(`..${sep}`)
+        })
+        if (!moved) previous = readMetadataSnapshot(input.project.root, () => input.styles)
+      }
       else legacy = readLegacyMetadata(input.project.root)
     }
     const existingRoots = legacy === undefined

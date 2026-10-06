@@ -1,9 +1,38 @@
 import {expect, test} from "bun:test"
-import {mkdir, mkdtemp, readFile, rm, symlink, writeFile} from "node:fs/promises"
+import {cp, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import createSettings from "../index"
 import {executorFile} from "../src/storage"
+import {createHash} from "node:crypto"
+
+test("доверенные режимы переживают повторный перенос каталога, но не наследуются его копией", async () => {
+  const root = await mkdtemp(join(tmpdir(), "approval-portability-"))
+  let project = join(root, "first")
+  const authorityDirectory = join(root, "authority")
+  try {
+    await mkdir(project)
+    const legacy = join(authorityDirectory, createHash("sha256").update(project).digest("hex"), "approvals.json")
+    await mkdir(join(legacy, ".."), {recursive: true})
+    await writeFile(legacy, JSON.stringify({schemaVersion: 1, revision: 7, modes: {general: "scoped-autonomous"}}))
+    expect((await createSettings({project, authorityDirectory}).read()).general.approvalMode).toBe("scoped-autonomous")
+    for (const next of ["second", "third"]) {
+      const destination = join(root, next)
+      await rename(project, destination)
+      project = destination
+      const settings = createSettings({project, authorityDirectory})
+      expect((await settings.read()).general.approvalMode).toBe("scoped-autonomous")
+      await settings.updateSessionApproval({sessionId: "s", approvalMode: "ask"})
+      expect((await settings.resolve({subject: {address: "/", label: "P", cwd: project}, executorId: "a", sessionId: "s", selection: {}})).effective.approvalMode).toBe("ask")
+    }
+    const copy = join(root, "copy")
+    await cp(project, copy, {recursive: true})
+    expect((await createSettings({project: copy, authorityDirectory}).read()).general.approvalMode).toBeUndefined()
+    const replaced = join(root, "first")
+    await cp(project, replaced, {recursive: true})
+    expect((await createSettings({project: replaced, authorityDirectory}).read()).general.approvalMode).toBeUndefined()
+  } finally {await rm(root, {recursive: true, force: true})}
+})
 
 test("режим наследуется из доверенного store; редактируемые defaults и история не повышают самостоятельность", async () => {
   const root = await mkdtemp(join(tmpdir(), "approval-settings-"))

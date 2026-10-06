@@ -81,7 +81,7 @@ export default class ExternalStorybookRegistry {
     })
   }
 
-  /** Открывает данные Project с ФС. Прежний формат переводится без повторного анализа; отсутствие данных запускает первичный сбор. */
+  /** Открывает данные Project с ФС. Прежний формат переводится без повторного анализа; отсутствие данных или смена физического корня пересоздаёт индекс. */
   async open(project: Readonly<{root: string, name: string}>, roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot> {
     if (this.resolveCatalog !== undefined) {
       await this.configure(roots)

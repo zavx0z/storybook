@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto"
-import {mkdir, realpath} from "node:fs/promises"
+import {mkdir, realpath, stat, unlink} from "node:fs/promises"
 import {isAbsolute, join, relative, resolve, sep} from "node:path"
 import {exclusive, readJson, save} from "./storage"
 
@@ -16,7 +16,24 @@ export function createAuthority(project: string, directory?: string) {
     if (!isAbsolute(directory)) throw new TypeError("Каталог политики должен быть абсолютным")
     outside(resolve(project), resolve(directory))
   }
-  const file = directory === undefined ? undefined : join(directory, createHash("sha256").update(resolve(project)).digest("hex"), "approvals.json")
+  const legacyFile = directory === undefined ? undefined : join(directory, createHash("sha256").update(resolve(project)).digest("hex"), "approvals.json")
+  let identity: Promise<string> | undefined
+  // Доверие остаётся на этой машине и следует за тем же каталогом при rename.
+  // Идентификатор не читается из редактируемых файлов Project и не переносит права на копию.
+  const authorityFile = (): Promise<string> => identity ??= (async () => {
+    const info = await stat(project, {bigint: true})
+    const key = createHash("sha256").update(`${info.dev}:${info.ino}:${info.birthtimeNs}`).digest("hex")
+    const file = join(directory!, key, "approvals.json")
+    await exclusive(file, async () => {
+      if (await readJson(file) !== undefined) return
+      const previous = await readJson(legacyFile!)
+      if (previous !== undefined) {
+        await save(file, validate(previous))
+        await unlink(legacyFile!)
+      }
+    })
+    return file
+  })()
   const validate = (value: unknown): Policy => {
     if (value === undefined) return {schemaVersion: 1, revision: 0, modes: {}}
     const data = value as Policy
@@ -31,17 +48,18 @@ export function createAuthority(project: string, directory?: string) {
     outside(await realpath(project), await realpath(directory))
   }
   return {
-    enabled: file !== undefined,
+    enabled: directory !== undefined,
     async read(): Promise<Policy> {
       await check()
-      return validate(file === undefined ? undefined : await readJson(file))
+      return validate(directory === undefined ? undefined : await readJson(await authorityFile()))
     },
     async change(values: Readonly<Record<string, Mode | undefined>>): Promise<void> {
-      if (file === undefined) {
+      if (directory === undefined) {
         if (Object.values(values).some(value => value !== undefined)) throw new Error("Хранилище доверенной политики не подключено")
         return
       }
       await check()
+      const file = await authorityFile()
       await exclusive(file, async () => {
         const policy = validate(await readJson(file))
         const previous = JSON.stringify(policy.modes)

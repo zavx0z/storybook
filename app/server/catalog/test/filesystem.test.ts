@@ -1,5 +1,5 @@
 import {afterEach, expect, test} from "bun:test"
-import {mkdir, mkdtemp, realpath, rm} from "node:fs/promises"
+import {mkdir, mkdtemp, realpath, rename, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import Catalog from "@zavx0z/storybook-app-server-catalog"
@@ -111,4 +111,29 @@ test("Project без Repo получает пустое дерево на ФС",
   const result = await reader.open({root, name: "Empty"}, [])
   expect(result.catalog.scopes).toEqual([])
   expect((await Bun.file(join(root, "meta/data/tree.json")).json()).rootIds).toEqual([])
+})
+
+test("повторный перенос Project пересоздаёт индекс старого корня без ручной очистки", async () => {
+  const f = await fixture()
+  await f.producer.dispose()
+  let root = f.root
+  for (const suffix of ["-second", "-third"]) {
+    const destination = `${f.root}${suffix}`
+    cleanup.push(() => rm(destination, {recursive: true, force: true}))
+    await rename(root, destination)
+    root = destination
+    const reader = new Catalog()
+    cleanup.push(() => reader.dispose())
+    const owner = join(root, "repo")
+    const snapshot = await reader.open({root, name: "Workspace"}, [owner])
+    expect(snapshot.catalog.scopes.some(scope => scope.scopeRoot === owner)).toBeTrue()
+    expect(snapshot.entries.map(entry => entry.declarationPath)).toEqual([owner])
+    expect(reader.metrics().resolverCalls).toBe(1)
+    await reader.dispose()
+    const reopened = new Catalog()
+    cleanup.push(() => reopened.dispose())
+    await reopened.open({root, name: "Workspace"}, [owner])
+    expect(reopened.metrics().resolverCalls).toBe(0)
+    await reopened.dispose()
+  }
 })
