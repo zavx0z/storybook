@@ -25,6 +25,13 @@ describe.each([
       expect(text, "Исходный документ принадлежит своему владельцу; декларация ссылается на него без копирования").toBeDefined()
     })
   })
+  describe("Части документов", () => {
+    test.each(Object.entries(result.documents).flatMap(([parent, document]) =>
+      Object.entries(document.children ?? {}).map(([name, source]) => ({name: `${parent} / ${name}`, source}))))("$name", async ({source}) => {
+      expect(await readFile(source.path, "utf8"), "Самостоятельная часть документа читается по отдельному запросу; переходы находятся в декларации")
+        .toMatch(/^# /u)
+    })
+  })
   describe("Инструменты", () => {
     test.each(Object.entries(result.tools).map(([name, source]) => ({name, source})))("$name", async ({source}) => {
       expect(await readFile(source.description.path, "utf8"), "Описание, вход и результат инструмента из его собственного источника").toBeDefined()

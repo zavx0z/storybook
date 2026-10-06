@@ -14,7 +14,11 @@ export default function environment(input: Contract.Input = {}): Contract.Output
     rules: {...base.rules, "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))}},
     documents: {
       "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))},
-      "Структура Domain": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url))},
+      "Структура Domain": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url)), children: {
+        "Общая логика и принадлежащие части": {path: fileURLToPath(new URL("../src/architecture/parts.md", import.meta.url))},
+        "Публичные входы": {path: fileURLToPath(new URL("../src/architecture/entries.md", import.meta.url))},
+        "Свидетельства и граница реализации": {path: fileURLToPath(new URL("../src/architecture/evidence.md", import.meta.url))},
+      }},
       "Средовые реализации Domain": {path: fileURLToPath(new URL("../meta/notes/environments.md", import.meta.url))},
       ...base.documents,
     },

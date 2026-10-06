@@ -6,7 +6,6 @@ import statPath from "@zavx0z/ai-filesystem-stat"
 import listFiles from "@zavx0z/ai-filesystem-list"
 import readFile from "@zavx0z/ai-filesystem-read"
 import ToolError from "@zavx0z/ai-tech-failure"
-import {markdownDestinations} from "@zavx0z/immersive-markdown/destination"
 import {posix} from "node:path"
 
 const notesRoot = "./meta/notes"
@@ -23,12 +22,20 @@ function normativeDocuments(toolRoot?: string) {
     ["Уточнение сценариев", {path: fileURLToPath(new URL("../../../meta/notes/scenario-development.md", import.meta.url))}],
   )
   const seen = new Set<string>()
-  return documents.flatMap(([description, source]) => {
+  const roots = new Set(documents.map(([, source]) => source.path))
+  const flattened: {description: string, path: string, topLevel: boolean, children: {description: string, path: string}[]}[] = []
+  const visit = (entries: typeof documents) => entries.forEach(([description, source]) => {
+    const childEntries = Object.entries(source.children ?? {})
+    visit(childEntries)
     const path = relative(fileURLToPath(new URL("../../../", import.meta.url)), source.path).split(sep).join("/")
-    if (path === ".." || path.startsWith("../") || isAbsolute(path) || seen.has(path)) return []
+    if (path === ".." || path.startsWith("../") || isAbsolute(path) || seen.has(path)) return
     seen.add(path)
-    return [{path, description}]
+    flattened.push({path, description, topLevel: roots.has(source.path), children: childEntries.map(([description, child]) => ({description,
+      path: relative(fileURLToPath(new URL("../../../", import.meta.url)), child.path).split(sep).join("/"),
+    }))})
   })
+  visit(documents)
+  return flattened
 }
 
 /** Кодирует адрес из физических сегментов; модель использует точное значение children. */
@@ -88,7 +95,7 @@ export default function createKnowledgeNotes(toolRoot?: string) {
     return workspace
   }
   const read = (directory: string, path: string | undefined): Record<string, unknown> | undefined => {
-    if (path === rulesRoot) return {description: menus[1]!.description, path, children: normativeSources.map(source => ({description: source.description, path: address(rulesRoot, source.path)}))}
+    if (path === rulesRoot) return {description: menus[1]!.description, path, children: normativeSources.filter(source => source.topLevel).map(source => ({description: source.description, path: address(rulesRoot, source.path)}))}
     const normative = path?.startsWith(`${rulesRoot}/`) === true
     const owner = path === notesRoot || path?.startsWith(`${notesRoot}/`) === true
     if (!normative && !owner) return undefined
@@ -111,10 +118,13 @@ export default function createKnowledgeNotes(toolRoot?: string) {
     if (!normative && metadata.type === "directory") {
       const listing = listFiles({path: file, maxEntries: 5000}, workspace)
       if (listing.truncated) throw new ToolError("LIMIT_EXCEEDED", "Каталог заметок превышает бюджет файлового инструмента", 413)
+      const index = listing.entries.find(entry => entry.type === "file" && entry.path === `${file}/index.md`)
+      const overview = index === undefined ? undefined : read(directory, address(notesRoot, index.path.slice("meta/notes/".length)))
       return {
+        ...overview,
         description: relative || menus[0]!.description,
         path,
-        children: listing.entries.filter(entry => entry.type === "directory" || entry.type === "file" && /\.md$/iu.test(entry.path))
+        children: listing.entries.filter(entry => entry.path !== index?.path && (entry.type === "directory" || entry.type === "file" && /\.md$/iu.test(entry.path)))
           .map(entry => ({description: posix.basename(entry.path), path: address(notesRoot, entry.path.slice("meta/notes/".length))})),
       }
     }
@@ -122,21 +132,7 @@ export default function createKnowledgeNotes(toolRoot?: string) {
     const result = readFile({path: file, maxBytes: 8 * 1024 * 1024}, workspace)
     if (result.truncated) throw new ToolError("LIMIT_EXCEEDED", "Документ превышает бюджет файлового инструмента", 413)
     if (result.bytesRead !== result.size) throw new ToolError("CONFLICT", "Документ изменился во время чтения", 409)
-    const linked = markdownDestinations({source: result.content}).destinations.flatMap(destination => {
-      if (!destination || destination.startsWith("/") || destination.startsWith("#") || /^[A-Za-z][A-Za-z0-9+.-]*:/u.test(destination) || destination.includes("\\")) return []
-      let target: string
-      try { target = posix.normalize(posix.join(posix.dirname(file), decodeURIComponent(destination.split("#", 1)[0]!))) } catch { return [] }
-      if (normative) {
-        const published = normativeSources.find(item => item.path === target)
-        return published === undefined ? [] : [{description: published.description, path: address(rulesRoot, target)}]
-      }
-      if (!target.startsWith("meta/notes/") || !/\.md$/iu.test(target)) return []
-      try {
-        workspace.resolve(target)
-        if (statPath({path: target}, workspace).entry.type !== "file") return []
-      } catch { return [] }
-      return [{description: posix.basename(target), path: address(notesRoot, target.slice("meta/notes/".length))}]
-    })
+    const linked = (source?.children ?? []).map(child => ({description: child.description, path: address(rulesRoot, child.path)}))
     return {
       description: source?.description ?? posix.basename(file),
       path,

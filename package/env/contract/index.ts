@@ -1,7 +1,10 @@
 
 /** Точный файловый источник. Для npm-возможностей разрешается публичный export владельца. */
 type Source = Readonly<{path: string}>
-/** Реализация и подготовленное описание инструмента читаются исполнителем независимо. */
+/** Документ владеет самостоятельным текстом и явно объявленными частями. */
+type Document = Source & Readonly<{children?: Readonly<Record<string, Document>>}>
+
+/** Реализация и подготовленное описание инструмента. */
 type Tool = Readonly<{implementation: Source, description: Source}>
 
 /** Ссылки окружения принадлежат источникам; декларация не содержит функций и текстов. */
@@ -20,7 +23,7 @@ export declare namespace StorybookPackageEnv {
   /** Все значения состава ссылаются на источники, включая публичные входы инструментов. */
   type Output = Readonly<{
     rules: Readonly<Record<string, Source>>
-    documents: Readonly<Record<string, Source>>
+    documents: Readonly<Record<string, Document>>
     tools: Readonly<Record<string, Tool>>
   }>
 }

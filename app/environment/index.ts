@@ -89,14 +89,25 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
   }
   const readAssignmentDocument = async (assignment: BoundAssignment, args: Record<string, unknown>, signal: AbortSignal): Promise<Record<string, unknown>> => {
       const root = "./environment/documents"
-      const documents = Object.entries(assignment.declaration.documents)
-      if (args.path === root) return {path: root, description: "Документы окружения", children: documents.map(([key]) => ({path: `${root}/${encodeURIComponent(key)}`, description: key}))}
-      const source = documents.find(([key]) => args.path === `${root}/${encodeURIComponent(key)}`)
-      if (source !== undefined) {
-        const result = await readSource(source[1].path)
-        assertActive(assignment)
-        signal.throwIfAborted()
-        return {path: args.path, ...result, children: []}
+      const menu = (documents: typeof assignment.declaration.documents, parent: string) =>
+        Object.keys(documents).map(key => ({path: `${parent}/${encodeURIComponent(key)}`, description: key}))
+      if (args.path === root) return {path: root, description: "Документы окружения", children: menu(assignment.declaration.documents, root)}
+      if (typeof args.path === "string" && args.path.startsWith(`${root}/`)) {
+        let documents = assignment.declaration.documents
+        let parent = root
+        for (const segment of args.path.slice(root.length + 1).split("/")) {
+          const entry = Object.entries(documents).find(([key]) => encodeURIComponent(key) === segment)
+          if (entry === undefined) throw new ToolError("NOT_FOUND", "Документ не объявлен в окружении", 404)
+          const [description, source] = entry
+          parent += `/${segment}`
+          if (parent === args.path) {
+            const result = await readSource(source.path)
+            assertActive(assignment)
+            signal.throwIfAborted()
+            return {path: parent, description, ...result, children: menu(source.children ?? {}, parent)}
+          }
+          documents = source.children ?? {}
+        }
       }
       return readDocument(assignment.address, args, signal)
   }
