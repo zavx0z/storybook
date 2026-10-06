@@ -141,5 +141,31 @@
     "@zavx0z/immersive-ui-component-field-text": "link:@zavx0z/immersive-ui-component-field-text",
     "@zavx0z/immersive-ui-component-widget-inspector": "link:@zavx0z/immersive-ui-component-widget-inspector",
     "@zavx0z/immersive-ui-component-field-switch": "link:@zavx0z/immersive-ui-component-field-switch"
-  }
+  },
+  "files": [
+    "cluster",
+    "ARCHITECTURE.md",
+    "app",
+    "chat",
+    "dist",
+    "specs",
+    "contracts",
+    "tests",
+    "bunfig.toml",
+    "component",
+    "README.md",
+    "project",
+    "container",
+    "typedoc",
+    "tsconfig.json",
+    "fixtures",
+    "index.ts",
+    "AGENTS.md",
+    "tech",
+    "domain",
+    "repo",
+    "package",
+    "meta/notes/environment-workflow.md",
+    "meta/notes/scenario-development.md"
+  ]
 }

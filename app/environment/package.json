@@ -18,7 +18,8 @@
     "@zavx0z/storybook-container-env": "workspace:*",
     "@zavx0z/storybook-cluster-env": "workspace:*",
     "@zavx0z/storybook-domain-env": "workspace:*",
-    "@zavx0z/storybook-app-environment-declaration": "workspace:*"
+    "@zavx0z/storybook-app-environment-declaration": "workspace:*",
+    "@zavx0z/storybook-package-resources-access": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/storybook-app-knowledge": "workspace:*"

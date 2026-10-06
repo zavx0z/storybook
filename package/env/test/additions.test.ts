@@ -19,10 +19,10 @@ test("декларация содержит ссылки, не загружае�
   await writeFile(join(directory, ".agent/tools/example.summary/description.json"), "Не JSON, только ссылка")
   const declared = environment({directory})
   expect(Object.keys(declared.tools)).toHaveLength(11)
-  expect(declared.tools["example.summary"]!.implementation.path).toBe(join(directory, ".agent/tools/example.summary/index.ts"))
+  expect(declared.tools["example.summary"]!.implementation).toEqual({package: "./.agent/tools/example.summary", export: "."})
   expect(JSON.stringify(declared)).not.toContain("Обнаружение не исполняет код")
   expect(JSON.stringify(declared)).not.toContain("Изменения относятся")
-  expect(declared.rules.development).toEqual({path: join(directory, ".agent/rules/development.md")})
+  expect(declared.rules.development).toEqual({path: ".agent/rules/development.md"})
 })
 
 test("инструменты пакета не наследуются детьми и не поступают из детей", async () => {

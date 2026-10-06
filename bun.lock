@@ -92,6 +92,7 @@
         "@zavx0z/storybook-container-env": "workspace:*",
         "@zavx0z/storybook-domain-env": "workspace:*",
         "@zavx0z/storybook-package-env": "workspace:*",
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
         "@zavx0z/storybook-project-env": "workspace:*",
         "@zavx0z/storybook-repo-env": "workspace:*",
       },
@@ -105,6 +106,7 @@
       "dependencies": {
         "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
         "@zavx0z/storybook-package-env": "workspace:*",
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
       },
     },
     "app/environment/declaration": {
@@ -179,6 +181,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-app-knowledge-catalog": "workspace:*",
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
       },
     },
     "app/knowledge/navigation": {
@@ -860,6 +863,9 @@
       "dependencies": {
         "@zavx0z/storybook-package-env": "workspace:*",
       },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
+      },
     },
     "component": {
       "name": "@zavx0z/storybook-component",
@@ -873,6 +879,9 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-package-env": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
       },
     },
     "container": {
@@ -890,6 +899,9 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-package-env": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
       },
     },
     "contracts": {
@@ -910,6 +922,9 @@
       "dependencies": {
         "@zavx0z/storybook-package-env": "workspace:*",
       },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
+      },
     },
     "domain": {
       "name": "@zavx0z/storybook-domain",
@@ -927,6 +942,9 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-package-env": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
       },
     },
     "package/activation": {
@@ -1045,6 +1063,9 @@
         "@zavx0z/ai-filesystem-stat": "link:@zavx0z/ai-filesystem-stat",
         "@zavx0z/ai-filesystem-write": "link:@zavx0z/ai-filesystem-write",
       },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
+      },
     },
     "package/graph": {
       "name": "@zavx0z/storybook-package-graph",
@@ -1155,6 +1176,13 @@
       },
       "devDependencies": {
         "@zavx0z/storybook-package-documentation": "workspace:*",
+      },
+    },
+    "package/resources/access": {
+      "name": "@zavx0z/storybook-package-resources-access",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-identity": "workspace:*",
       },
     },
     "package/revision": {
@@ -1268,6 +1296,9 @@
       "dependencies": {
         "@zavx0z/storybook-package-env": "workspace:*",
       },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
+      },
     },
     "repo/env": {
       "name": "@zavx0z/storybook-repo-env",
@@ -1275,6 +1306,9 @@
       "dependencies": {
         "@zavx0z/ai-git-status": "link:@zavx0z/ai-git-status",
         "@zavx0z/storybook-package-env": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
       },
     },
     "repo/reader": {
@@ -1295,6 +1329,9 @@
       "name": "@zavx0z/storybook-specs-env",
       "dependencies": {
         "@zavx0z/storybook-package-env": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
       },
     },
     "specs/guide": {
@@ -1504,6 +1541,9 @@
       "name": "@zavx0z/storybook-typedoc-env",
       "dependencies": {
         "@zavx0z/storybook-package-env": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/storybook-package-resources-access": "workspace:*",
       },
     },
   },
@@ -1939,6 +1979,8 @@
     "@zavx0z/storybook-package-reader": ["@zavx0z/storybook-package-reader@workspace:package/reader"],
 
     "@zavx0z/storybook-package-resources": ["@zavx0z/storybook-package-resources@workspace:package/resources"],
+
+    "@zavx0z/storybook-package-resources-access": ["@zavx0z/storybook-package-resources-access@workspace:package/resources/access"],
 
     "@zavx0z/storybook-package-revision": ["@zavx0z/storybook-package-revision@workspace:package/revision"],
 

@@ -10,5 +10,21 @@
   },
   "dependencies": {
     "@zavx0z/storybook-package-package-json": "workspace:*"
-  }
+  },
+  "files": [
+    "contract",
+    "spec",
+    "README.md",
+    "env",
+    "index.ts",
+    "STORYBOOK-DOCUMENTATION.md",
+    "src",
+    "meta/notes/foundations/index.md",
+    "meta/notes/foundations/meaning.md",
+    "meta/notes/foundations/emergence.md",
+    "meta/notes/foundations/coherence.md",
+    "meta/notes/foundations/simplicity.md",
+    "meta/notes/foundations/knowledge.md",
+    "meta/notes/foundations/creation.md"
+  ]
 }

@@ -2,7 +2,6 @@
 @packageDocumentation
 */
 import packageEnvironment from "@zavx0z/storybook-package-env"
-import {fileURLToPath} from "node:url"
 import type {StorybookTypedocEnv as Contract} from "./contract"
 export type {StorybookTypedocEnv} from "./contract"
 
@@ -10,6 +9,6 @@ export type {StorybookTypedocEnv} from "./contract"
 export default function environment(input: Contract.Input = {}): Contract.Output {
   const base = packageEnvironment(input)
   return {...base, documents: {
-      "Документация объявлений кода": {path: fileURLToPath(new URL("../meta/notes/authoring.md", import.meta.url))},
+      "Документация объявлений кода": {package: "@zavx0z/storybook-typedoc", path: "meta/notes/authoring.md"},
       ...base.documents}}
 }

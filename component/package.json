@@ -10,5 +10,15 @@
   },
   "dependencies": {
     "@zavx0z/storybook-package-reader": "workspace:*"
-  }
+  },
+  "files": [
+    "contract",
+    "spec",
+    "README.md",
+    "env",
+    "index.ts",
+    "src",
+    "meta/notes/verification.md",
+    "meta/notes/presentation-ownership.md"
+  ]
 }

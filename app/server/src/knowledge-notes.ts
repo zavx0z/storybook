@@ -1,4 +1,5 @@
 import {fileURLToPath} from "node:url"
+import {dirname, resolve} from "node:path"
 import declaration from "@zavx0z/storybook-app-environment-declaration"
 import {relative, sep, isAbsolute} from "node:path"
 import createWorkspace, {type AiWorkspace} from "@zavx0z/ai-workspace"
@@ -18,13 +19,16 @@ function normativeDocuments(toolRoot?: string) {
   const documents = ([undefined, "Project", "Repo", "Component", "Container", "Cluster", "Domain", "Contracts", "TypeDoc", "Specs"] as const).flatMap(type =>
     Object.entries(declaration(type === undefined ? {} : {type} ).documents))
   documents.push(
-    ["Рабочий процесс среды", {path: fileURLToPath(new URL("../../../meta/notes/environment-workflow.md", import.meta.url))}],
-    ["Сборка и обновление Storybook", {path: fileURLToPath(new URL("../../src/build-requirements.md", import.meta.url))}],
-    ["Уточнение сценариев", {path: fileURLToPath(new URL("../../../meta/notes/scenario-development.md", import.meta.url))}],
+    ["Рабочий процесс среды", {package: "@zavx0z/storybook", path: "meta/notes/environment-workflow.md"}],
+    ["Сборка и обновление Storybook", {package: "@zavx0z/storybook", path: "app/src/build-requirements.md"}],
+    ["Уточнение сценариев", {package: "@zavx0z/storybook", path: "meta/notes/scenario-development.md"}],
   )
   const seen = new Set<string>()
   return documents.flatMap(([description, source]) => {
-    const path = relative(fileURLToPath(new URL("../../../", import.meta.url)), source.path).split(sep).join("/")
+    const installation = fileURLToPath(new URL("../../../", import.meta.url))
+    const root = source.package === "@zavx0z/storybook" ? installation
+      : source.package === undefined ? installation : dirname(Bun.resolveSync(source.package, installation))
+    const path = relative(installation, resolve(root, source.path)).split(sep).join("/")
     if (path === ".." || path.startsWith("../") || isAbsolute(path) || seen.has(path)) return []
     seen.add(path)
     return [{path, description}]
