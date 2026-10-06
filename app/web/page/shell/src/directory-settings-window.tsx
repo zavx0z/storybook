@@ -171,10 +171,6 @@ function DirectorySettingsContent(props: Readonly<{
       disabled={props.loading || props.busy || !props.loaded}
       onInput={value => props.onChange({repositoriesDirectory: value})}
     />
-    <p style={css`
-      margin: 0;
-      font-size: 13px;
-    `}>Сохранение меняет настройки среды. Существующие файлы остаются на месте.</p>
     {props.loading ? <DirectorySettingsMessage role="status" text="Загрузка настроек…" /> : null}
     {props.error ? <DirectorySettingsMessage role="alert" text={props.error} /> : null}
     {props.notice ? <DirectorySettingsMessage role="status" text={props.notice} /> : null}

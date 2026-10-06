@@ -109,10 +109,7 @@ async function createExternalStorybookShell(
   // Новый ключ монтирует актуальную App даже при неизменившемся compiler chunk её шаблона.
   application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
     title: options.title,
-    directorySettingsClient: createDirectorySettingsClient(globalThis.fetch, () =>
-      browserDocument.location.pathname === "/"
-        ? browserDocument.querySelector?.<HTMLMetaElement>('meta[name="external-storybook-browser-session"]')?.content
-        : undefined),
+    directorySettingsClient: createDirectorySettingsClient(globalThis.fetch, () => undefined),
     userState: options.userState?.workbench,
     viewPointControls,
     statusOwner: options.statusOwner ?? options.title,
