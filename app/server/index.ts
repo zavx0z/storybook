@@ -1,4 +1,3 @@
-import createLocations from "@zavx0z/storybook-app-settings-locations"
 /**
 Серверное исполнение приложения Storybook соединяет каталог, сессии пакетов,
 Web-выпуск, browser lifecycle и авторизованный HTTP/WebSocket API в одном процессе.
@@ -7,6 +6,7 @@ Web-выпуск, browser lifecycle и авторизованный HTTP/WebSock
 
 @packageDocumentation
 */
+import createLocations from "@zavx0z/storybook-app-settings-locations"
 import BuildEnvironmentOwner from "@zavx0z/storybook-tech-build-environment"
 import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
 import Zavx0zStorybookBrowserLifecycleOwner, {type StorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-app-server-browser"
@@ -145,8 +145,9 @@ export default async function startExternalStorybookServer(
   chmodSync(artifactRoot, 0o700)
   const registry = new ExternalStorybookRegistry(options.resolveCatalog, () => web.readStyleSheets())
   options.onStartupPhase?.("catalog")
-  let project = await readProject({path: options.project})
   const locations = createLocations()
+  await locations.read()
+  let project = await readProject({path: options.project})
   const projectRoots = (value: typeof project) => [...new Set(value.dependencies.map(dependency => dependency.repository ?? dependency.root))]
   const clients = new Set<Bun.ServerWebSocket<WebSocketData>>()
   let serverRecord!: ExternalStorybookServerRecord

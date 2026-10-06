@@ -1,12 +1,12 @@
 /**
 Хранит расположение проектов и репозиториев на машине пользователя.
-Отсутствие настройки оставляет выбор человеку при первом запуске. Изменение путей
+Первое чтение создаёт конфиг с незаданными путями и оставляет выбор человеку. Изменение путей
 не создаёт проекты, не перемещает исходники и не меняет текущие назначения.
 
 @packageDocumentation
 */
 import {randomUUID} from "node:crypto"
-import {lstat, mkdir, readFile, realpath, rename, stat, unlink, writeFile} from "node:fs/promises"
+import {link, lstat, mkdir, readFile, realpath, rename, stat, unlink, writeFile} from "node:fs/promises"
 import {homedir} from "node:os"
 import {isAbsolute, join, resolve} from "node:path"
 import type {StorybookAppSettingsLocations} from "./contract"
@@ -16,7 +16,7 @@ export type {StorybookAppSettingsLocations} from "./contract"
 /**
 Открывает локальный конфиг приложения.
 @param input - Необязательная домашняя директория для изолированного исполнения.
-@returns Чтение и сохранение двух пользовательских путей.
+@returns Чтение с созданием пустого конфига и сохранение двух пользовательских путей.
 @throws TypeError при повреждённом конфиге или недопустимом пути.
 */
 export default function createLocations(input: StorybookAppSettingsLocations.Input = {}): StorybookAppSettingsLocations.Output {
@@ -24,11 +24,35 @@ export default function createLocations(input: StorybookAppSettingsLocations.Inp
   if (!isAbsolute(home)) throw new TypeError("Домашний каталог должен быть абсолютным")
   const directory = join(home, ".zavx0z")
   const file = join(directory, "config.json")
+  /** Создаёт закрытый каталог конфига и отвергает подмену символической ссылкой. */
+  const ensureDirectory = async () => {
+    await mkdir(directory, {recursive: true, mode: 0o700})
+    const info = await lstat(directory)
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new TypeError("Каталог конфига должен быть обычным каталогом")
+  }
+  /**
+  Публикует полностью записанный пустой конфиг, только если путь ещё свободен.
+  Конкурирующее создание или сохранение сохраняет свой файл; временный файл удаляется.
+  */
+  const initialize = async () => {
+    await ensureDirectory()
+    const temporary = `${file}.${randomUUID()}.tmp`
+    try {
+      await writeFile(temporary, `${JSON.stringify({repositoriesDirectory: null, projectsDirectory: null}, null, 2)}\n`, {flag: "wx", mode: 0o600})
+      try { await link(temporary, file) } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+      }
+    } finally {
+      await unlink(temporary).catch(error => { if (error.code !== "ENOENT") throw error })
+    }
+  }
+  /** Читает пользовательские пути, при отсутствии файла сначала создаёт пустой конфиг. */
   const read = async () => {
     let value: unknown
     try { value = JSON.parse(await readFile(file, "utf8")) } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return {repositoriesDirectory: null, projectsDirectory: null}
-      throw error
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+      await initialize()
+      value = JSON.parse(await readFile(file, "utf8"))
     }
     if (value === null || typeof value !== "object" || Array.isArray(value)) throw new TypeError("Повреждён конфиг расположения")
     const field = (key: string): string | null => {
@@ -51,9 +75,7 @@ export default function createLocations(input: StorybookAppSettingsLocations.Inp
     read,
     async update(value) {
       const next = {repositoriesDirectory: await canonical(value.repositoriesDirectory), projectsDirectory: await canonical(value.projectsDirectory)}
-      await mkdir(directory, {recursive: true, mode: 0o700})
-      const info = await lstat(directory)
-      if (!info.isDirectory() || info.isSymbolicLink()) throw new TypeError("Каталог конфига должен быть обычным каталогом")
+      await ensureDirectory()
       const temporary = `${file}.${randomUUID()}.tmp`
       try {
         await writeFile(temporary, `${JSON.stringify(next, null, 2)}\n`, {flag: "wx", mode: 0o600})
