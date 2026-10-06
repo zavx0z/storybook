@@ -1,21 +1,35 @@
 /**
-Определяет preload из bunfig и подходящей команды bun test в scripts.test.
+Определяет preload тестовой среды: явные настройки пакета имеют приоритет,
+иначе используется ближайшее объявление test.preload внутри репозитория.
 Shell-команды не исполняются. Поддержаны явные пути и директории без glob/substitution.
 
 @packageDocumentation
 */
-import {relative, resolve} from "node:path"
+import {lstat} from "node:fs/promises"
+import {basename, dirname, relative, resolve} from "node:path"
 
-/** Объединяет test.preload с preload команды, выбирающей данный файл. */
+/** undefined означает отсутствие настройки; [] — явный отказ от preload. */
+async function configuredPreloads(directory: string): Promise<string[] | undefined> {
+  const file = Bun.file(resolve(directory, "bunfig.toml"))
+  if (!await file.exists()) return undefined
+  const parsed = Bun.TOML.parse(await file.text()) as {test?: {preload?: unknown}}
+  const value = parsed.test?.preload
+  if (value === undefined) return undefined
+  if (typeof value === "string") return [value]
+  if (Array.isArray(value) && value.every(item => typeof item === "string")) return value
+  throw new TypeError(`test.preload должен быть строкой или списком строк: ${directory}`)
+}
+
+function resolvePreloads(values: readonly string[], directory: string): string[] {
+  return values.map(value => Bun.resolveSync(value.startsWith(".") ? resolve(directory, value) : value, directory))
+}
+
+/** Сохраняет собственную среду пакета либо наследует общую до загрузки его статических импортов. */
 export async function readPreloads(cwd: string, path: string): Promise<string[]> {
   const manifest = await Bun.file(resolve(cwd, "package.json")).json()
-  const preload = new Set<string>()
-  const config = Bun.file(resolve(cwd, "bunfig.toml"))
-  if (await config.exists()) {
-    const parsed = Bun.TOML.parse(await config.text()) as {test?: {preload?: string | string[]}}
-    const values = parsed.test?.preload
-    for (const value of typeof values === "string" ? [values] : values ?? []) preload.add(value)
-  }
+  const local = await configuredPreloads(cwd)
+  const preload = new Set(resolvePreloads(local ?? [], cwd))
+  let explicitScript = false
   const script = typeof manifest.scripts?.test === "string" ? manifest.scripts.test : ""
   for (const command of script.split(/&&|\|\||;/)) {
     if (!/^\s*bun\s+test\b/.test(command)) continue
@@ -28,13 +42,27 @@ export async function readPreloads(cwd: string, path: string): Promise<string[]>
       if (token.startsWith("--preload=")) { values.push(token.slice(10)); continue }
       if (!token.startsWith("-")) targets.push(token)
     }
-    const local = relative(cwd, path)
+    const localPath = relative(cwd, path)
     if (!targets.length || targets.some((target: string) => {
       const selected = relative(cwd, resolve(cwd, target))
-      return local === selected || local.startsWith(`${selected.replace(/\/$/, "")}/`)
+      return localPath === selected || localPath.startsWith(`${selected.replace(/\/$/, "")}/`)
     })) {
-      for (const value of values) preload.add(value)
+      if (values.length > 0) explicitScript = true
+      for (const value of resolvePreloads(values, cwd)) preload.add(value)
     }
   }
-  return [...preload].map(value => Bun.resolveSync(value.startsWith(".") ? resolve(cwd, value) : value, cwd))
+  if (local !== undefined || explicitScript) return [...preload]
+
+  let directory = resolve(cwd)
+  while (true) {
+    const git = await lstat(resolve(directory, ".git")).catch(error => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
+      throw error
+    })
+    const parent = dirname(directory)
+    if (git !== null || parent === directory || basename(parent) === "node_modules") return []
+    directory = parent
+    const inherited = await configuredPreloads(directory)
+    if (inherited !== undefined) return [...new Set(resolvePreloads(inherited, directory))]
+  }
 }
