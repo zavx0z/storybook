@@ -27,7 +27,8 @@
     "@zavx0z/immersive-ui-component-button-icon": "^0.0.0",
     "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
     "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
-    "@zavx0z/storybook-chat-preferences": "workspace:*"
+    "@zavx0z/storybook-chat-preferences": "workspace:*",
+    "@zavx0z/immersive-template": "^0.0.0"
   },
   "devDependencies": {
     "@zavx0z/immersive-browser": "^0.0.0",

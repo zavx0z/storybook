@@ -15,6 +15,8 @@ function fixture() {
   let visible = true
   const release = registerDocumentGeometryReader(document, host, () => [], () => visible ? {x: 0, y: 0, width: 400, height: 600} : null)
   const snapshot = {id: "one", sessionId: "one", sessionLabel: "Первая", address: "/agents-test", executorId: "agent", executorLabel: "Главный", pending: [], label: "Project", history: {revision: 0, total: 0, lastSequence: 0}, status: "idle", error: null, permissions: [], version: 0}
+  let sessions = [snapshot]
+  let deleted = [{...snapshot, id: "removed", sessionId: "removed", sessionLabel: "Удалённая беседа", recoverable: true}]
   const calls: {operation: string, body: Record<string, unknown>, signal: AbortSignal | null | undefined}[] = []
   let hold = false
   let late: ((response: Response) => void) | null = null
@@ -26,8 +28,16 @@ function fixture() {
     if (operation === "list") return Response.json([snapshot])
     if (operation === "sessions") {
       if (hold) return new Promise<Response>(resolve => {late = resolve})
-      return Response.json([snapshot])
+      return Response.json(sessions)
     }
+    if (operation === "sessions-deleted") return Response.json(deleted)
+    if (operation === "session-restore") {
+      const item = deleted.find(item => item.id === body.sessionId)!
+      deleted = deleted.filter(item => item.id !== body.sessionId)
+      sessions = [...sessions, item]
+      return Response.json(item)
+    }
+    if (operation === "session-purge") {deleted = deleted.filter(item => item.id !== body.sessionId); return Response.json({deleted: true})}
     if (operation === "create") return Response.json({error: "Не удалось создать"}, {status: 503})
     return Response.json(snapshot)
   }) as typeof fetch
@@ -84,5 +94,46 @@ test("создание агента блокирует double click; backend ref
     expect(input.value).toBe("Исследователь")
     expect(f.host.querySelector('[role="alert"]')?.textContent).toContain("Не удалось создать")
     expect(f.calls.some(call => call.operation === "prompt")).toBe(false)
+  } finally {f.dispose()}
+})
+
+test("корзина агента читается по запросу, восстановление сохраняет точную selection без prompt", async () => {
+  const f = fixture()
+  const button = (label: string) => [...f.host.querySelectorAll("button")].find(button => button.textContent === label) as HTMLButtonElement
+  try {
+    await f.settle()
+    const toggle = f.host.querySelector('button[aria-expanded="false"]') as HTMLButtonElement
+    toggle.click()
+    await f.settle()
+    expect(f.calls.some(call => call.operation === "sessions-deleted")).toBe(false)
+    button("Корзина").click()
+    await f.settle()
+    expect(f.host.querySelector('[data-deleted-conversation="removed"]')?.textContent).toContain("Удалённая беседа")
+    button("Восстановить").click()
+    await f.settle()
+    expect(f.calls.filter(call => call.operation === "session-restore")).toHaveLength(1)
+    expect(readChatSelection("/agents-test")).toEqual({executorId: "agent", sessionId: "removed", title: "Удалённая беседа"})
+    expect(f.host.querySelector('[data-conversation-id="removed"]')).not.toBeNull()
+    expect(f.calls.some(call => call.operation === "prompt")).toBe(false)
+  } finally {f.dispose()}
+})
+
+test("окончательное удаление из корзины требует отдельной кнопки подтверждения", async () => {
+  const f = fixture()
+  const button = (label: string) => [...f.host.querySelectorAll("button")].find(button => button.textContent === label) as HTMLButtonElement
+  try {
+    await f.settle()
+    const toggle = f.host.querySelector('button[aria-expanded="false"]') as HTMLButtonElement
+    toggle.click()
+    await f.settle()
+    button("Корзина").click()
+    await f.settle()
+    button("Удалить навсегда…").click()
+    await f.settle()
+    expect(f.calls.some(call => call.operation === "session-purge")).toBe(false)
+    button("Да, удалить навсегда").click()
+    await f.settle()
+    expect(f.calls.filter(call => call.operation === "session-purge")).toHaveLength(1)
+    expect(f.host.textContent).toContain("Корзина пуста")
   } finally {f.dispose()}
 })

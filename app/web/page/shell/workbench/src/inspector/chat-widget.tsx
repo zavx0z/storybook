@@ -1,4 +1,5 @@
-import {useEffect, useMemo, useRef, useSyncExternalStore} from "@zavx0z/immersive-component"
+import {useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from "@zavx0z/immersive-component"
+import {observeElementLayout} from "@zavx0z/immersive-dom"
 import StorybookChatView from "@zavx0z/storybook-chat-view"
 import type {WorkbenchInspectorCustomWidgetProps, WorkbenchChatContext} from "../../contract/workbench"
 import {createChatBrowserClient} from "./chat-client"
@@ -23,8 +24,19 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
   }, [context.address, context.label, context.fetcher, choice.executorId, choice.sessionId])
   const view = useSyncExternalStore(client.subscribe, client.getSnapshot)
   const current = useRef(client)
+  const host = useRef<HTMLElement | null>(null)
+  const [observedVisible, setObservedVisible] = useState(false)
   current.current = client
   const selected = choice.executorId === undefined || choice.sessionId !== undefined
+  useLayoutEffect(() => {
+    const element = host.current
+    if (!element) return
+    return observeElementLayout(element, rect => {
+      const visible = rect !== null && rect.width > 0 && rect.height > 0
+      setObservedVisible(visible)
+      client.setVisible(visible)
+    })
+  }, [client])
   useEffect(() => {
     if (selected) client.start()
     return () => client.dispose()
@@ -35,6 +47,8 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
     })
   }, [client, view.executorId, view.sessionId, view.sessionLabel])
   return <div
+    ref={element => {host.current = element}}
+    data-chat-widget=""
     style={css`
       display: flex;
       flex-direction: column;
@@ -58,6 +72,16 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
       onHistoryTail={client.historyTail}
       draft={view.draft}
       status={view.status}
+      activity={view.activity}
+      onStop={() => {void client.stop()}}
+      onCopyText={client.copyText}
+      onCopyMessage={client.copyMessage}
+      mediaHost={client.mediaHost}
+      createGroupHistory={client.createGroupHistory}
+      onHistoryRetryPage={client.historyRetryPage}
+      readHistoryContent={client.readHistoryContent}
+      readHistoryDetail={client.readHistoryDetail}
+      readHistoryTerminal={client.readHistoryTerminal}
       sending={view.sending}
       error={view.error}
       permissions={view.permissions}
@@ -73,13 +97,13 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
       onFiles={files => {void client.attachFiles(files)}}
       onRemoveAttachment={client.removeAttachment}
       onMedia={client.preview}
-      onPrepareSettings={() => {void client.prepare()}}
+      onPrepareSettings={observedVisible ? () => {void client.prepare()} : undefined}
       onConfigure={(id, value) => {void client.configure(id, value)}}
       onExecutionChange={selection => {void client.configureExecution(selection)}}
       onDraftChange={client.setDraft}
       onSend={() => {void client.send()}}
       onCancel={() => {void client.cancel()}}
-      onPermission={(id, optionId) => {void client.permission(id, optionId)}}
+      onPermission={client.permission}
     /> : <EmptyChatSelection />}
   </div>
 }

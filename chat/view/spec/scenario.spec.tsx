@@ -110,8 +110,8 @@ describe.each([
       status: "running",
       sending: false,
     } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
-    statusLabel: "Отвечает…",
-    sendEnabled: false,
+    statusLabel: "Работает…",
+    sendEnabled: true,
     cancelEnabled: true,
   },
   {
@@ -204,11 +204,11 @@ describe.each([
       onCancel={onCancel}
     />,
   )
-  const send = element.querySelector('button[aria-label="Отправить"]') as HTMLButtonElement | null
+  const send = element.querySelector(props.status === "running" ? 'button[aria-label="Добавить в очередь"]' : 'button[aria-label="Отправить"]') as HTMLButtonElement | null
   const cancel = element.querySelector('button[aria-label="Остановить"]') as HTMLButtonElement | null
 
   test("Предмет беседы", () => {
-    expect(element.getAttribute("data-chat-address"), "Беседа относится к переданному каноническому адресу").toBe(props.address)
+    expect(element.querySelector("[data-chat-view]")!.getAttribute("data-chat-address"), "Беседа относится к переданному каноническому адресу").toBe(props.address)
     expect(element.getAttribute("aria-label"), "Доступное название сохраняет предмет без лишней шапки").toBe(`Чат: ${props.label}`)
   })
 
@@ -233,8 +233,8 @@ describe.each([
   })
 
   test("Отправка", () => {
-    if (cancelEnabled) expect(send, "Во время ответа отправка заменена остановкой").toBeNull()
-    else expect(send?.disabled, "Пустой черновик и ожидание запроса не допускают отправку").toBe(!sendEnabled)
+    expect(send !== null, "Черновик имеет отдельное действие отправки или постановки в очередь").toBe(true)
+    expect(send?.disabled, "Пустой черновик, подключение и ожидание HTTP запрещают отправку; работа допускает очередь").toBe(!sendEnabled)
     send?.click()
     expect(onSend.mock.calls, "Разрешённая отправка передаёт действие владельцу сессии ровно один раз").toEqual(sendEnabled ? [[]] : [])
   })
@@ -309,10 +309,8 @@ describe.each([
     })
 
     test("Выбор параметров", async () => {
-      const button = element.querySelector('button[aria-expanded="false"]') as HTMLButtonElement
-      button.click()
       await headless.capture(element)
-      const selects = [...element.querySelectorAll("select")] as HTMLSelectElement[]
+      const selects = [...element.querySelectorAll("[data-chat-model-settings] select")] as HTMLSelectElement[]
       expect(selects, "Выбор содержит модель и уровень мышления").toHaveLength(2)
       selects[0]!.value = "b"
       selects[0]!.dispatchEvent(new Event("change", {bubbles: true}))

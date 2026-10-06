@@ -1,5 +1,6 @@
 import {expect, test} from "bun:test"
 import {canonicalChatAddress, createChatBrowserClient, type ChatBrowserSnapshot} from "../src/inspector/chat-client.ts"
+import {filesToMedia, type MediaDraftAttachment} from "@zavx0z/chat/media"
 
 test("адрес беседы сохраняет предмет и исключает выбор представления", () => {
   expect(canonicalChatAddress("/storybook/component?view=scenarios&variant=Первый&inspector=chat&preview=revision#node"))
@@ -18,7 +19,7 @@ test("один browser grant, WebSocket snapshots и версия сохраня
       "/api/browser/registry-session", "/api/browser/chat/session", "/api/events?session=browser-grant",
     ])
     expect(new Headers(fixture.calls[1]!.init?.headers).get("x-storybook-session")).toBe("browser-grant")
-    expect(fixture.sockets[0]!.sent).toEqual([{type: "subscribe", topic: "chat:/storybook/component"}])
+    expect(fixture.sockets[0]!.sent).toEqual([{type: "subscribe", topic: "chat:/storybook/component", executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.id}])
     expect(JSON.parse(String(fixture.calls[1]!.init?.body))).toEqual({address: "/storybook/component"})
     fixture.emit({...fixture.snapshot, version: 2, status: "running", history: {revision: 2, total: 1, lastSequence: 1}})
     await until(() => client.getSnapshot().history.total === 1)
@@ -50,7 +51,7 @@ test("отправка, отмена и разрешение использую�
     await client.permission("permission-1", "allow-once")
     await client.cancel()
     expect(JSON.parse(String(fixture.calls.find(call => call.url.endsWith("/permission"))!.init?.body)))
-      .toEqual({address: "/", id: "permission-1", optionId: "allow-once"})
+      .toEqual({address: "/", executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.id, id: "permission-1", optionId: "allow-once"})
     expect(fixture.calls.filter(call => call.url.endsWith("/cancel"))).toHaveLength(1)
   } finally { client.dispose() }
   await client.cancel()
@@ -250,7 +251,7 @@ function reconnectFixture(address: string) {
       const {text} = JSON.parse(String(init?.body))
       snapshot = {...snapshot, version: snapshot.version + 1, history: {revision: snapshot.history.revision + 1, total: snapshot.history.total + 1, lastSequence: snapshot.history.lastSequence + 1}}
     }
-    if (path.endsWith("/history")) return Response.json({chatId: snapshot.id, revision: snapshot.history.revision, total: snapshot.history.total, start: 0, items: [], before: null, after: null})
+    if (path.endsWith("/history") || path.endsWith("/history-display")) return Response.json({chatId: snapshot.id, revision: snapshot.history.revision, total: snapshot.history.total, start: 0, items: [], before: null, after: null})
     return Response.json(snapshot)
   }) as typeof fetch
   return {
@@ -293,7 +294,11 @@ function browserChatFixture(address: string) {
   const fetcher = (async (url, init) => {
     calls.push({url: String(url), ...(init === undefined ? {} : {init})})
     if (String(url) === "/api/browser/registry-session") return Response.json({readerToken: "browser-grant"})
-    if (String(url).endsWith("/history")) return Response.json({chatId: snapshot.id, revision: snapshot.history.revision, total: snapshot.history.total, start: 0, items: [], before: null, after: null})
+    if (String(url).endsWith("/media-put")) {
+      const value = JSON.parse(String(init?.body))
+      return Response.json({type: "resource_link", uri: `chat-media:${"a".repeat(64)}`, name: value.name, mimeType: value.mimeType})
+    }
+    if (String(url).endsWith("/history") || String(url).endsWith("/history-display")) return Response.json({chatId: snapshot.id, revision: snapshot.history.revision, total: snapshot.history.total, start: 0, items: [], before: null, after: null})
     return Response.json(snapshot)
   }) as typeof fetch
   return {
@@ -340,17 +345,48 @@ test("выбор модели ждёт подтверждения HTTP, сохр
     const change = client.configure("model", "b")
     await until(() => changes.length === 1)
     expect(client.getSnapshot().configuring).toBeTrue()
-    expect(client.getSnapshot().settings[0]!.value).toBe("a")
+    expect(client.getSnapshot().settings[0]!.value, "Выбор пользователя остаётся видимым во время сохранения").toBe("b")
     await client.send()
     expect(fixture.calls.some(call => call.url.endsWith("/prompt"))).toBeFalse()
     gate.resolve(Response.json({...fixture.snapshot, settings: [{...settings[0]!, value: "b"}], usage: {used: 42, size: 100}, version: 2}))
     await change
-    expect(changes).toEqual([{address: "/settings", id: "model", value: "b"}])
+    expect(changes).toEqual([{address: "/settings", executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.id, id: "model", value: "b"}])
     expect(client.getSnapshot().configuring).toBeFalse()
     expect(client.getSnapshot().settings[0]!.value).toBe("b")
     expect(client.getSnapshot().usage).toEqual({used: 42, size: 100})
     expect(client.getSnapshot().draft).toBe("Черновик сохраняется")
   } finally { client.dispose() }
+})
+
+test("pending selection не отскакивает во время применения; отказ возвращает актуальное состояние сервера", async () => {
+  const fixture = browserChatFixture("/pending-selection")
+  const gate = Promise.withResolvers<Response>()
+  const execution: NonNullable<ChatBrowserSnapshot["execution"]> = {selection: {model: "a", thoughtLevel: "high"}, executorSelection: {},
+    effective: {connectionId: "codex", model: "a", thoughtLevel: "high"}, sources: {connectionId: "general", model: "session", thoughtLevel: "session"},
+    connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}]}
+  const initial = {...fixture.snapshot, execution}
+  let requests = 0
+  const client = createChatBrowserClient({address: initial.address, label: "Settings", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => {
+      if (String(url).endsWith("/session")) return Response.json(initial)
+      if (String(url).endsWith("/execution-configure")) {requests++; return gate.promise}
+      return fixture.fetcher(url, init)
+    }) as typeof fetch})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    const applying = client.configureExecution({model: "b", thoughtLevel: "low"})
+    expect(client.getSnapshot().execution?.selection).toEqual({model: "b", thoughtLevel: "low"})
+    expect(client.getSnapshot().configuring).toBe(true)
+    await until(() => requests === 1)
+    fixture.emit({...initial, version: 3, execution: {...execution, selection: {model: "c", thoughtLevel: "medium"}, effective: {connectionId: "codex", model: "c", thoughtLevel: "medium"}}})
+    expect(client.getSnapshot().execution?.selection).toEqual({model: "b", thoughtLevel: "low"})
+    gate.resolve(Response.json({error: "Настройка отклонена"}, {status: 409}))
+    await applying
+    expect(client.getSnapshot().execution?.selection).toEqual({model: "c", thoughtLevel: "medium"})
+    expect(client.getSnapshot().configuring).toBe(false)
+    expect(client.getSnapshot().error).toBe("Настройка отклонена")
+  } finally {gate.resolve(Response.json(initial)); client.dispose()}
 })
 
 class FakeSocket extends EventTarget {
@@ -394,8 +430,8 @@ test("два исполнителя одного адреса имеют отд�
     secondClient.start()
     await until(() => fixture.sockets.length === 2 && fixture.sockets.every(socket => socket.sent.length === 1))
     expect(fixture.sockets.map(socket => socket.sent[0])).toEqual([
-      {type: "subscribe", topic: "chat:/team", executorId: fixture.snapshot.executorId},
-      {type: "subscribe", topic: "chat:/team", executorId: second.executorId},
+      {type: "subscribe", topic: "chat:/team", executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.id},
+      {type: "subscribe", topic: "chat:/team", executorId: second.executorId, sessionId: second.id},
     ])
     firstClient.setDraft("Разработка")
     secondClient.setDraft("Проверка")
@@ -516,7 +552,7 @@ test("hidden закрывает WS и retry, visible читает compact snapsh
     await until(() => fixture.sockets.length === 1)
     client.setDraft("Задача")
     await client.send()
-    client.historyVisible(false)
+    client.setVisible(false)
     await tick()
     expect(fixture.sockets[0]!.closed).toBe(true)
     expect(timers.pending()).toBe(0)
@@ -525,14 +561,40 @@ test("hidden закрывает WS и retry, visible читает compact snapsh
     const hidden = client.getSnapshot()
     let redundant = 0
     const stop = client.subscribe(() => {redundant++})
-    for (let index = 0; index < 20; index++) client.historyVisible(false)
+    for (let index = 0; index < 20; index++) client.setVisible(false)
     expect(client.getSnapshot()).toBe(hidden)
     expect(redundant).toBe(0)
     stop()
-    client.historyVisible(true)
+    client.setVisible(true)
     await until(() => fixture.sockets.length === 2)
     expect(fixture.calls.filter(call => call.url.endsWith("/session"))).toHaveLength(2)
     expect(fixture.calls.filter(call => call.url.endsWith("/prompt"))).toHaveLength(1)
+  } finally {client.dispose()}
+})
+
+test("нулевая видимость истории не стирает permissions/settings и не закрывает соединение всей секции", async () => {
+  const fixture = reconnectFixture("/zero-history")
+  const permission = {id: "p", title: "Действие", options: [{id: "yes", name: "Разрешить"}]}
+  const settings: NonNullable<ChatBrowserSnapshot["settings"]> = [{id: "model", category: "model", name: "Model", value: "a", options: [{value: "a", name: "A"}]}]
+  fixture.restart({...fixture.snapshot, status: "running", permissions: [permission], settings})
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Zero", fetcher: fixture.fetcher, createSocket: fixture.createSocket})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    client.historyVisible(false)
+    await tick()
+    expect(fixture.sockets[0]!.closed).toBe(false)
+    expect(client.getSnapshot().permissions).toEqual([permission])
+    expect(client.getSnapshot().settings).toEqual(settings)
+    client.setVisible(false)
+    await tick()
+    expect(fixture.sockets[0]!.closed).toBe(true)
+    expect(client.getSnapshot().permissions).toEqual([])
+    expect(client.getSnapshot().settings).toEqual(settings)
+    client.setVisible(true)
+    await until(() => fixture.sockets.length === 2)
+    expect(client.getSnapshot().permissions).toEqual([permission])
+    expect(fixture.calls.some(call => call.url.endsWith("/cancel") || call.url.endsWith("/prompt"))).toBe(false)
   } finally {client.dispose()}
 })
 
@@ -549,7 +611,7 @@ test("agent-level sessions/create исключают stale session target, conve
   }) as typeof fetch
   const client = createChatBrowserClient({address: "/target", label: "Target", executorId: selected.executorId, sessionId: selected.sessionId, fetcher, createSocket: fixture.createSocket})
   try {
-    client.historyVisible(false)
+    client.setVisible(false)
     expect(await client.listSessions(selected.executorId)).toEqual([{id: "second-session", title: "Вторая"}])
     await client.createSession(selected.executorId)
     await client.renameSession(selected.executorId, selected.sessionId, "Имя")
@@ -559,7 +621,7 @@ test("agent-level sessions/create исключают stale session target, conve
     }
     expect(calls.find(call => call.operation === "session-rename")!.body).toEqual({address: "/target", executorId: selected.executorId, sessionId: selected.sessionId, label: "Имя"})
     expect(calls.find(call => call.operation === "session-delete")!.body).toEqual({address: "/target", executorId: selected.executorId, sessionId: selected.sessionId})
-    client.historyVisible(true)
+    client.setVisible(true)
     client.start()
     await until(() => fixture.sockets[0]?.sent.length === 1)
     expect(fixture.sockets[0]!.sent[0]).toEqual({type: "subscribe", topic: "chat:/target", executorId: selected.executorId, sessionId: selected.sessionId})
@@ -607,7 +669,233 @@ test("файлы из drop используют общий bounded media pipelin
     const body = JSON.parse(String(request.init?.body))
     expect(body.content).toHaveLength(2)
     expect(body.content[0]).toEqual({type: "text", text: "Прочитай файл"})
-    expect(body.content[1]).toMatchObject({type: "resource", resource: {mimeType: file.type, text: "Содержимое файла"}})
+    expect(body.content[1]).toEqual({type: "resource_link", uri: `chat-media:${"a".repeat(64)}`, mimeType: file.type, name: file.name})
+    const upload = fixture.calls.find(call => call.url.endsWith("/media-put"))!
+    expect(fixture.calls.indexOf(upload)).toBeLessThan(fixture.calls.indexOf(request))
+    const original = JSON.parse(String(upload.init?.body))
+    expect(new TextDecoder().decode(Uint8Array.from(atob(original.data), byte => byte.charCodeAt(0)))).toBe("Содержимое файла")
+    expect(original).toMatchObject({executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.id, encoding: "utf8"})
+    expect(JSON.stringify(body)).not.toContain(original.data)
     expect(client.getSnapshot().attachments).toHaveLength(0)
   } finally {client.dispose()}
+})
+
+test("ошибка media-put видима и сохраняет исходный черновик без отправки prompt", async () => {
+  const fixture = browserChatFixture("/upload-failed")
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Upload", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => String(url).endsWith("media-put") ? Response.json({error: "Диск заполнен"}, {status: 503}) : fixture.fetcher(url, init)) as typeof fetch})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    await client.attachFiles([new File(["bytes"], "file.txt", {type: "text/plain"})])
+    client.setDraft("Вопрос с файлом")
+    await client.send()
+    expect(client.getSnapshot().error).toBe("Диск заполнен")
+    expect(client.getSnapshot().draft).toBe("Вопрос с файлом")
+    expect(client.getSnapshot().attachments).toHaveLength(1)
+    expect(fixture.calls.some(call => call.url.endsWith("prompt"))).toBe(false)
+  } finally {client.dispose()}
+})
+
+test("принятый prompt не повторяется и вложения не воскресают при отказе очистки IndexedDB", async () => {
+  const fixture = browserChatFixture("/accepted-draft-failure")
+  let saved: readonly MediaDraftAttachment[] = []
+  const draftMedia = {
+    async load() {return saved.map(item => ({attachment: {...item.attachment}, release() {}}))},
+    async save(_id: string, items: readonly MediaDraftAttachment[]) {
+      if (!items.length) throw new Error("Quota failure")
+      saved = [...items]
+    },
+  }
+  const values = new Map<string, string>()
+  const storage = () => ({getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => {values.set(key, value)}})
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Draft", createSocket: fixture.createSocket, fetcher: fixture.fetcher, draftMedia, storage})
+  client.start()
+  await until(() => fixture.sockets.length === 1)
+  await client.attachFiles([new File(["accepted"], "original.txt", {type: "text/plain"})])
+  client.setDraft("Принять")
+  await client.send()
+  expect(client.getSnapshot().error).toContain("Сообщение принято")
+  expect(client.getSnapshot().draft).toBe("")
+  expect(client.getSnapshot().attachments).toHaveLength(0)
+  await client.send()
+  expect(fixture.calls.filter(call => call.url.endsWith("prompt"))).toHaveLength(1)
+  client.dispose()
+  const restored = createChatBrowserClient({address: fixture.snapshot.address, label: "Draft", createSocket: fixture.createSocket, fetcher: fixture.fetcher, draftMedia, storage})
+  try {
+    restored.start()
+    await until(() => fixture.sockets.length === 2 && restored.getSnapshot().error !== undefined)
+    expect(restored.getSnapshot().attachments).toHaveLength(0)
+    expect(restored.getSnapshot().draft).toBe("")
+    await restored.send()
+    expect(fixture.calls.filter(call => call.url.endsWith("prompt"))).toHaveLength(1)
+  } finally {restored.dispose()}
+})
+
+test("позднее чтение бинарного черновика не перезаписывает новый выбор файлов", async () => {
+  const fixture = browserChatFixture("/hydrate-race")
+  const gate = Promise.withResolvers<readonly MediaDraftAttachment[]>()
+  const prior = await filesToMedia([new File(["before"], "before.txt", {type: "text/plain"})], {})
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Hydrate", createSocket: fixture.createSocket, fetcher: fixture.fetcher,
+    draftMedia: {load: () => gate.promise, async save() {}}})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    const add = client.attachFiles([new File(["after"], "after.txt", {type: "text/plain"})])
+    expect(client.getSnapshot().attaching).toBe(true)
+    gate.resolve(prior)
+    await add
+    expect(client.getSnapshot().attachments.map(item => item.attachment.name)).toEqual(["before.txt", "after.txt"])
+  } finally {gate.resolve(prior); client.dispose()}
+})
+
+test("running отправляет enqueue и сохраняет явную activity ожидания", async () => {
+  const fixture = browserChatFixture("/queue")
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Queue", createSocket: fixture.createSocket, fetcher: fixture.fetcher})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    fixture.emit({...fixture.snapshot, version: 1, status: "running", activity: "waiting_for_approval"})
+    expect(client.getSnapshot().activity).toBe("waiting_for_approval")
+    client.setDraft("Следующая задача")
+    await client.send()
+    expect(fixture.calls.filter(call => call.url.endsWith("enqueue"))).toHaveLength(1)
+    expect(fixture.calls.some(call => call.url.endsWith("prompt"))).toBe(false)
+    expect(JSON.parse(String(fixture.calls.find(call => call.url.endsWith("enqueue"))!.init!.body))).toMatchObject({executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.id})
+  } finally {client.dispose()}
+})
+
+test("чужая default identity в потоке не подменяет выбранную беседу и её черновик", async () => {
+  const fixture = browserChatFixture("/identity")
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Identity", createSocket: fixture.createSocket, fetcher: fixture.fetcher})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    client.setDraft("Мой черновик")
+    fixture.emit({...fixture.snapshot, id: "foreign", sessionId: "foreign", version: 10})
+    await until(() => client.getSnapshot().error !== undefined)
+    expect(client.getSnapshot().sessionId).toBe(fixture.snapshot.id)
+    expect(client.getSnapshot().draft).toBe("Мой черновик")
+    expect(client.getSnapshot().error).toContain("другой сессии")
+  } finally {client.dispose()}
+})
+
+test("MediaHost использует authenticated exact target и abort при dispose даже при чужом signal", async () => {
+  const fixture = browserChatFixture("/media-host")
+  const gate = Promise.withResolvers<Response>()
+  let hold = false
+  let requested = false
+  const calls: {url: string, init?: RequestInit}[] = []
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Media", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => {
+      calls.push({url: String(url), ...(init ? {init} : {})})
+      if (String(url).endsWith("registry-session") && hold) {requested = true; return gate.promise}
+      if (String(url).endsWith("media-read")) return new Response(new Uint8Array([1, 2, 3]), {headers: {"content-type": "image/png"}})
+      return fixture.fetcher(url, init)
+    }) as typeof fetch})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    const uri = `chat-media:${"a".repeat(64)}`
+    const blob = await client.mediaHost.load(uri, new AbortController().signal)
+    expect(blob.size).toBe(3)
+    const read = calls.find(call => call.url.endsWith("media-read"))!
+    expect(new Headers(read.init?.headers).get("x-storybook-session")).toBe("browser-grant")
+    expect(JSON.parse(String(read.init?.body))).toEqual({address: fixture.snapshot.address, executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.id, uri})
+    hold = true
+    const late = client.mediaHost.load(uri, new AbortController().signal).catch(error => error)
+    await until(() => requested)
+    client.dispose()
+    gate.resolve(Response.json({readerToken: "late-grant"}))
+    expect((await late).name).toBe("AbortError")
+    expect(calls.filter(call => call.url.endsWith("media-read"))).toHaveLength(1)
+  } finally {gate.resolve(Response.json({readerToken: "late-grant"})); client.dispose()}
+})
+
+test("редактирование во время send сохраняет новый draft даже при возвращении к тому же тексту", async () => {
+  const fixture = browserChatFixture("/draft-edit-during-send")
+  const gate = Promise.withResolvers<Response>()
+  const requests: string[] = []
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Edit", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => {
+      if (String(url).endsWith("prompt")) {
+        requests.push(JSON.parse(String(init?.body)).requestId)
+        return requests.length === 1 ? gate.promise : Response.json(fixture.snapshot)
+      }
+      return fixture.fetcher(url, init)
+    }) as typeof fetch})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    client.setDraft("A")
+    const first = client.send()
+    await until(() => requests.length === 1)
+    client.setDraft("B")
+    client.setDraft("A")
+    gate.resolve(Response.json(fixture.snapshot))
+    await first
+    expect(client.getSnapshot().draft).toBe("A")
+    await client.send()
+    expect(requests).toHaveLength(2)
+    expect(requests[0]).not.toBe(requests[1])
+  } finally {gate.resolve(Response.json(fixture.snapshot)); client.dispose()}
+})
+
+test("dispose немедленно снимает queued terminal reads с чужими сигналами, без новых HTTP вызовов", async () => {
+  const fixture = browserChatFixture("/terminal-queue")
+  const gates: ReturnType<typeof Promise.withResolvers<Response>>[] = []
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Terminal", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => {
+      if (String(url).endsWith("history-terminal")) {
+        const gate = Promise.withResolvers<Response>()
+        gates.push(gate)
+        return gate.promise
+      }
+      return fixture.fetcher(url, init)
+    }) as typeof fetch})
+  client.start()
+  await until(() => fixture.sockets.length === 1)
+  const tasks = Array.from({length: 8}, (_, id) => client.readHistoryTerminal(`tool-${id}`, undefined, new AbortController().signal).catch(error => error))
+  try {
+    await until(() => gates.length === 4)
+    client.dispose()
+    const queued = await Promise.all(tasks.slice(4))
+    expect(queued.every(error => error.name === "AbortError")).toBe(true)
+    expect(gates).toHaveLength(4)
+    gates.forEach(gate => gate.resolve(Response.json({})))
+    expect((await Promise.all(tasks.slice(0, 4))).every(error => error.name === "AbortError")).toBe(true)
+  } finally {gates.forEach(gate => gate.resolve(Response.json({}))); client.dispose()}
+})
+
+test("encoded image cache принадлежит одному клиенту, hide/dispose не отзывают активный URL до cleanup", () => {
+  const first = createChatBrowserClient({address: "/first", label: "Первый"})
+  const second = createChatBrowserClient({address: "/second", label: "Второй"})
+  const revoked: string[] = []
+  let next = 0
+  const host = {
+    async decode(): Promise<ImageBitmap> {throw new Error("Не нужен decoder")},
+    canvas(): OffscreenCanvas {throw new Error("Не нужен canvas")},
+    createUrl() {return `blob:client-cache-${next++}`},
+    revokeUrl(url: string) {revoked.push(url)},
+    async fetchUrl() {throw new Error("Не нужен fetch")},
+  }
+  try {
+    const cache = first.mediaHost.images!
+    const image = cache.put("key", "chat-media:source", new Blob([new Uint8Array([1, 2])]), 1, 1, host)
+    expect(second.mediaHost.images!.get("key", host)).toBeNull()
+    expect(cache.inspect()).toMatchObject({entries: 1, bytes: 2, activeLeases: 1})
+    first.setVisible(false)
+    expect(cache.inspect()).toMatchObject({entries: 0, bytes: 0, activeLeases: 1, retiredBytes: 2})
+    expect(revoked).toEqual([])
+    image.release()
+    expect(revoked).toEqual([image.url])
+    first.setVisible(true)
+    const restored = cache.put("next", "chat-media:next", new Blob([new Uint8Array([3])]), 1, 1, host)
+    expect(cache.inspect().entries).toBe(1)
+    first.dispose()
+    expect(cache.inspect()).toMatchObject({entries: 0, bytes: 0, retiredBytes: 1})
+    expect(revoked).not.toContain(restored.url)
+    restored.release()
+    expect(cache.inspect()).toMatchObject({activeLeases: 0, retiredBytes: 0})
+  } finally {first.dispose(); second.dispose()}
 })

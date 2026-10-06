@@ -25,9 +25,11 @@
     "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
     "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
     "@zavx0z/immersive-ui-component-widget-inspector": "^0.0.0",
-    "@zavx0z/storybook-chat-preferences": "workspace:*"
+    "@zavx0z/storybook-chat-preferences": "workspace:*",
+    "@zavx0z/immersive-browser": "^0.0.0"
   },
   "devDependencies": {
+    "@zavx0z/storybook-app-web-page-shell-viewpoint-controls": "workspace:*",
     "@zavx0z/immersive-renderer-html": "^0.0.0",
     "@zavx0z/storybook-tech-limits": "workspace:*",
     "@zavx0z/immersive-space": "^0.0.0",

@@ -1,3 +1,7 @@
+import type {HistoryController} from "@zavx0z/chat/history"
+import type {HistoryOccurrence, HistoryGroup, HistoryContentPage, HistoryDetailPage, HistoryTerminalPage, HistoryTerminalCursor} from "@zavx0z/storybook-chat-session"
+import type {DisplayBody} from "./history"
+import type {MediaHost} from "@zavx0z/chat/content"
 import type {MediaDraftAttachment} from "@zavx0z/chat/media"
 import type {MediaPreview} from "@zavx0z/chat/content"
 import type {HistoryWindow, HistoryViewport} from "./history"
@@ -58,14 +62,25 @@ export declare namespace StorybookChatView {
     onHistoryRetry(id: string): void
     onHistoryEvidence(id: string, after?: number): void
     onHistoryTail(): void
+    onHistoryRetryPage?: (() => void) | undefined
+    /** Создаёт пустой controller без notify/IO; ServiceGroup принимает header в commit effect. */
+    createGroupHistory?: ((group: HistoryGroup) => HistoryController<HistoryOccurrence, DisplayBody, unknown>) | undefined
+    readHistoryContent?: ((id: string, cursor: NonNullable<HistoryContentPage["next"]>, signal: AbortSignal) => Promise<HistoryContentPage>) | undefined
+    readHistoryTerminal?: ((id: string, cursor: HistoryTerminalCursor, signal: AbortSignal) => Promise<HistoryTerminalPage>) | undefined
+    readHistoryDetail?: ((id: string, offset: number, signal: AbortSignal, evidenceId?: string) => Promise<HistoryDetailPage>) | undefined
     draft: string
     attachments?: readonly MediaDraftAttachment[] | undefined
     attaching?: boolean | undefined
+    mediaHost?: MediaHost | undefined
     media?: MediaPreview | null | undefined
     onAttach?: (() => void) | undefined
     onFiles?: ((files: readonly File[]) => void) | undefined
     onRemoveAttachment?: ((id: string) => void) | undefined
     onMedia?: ((value: MediaPreview | null) => void) | undefined
+    activity?: Snapshot["activity"]
+    onStop?: (() => void) | undefined
+    onCopyMessage?: ((id: string) => Promise<void>) | undefined
+    onCopyText?: ((text: string) => Promise<void>) | undefined
     sending?: boolean | undefined
     error?: string | undefined
     onDraftChange(value: string): void
@@ -82,7 +97,7 @@ export declare namespace StorybookChatView {
     onPrepareSettings?: (() => void) | undefined
     onConfigure?: ((id: string, value: string) => void) | undefined
     permissions?: Snapshot["permissions"] | undefined
-    onPermission?: ((id: string, optionId: string) => void) | undefined
+    onPermission?: ((id: string, optionId: string) => void | Promise<void>) | undefined
     executorId?: string | undefined
     pendingTasks?: number | undefined
   }>

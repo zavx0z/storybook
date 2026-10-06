@@ -15,7 +15,7 @@ function fixture(count = 192, textBytes = 32) {
   const window = createChatHistoryWindow({changed() {}, async read(operation, body, signal) {
     calls.push({operation, body, signal})
     if (body.chatId !== snapshot.id) throw new Error("identity conflict")
-    if (operation === "history") {
+    if (operation === "history-display") {
       const query = body.query as {before?: number, after?: number, around?: number, limit: number}
       const start = query.before !== undefined ? Math.max(0, query.before - query.limit) : query.after !== undefined ? query.after : query.around !== undefined ? Math.max(0, query.around - Math.floor(query.limit / 2)) : Math.max(0, count - query.limit)
       return {chatId: snapshot.id, revision: snapshot.history.revision, total: count, start,
@@ -54,7 +54,7 @@ test("глубокая история держит не более трёх см
   f.viewport(["m160"])
   await tick()
   expect(f.calls.filter(call => call.operation === "history-item" && call.body.id === "m160")).toHaveLength(2)
-  for (const call of f.calls.filter(call => call.operation === "history")) expect(call.body.query).toMatchObject({limit: 32, maxBytes: 65536})
+  for (const call of f.calls.filter(call => call.operation === "history-display")) expect(call.body.query).toMatchObject({limit: 32, maxBytes: 65536})
   f.window.dispose()
 })
 
@@ -150,4 +150,127 @@ test("свёрнутое service тело не читается; collapse осв
   await tick()
   expect(f.calls.filter(call => call.operation === "history-item")).toHaveLength(2)
   f.window.dispose()
+})
+
+test("группа не читает raw body; первая страница содержит 16 событий и отменяет поздний payload", async () => {
+  const group = {id: "service:user:u", kind: "group" as const, origin: "local" as const, ordinal: 2, sequence: 2,
+    revision: 1, bodyBytes: 0 as const, evidenceCount: 1000, memberCount: 1000, userId: "u", lastSequence: 1001, title: "Действия"}
+  const calls: {operation: string; body: Record<string, unknown>; signal: AbortSignal}[] = []
+  const gate = Promise.withResolvers<unknown>()
+  const window = createChatHistoryWindow({changed() {}, async read(operation, body, signal) {
+    calls.push({operation, body, signal})
+    if (operation === "history-display") return {chatId: "chat", revision: 1, total: 1, rawTotal: 1000, projectionRevision: 1,
+      start: 2, items: [group], before: null, after: null}
+    if (operation === "history-group") {
+      expect(body.query).toMatchObject({limit: 16})
+      return {chatId: "chat", groupId: group.id, revision: 1, total: 1000, start: 2, before: null, after: 17,
+        items: Array.from({length: 16}, (_, i) => ({id: `o${i}`, entryId: `t${i}`, groupId: group.id,
+          kind: "tool", origin: "live", ordinal: i + 2, sequence: i + 2, revision: 1, bodyBytes: 100, evidenceCount: 0}))}
+    }
+    if (operation === "history-group-item") return gate.promise
+    throw new Error(`Неожиданный ${operation}`)
+  }})
+  const snapshot = {id: "chat", executorId: "agent", history: {revision: 1, total: 1000, lastSequence: 1001}, displayHistory: {revision: 1, total: 1, lastSequence: 1001}} as Snapshot
+  window.accept(snapshot)
+  await tick()
+  window.viewport({ids: [group.id], nearStart: false, nearEnd: false, following: true})
+  window.expand(group.id, true)
+  await tick()
+  expect(window.getSnapshot().rows[0]!.body).toEqual({kind: "group", id: group.id})
+  expect(calls.some(call => call.operation === "history-item")).toBeFalse()
+  const nested = window.createGroupHistory(group)
+  nested.accept({id: "chat", history: {revision: group.revision, total: group.memberCount}})
+  await tick()
+  expect(nested.getSnapshot().rows).toHaveLength(16)
+  nested.viewport({ids: ["o0"], nearStart: false, nearEnd: false, following: false})
+  expect(calls.some(call => call.operation === "history-group-item")).toBeFalse()
+  nested.expand("o0", true)
+  await tick()
+  const request = calls.find(call => call.operation === "history-group-item")!
+  expect(request.body).toMatchObject({groupId: group.id, id: "o0"})
+  nested.dispose()
+  expect(request.signal.aborted).toBeTrue()
+  gate.resolve({})
+  await tick()
+  expect(nested.getSnapshot().rows).toHaveLength(0)
+  window.dispose()
+})
+
+test("первая неудачная display page повторяется явным retryPage", async () => {
+  let attempts = 0
+  const window = createChatHistoryWindow({changed() {}, async read(operation) {
+    expect(operation).toBe("history-display")
+    if (++attempts === 1) throw new Error("Временная ошибка сети")
+    return {chatId: "chat", revision: 1, total: 0, start: 0, items: [], before: null, after: null}
+  }})
+  window.accept({id: "chat", executorId: "agent", history: {revision: 1, total: 1, lastSequence: 1}} as Snapshot)
+  await tick()
+  expect(window.getSnapshot().error).toBe("Временная ошибка сети")
+  window.retryPage()
+  await tick()
+  expect(attempts).toBe(2)
+  expect(window.getSnapshot().error).toBeUndefined()
+  window.dispose()
+})
+
+test("создание nested controller не публикует snapshot и не начинает чтение до commit effect", async () => {
+  let notifications = 0
+  let groupReads = 0
+  const window = createChatHistoryWindow({changed() {notifications++}, async read(operation) {
+    if (operation === "history-group") groupReads++
+    return {chatId: "chat", revision: 1, total: 0, start: 0, items: [], before: null, after: null}
+  }})
+  window.accept({id: "chat", executorId: "agent", history: {revision: 1, total: 1, lastSequence: 1}} as Snapshot)
+  await tick()
+  const before = notifications
+  const group = {id: "service:user:u", kind: "group" as const, origin: "local" as const, ordinal: 2, sequence: 2, revision: 1,
+    bodyBytes: 0 as const, evidenceCount: 1000, memberCount: 1000, userId: "u", lastSequence: 1001, title: "Действия"}
+  const nested = window.createGroupHistory(group)
+  try {
+    expect(notifications - before).toBe(0)
+    expect(groupReads).toBe(0)
+    nested.accept({id: "chat", history: {revision: 1, total: 1000}})
+    await tick()
+    expect(groupReads).toBe(1)
+  } finally {nested.dispose(); window.dispose()}
+})
+
+test("factory группы удерживает две страницы по16 и освобождает дальнюю при смене направления", async () => {
+  const total = 108
+  const group = {id: "service:user:u", kind: "group" as const, origin: "local" as const, ordinal: 1, sequence: 1, revision: 1,
+    bodyBytes: 0 as const, evidenceCount: total, memberCount: total, userId: "u", lastSequence: total, title: "Действия"}
+  let groupReads = 0
+  let bodyReads = 0
+  const window = createChatHistoryWindow({changed() {}, async read(operation, body) {
+    if (operation === "history-display") return {chatId: "chat", revision: 1, total: 1, rawTotal: total, projectionRevision: 1, start: 1, items: [{...group}], before: null, after: null}
+    if (operation === "history-group") {
+      groupReads++
+      const query = body.query as {before?: number; after?: number; limit: number}
+      expect(query.limit).toBe(16)
+      const start = query.before !== undefined ? Math.max(0, Math.min(total, query.before) - query.limit) : query.after !== undefined ? query.after + 1 : total - query.limit
+      return {chatId: "chat", groupId: group.id, revision: 1, total, start, before: start > 0 ? start : null, after: start + 16 < total ? start + 15 : null,
+        items: Array.from({length: Math.min(16, total - start)}, (_, offset) => ({id: `o${start + offset}`, entryId: `t${start + offset}`, groupId: group.id,
+          kind: "tool", origin: "live", ordinal: start + offset, sequence: start + offset + 1, revision: 1, bodyBytes: 100, evidenceCount: 0}))}
+    }
+    bodyReads++
+    throw new Error("Свёрнутые события не должны читать body")
+  }})
+  window.accept({id: "chat", executorId: "agent", history: {revision: 1, total, lastSequence: total}, displayHistory: {revision: 1, total: 1, lastSequence: total}} as Snapshot)
+  const nested = window.createGroupHistory(group)
+  try {
+    nested.accept({id: "chat", history: {revision: 1, total}})
+    await tick()
+    expect(nested.getSnapshot().rows.map(row => row.header.ordinal)).toEqual(Array.from({length: 16}, (_, i) => 92 + i))
+    nested.viewport({ids: ["o92"], nearStart: true, nearEnd: false, following: false})
+    await tick()
+    expect(nested.getSnapshot().rows.map(row => row.header.ordinal)).toEqual(Array.from({length: 32}, (_, i) => 76 + i))
+    nested.viewport({ids: ["o76"], nearStart: true, nearEnd: false, following: false})
+    await tick()
+    expect(nested.getSnapshot().rows.map(row => row.header.ordinal)).toEqual(Array.from({length: 32}, (_, i) => 60 + i))
+    nested.viewport({ids: ["o91"], nearStart: false, nearEnd: true, following: false})
+    await tick()
+    expect(nested.getSnapshot().rows.map(row => row.header.ordinal)).toEqual(Array.from({length: 32}, (_, i) => 76 + i))
+    expect(groupReads).toBe(4)
+    expect(bodyReads).toBe(0)
+  } finally {nested.dispose(); window.dispose()}
 })

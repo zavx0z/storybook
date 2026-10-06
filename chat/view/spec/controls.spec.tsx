@@ -7,7 +7,7 @@ import StorybookChatView from "./fixture/history"
 const headless = createHeadless({width: 360, height: 680})
 afterAll(() => headless.dispose())
 
-test("наследуемый выбор перечитывается при открытии меню и снимается отдельным override", async () => {
+test("селект модели доступен над вводом и снимает override без открытия меню прав", async () => {
   const prepare = mock(() => {})
   const change = mock((value: unknown) => {})
   const element = await headless.render(<StorybookChatView
@@ -18,15 +18,17 @@ test("наследуемый выбор перечитывается при от
     onPrepareSettings={prepare} onExecutionChange={change}
     onDraftChange={() => {}} onSend={() => {}} onCancel={() => {}}
   />)
-  ;(element.querySelector('button[aria-expanded="false"]') as HTMLButtonElement).click()
   await headless.capture(element)
-  expect(prepare.mock.calls).toHaveLength(1)
-  const model = [...element.querySelectorAll("select")][0] as HTMLSelectElement
+  expect(element.querySelectorAll("select")).toHaveLength(2)
+  const model = element.querySelector('[data-chat-response-setting="model"] select') as HTMLSelectElement
   model.value = ""
   model.dispatchEvent(new Event("change", {bubbles: true}))
   expect(change.mock.calls).toEqual([[{}]])
-  ;(element.querySelector('button[aria-expanded="true"]') as HTMLButtonElement).click()
+  const rights = element.querySelector('button[aria-expanded="false"]') as HTMLButtonElement
+  rights.click()
   await headless.capture(element)
+  expect(prepare.mock.calls).toEqual([])
+  expect(element.querySelector("[data-chat-settings]")).not.toBeNull()
 })
 
 test("Enter отправляет, Shift+Enter и IME сохраняют ввод; круглая кнопка имеет доступное имя", async () => {
@@ -92,14 +94,11 @@ test("настройки показывают только варианты аг
   expect(element.querySelector('[data-language-id="typescript"]')).not.toBeNull()
   expect(element.querySelectorAll("[data-token-key]").length, "Код содержит цветные синтаксические токены").toBeGreaterThan(0)
   const row = element.querySelector('[data-chat-role="user"]')!.getBoundingClientRect()
-  const bubble = element.querySelector('[data-chat-bubble="user"]')!.getBoundingClientRect()
+  const bubble = element.querySelector('[data-message-bubble="self"]')!.getBoundingClientRect()
   expect(bubble.width, "Плашка вмещает текст, а не только padding").toBeGreaterThan(40)
   expect(bubble.x, "Короткое сообщение располагается справа").toBeGreaterThan(row.x)
   expect(Math.abs(bubble.right - row.right)).toBeLessThan(1)
-  const button = element.querySelector('button[aria-expanded="false"]') as HTMLButtonElement
-  button.click()
-  await headless.capture(element)
-  const selects = [...element.querySelectorAll("select")] as HTMLSelectElement[]
+  const selects = [...element.querySelectorAll("[data-chat-model-settings] select")] as HTMLSelectElement[]
   expect(selects).toHaveLength(2)
   selects[0]!.value = "b"
   selects[0]!.dispatchEvent(new Event("change", {bubbles: true}))
@@ -125,8 +124,37 @@ test("длинное сообщение переносится, textarea рас�
   const input = element.querySelector("textarea") as HTMLTextAreaElement
   expect(input.value).toBe(draft)
   expect(input.getBoundingClientRect().height).toBe(180)
-  const bubble = element.querySelector('[data-chat-bubble="user"]')!.getBoundingClientRect()
+  const bubble = element.querySelector('[data-message-bubble="self"]')!.getBoundingClientRect()
   const row = element.querySelector('[data-chat-role="user"]')!.getBoundingClientRect()
   expect(bubble.height).toBeGreaterThan(60)
   expect(bubble.width).toBeLessThanOrEqual(row.width * 0.9 + 1)
+})
+
+
+test.each([{width: 400, height: 700}, {width: 360, height: 300}])("меню настроек остаётся в видимой области $width×$height", async ({width, height}) => {
+  const host = createHeadless({width, height})
+  try {
+    const element = await host.render(<StorybookChatView
+      address="/menu-layout"
+      label="Беседа"
+      messages={[]}
+      draft=""
+      status="idle"
+      settings={[{id: "model", category: "model", name: "Модель", value: "a", options: [{value: "a", name: "Модель A"}]}]}
+      onPrepareSettings={() => {}}
+      onDraftChange={() => {}}
+      onSend={() => {}}
+      onCancel={() => {}}
+    />)
+    const button = element.querySelector('button[aria-expanded="false"]') as HTMLButtonElement
+    button.click()
+    await host.capture(element)
+    const chat = element.querySelector("[data-chat-view]")!.getBoundingClientRect()
+    const menu = element.querySelector("[data-chat-settings]")!.getBoundingClientRect()
+    expect(menu.height, "Меню имеет доступную область содержимого").toBeGreaterThan(30)
+    expect(menu.top, "Меню не выходит выше обрезающей области чата").toBeGreaterThanOrEqual(chat.top - 1)
+    expect(menu.bottom, "Меню не выходит ниже чата").toBeLessThanOrEqual(chat.bottom + 1)
+    expect(menu.right).toBeLessThanOrEqual(chat.right + 1)
+    expect(element.querySelector('button[aria-label="Закрыть настройки"]')).not.toBeNull()
+  } finally {await host.dispose()}
 })

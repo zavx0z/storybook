@@ -12,6 +12,7 @@ import {readChatSelection, selectChatSession, subscribeChatSelection} from "./ch
 type Client = ReturnType<typeof createChatBrowserClient>
 type Agent = Awaited<ReturnType<Client["listExecutors"]>>[number]
 type Sessions = Awaited<ReturnType<Client["listSessions"]>>
+type DeletedSessions = Awaited<ReturnType<Client["listDeletedSessions"]>>
 
 /** Группировка по агентам принадлежит Storybook; имена бесед читает только раскрытый active agent. */
 export function AgentsWidget(props: WorkbenchInspectorCustomWidgetProps) {
@@ -27,6 +28,8 @@ export function AgentsWidget(props: WorkbenchInspectorCustomWidgetProps) {
   const [agents, setAgents] = useState<readonly Agent[]>([])
   const [expanded, setExpanded] = useState<string | null>(null)
   const [sessions, setSessions] = useState<Sessions>([])
+  const [deleted, setDeleted] = useState<DeletedSessions>([])
+  const [trashOpen, setTrashOpen] = useState(false)
   const [name, setName] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
@@ -39,6 +42,8 @@ export function AgentsWidget(props: WorkbenchInspectorCustomWidgetProps) {
     detailRequest.current?.abort()
     detailRequest.current = null
     setSessions([])
+    setDeleted([])
+    setTrashOpen(false)
     if (!visible) {setAgents([]); setExpanded(null); return}
     setBusy(true)
     void client.listExecutors().then(items => {
@@ -46,15 +51,25 @@ export function AgentsWidget(props: WorkbenchInspectorCustomWidgetProps) {
     }, failure => {if (active.current && current.current === client && epoch.current === generation) setError(String(failure))})
       .finally(() => {if (active.current && epoch.current === generation) setBusy(false)})
   }, [client, visible])
-  const load = async (id: string): Promise<void> => {
+  const load = async (id: string, trash = false): Promise<void> => {
     const generation = ++epoch.current
     detailRequest.current?.abort()
     const controller = new AbortController()
     detailRequest.current = controller
     setExpanded(id)
+    setTrashOpen(trash)
     setSessions([])
+    setDeleted([])
     setBusy(true)
-    try {const items = await client.listSessions(id, controller.signal); if (active.current && current.current === client && epoch.current === generation && !controller.signal.aborted) setSessions(items)}
+    try {
+      if (trash) {
+        const items = await client.listDeletedSessions(id, controller.signal)
+        if (active.current && current.current === client && epoch.current === generation && !controller.signal.aborted) setDeleted(items)
+      } else {
+        const items = await client.listSessions(id, controller.signal)
+        if (active.current && current.current === client && epoch.current === generation && !controller.signal.aborted) setSessions(items)
+      }
+    }
     catch (failure) {if (active.current && epoch.current === generation) setError(String(failure))}
     finally {if (active.current && epoch.current === generation) setBusy(false)}
   }
@@ -91,11 +106,28 @@ export function AgentsWidget(props: WorkbenchInspectorCustomWidgetProps) {
       client={client}
       expanded={expanded === agent.executorId}
       sessions={expanded === agent.executorId ? sessions : []}
+      deleted={expanded === agent.executorId ? deleted : []}
+      trashOpen={expanded === agent.executorId && trashOpen}
+      onTrashToggle={value => {void load(agent.executorId, value)}}
+      onRestore={id => update(async () => {
+        const generation = epoch.current
+        const title = deleted.find(item => item.id === id)?.title ?? "Беседа"
+        await client.restoreSession(agent.executorId, id)
+        if (!active.current || current.current !== client || epoch.current !== generation) return
+        selectChatSession(context.address, {executorId: agent.executorId, sessionId: id, title})
+        await load(agent.executorId)
+      })}
+      onPurge={id => update(async () => {
+        const generation = epoch.current
+        await client.purgeSession(agent.executorId, id)
+        if (!active.current || current.current !== client || epoch.current !== generation) return
+        await load(agent.executorId, true)
+      })}
       selectedId={choice.executorId === agent.executorId ? choice.sessionId : undefined}
       busy={busy}
       onToggle={value => {
         if (value) void load(agent.executorId)
-        else {epoch.current++; detailRequest.current?.abort(); detailRequest.current = null; setExpanded(null); setSessions([]); setBusy(false)}
+        else {epoch.current++; detailRequest.current?.abort(); detailRequest.current = null; setExpanded(null); setSessions([]); setDeleted([]); setTrashOpen(false); setBusy(false)}
       }}
       onSelect={id => {const item = sessions.find(item => item.id === id); if (item) selectChatSession(context.address, {executorId: agent.executorId, sessionId: id, title: item.title})}}
       onCreate={() => update(async () => {
@@ -124,7 +156,7 @@ export function AgentsWidget(props: WorkbenchInspectorCustomWidgetProps) {
   </section>
 }
 
-function AgentPanel(props: Readonly<{client: Client, agent: Agent, expanded: boolean, sessions: Sessions, selectedId: string | undefined, busy: boolean, onToggle(value: boolean): void, onSelect(id: string): void, onCreate(): Promise<void>, onRename(id: string, title: string): Promise<void>, onDelete(id: string): Promise<void>}>) {
+function AgentPanel(props: Readonly<{client: Client, agent: Agent, expanded: boolean, sessions: Sessions, deleted: DeletedSessions, trashOpen: boolean, onTrashToggle(value: boolean): void, onRestore(id: string): Promise<void>, onPurge(id: string): Promise<void>, selectedId: string | undefined, busy: boolean, onToggle(value: boolean): void, onSelect(id: string): void, onCreate(): Promise<void>, onRename(id: string, title: string): Promise<void>, onDelete(id: string): Promise<void>}>) {
   return <Panel label={props.agent.executorLabel} expanded={props.expanded} onToggle={props.onToggle}>
     {props.expanded ? <AgentContent input={props} /> : null}
   </Panel>
@@ -135,6 +167,11 @@ function AgentContent(input: Readonly<{input: Parameters<typeof AgentPanel>[0]}>
     <AgentPreferences client={props.client} executorId={props.agent.executorId} />
     <Conversations
       items={props.sessions}
+      deletedItems={props.deleted}
+      trashOpen={props.trashOpen}
+      onTrashToggle={props.onTrashToggle}
+      onRestore={props.onRestore}
+      onPurge={props.onPurge}
       selectedId={props.selectedId}
       busy={props.busy}
       onSelect={props.onSelect}

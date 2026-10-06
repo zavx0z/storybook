@@ -13,7 +13,7 @@ export type {StorybookChatPreferences} from "./contract"
 
 /** Управляемая форма не создаёт соединение и не удерживает историю чата. */
 export default function ChatPreferences(props: StorybookChatPreferences.Input) {
-  const change = (key: keyof typeof props.selection, value: string) => {
+  const change = (key: "connectionId" | "model" | "thoughtLevel", value: string) => {
     const next = {...props.selection}
     if (value) next[key] = value
     else delete next[key]
@@ -49,5 +49,30 @@ export default function ChatPreferences(props: StorybookChatPreferences.Input) {
       onChange={props.onChange}
       onValue={value => change(field, value)}
     />)}
+    <SelectField
+      label="Подтверждения"
+      value={props.selection.approvalMode ?? ""}
+      options={[
+        {key: "inherit", value: "", label: `Наследовать · ${props.effective?.approvalMode === "scoped-autonomous" ? "в пределах назначения" : "с подтверждениями"}`},
+        {key: "ask", value: "ask", label: "С подтверждениями"},
+        {key: "scoped-autonomous", value: "scoped-autonomous", label: "В пределах назначения без запросов"},
+      ]}
+      disabled={props.busy}
+      onChange={value => {
+        const next = {...props.selection}
+        if (value === "ask" || value === "scoped-autonomous") next.approvalMode = value
+        else delete next.approvalMode
+        props.onChange(next)
+      }}
+    />
+    <p style={css`
+      margin: 0;
+      font-size: 12px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      color: var(--widget-list-content);
+    `}>
+      Область назначения сохраняется. Отдельные запросы исполнителя за её пределами подтверждаются вручную. Автоматическая проверка действий среды пока недоступна.
+    </p>
   </section>
 }

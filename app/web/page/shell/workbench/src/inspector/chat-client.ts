@@ -1,5 +1,8 @@
-import {filesToMedia, pickMedia, type MediaDraftAttachment} from "@zavx0z/chat/media"
-import type {MediaPreview} from "@zavx0z/chat/content"
+import {createAudioPlayback} from "@zavx0z/immersive-browser/audio"
+import {saveDraftMedia, loadDraftMedia} from "./chat-draft-media"
+import {createHistoryRequests} from "./history-requests"
+import {createMediaImageCache, filesToMedia, pickMedia, type MediaDraftAttachment} from "@zavx0z/chat/media"
+import {mediaAttachmentBlob, downloadMediaBlob, type MediaHost, type MediaPreview} from "@zavx0z/chat/content"
 import type {StorybookChatView} from "@zavx0z/storybook-chat-view"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
@@ -23,6 +26,7 @@ export type ChatBrowserView = Readonly<{
   attaching: boolean
   media: MediaPreview | null
   status: StorybookChatView.Input["status"]
+  activity: ChatBrowserSnapshot["activity"]
   sending: boolean
   settings: NonNullable<ChatBrowserSnapshot["settings"]>
   execution: ChatBrowserSnapshot["execution"]
@@ -44,10 +48,12 @@ type ChatClientOptions = Readonly<{
   fetcher?: typeof fetch
   storage?(): Pick<Storage, "getItem" | "setItem">
   scheduleRetry?(callback: () => void, delayMs: number): () => void
+  draftMedia?: Readonly<{load: typeof loadDraftMedia, save: typeof saveDraftMedia}>
 }>
 
 const drafts = new Map<string, string>()
-const pendingRequests = new Map<string, Readonly<{hash: string, requestId: string}>>()
+type SubmissionReceipt = Readonly<{hash: string, requestId: string, accepted?: boolean}>
+const pendingRequests = new Map<string, SubmissionReceipt>()
 const rememberDraft = (id: string, text: string): void => {
   drafts.delete(id)
   if (text.length > 0 && text.length * 2 <= 1024 * 1024) drafts.set(id, text)
@@ -64,6 +70,8 @@ const requestHash = async (value: string): Promise<string> => {
 }
 const pendingStorageKey = (id: string) => `storybook.chat.pending.v1:${id}`
 const draftStorageKey = (id: string) => `storybook.chat.draft.v1:${id}`
+const removedMediaKey = (id: string) => `storybook.chat.removed-media.v1:${id}`
+const removedMedia = new Map<string, Set<string>>()
 
 /** Общий canonical pathname исключает query выбора вида, варианта и секции. */
 export function canonicalChatAddress(address: string): string {
@@ -79,22 +87,28 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   const address = canonicalChatAddress(options.address)
   const fetcher = options.fetcher ?? globalThis.fetch
   const storage = options.storage ?? (() => globalThis.localStorage)
+  const draftMedia = options.draftMedia ?? {load: loadDraftMedia, save: saveDraftMedia}
   const lifetime = new AbortController()
+  const images = createMediaImageCache()
   const listeners = new Set<() => void>()
   let visible = true
+  let historyVisible = true
   const pageDocument = globalThis.document
   let pageActive = true
   const pageHidden = () => {pageActive = false; visibilityChanged()}
   const pageShown = () => {pageActive = true; visibilityChanged()}
   const wantsConnection = () => visible && pageActive && pageDocument?.visibilityState !== "hidden"
   const visibilityChanged = () => {
-    history.setActive(wantsConnection() && media === null)
+    history.setActive(wantsConnection() && historyVisible && media === null)
     if (!wantsConnection()) {
+      images.clear()
       connectionEpoch++
       connectionAbort?.abort()
       finishRetry?.()
       activeSocket?.close()
-      if (session) session = {...session, settings: [], permissions: []}
+      // Каталог параметров — компактные metadata чата, не содержимое окна истории.
+      // Временная невидимость viewport не должна сбрасывать селекты и вызывать новый prepare.
+      if (session) session = {...session, permissions: []}
       notify()
     } else if (started && !connecting && !disposed) void connect()
   }
@@ -108,17 +122,29 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   let actionError: string | undefined
   let attachments: readonly MediaDraftAttachment[] = []
   let attaching = false
+  let attachmentsEpoch = 0
+  let mediaRestoring: Promise<void> | null = null
   let media: MediaPreview | null = null
   let draft = ""
   let draftChanged = false
+  let draftEpoch = 0
   let configuring = false
+  let pendingConfiguration: Readonly<{sessionId: string, setting?: Readonly<{id: string, value: string}>, selection?: Selection}> | null = null
   let submitting = false
   let activeSocket: ChatSocket | null = null
   let finishRetry: (() => void) | null = null
-  const history = createChatHistoryWindow({read: (operation, body, signal) => post(operation, body, undefined, signal), changed: () => notify()})
+  const historyRequests = createHistoryRequests()
+  const historyRead = (operation: string, body: Record<string, unknown>, signal: AbortSignal) => {
+    const active = AbortSignal.any([signal, lifetime.signal])
+    return historyRequests(() => post(operation, body, undefined, active), active)
+  }
+  const history = createChatHistoryWindow({read: historyRead, changed: () => notify()})
   let view: ChatBrowserView = deriveView()
 
   function deriveView(): ChatBrowserView {
+    const pending = pendingConfiguration !== null && pendingConfiguration.sessionId === session?.id ? pendingConfiguration : null
+    const settings = pending?.setting ? (session?.settings ?? []).map(option => option.id === pending.setting!.id ? {...option, value: pending.setting!.value} : option) : session?.settings ?? []
+    const execution = pending?.selection && session?.execution ? {...session.execution, selection: pending.selection} : session?.execution
     return Object.freeze({
       address,
       label: session?.label ?? options.label,
@@ -131,10 +157,12 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       draft,
       attachments,
       attaching,
-      media,      status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
+      media,
+      status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
       sending: submitting,
-      settings: session?.settings ?? [],
-      execution: session?.execution,
+      activity: session?.activity,
+      settings,
+      execution,
       progress: session?.progress,
       configuring: configuring || session?.configuring === true,
       usage: session?.usage ?? null,
@@ -154,11 +182,63 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     rememberDraft(session.id, draft)
     try { storage().setItem(draftStorageKey(session.id), draft) } catch {}
   }
+  const pendingReceipt = (key: string): SubmissionReceipt | undefined => {
+    let receipt = pendingRequests.get(key)
+    if (!receipt) {
+      try {
+        const saved = JSON.parse(storage().getItem(pendingStorageKey(key)) ?? "null")
+        if (saved && /^[a-f0-9]{64}$/u.test(saved.hash) && typeof saved.requestId === "string" && saved.requestId.length > 0 && saved.requestId.length <= 128) {
+          receipt = {hash: saved.hash, requestId: saved.requestId, ...(saved.accepted === true ? {accepted: true} : {})}
+        }
+      } catch {}
+    }
+    return receipt
+  }
+  const saveReceipt = (key: string, receipt: SubmissionReceipt): void => {
+    pendingRequests.delete(key)
+    pendingRequests.set(key, receipt)
+    while (pendingRequests.size > 128) pendingRequests.delete(pendingRequests.keys().next().value!)
+    try {storage().setItem(pendingStorageKey(key), JSON.stringify(receipt))} catch {}
+  }
+  const forgetAccepted = (key: string): void => {
+    if (!pendingReceipt(key)?.accepted) return
+    pendingRequests.delete(key)
+    try {storage().setItem(pendingStorageKey(key), "")} catch {}
+  }
+  const retiredMedia = (id: string): Set<string> => {
+    let ids = removedMedia.get(id)
+    if (!ids) {
+      ids = new Set()
+      try {
+        const saved = JSON.parse(storage().getItem(removedMediaKey(id)) ?? "[]")
+        if (Array.isArray(saved) && saved.every(value => typeof value === "string" && value.length <= 128)) ids = new Set(saved)
+      } catch {}
+      if (ids.size) removedMedia.set(id, ids)
+    }
+    return ids
+  }
+  const retireMedia = (id: string, values: readonly string[]): void => {
+    const ids = retiredMedia(id)
+    for (const value of values) ids.add(value)
+    if (ids.size) removedMedia.set(id, ids)
+    while (removedMedia.size > 128) removedMedia.delete(removedMedia.keys().next().value!)
+    try {storage().setItem(removedMediaKey(id), JSON.stringify([...ids]))} catch {}
+  }
+  const persistMedia = async (id: string, values: readonly MediaDraftAttachment[]): Promise<void> => {
+    const savedRetired = [...retiredMedia(id)]
+    await draftMedia.save(id, values)
+    const ids = retiredMedia(id)
+    for (const value of savedRetired) ids.delete(value)
+    try {storage().setItem(removedMediaKey(id), JSON.stringify([...ids]))} catch {}
+    if (!ids.size) removedMedia.delete(id)
+  }
+  const signature = (text: string, values: readonly MediaDraftAttachment[]) => JSON.stringify({text, attachments: values.map(item => item.attachment.id)})
   const accept = (value: unknown, initial = false): void => {
     if (disposed) return
     const next = readChatBrowserSnapshot(value, address)
     if (options.sessionId !== undefined && next.sessionId !== options.sessionId) throw new Error("Получен снимок другой сессии")
     if (options.executorId !== undefined && next.executorId !== options.executorId) throw new Error("Получен снимок другого исполнителя")
+    if (session !== null && (session.id !== next.id || session.executorId !== next.executorId)) throw new Error("Получен снимок другой сессии")
     if (disposed || !initial && session !== null && next.version < session.version) return
     if (session === null || session.id !== next.id) {
       if (!draftChanged) {
@@ -168,18 +248,47 @@ export function createChatBrowserClient(options: ChatClientOptions) {
         }
       }
     }
+    const initialIdentity = session === null
     session = next
+    if (initialIdentity) {
+      if (draftChanged) forgetAccepted(next.id)
+      const epoch = attachmentsEpoch
+      mediaRestoring = draftMedia.load(next.id, lifetime.signal).then(async items => {
+        if (disposed || session?.id !== next.id || epoch !== attachmentsEpoch) {for (const item of items) item.release(); return}
+        const receipt = pendingReceipt(next.id)
+        if (!draftChanged && receipt?.accepted && await requestHash(signature(draft, items)) === receipt.hash) {
+          if (disposed || session?.id !== next.id || epoch !== attachmentsEpoch || draftChanged) {for (const item of items) item.release(); return}
+          draft = ""
+          saveDraft()
+        }
+        if (disposed || session?.id !== next.id || epoch !== attachmentsEpoch) {for (const item of items) item.release(); return}
+        const removed = retiredMedia(next.id)
+        const remaining = items.filter(item => !removed.has(item.attachment.id))
+        for (const item of items) if (removed.has(item.attachment.id)) item.release()
+        releaseAttachments()
+        attachments = remaining
+        if (remaining.length !== items.length) {
+          attachmentsEpoch++
+          notify()
+          await persistMedia(next.id, remaining)
+        }
+        notify()
+      }).catch(failure => {if (!disposed && !lifetime.signal.aborted) {actionError = String(failure); notify()}})
+    }
     history.accept(next)
     saveDraft()
     notify()
   }
   const grant = async (signal = lifetime.signal): Promise<string> => {
+    signal = AbortSignal.any([signal, lifetime.signal])
+    signal.throwIfAborted()
     const response = await fetcher("/api/browser/registry-session", {
       method: "POST",
       headers: {"content-type": "application/json"},
       body: "{}",
       signal,
     })
+    signal.throwIfAborted()
     if (!response.ok) throw new Error(`Не удалось открыть browser-сессию: HTTP ${response.status}`)
     const value = await response.json()
     if (typeof value.readerToken !== "string" || value.readerToken.length === 0) {
@@ -188,14 +297,23 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     return value.readerToken
   }
   const post = async (operation: string, body: Record<string, unknown>, suppliedToken?: string, signal = lifetime.signal, scope: "session" | "agent" | "address" = "session"): Promise<unknown> => {
-    const token = suppliedToken ?? await grant()
+    signal = AbortSignal.any([signal, lifetime.signal])
+    signal.throwIfAborted()
+    // Identity фиксируется до получения grant: поздний запрос не выбирает новую default-беседу.
+    const target = {address,
+      ...(scope === "address" || (options.executorId ?? session?.executorId) === undefined ? {} : {executorId: options.executorId ?? session?.executorId}),
+      ...(scope !== "session" || (options.sessionId ?? session?.sessionId) === undefined ? {} : {sessionId: options.sessionId ?? session?.sessionId}),
+      ...body}
+    const token = suppliedToken ?? await grant(signal)
+    signal.throwIfAborted()
     if (disposed) throw new Error("Представление чата закрыто")
     const response = await fetcher(`/api/browser/chat/${operation}`, {
       method: "POST",
       headers: {"content-type": "application/json", "x-storybook-session": token},
-      body: JSON.stringify({address, ...(scope === "address" || options.executorId === undefined ? {} : {executorId: options.executorId}), ...(scope !== "session" || options.sessionId === undefined ? {} : {sessionId: options.sessionId}), ...body}),
+      body: JSON.stringify(target),
       signal,
     })
+    signal.throwIfAborted()
     if (!response.ok) {
       let detail = ""
       try {
@@ -213,6 +331,9 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   }
   const stream = (token: string, onSnapshot: () => void): Promise<void> => {
     const path = `/api/events?session=${encodeURIComponent(token)}`
+    const subscription = {type: "subscribe", topic: `chat:${address}`,
+      ...((options.executorId ?? session?.executorId) === undefined ? {} : {executorId: options.executorId ?? session?.executorId}),
+      ...((options.sessionId ?? session?.sessionId) === undefined ? {} : {sessionId: options.sessionId ?? session?.sessionId})}
     const socket = options.createSocket?.(path) ?? (() => {
       const url = new URL(path, globalThis.location.href)
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
@@ -237,9 +358,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       const opened = (): void => {
         connectionError = undefined
         notify()
-        socket.send(JSON.stringify({type: "subscribe", topic: `chat:${address}`,
-          ...(options.executorId === undefined ? {} : {executorId: options.executorId}),
-          ...(options.sessionId === undefined ? {} : {sessionId: options.sessionId})}))
+        socket.send(JSON.stringify(subscription))
       }
       const message = (event: Event): void => {
         try {
@@ -312,7 +431,9 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     if (disposed) return false
     try {
       // Registry grants имеют ограниченный TTL; действие получает новый штатный grant.
-      accept(await post(operation, body))
+      const result = await post(operation, body)
+      if (disposed) return false
+      accept(result)
       actionError = undefined
       notify()
       return true
@@ -325,11 +446,15 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   }
 
   const addAttachments = async (files?: readonly File[]): Promise<void> => {
-    if (disposed || attaching || view.sending || view.status === "connecting" || view.status === "running" || files === undefined && !pageDocument) return
+    if (disposed || attaching || view.sending || view.status === "connecting" || files === undefined && !pageDocument) return
     attaching = true
     notify()
     try {
-      const options = {signal: lifetime.signal, existing: attachments, isCurrent: () => !disposed,
+      await mediaRestoring
+      if (disposed) return
+      const identity = session?.id
+      const epoch = attachmentsEpoch
+      const options = {signal: lifetime.signal, existing: attachments, isCurrent: () => !disposed && session?.id === identity && attachmentsEpoch === epoch,
         ...(session?.capabilities === undefined || session.capabilities === null ? {} : {capabilities: {
           image: session.capabilities.promptCapabilities?.image === true,
           audio: session.capabilities.promptCapabilities?.audio === true,
@@ -338,18 +463,78 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       const added = files === undefined
         ? await pickMedia({...options, browserDocument: pageDocument!})
         : await filesToMedia(files, options)
-      if (!disposed) {attachments = [...attachments, ...added]; actionError = undefined}
+      if (!disposed && session?.id === identity && attachmentsEpoch === epoch) {
+        attachments = [...attachments, ...added]
+        attachmentsEpoch++
+        actionError = undefined
+        if (session) {forgetAccepted(session.id); await persistMedia(session.id, attachments)}
+      }
       else for (const attachment of added) attachment.release()
     } catch (failure) {if (!disposed) actionError = failure instanceof Error ? failure.message : String(failure)}
     finally {attaching = false; notify()}
   }
 
+  const mediaHost: MediaHost = {
+    images,
+    async load(source, signal) {
+      signal = AbortSignal.any([signal, lifetime.signal])
+      signal.throwIfAborted()
+      const target = {address, executorId: session?.executorId ?? options.executorId, sessionId: session?.sessionId ?? options.sessionId}
+      if (typeof source !== "string") return mediaAttachmentBlob(source)
+      if (source.startsWith("blob:")) {
+        const response = await fetcher(source, {signal})
+        if (!response.ok) throw new Error("Не удалось прочитать локальное медиа")
+        const blob = await response.blob()
+        signal.throwIfAborted()
+        return blob
+      }
+      const operation = source.startsWith("chat-media:") ? "media-read" : "media-external"
+      const token = await grant(signal)
+      const response = await fetcher(`/api/browser/chat/${operation}`, {method: "POST", signal,
+        headers: {"content-type": "application/json", "x-storybook-session": token},
+        body: JSON.stringify({...target, uri: source})})
+      if (!response.ok) {
+        let message = "Не удалось загрузить медиа"
+        try {const result = await response.json(); if (typeof result.error === "string") message = result.error} catch {}
+        throw new Error(message)
+      }
+      const blob = await response.blob()
+      signal.throwIfAborted()
+      return blob
+    },
+    async download(value, signal) {
+      signal = AbortSignal.any([signal, lifetime.signal])
+      if (!pageDocument) throw new Error("Скачивание доступно в браузере")
+      const blob = await mediaHost.load(value.source, signal)
+      signal.throwIfAborted()
+      downloadMediaBlob(pageDocument, new Blob([blob], {type: value.mimeType}), value.label)
+    },
+    ...(pageDocument ? {createAudio: (blob: Blob, onChange: Parameters<typeof createAudioPlayback>[1]["onChange"]) => createAudioPlayback(blob, {document: pageDocument, onChange})} : {}),
+  }
+
   return {
+    mediaHost,
+    createGroupHistory: history.createGroupHistory,
+    historyRetryPage: history.retryPage,
+    readHistoryTerminal: (id: string, cursor: {ordinal: number, offset: number} | undefined, signal: AbortSignal) => historyRead("history-terminal", {id, query: cursor === undefined ? {} : {cursor}}, signal) as Promise<import("@zavx0z/storybook-chat-session").HistoryTerminalPage>,
+    readHistoryContent: (id: string, cursor: {block: number, offset: number}, signal: AbortSignal) => historyRead("history-content", {id, query: {cursor}}, signal) as Promise<import("@zavx0z/storybook-chat-session").HistoryContentPage>,
+    readHistoryDetail: (id: string, offset: number, signal: AbortSignal, evidenceId?: string) => historyRead("history-detail", {id, query: {offset, ...(evidenceId ? {evidenceId} : {})}}, signal) as Promise<import("@zavx0z/storybook-chat-session").HistoryDetailPage>,
+    async copyMessage(id: string) {
+      const result = await post("history-copy", {id}) as {text: string}
+      await navigator.clipboard.writeText(result.text)
+    },
+    async copyText(text: string) {await navigator.clipboard.writeText(text)},
     historyViewport: history.viewport,
-    historyVisible(value: boolean) {
-      if (visible === value) return
+    /** Видимость всей секции: соединение не зависит от высоты окна истории. */
+    setVisible(value: boolean) {
+      if (disposed || visible === value) return
       visible = value
       visibilityChanged()
+    },
+    historyVisible(value: boolean) {
+      if (disposed || historyVisible === value) return
+      historyVisible = value
+      history.setActive(wantsConnection() && value && media === null)
     },
     historyExpand: history.expand,
     historyRetry: history.retry,
@@ -407,16 +592,34 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     async renameSession(executorId: string, sessionId: string, label: string): Promise<ChatBrowserSnapshot> {
       return readChatBrowserSnapshot(await post("session-rename", {executorId, sessionId, label}), address)
     },
+    async listDeletedSessions(executorId: string, signal = lifetime.signal): Promise<readonly {id: string, title: string, recoverable: boolean}[]> {
+      const value = await post("sessions-deleted", {executorId}, undefined, signal, "agent")
+      if (!Array.isArray(value)) throw new Error("Некорректная корзина бесед")
+      return value.map(item => {
+        const snapshot = readChatBrowserSnapshot(item, address)
+        if (snapshot.executorId !== executorId || typeof item.recoverable !== "boolean") throw new Error("Некорректная принадлежность записи корзины")
+        return {id: snapshot.sessionId, title: snapshot.sessionLabel, recoverable: item.recoverable}
+      })
+    },
+    async restoreSession(executorId: string, sessionId: string): Promise<void> {await post("session-restore", {executorId, sessionId})},
+    async purgeSession(executorId: string, sessionId: string): Promise<void> {await post("session-purge", {executorId, sessionId})},
     async deleteSession(executorId: string, sessionId: string): Promise<void> {
       await post("session-delete", {executorId, sessionId})
     },
     attach: () => addAttachments(),
     attachFiles: (files: readonly File[]) => addAttachments(files),
     removeAttachment(id: string) {
+      if (disposed || submitting || attaching) return
       const item = attachments.find(item => item.attachment.id === id)
       if (item && media?.source === item.attachment) {media = null; visibilityChanged()}
       item?.release()
       attachments = attachments.filter(item => item.attachment.id !== id)
+      attachmentsEpoch++
+      if (session) {
+        forgetAccepted(session.id)
+        retireMedia(session.id, [id])
+        void persistMedia(session.id, attachments).catch(failure => {if (!disposed) {actionError = String(failure); notify()}})
+      }
       notify()
     },
     preview(value: MediaPreview | null) {media = value; visibilityChanged(); notify()},
@@ -424,53 +627,63 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       if (disposed) return
       draft = value
       draftChanged = true
+      draftEpoch++
+      if (session) forgetAccepted(session.id)
       saveDraft()
       notify()
     },
     async send() {
-      if (disposed || submitting || configuring || session?.configuring || draft.trim().length === 0 && attachments.length === 0 || view.status === "connecting" || view.status === "running") return
-      const text = draft
-      const selectedAttachments = attachments
-      const signature = `${text}\0${selectedAttachments.map(item => item.attachment.id).join(":")}`
-      const key = session?.id ?? address
+      if (disposed || submitting || attaching || configuring || session?.configuring || view.status === "connecting") return
       submitting = true
       notify()
       try {
-        const hash = await requestHash(signature)
-        if (disposed) return
-        let previous = pendingRequests.get(key)
-        if (!previous) {
-          try {
-            const saved = JSON.parse(storage().getItem(pendingStorageKey(key)) ?? "null")
-            if (saved && /^[a-f0-9]{64}$/u.test(saved.hash) && typeof saved.requestId === "string" && saved.requestId.length <= 128) previous = {hash: saved.hash, requestId: saved.requestId}
-          } catch {}
-        }
+        await mediaRestoring
+        if (disposed || session === null) return
+        const text = draft
+        const selectedDraftEpoch = draftEpoch
+        const selectedAttachments = attachments
+        if (text.trim().length === 0 && selectedAttachments.length === 0) return
+        const target = {executorId: session.executorId, sessionId: session.sessionId}
+        const key = session.id
+        const hash = await requestHash(signature(text, selectedAttachments))
+        if (disposed || session?.id !== key) return
+        const previous = pendingReceipt(key)
         const request = previous?.hash === hash ? previous : {hash, requestId: crypto.randomUUID()}
-        pendingRequests.delete(key)
-        pendingRequests.set(key, request)
-        try {storage().setItem(pendingStorageKey(key), JSON.stringify(request))} catch {}
-        while (pendingRequests.size > 128) pendingRequests.delete(pendingRequests.keys().next().value!)
-        const content = selectedAttachments.map(item => {
+        saveReceipt(key, request)
+        const content = []
+        for (const item of selectedAttachments) {
           const value = item.attachment
-          if (value.kind === "image") return {type: "image", mimeType: value.mimeType, data: value.data!}
-          if (value.kind === "audio") return {type: "audio", mimeType: value.mimeType, data: value.data!}
-          return {type: "resource", resource: {uri: `attachment:${value.id}/${encodeURIComponent(value.name)}`, mimeType: value.mimeType,
-            ...(value.text === undefined ? {blob: value.data!} : {text: value.text})}}
-        })
-        if (await perform("prompt", {requestId: request.requestId, ...(selectedAttachments.length === 0 ? {text} : {content: [...(text.length ? [{type: "text", text}] : []), ...content]})})) {
-          if (pendingRequests.get(key) === request) pendingRequests.delete(key)
-          try {storage().setItem(pendingStorageKey(key), "")} catch {}
-          const sentIds = new Set(selectedAttachments.map(item => item.attachment.id))
-          for (const item of attachments) if (sentIds.has(item.attachment.id)) item.release()
-          attachments = attachments.filter(item => !sentIds.has(item.attachment.id))
-          media = null
-          visibilityChanged()
-          if (draft === text) {
-            draft = ""
-            saveDraft()
-            notify()
+          let data = value.data
+          if (data === undefined) {
+            const bytes = new TextEncoder().encode(value.text ?? "")
+            let binary = ""
+            for (const byte of bytes) binary += String.fromCharCode(byte)
+            data = btoa(binary)
           }
+          const uploaded = await post("media-put", {...target, data, mimeType: value.mimeType, name: value.name, kind: value.kind,
+            ...(value.text === undefined ? {} : {encoding: "utf8"})})
+          if (!uploaded || typeof uploaded !== "object" || !("type" in uploaded) || uploaded.type !== "resource_link" ||
+            !("uri" in uploaded) || typeof uploaded.uri !== "string" || !/^chat-media:[a-f0-9]{64}$/u.test(uploaded.uri)) throw new Error("Сервер не подтвердил сохранение вложения")
+          content.push(uploaded)
         }
+        if (!await perform(view.status === "running" ? "enqueue" : "prompt", {...target, requestId: request.requestId,
+          ...(selectedAttachments.length === 0 ? {text} : {content: [...(text.length ? [{type: "text", text}] : []), ...content]})})) return
+        // Принятый запрос не превращается в новый при ошибке очистки browser storage.
+        saveReceipt(key, {...request, accepted: true})
+        const sentIds = new Set(selectedAttachments.map(item => item.attachment.id))
+        retireMedia(key, [...sentIds])
+        for (const item of attachments) if (sentIds.has(item.attachment.id)) item.release()
+        attachments = attachments.filter(item => !sentIds.has(item.attachment.id))
+        attachmentsEpoch++
+        media = null
+        if (draftEpoch === selectedDraftEpoch) {draft = ""; saveDraft()}
+        else forgetAccepted(key)
+        visibilityChanged()
+        notify()
+        try {await persistMedia(key, attachments)}
+        catch (failure) {if (!disposed) {actionError = `Сообщение принято, но не удалось очистить сохранённый черновик: ${failure instanceof Error ? failure.message : String(failure)}`; notify()}}
+      } catch (failure) {
+        if (!disposed) {actionError = failure instanceof Error ? failure.message : String(failure); notify()}
       } finally {
         submitting = false
         notify()
@@ -484,21 +697,28 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     },
     async configure(id: string, value: string) {
       if (disposed || configuring || view.status === "running" || view.status === "connecting") return
+      if (session && session.settings?.some(option => option.id === id && option.options.some(item => item.value === value))) pendingConfiguration = {sessionId: session.id, setting: {id, value}}
       configuring = true
       notify()
-      try { await perform("configure", {id, value}) } finally { configuring = false; notify() }
+      try { await perform("configure", {id, value}) } finally { pendingConfiguration = null; configuring = false; notify() }
     },
     async configureExecution(selection: Selection) {
       if (disposed || configuring || view.status === "running" || view.status === "connecting") return
+      if (session) pendingConfiguration = {sessionId: session.id, selection: {...selection}}
       configuring = true
       notify()
-      try {await perform("execution-configure", {configuration: {scope: "session", selection}})} finally {configuring = false; notify()}
+      try {await perform("execution-configure", {configuration: {scope: "session", selection}})} finally {pendingConfiguration = null; configuring = false; notify()}
     },
     cancel: () => perform("cancel", {}),
-    permission: (id: string, optionId: string) => perform("permission", {id, optionId}),
+    stop: () => perform("stop", {}),
+    async permission(id: string, optionId: string) {
+      const requestHash = session?.permissions.find(item => item.id === id)?.requestHash
+      if (!await perform("permission", {id, optionId, ...(requestHash ? {requestHash} : {})})) throw new Error(actionError ?? "Не удалось отправить решение")
+    },
     dispose() {
       if (disposed) return
       disposed = true
+      images.dispose()
       saveDraft()
       pageDocument?.removeEventListener("visibilitychange", visibilityChanged)
       globalThis.removeEventListener?.("pagehide", pageHidden)
@@ -513,6 +733,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       activeSocket?.close()
       listeners.clear()
       session = null
+      pendingConfiguration = null
       draft = ""
       actionError = undefined
       connectionError = undefined
@@ -533,13 +754,14 @@ function readChatBrowserSnapshot(value: unknown, address: string): ChatBrowserSn
     !["idle", "connecting", "running", "failed"].includes(snapshot.status) ||
     !(snapshot.error === null || typeof snapshot.error === "string") ||
     !Array.isArray(snapshot.permissions) || !Number.isSafeInteger(snapshot.version) || snapshot.version < 0 ||
+    snapshot.activity !== undefined && !["responding", "waiting_for_approval", "cancelling", "recovery_required"].includes(snapshot.activity) ||
     snapshot.configuring !== undefined && typeof snapshot.configuring !== "boolean" ||
     snapshot.progress !== undefined && typeof snapshot.progress !== "string" ||
     snapshot.usage != null && (!Number.isFinite(snapshot.usage.used) || snapshot.usage.used < 0 ||
       !Number.isFinite(snapshot.usage.size) || snapshot.usage.size <= 0) ||
     snapshot.settings !== undefined && (!Array.isArray(snapshot.settings) || snapshot.settings.some(setting =>
       !setting || typeof setting.id !== "string" || typeof setting.name !== "string" || typeof setting.value !== "string" ||
-      !["model", "thought_level"].includes(setting.category) || !Array.isArray(setting.options) || setting.options.some((option: NonNullable<ChatBrowserSnapshot["settings"]>[number]["options"][number]) =>
+      !["model", "thought_level", "mode"].includes(setting.category) || !Array.isArray(setting.options) || setting.options.some((option: NonNullable<ChatBrowserSnapshot["settings"]>[number]["options"][number]) =>
         !option || typeof option.value !== "string" || typeof option.name !== "string" ||
         option.description !== undefined && typeof option.description !== "string"))) ||
     snapshot.permissions.some(permission => permission === null || typeof permission !== "object" ||
