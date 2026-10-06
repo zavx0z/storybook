@@ -112,3 +112,66 @@ test("bootstrap и инспекция сохраняют доставленны�
   expect((await inspect("./instructions")).document).toEqual(await own({path: "./instructions"}))
   expect(assignment.bootstrap.protocol).toContain("Документы не расширяют инструментальные права")
 })
+
+
+test("внешний Repo получает Project и свою цепочку, сохраняя файловую область Package", async () => {
+  const f = await fixture()
+  const repo = await mkdtemp(join(tmpdir(), "external-agent-repo-"))
+  cleanups.push(() => rm(repo, {recursive: true, force: true}))
+  const directory = join(repo, "package")
+  await mkdir(join(directory, "meta/notes"), {recursive: true})
+  await mkdir(join(repo, "meta/notes"), {recursive: true})
+  await f.write("meta/notes/common-agent-rules.md", "Общие")
+  await f.write("meta/notes/agent-rules.md", "Project")
+  await writeFile(join(repo, "meta/notes/agent-rules.md"), "Repo")
+  await writeFile(join(directory, "meta/notes/agent-rules.md"), "Package")
+  await writeFile(join(repo, "secret.txt"), "Файловая область Repo")
+  await writeFile(join(directory, "owned.txt"), "Файловая область Package")
+  expect(createInstructionsReader(f.project, [repo])(directory).map(item => item.content))
+    .toEqual(["Общие", "Project", "Repo", "Package"])
+  expect(() => createInstructionsReader(f.project)(directory)).toThrow()
+  const host = createServerEnvironment({project: f.project, trustedRoots: [repo], projectName: () => "Project",
+    graph: () => ({nodes: [{id: "package", urlPath: "/package", label: "Package", kind: "package",
+      packageId: "@sample/package", childIds: [], source: {path: join(directory, "package.json")}}]} as unknown as StorybookPackageGraphRead.Input),
+    entries: () => [{path: "package", description: "Package", parent: null,
+      readType: async () => ({status: "confirmed", type: "Component"})}],
+  })
+  cleanups.push(() => host.dispose())
+  const assignment = await host.acquireSession({executorId: "external-worker", executorLabel: "Package specialist",
+    address: "/package", sessionId: "external-package-session"}, () => {}, async () => {})
+  cleanups.push(() => assignment.dispose())
+  const call = async (name: string, arguments_: Record<string, unknown>) => {
+    const response = await assignment.execute(new Request("http://localhost/environment", {
+      method: "POST", headers: {authorization: `Bearer ${assignment.token}`},
+      body: JSON.stringify({name, arguments: arguments_}),
+    }))
+    return response.json()
+  }
+  expect((await call("knowledge.read", {path: "./instructions"})).result.instructions.map((item: {content: string}) => item.content))
+    .toEqual(["Общие", "Project", "Repo", "Package"])
+  expect((await call("filesystem.read", {path: "owned.txt"})).result.content).toBe("Файловая область Package")
+  expect((await call("filesystem.read", {path: "../secret.txt"})).error.code).toBe("PATH_NOT_ALLOWED")
+})
+
+test("объявленный checkout не разрешает symlink-переход назначения во внешний контур", async () => {
+  const f = await fixture()
+  const repo = await mkdtemp(join(tmpdir(), "trusted-agent-repo-"))
+  cleanups.push(() => rm(repo, {recursive: true, force: true}))
+  await symlink(f.directory, join(repo, "escape"))
+  expect(() => createInstructionsReader(f.project, [repo])(join(repo, "escape"))).toThrow()
+})
+
+
+test("reader получает обновлённый объявленный состав при каждом чтении инструкций", async () => {
+  const f = await fixture()
+  const repo = await mkdtemp(join(tmpdir(), "dynamic-agent-repo-"))
+  cleanups.push(() => rm(repo, {recursive: true, force: true}))
+  await writeFile(join(repo, "AGENTS.md"), "Текущий Repo")
+  let roots: readonly string[] = [repo]
+  const read = createInstructionsReader(f.project, () => roots)
+  expect(read(repo).map(item => item.content)).toEqual(["Текущий Repo"])
+  roots = []
+  expect(() => read(repo)).toThrow()
+  roots = [repo]
+  expect(read(repo).map(item => item.content)).toEqual(["Текущий Repo"])
+})

@@ -8,9 +8,8 @@ registry, graph, sessions, revisions и diagnostics. В этот же process
 `@zavx0z/storybook-app-server-browser`, управляющий всеми Storybook tabs; port
 выбирает OS и не становится user-facing identity.
 Ensure/open существующего server не создают второй process или browser
-lifecycle owner. Прежний launcher передаёт daemon тот же argv. На стороне daemon
-Git определяет общий superproject аргументов; при отсутствии superproject
-используется верхний Git-корень. При пустом argv lookup выполняется от `toolRoot`.
+lifecycle owner. Launcher передаёт один явный Project. Daemon использует его точный каталог
+без поиска по Git; отсутствие аргумента выбирает временно заданный Project zavx0z.
 Разные Project в одном контексте прерывают запуск. `toolRoot` сохраняется как cwd
 daemon для проверки владения процессом, а найденный Project передаётся Server.
 Сервер читает состав у [Project](../../../project/index.ts), а не из аргументов
@@ -59,7 +58,7 @@ parent pipe независимым sink для долгоживущего daemon
 Preferred port и прежние runtime-сведения о подключённых Repo до destructive
 replacement сохраняются в private migration journal до успешной публикации.
 `attachedDeclarations` прежней записи daemon и `declarations` журнала не задают
-состав новой сессии: при перезапуске он снова читается из `.gitmodules`
+состав новой сессии: при перезапуске он снова читается из dependencies/devDependencies package.json
 выбранного Project. Явный stop удаляет запись daemon и сохраняет порт для
 следующего запуска. Если порт занят, сервер получает свободный порт от ОС.
 Daemon publication требует актуальный fencing token startup lease.

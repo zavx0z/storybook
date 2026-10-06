@@ -15,6 +15,8 @@ type Authority = Parameters<typeof state.assertExternalStorybookControlRequest>[
 type CallEvent = Parameters<NonNullable<StorybookAppEnvironment.Input["onCall"]>>[0]
 type Options = Readonly<{
   project: string
+  /** Канонические checkout объявленного состава Project, независимо от графа и сохранённого дерева. */
+  trustedRoots?: readonly string[] | (() => readonly string[])
   toolRoot?: string
   projectName(): string
   graph(): StorybookPackageGraphRead.Input
@@ -33,7 +35,7 @@ Markdown-источники установленного Storybook. Выбор �
 */
 export default function createServerEnvironment(options: Options) {
   const notes = createKnowledgeNotes(options.toolRoot)
-  const readInstructions = createInstructionsReader(options.project)
+  const readInstructions = createInstructionsReader(options.project, options.trustedRoots)
   const instructionsEntry = {path: "./instructions", description: "Действующие агентские правила по цепочке Project и назначенного предмета"}
   const observers = new Map<string, Set<(event: CallEvent) => void>>()
   const sessionCalls = new AsyncLocalStorage<string>()

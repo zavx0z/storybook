@@ -1,5 +1,5 @@
 import {afterEach, expect, test} from "bun:test"
-import {mkdir, mkdtemp, realpath, rename, rm} from "node:fs/promises"
+import {mkdir, mkdtemp, realpath, rename, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import Catalog from "@zavx0z/storybook-app-server-catalog"
@@ -136,4 +136,69 @@ test("повторный перенос Project пересоздаёт инде�
     expect(reopened.metrics().resolverCalls).toBe(0)
     await reopened.dispose()
   }
+})
+
+
+test("Project вне checkout сохраняет внешние ссылки и повторно открывает владельца без discovery", async () => {
+  const f = await fixture()
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-independent-project-")))
+  cleanup.push(() => rm(root, {recursive: true, force: true}))
+  const project = {root, name: "Independent"}
+  await f.producer.saveMetadata(project)
+  const snapshot = await f.reader.open(project, [f.owner])
+  expect(snapshot.catalog).toEqual(f.producer.snapshot().catalog)
+  expect(snapshot.graph.nodes[1]!.moduleDocumentation?.markdown).toBe("Тождественное преобразование.")
+  expect(f.reader.metrics().resolverCalls).toBe(0)
+  const tree = await Bun.file(join(root, "meta/data/tree.json")).json()
+  expect(tree.owners[0].data.startsWith("../")).toBeTrue()
+})
+
+test("исключение внешнего checkout перестраивает дерево до любого чтения его документов", async () => {
+  const f = await fixture()
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-revoked-project-")))
+  cleanup.push(() => rm(root, {recursive: true, force: true}))
+  const project = {root, name: "Independent"}
+  await f.producer.saveMetadata(project)
+  // Чтение прежнего owner теперь упало бы: его meta указывает в чужой каталог.
+  await rm(join(f.owner, "meta"), {recursive: true})
+  await symlink(f.root, join(f.owner, "meta"))
+  const snapshot = await f.reader.open(project, [])
+  expect(snapshot.entries).toEqual([])
+  expect(snapshot.catalog.scopes).toEqual([])
+  expect((await Bun.file(join(root, "meta/data/tree.json")).json()).owners).toEqual([])
+})
+
+
+test("повторный open с заданным resolver не читает отозванный прежний снимок", async () => {
+  const f = await fixture()
+  const registry = new Catalog(async () => documentationCatalog(f.owner))
+  cleanup.push(() => registry.dispose())
+  await registry.open(f.project, [f.owner])
+  await rm(join(f.owner, "meta"), {recursive: true})
+  await symlink(f.root, join(f.owner, "meta"))
+  expect((await registry.open(f.project, [])).catalog.scopes).toEqual([])
+})
+
+
+test.each(["worker", "resolver"] as const)("%s: смена состава увеличивает ревизию, откат возвращает доверие прежнего снимка", async mode => {
+  const f = await fixture()
+  const registry = mode === "worker" ? new Catalog() : new Catalog(async () => documentationCatalog(f.owner))
+  cleanup.push(() => registry.dispose())
+  const before = await registry.open(f.project, [f.owner])
+  const removed = await registry.open(f.project, [])
+  expect(removed.revision).toBe(before.revision + 1)
+  expect(removed.graph.digest).not.toBe(before.graph.digest)
+  expect(removed.catalog.scopes).toEqual([])
+  // Откат использует roots, выданные хостом при создании before, хотя текущий состав пуст.
+  registry.restore(before)
+  const restored = registry.snapshot()
+  expect(restored.revision).toBe(before.revision)
+  expect(restored.graph.digest).toBe(before.graph.digest)
+  expect(restored.catalog.scopes[0]!.scopeRoot).toBe(f.owner)
+  expect(restored.graph.nodes[1]!.moduleDocumentation?.markdown).toBe("Тождественное преобразование.")
+  expect(() => registry.restore({...before})).toThrow("another Project")
+  // Новое поручение хоста снова отзывает корень; доверие не берётся из откатанного дерева.
+  const next = await registry.open(f.project, [])
+  expect(next.revision).toBe(before.revision + 1)
+  expect(next.catalog.scopes).toEqual([])
 })

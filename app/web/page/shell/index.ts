@@ -3,6 +3,8 @@
 Тот же Document и Space принимают обзоры, контракты, зависимости и пространственное
 содержимое; Shell связывает выбор представления с кадрами и диагностикой.
 Настройки обзора, окон и навигации сохраняются между сессиями и заменами Web.
+Tab «Настройки» открывает каталоги проектов и репозиториев; незаданный каталог
+открывает окно автоматически. Сохранение конфигурации не перемещает файлы.
 Обычное завершение освобождает подключение; releaseRoot передаёт существующий Root
 следующей реализации с сохранением общей среды страницы.
 
@@ -16,6 +18,7 @@ import {createMcpAddressSource} from "./src/mcp-address.ts"
 import {createWebRebuildAction} from "./src/web-rebuild.ts"
 import {createMinimapPersistence} from "./src/minimap-persistence.ts"
 import {createExecutionWindowPersistence} from "./src/execution-window-persistence"
+import {createDirectorySettingsClient} from "./src/directory-settings-client"
 import {createMcpWindowPersistence} from "./src/mcp-window-persistence.ts"
 import {createLocalMcpState} from "./src/local-mcp-state"
 import {createMcpRequestSource} from "./src/mcp-requests"
@@ -106,6 +109,8 @@ async function createExternalStorybookShell(
   // Новый ключ монтирует актуальную App даже при неизменившемся compiler chunk её шаблона.
   application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
     title: options.title,
+    directorySettingsClient: createDirectorySettingsClient(globalThis.fetch, () =>
+      browserDocument.querySelector?.<HTMLMetaElement>('meta[name="external-storybook-browser-session"]')?.content),
     userState: options.userState?.workbench,
     viewPointControls,
     statusOwner: options.statusOwner ?? options.title,

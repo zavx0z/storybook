@@ -47,7 +47,8 @@
     "@zavx0z/storybook-app-knowledge-catalog": "workspace:*",
     "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
     "@zavx0z/storybook-app-settings": "workspace:*",
-    "@zavx0z/storybook-app-environment-declaration": "workspace:*"
+    "@zavx0z/storybook-app-environment-declaration": "workspace:*",
+    "@zavx0z/storybook-app-settings-locations": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/storybook-tech-build-artifacts": "workspace:*",

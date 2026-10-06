@@ -1,12 +1,12 @@
 /**
-Project читает собственную идентичность Git superproject и объявленный состав Repo.
-Имя принадлежит package.json проекта, участие репозиториев — его .gitmodules.
-Каждый Repo сохраняет собственную пакетную идентичность и Git-историю.
-Читатель не изменяет состав, рабочие деревья или историю проекта.
+Project читает собственную идентичность и установленные зависимости совместной работы.
+Состав принадлежит package.json проекта. Локальные ссылки сохраняют исходные checkout
+и пакетные identity; установленные библиотеки участвуют без собственной Git-истории.
+Читатель раскрывает исходные Repo и не изменяет пакеты, рабочие деревья или историю.
 
 @packageDocumentation
 */
-import {lstat, realpath} from "node:fs/promises"
+import {realpath} from "node:fs/promises"
 import {isAbsolute, relative, resolve, sep} from "node:path"
 import readPackageJson from "@zavx0z/storybook-package-package-json"
 import type {StorybookProject} from "./contract"
@@ -14,22 +14,21 @@ import type {StorybookProject} from "./contract"
 export type {StorybookProject} from "./contract"
 
 /**
-Читает точный Git-корень проекта и Repo, объявленные непосредственно в .gitmodules.
-Штатный Git config parser раскрывает записи файла без подключения include-файлов.
-Отсутствующий файл означает пустой состав; произвольные соседние директории,
-workspaces и сохранённый список каталогов Storybook не определяют участие Repo.
+Читает точный Git-корень Project и зависимости из dependencies и devDependencies.
+Каждый объявленный пакет читается непосредственно из node_modules Project независимо
+от exports. Символические ссылки канонизируются; соседние каталоги, workspaces
+и .gitmodules не определяют участие. Повторные физические пакеты и Repo объединяются.
 
-@param path - Корень Git superproject; относительный путь разрешается от cwd.
+@param path - Корень Project с собственным package.json; относительный путь разрешается от cwd.
 
-@returns Имя из собственного package.json#name, ссылки на Repo и диагностика
-повторных пакетных identity и физической вложенности участников друг в друга.
-Порядок Repo соответствует первому объявлению их submodule section в .gitmodules.
+@returns Имя Project, установленные пакеты, их исходные Repo и диагностика
+повторных пакетных identity и физической вложенности Repo. Порядок следует первому
+объявлению в dependencies, затем devDependencies. Имя берётся из фактического манифеста.
 
 @throws Ошибка чтения файлов, package.json или исполнения Git.
-@throws TypeError, если имя пустое, path не является точным Git-корнем,
-объявление submodule не имеет ровно одного path, путь выходит за Project,
-два объявления ведут к одному физическому Repo или участник не имеет своей Git-границы.
-Неинициализированный или недоступный участник прерывает чтение с его адресом в ошибке.
+@throws TypeError, если имя пустое, path не является точным Git-корнем
+или имя объявленной зависимости не является адресом npm-пакета.
+Отсутствующий пакет либо неверный манифест участника прерывает чтение с его адресом.
 
 @example
 ```ts
@@ -42,70 +41,51 @@ export default async function readProject({path}: StorybookProject.Input): Promi
   if (git.status !== 0 || await realpath(git.output.replace(/\r?\n$/u, "")) !== root) {
     throw new TypeError(`Project не является точным Git-корнем: ${root}`)
   }
-  const {name} = await readPackageJson({path: resolve(root, "package.json")})
-  if (!/\S/u.test(name)) throw new TypeError(`Project имеет пустое package.json#name: ${root}`)
-  const modules = resolve(root, ".gitmodules")
-  const exists = await lstat(modules).catch(error => {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
-    return null
-  })
-  const declarations = new Map<string, string[]>()
-  if (exists) {
-    const config = await runGit(root, ["config", "--no-includes", "--null", "--file", modules, "--list"])
-    if (config.status !== 0) throw new Error(`Не удалось прочитать .gitmodules проекта ${root}: ${config.error}`)
-    for (const entry of config.output.split("\0")) {
-      if (!entry) continue
-      const boundary = entry.indexOf("\n")
-      const key = boundary === -1 ? entry : entry.slice(0, boundary)
-      const match = /^submodule\.(.+)\.([^.]+)$/su.exec(key)
-      if (!match && key.startsWith("submodule.")) {
-        throw new TypeError(`Некорректная submodule section в ${modules}: ${key}`)
+  const manifest = await readPackageJson({path: resolve(root, "package.json")})
+  if (!/\S/u.test(manifest.name)) throw new TypeError(`Project имеет пустое package.json#name: ${root}`)
+  const declared = [...new Set([
+    ...Object.keys(manifest.dependencies ?? {}),
+    ...Object.keys(manifest.devDependencies ?? {}),
+  ])]
+  const dependencies: StorybookProject.Output["dependencies"][number][] = []
+  const repositories: StorybookProject.Output["repositories"][number][] = []
+  for (const key of declared) {
+    if (!/^(?:@[a-zA-Z0-9_~-][a-zA-Z0-9._~-]*\/)?[a-zA-Z0-9_~-][a-zA-Z0-9._~-]*$/u.test(key)) {
+      throw new TypeError(`Некорректное имя зависимости Project: ${key}`)
+    }
+    const installed = resolve(root, "node_modules", key)
+    const canonical = await realpath(installed).catch(error => {
+      throw new Error(`Зависимость ${key} недоступна по пути ${installed}`, {cause: error})
+    })
+    if (dependencies.some(dependency => dependency.root === canonical)) continue
+    const {name} = await readPackageJson({path: resolve(canonical, "package.json")}).catch(error => {
+      throw new Error(`Не удалось прочитать манифест зависимости ${key} по пути ${canonical}`, {cause: error})
+    })
+    if (!/\S/u.test(name)) throw new TypeError(`Зависимость ${key} имеет пустое package.json#name: ${canonical}`)
+    const boundary = await runGit(canonical, ["rev-parse", "--show-toplevel"])
+    let repository: string | null = null
+    if (boundary.status === 0) {
+      const source = await realpath(boundary.output.replace(/\r?\n$/u, ""))
+      // Установленный пакет не получает исходный Repo от Git-истории над node_modules.
+      if (source !== root && !relative(source, canonical).split(sep).includes("node_modules")) {
+        repository = source
+        if (!repositories.some(repo => repo.root === source)) {
+          const {name: repoName} = await readPackageJson({path: resolve(source, "package.json")}).catch(error => {
+            throw new Error(`Не удалось прочитать манифест Repo зависимости ${key} по пути ${source}`, {cause: error})
+          })
+          if (!/\S/u.test(repoName)) throw new TypeError(`Repo зависимости ${key} имеет пустое package.json#name: ${source}`)
+          repositories.push({root: source, name: repoName})
+        }
       }
-      if (!match) continue
-      const section = match[1]!
-      const values = declarations.get(section) ?? []
-      declarations.set(section, values)
-      if (match[2] === "path") values.push(boundary === -1 ? "" : entry.slice(boundary + 1))
     }
+    dependencies.push({root: canonical, name, repository})
   }
-  const roots: string[] = []
-  const sections = [...declarations.keys()]
-  for (const [section, paths] of declarations) {
-    if (paths.length !== 1 || !paths[0]) {
-      throw new TypeError(`Submodule ${section} в ${modules} должен иметь ровно один непустой path`)
-    }
-    const declared = paths[0]
-    const candidate = resolve(root, declared)
-    if (isAbsolute(declared) || !isChild(root, candidate)) {
-      throw new TypeError(`Submodule ${section} имеет путь вне Project: ${declared}`)
-    }
-    const canonical = await realpath(candidate).catch(error => {
-      throw new Error(`Submodule ${section} недоступен по пути ${declared}`, {cause: error})
-    })
-    if (!isChild(root, canonical)) {
-      throw new TypeError(`Submodule ${section} имеет физический корень вне Project: ${declared}`)
-    }
-    if (roots.includes(canonical)) {
-      throw new TypeError(`Submodule ${section} повторяет физический Repo: ${declared}`)
-    }
-    roots.push(canonical)
-  }
-  const repositories = await Promise.all(roots.map(async (path, index) => {
-    const section = sections[index]!
-    const boundary = await runGit(path, ["rev-parse", "--show-toplevel"])
-    if (boundary.status !== 0 || await realpath(boundary.output.replace(/\r?\n$/u, "")) !== path) {
-      throw new TypeError(`Repo submodule ${section} не имеет собственной Git-границы: ${path}`)
-    }
-    const {name} = await readPackageJson({path: resolve(path, "package.json")}).catch(error => {
-      throw new Error(`Не удалось прочитать имя Repo submodule ${section} по пути ${path}`, {cause: error})
-    })
-    if (!/\S/u.test(name)) throw new TypeError(`Repo submodule ${section} имеет пустое package.json#name: ${path}`)
-    return {root: path, name}
-  }))
+  const roots = repositories.map(repo => repo.root)
   const names = repositories.map(repo => repo.name)
   return {
     root,
-    name,
+    name: manifest.name,
+    dependencies,
     repositories,
     duplicateNames: [...new Set(names.filter((name, index) => names.indexOf(name) !== index))],
     nestedRoots: roots.filter(path => roots.some(parent => isChild(parent, path))),

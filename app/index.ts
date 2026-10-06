@@ -85,17 +85,9 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     */
     async ensure(input: StorybookEnsureInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
       const roots = canonicalRoots(input.roots ?? Object.freeze([]))
-      const record = await this.#ensureRunning(context.signal, context.onProgress)
+      if (roots.length > 1) throw new TypeError("Запуск принимает ровно один Project")
+      const record = await this.#ensureRunning(context.signal, context.onProgress, roots)
       const client = ServerState.client(record)
-      if (roots.length > 0) {
-        const status = await client.read("/api/control/status", context.signal)
-        const attached = new Set(Array.isArray(status.entries) ? status.entries.flatMap((candidate) =>
-          candidate !== null && typeof candidate === "object" && typeof (candidate as Record<string, unknown>).declarationPath === "string"
-            ? [(candidate as Record<string, unknown>).declarationPath as string]
-            : []) : [])
-        const missing = roots.filter((root) => !attached.has(resolveManifestPath(root)))
-        if (missing.length > 0) await client.control("/api/control/attach", {roots: missing}, context.signal)
-      }
       await client.control("/api/control/refresh", {force: false}, context.signal)
       return this.#statusResult(record, false, context.signal)
     }
@@ -551,7 +543,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       return value as unknown as ClientSnapshot
     }
 
-    async #ensureRunning(signal: AbortSignal, onProgress?: StorybookControllerContext["onProgress"]): Promise<ExternalStorybookServerRecord> {
+    async #ensureRunning(signal: AbortSignal, onProgress?: StorybookControllerContext["onProgress"], projectRoots: readonly string[] = []): Promise<ExternalStorybookServerRecord> {
       let inspection = await inspectExternalStorybookServer()
       assertOwnedStorybookState(inspection, this.#toolRoot)
       let migration = readExternalStorybookMigrationRecord()
@@ -610,7 +602,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         const child = this.#spawnDaemon({
           entryPath: this.#daemonEntryPath,
           toolRoot: this.#toolRoot,
-          declarations,
+          declarations: projectRoots.length > 0 ? projectRoots : [],
           ...(preferredPort === undefined ? {} : {preferredPort}),
           startLease: Object.freeze({path: lease.path, token: lease.token}),
         })

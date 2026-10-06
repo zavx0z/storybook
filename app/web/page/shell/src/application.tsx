@@ -9,6 +9,7 @@ import {useCallback, useMemo, useState, useSyncExternalStore} from "@zavx0z/imme
 import McpWindow from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 import {GlobalMcpWindow} from "./global-mcp-window"
 import ExecutionSettings from "@zavx0z/storybook-app-web-page-shell-execution-settings"
+import {DirectorySettingsWindow} from "./directory-settings-window"
 
 import type {StorybookAppProps} from "./application-props"
 
@@ -45,6 +46,9 @@ export function StorybookApp(props: StorybookAppProps) {
     </StorybookDisplay>
     <hud id={props.hudId}>
       <ViewPointTab controls={props.viewPointControls} />
+      {props.directorySettingsClient === undefined ? null : <DirectorySettingsWindow
+        client={props.directorySettingsClient}
+      />}
       <ExecutionSettings initialState={props.executionWindowState} onStateChange={props.saveExecutionWindowState} />
       <GlobalMcpWindow
         loadMcpRequests={props.loadMcpRequests}

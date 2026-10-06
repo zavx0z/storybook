@@ -23,8 +23,7 @@ export type StorybookControllerResult = Readonly<{
 
 @property schemaVersion - Версия запроса, равная `1`.
 
-@property [roots] - Корни, подключаемые вместе с обеспечением работы сервера.
-На общей границе управления — не более 32 уникальных непустых путей.
+@property [roots] - Единственный явно указанный Project; без значения запускается текущий Project zavx0z.
 */
 export type StorybookEnsureInput = Readonly<{
   schemaVersion: 1

@@ -5,6 +5,8 @@ import {join} from "node:path"
 import Catalog from "@zavx0z/storybook-app-server-catalog"
 import createGraph from "@zavx0z/storybook-package-graph-create"
 import createDescriptors from "@zavx0z/storybook-package-build-descriptor"
+import {saveCatalogMetadata} from "../src/metadata"
+import {readMetadataSnapshot} from "../src/storage"
 import {documentationCatalog} from "./registry.fixture"
 
 const cleanup: (() => Promise<void>)[] = []
@@ -67,4 +69,30 @@ test("символическая ссылка meta не переносит за�
   await symlink(outside, join(f.owner, "meta"))
   await expect(f.registry.saveMetadata({root: f.root, name: "Workspace"})).rejects.toThrow("символической ссылкой")
   expect(await Bun.file(join(outside, "data/catalog.json")).exists()).toBeFalse()
+})
+
+
+test("сохранённое дерево не выдаёт доверие внешнему владельцу и не читает его данные", async () => {
+  const f = await fixture()
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-untrusted-project-")))
+  cleanup.push(() => rm(root, {recursive: true, force: true}))
+  await f.registry.saveMetadata({root, name: "Independent"})
+  expect(() => readMetadataSnapshot(root, () => [], [])).toThrow("outside trusted roots")
+  const snapshot = readMetadataSnapshot(root, () => [], [f.owner])
+  expect(snapshot.graph.nodes[1]!.moduleDocumentation?.markdown).toBe("Тождественное преобразование.")
+  const treePath = join(root, "meta/data/tree.json")
+  const tree = await Bun.file(treePath).json()
+  tree.owners[0].data = "meta/data/tree.json"
+  await Bun.write(treePath, JSON.stringify(tree))
+  const changed = readMetadataSnapshot(root, () => [], [f.owner])
+  expect(() => changed.graph.nodes[1]!.moduleDocumentation).toThrow("different owner")
+})
+
+
+test("сохранение не создаёт meta владельца, отсутствующего в объявленном составе", async () => {
+  const f = await fixture()
+  await expect(saveCatalogMetadata({root: f.root, name: "Workspace"}, f.registry.snapshot(), []))
+    .rejects.toThrow("outside trusted roots")
+  expect(await Bun.file(join(f.owner, "meta/data/catalog.json")).exists()).toBeFalse()
+  expect(await Bun.file(join(f.root, "meta/data/tree.json")).exists()).toBeFalse()
 })

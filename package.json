@@ -14,7 +14,7 @@
     "!**/.*/**"
   ],
   "scripts": {
-    "storybook": "bun -e 'import createApp from \"@zavx0z/storybook-app\"\nconst context = {signal: new AbortController().signal}\nconst result = await createApp().ensure({schemaVersion: 1, roots: [process.cwd()]}, context)\nconsole.log(JSON.stringify(result, null, 2))\nif (result.status !== \"success\") process.exitCode = 1'",
+    "storybook": "bun app/bin/zavx0z.ts",
     "serve": "bun run storybook",
     "build": "bun -e 'import createApp from \"@zavx0z/storybook-app\"\nconst context = {signal: new AbortController().signal}\nconst result = await createApp().check({schemaVersion: 1, scope: process.cwd()}, context)\nconsole.log(JSON.stringify(result, null, 2))\nif (result.status !== \"success\") process.exitCode = 1'",
     "typecheck": "bun install --cwd container/spec/fixture --frozen-lockfile --ignore-scripts && bun install --cwd cluster/spec/fixture --frozen-lockfile --ignore-scripts && tsc --noEmit --pretty false",
@@ -141,5 +141,8 @@
     "@zavx0z/immersive-ui-component-field-text": "link:@zavx0z/immersive-ui-component-field-text",
     "@zavx0z/immersive-ui-component-widget-inspector": "link:@zavx0z/immersive-ui-component-widget-inspector",
     "@zavx0z/immersive-ui-component-field-switch": "link:@zavx0z/immersive-ui-component-field-switch"
+  },
+  "bin": {
+    "zavx0z": "./app/bin/zavx0z.ts"
   }
 }

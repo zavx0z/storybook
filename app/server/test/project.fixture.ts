@@ -1,23 +1,23 @@
-import {mkdirSync, writeFileSync} from "node:fs"
-import {isAbsolute, relative, resolve, sep} from "node:path"
+import {mkdirSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
+import {resolve} from "node:path"
 
 /** Создаёт настоящий временный Project вокруг переданных Repo для серверного сценария. */
 export function createProjectFixture(directory: string, repositories: readonly string[], name = "Fixture Project"): string {
   const root = resolve(directory)
   mkdirSync(root, {recursive: true})
   git(root, ["init", "--quiet"])
-  writeFileSync(resolve(root, "package.json"), JSON.stringify({name, private: true}))
-  writeFileSync(resolve(root, ".gitmodules"), "")
+  const dependencies: Record<string, string> = {}
+  mkdirSync(resolve(root, "node_modules"), {recursive: true})
   repositories.forEach((repository, index) => {
-    const path = relative(root, resolve(repository))
-    if (path === "" || path === ".." || path.startsWith(`..${sep}`) || isAbsolute(path)) {
-      throw new Error(`Fixture Repo must be inside Project: ${repository}`)
-    }
     mkdirSync(repository, {recursive: true})
     git(repository, ["init", "--quiet"])
-    git(root, ["config", "--file", ".gitmodules", `submodule.repo-${index}.path`, path])
-    git(root, ["config", "--file", ".gitmodules", `submodule.repo-${index}.url`, `https://example.invalid/repo-${index}.git`])
+    const key = `repo-${index}`
+    dependencies[key] = "*"
+    const installed = resolve(root, "node_modules", key)
+    rmSync(installed, {force: true})
+    symlinkSync(resolve(repository), installed)
   })
+  writeFileSync(resolve(root, "package.json"), JSON.stringify({name, private: true, dependencies}))
   return root
 }
 

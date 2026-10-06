@@ -2,6 +2,7 @@ import type {StorybookAppWebPageShellExecutionSettings as ExecutionSettings} fro
 import type {StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 import type {createLocalMcpState} from "./local-mcp-state"
 import type {GlobalMcpWindowState} from "../contract/types"
+import type {createDirectorySettingsClient} from "./directory-settings-client"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import type {StorybookAppWebPageShellViewpointTab} from "@zavx0z/storybook-app-web-page-shell-viewpoint-tab"
 type ViewPointTabProps = StorybookAppWebPageShellViewpointTab.Input
@@ -19,6 +20,7 @@ import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-a
 type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
 
 export type StorybookAppProps = Readonly<{
+  directorySettingsClient?: ReturnType<typeof createDirectorySettingsClient>
   executionWindowState?: ExecutionSettings.Input["initialState"]
   saveExecutionWindowState?: ExecutionSettings.Input["onStateChange"]
   userState?: WorkbenchUserState | undefined

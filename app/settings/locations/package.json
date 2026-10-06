@@ -1,0 +1,11 @@
+{
+  "name": "@zavx0z/storybook-app-settings-locations",
+  "label": "Расположение",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Каталоги проектов и репозиториев на текущей машине",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

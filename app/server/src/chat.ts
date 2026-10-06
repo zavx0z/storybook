@@ -36,6 +36,7 @@ function historyQuery(value: unknown): HistoryQuery {
 /** Соединяет адресные беседы с общим окружением предмета и жизненным циклом ACP. */
 export function createChatServer(options: Readonly<{
   project: string
+  trustedRoots?: readonly string[] | (() => readonly string[])
   projectName(): string
   toolRoot: string
   authorityDirectory?: string

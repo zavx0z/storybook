@@ -117,7 +117,7 @@ async function startExternalStorybookLanding(
       shell.showMessage(
         "External Storybook · Обзор",
         "External Storybook",
-        "Выберите Repo или пакет в дереве. Состав Project читается из .gitmodules.",
+        "Выберите Repo или пакет в дереве. Состав Project читается из зависимостей package.json.",
       )
     })
     restoreInspectorSelection()

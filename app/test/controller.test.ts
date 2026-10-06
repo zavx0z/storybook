@@ -3,7 +3,7 @@ const createExternalStorybookController = StorybookAppOwner
 import ServerState from "@zavx0z/storybook-app-server-state"
 const {createExternalStorybookServerRecord, externalStorybookServerStatePath, externalStorybookMigrationStatePath, readExternalStorybookMigrationRecord, readExternalStorybookServerRecord, processExists, writeExternalStorybookMigrationRecord, writeExternalStorybookServerRecord} = ServerState
 import {afterAll, beforeAll, beforeEach, describe, expect, test} from "bun:test"
-import {cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
+import {cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 const stateRoot = mkdtempSync(join(tmpdir(), "storybook-controller-"))
@@ -19,11 +19,9 @@ describe.serial("external Storybook shared controller", () => {
   beforeAll(() => {
     mkdirSync(project, {recursive: true})
     cpSync(fixtureSource, fixture, {recursive: true})
-    writeFileSync(join(project, "package.json"), JSON.stringify({name: "controller-project", private: true}))
-    writeFileSync(join(project, ".gitmodules"), '[submodule "standalone"]\n\tpath = standalone\n\turl = git@example.test:standalone.git\n')
     initializeFixtureGit(project)
     initializeFixtureGit(fixture)
-    registerFixtureRepo(fixture, "standalone")
+    installFixtureDependency(fixture)
     mkdirSync(join(stateRoot, "config"), {recursive: true})
     writeFileSync(join(stateRoot, "config", "projects.json"), JSON.stringify([join(stateRoot, "retired-root")]))
     Bun.env.STORYBOOK_CONFIG_ROOT = join(stateRoot, "config")
@@ -52,7 +50,7 @@ describe.serial("external Storybook shared controller", () => {
 
   test("starts once, reuses across controllers and exposes graph operations without CLI", async () => {
     const first = createExternalStorybookController()
-    const ensured = await first.ensure({schemaVersion: 1}, context())
+    const ensured = await first.ensure({schemaVersion: 1, roots: [project]}, context())
     expect(ensured).toMatchObject({status: "success", server: "running"})
     expect(ensured.origin).toMatch(/^storybook-origin-v1_[A-Za-z0-9_-]{43}$/u)
     expect(ensured).not.toHaveProperty("views")
@@ -60,21 +58,21 @@ describe.serial("external Storybook shared controller", () => {
     expect(JSON.stringify(ensured)).not.toContain("127.0.0.1")
 
     const second = createExternalStorybookController()
-    const reused = await second.ensure({schemaVersion: 1}, context())
+    const reused = await second.ensure({schemaVersion: 1, roots: [project]}, context())
     expect(reused.instanceId).toBe(ensured.instanceId)
     expect(reused.origin).toBe(ensured.origin)
     expect(reused).not.toHaveProperty("views")
 
     const statePath = externalStorybookServerStatePath()
     const running = readExternalStorybookServerRecord(statePath)
-    expect(running.attachedDeclarations, "Состав сессии читается из .gitmodules, сохранённый старый список не участвует")
+    expect(running.attachedDeclarations, "Состав сессии читается из зависимостей package.json, сохранённый старый список не участвует")
       .toEqual([realpathSync(fixture)])
     const runningPort = new URL(running.origin).port
     const orphan = join(stateRoot, "artifacts", "orphan-package", "old-revision", "entry.js")
     mkdirSync(join(orphan, ".."), {recursive: true})
     writeFileSync(orphan, "stale")
     await second.stop({schemaVersion: 1, confirm: true}, context())
-    const restarted = await second.ensure({schemaVersion: 1}, context())
+    const restarted = await second.ensure({schemaVersion: 1, roots: [project]}, context())
     expect(restarted.instanceId).not.toBe(ensured.instanceId)
     const restartedRecord = readExternalStorybookServerRecord(statePath)
     expect(new URL(restartedRecord.origin).port).toBe(runningPort)
@@ -149,7 +147,7 @@ describe.serial("external Storybook shared controller", () => {
     expect(journal?.preferredPort).toBe(Number(new URL(legacyRecord.origin).port))
 
     const controller = createExternalStorybookController({legacyStatePaths: [legacyStatePath]})
-    const ensured = await controller.ensure({schemaVersion: 1}, context())
+    const ensured = await controller.ensure({schemaVersion: 1, roots: [project]}, context())
     const migrated = readExternalStorybookServerRecord(externalStorybookServerStatePath())
 
     expect(ensured).toMatchObject({status: "success", server: "running"})
@@ -173,7 +171,7 @@ describe.serial("external Storybook shared controller", () => {
     writeExternalStorybookServerRecord(statePath, foreign)
 
     const controller = createExternalStorybookController()
-    await expect(controller.ensure({schemaVersion: 1}, context()))
+    await expect(controller.ensure({schemaVersion: 1, roots: [project]}, context()))
       .rejects.toThrow("belongs to another checkout")
     expect(readExternalStorybookServerRecord(statePath)).toEqual(foreign)
     rmSync(statePath, {force: true})
@@ -196,7 +194,7 @@ describe.serial("external Storybook shared controller", () => {
       }))
       const controller = createExternalStorybookController({legacyStatePaths: []})
 
-      const ensured = await controller.ensure({schemaVersion: 1}, context())
+      const ensured = await controller.ensure({schemaVersion: 1, roots: [project]}, context())
       const running = readExternalStorybookServerRecord(externalStorybookServerStatePath())
 
       expect(ensured).toMatchObject({status: "success", server: "running"})
@@ -235,7 +233,7 @@ describe.serial("external Storybook shared controller", () => {
       legacyStatePaths: [],
     })
     try {
-      const result = await controller.ensure({schemaVersion: 1}, {
+      const result = await controller.ensure({schemaVersion: 1, roots: [project]}, {
         signal: AbortSignal.timeout(60_000),
       })
       expect(result).toMatchObject({status: "success", server: "running"})
@@ -253,7 +251,7 @@ describe.serial("external Storybook shared controller", () => {
         daemonEntryPath: join(import.meta.dir, "fixtures/stderr-flood-daemon.ts"),
         legacyStatePaths: [],
       })
-      await expect(controller.ensure({schemaVersion: 1}, {
+      await expect(controller.ensure({schemaVersion: 1, roots: [project]}, {
         signal: AbortSignal.timeout(3_000),
       })).rejects.toThrow("Storybook startup: catalog")
       await waitForPath(marker)
@@ -267,10 +265,10 @@ describe.serial("external Storybook shared controller", () => {
     }
   })
 
-  test("сохраняет runtime journal, но восстанавливает состав из текущего .gitmodules", async () => {
+  test("сохраняет runtime journal, но восстанавливает состав из текущих зависимостей Project", async () => {
     const declarationPath = realpathSync(fixture)
     const controller = createExternalStorybookController({legacyStatePaths: []})
-    await controller.ensure({schemaVersion: 1}, context())
+    await controller.ensure({schemaVersion: 1, roots: [project]}, context())
     await controller.stop({schemaVersion: 1, confirm: true}, context())
 
     const marker = join(stateRoot, "upgrade-slow-daemon.pid")
@@ -292,10 +290,9 @@ describe.serial("external Storybook shared controller", () => {
     const nextFixture = join(project, "next-standalone")
     cpSync(fixtureSource, nextFixture, {recursive: true})
     initializeFixtureGit(nextFixture)
-    registerFixtureRepo(nextFixture, "next-standalone")
-    writeFileSync(join(project, ".gitmodules"), '[submodule "standalone"]\n\tpath = next-standalone\n\turl = git@example.test:standalone.git\n')
+    installFixtureDependency(nextFixture)
     const recovered = await createExternalStorybookController({legacyStatePaths: []})
-      .ensure({schemaVersion: 1}, context())
+      .ensure({schemaVersion: 1, roots: [project]}, context())
     expect(recovered).toMatchObject({status: "success", server: "running"})
     expect(readExternalStorybookServerRecord(externalStorybookServerStatePath()).attachedDeclarations)
       .toEqual([realpathSync(nextFixture)])
@@ -309,15 +306,14 @@ function initializeFixtureGit(root: string): void {
   if (result.exitCode !== 0) throw new Error(`Fixture Git init failed: ${result.stderr.toString()}`)
 }
 
-function registerFixtureRepo(root: string, path: string): void {
-  for (const args of [
-    ["-C", root, "add", "--", "package.json", "README.md"],
-    ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Fixture"],
-    ["-C", project, "add", "--", path],
-  ]) {
-    const result = Bun.spawnSync(["git", ...args], {stdout: "ignore", stderr: "pipe"})
-    if (result.exitCode !== 0) throw new Error(`Fixture Git registration failed: ${result.stderr.toString()}`)
-  }
+function installFixtureDependency(root: string): void {
+  mkdirSync(join(project, "node_modules"), {recursive: true})
+  const installed = join(project, "node_modules/standalone")
+  rmSync(installed, {force: true})
+  symlinkSync(root, installed)
+  writeFileSync(join(project, "package.json"), JSON.stringify({
+    name: "controller-project", private: true, dependencies: {standalone: "*"},
+  }))
 }
 
 async function waitForPath(path: string, timeoutMs = 2_000): Promise<void> {
@@ -335,7 +331,7 @@ async function interruptStartedDaemon(
   marker: string,
 ): Promise<void> {
   const lifetime = new AbortController()
-  const pending = controller.ensure({schemaVersion: 1}, {signal: lifetime.signal})
+  const pending = controller.ensure({schemaVersion: 1, roots: [project]}, {signal: lifetime.signal})
   try {
     await Promise.race([waitForPath(marker, 10_000), pending])
   } finally {

@@ -9,7 +9,8 @@ import createControl from "@zavx0z/storybook-app-control"
 import {realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {realpath} from "node:fs/promises"
-import {basename, dirname, resolve} from "node:path"
+import {basename, dirname, join, resolve} from "node:path"
+import {homedir} from "node:os"
 import {relocateAppChats, relocatedAppAddress} from "./layout-relocations"
 export type ExternalStorybookDaemonOptions = Readonly<{
   declarations?: readonly string[]
@@ -82,44 +83,21 @@ function addressInUse(error: unknown): boolean {
 }
 
 /**
-Определяет один Project по Git-контексту прежнего launcher.
-Аргументы Repo выбирают только корень Project; его состав читает Server из .gitmodules.
-При пустом контексте используется Git-граница установленного инструмента.
+Принимает явно указанный Project без поиска по Git и соседним каталогам.
+Пока приложение запускает один известный Project zavx0z; локальные пути хранилищ
+настраиваются в интерфейсе и сами по себе не меняют открытый проект.
 
 @internal
 */
 export async function resolveDaemonProject(
-  toolRoot: string,
+  _toolRoot: string,
   declarations: readonly string[],
 ): Promise<string> {
-  const contexts = declarations.length === 0 ? [toolRoot] : declarations
-  const candidates = await Promise.all(contexts.map(async context => {
+  const contexts = declarations.length === 0 ? [join(homedir(), "projects/zavx0z")] : declarations
+  const roots = [...new Set(await Promise.all(contexts.map(context => {
     const path = resolve(context)
-    const directory = basename(path) === "package.json" ? dirname(path) : path
-    const root = await realpath(directory)
-    const superproject = await gitRoot(root, "--show-superproject-working-tree")
-    const project = superproject === "" ? await gitRoot(root, "--show-toplevel") : superproject
-    if (project === "") throw new Error(`Git не определил корень Project для ${root}`)
-    return realpath(project)
-  }))
-  const roots = [...new Set(candidates)]
-  if (roots.length !== 1) {
-    throw new Error(`Контекст запуска не определяет единственный Project: ${roots.join(", ")}`)
-  }
+    return realpath(basename(path) === "package.json" ? dirname(path) : path)
+  }))) ]
+  if (roots.length !== 1) throw new Error(`Контекст запуска не определяет единственный Project: ${roots.join(", ")}`)
   return roots[0]!
-}
-
-async function gitRoot(root: string, option: string): Promise<string> {
-  const child = Bun.spawn(["git", "-C", root, "rev-parse", option], {
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-  const [output, error, status] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ])
-  if (status !== 0) throw new Error(`Не удалось определить Project для ${root}: ${error.trim()}`)
-  return output.replace(/\r?\n$/u, "")
 }

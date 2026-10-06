@@ -9,6 +9,9 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
+    "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
+    "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
     "@zavx0z/storybook-app-web-protocol": "workspace:*",
     "@zavx0z/immersive-markdown": "^0.0.0",
     "@zavx0z/immersive-nodes": "^0.0.0",

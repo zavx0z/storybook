@@ -520,7 +520,7 @@ describe("one external Storybook server", () => {
     expect(existsSync(fixture.statePath)).toBe(true)
   })
 
-  test("состав Project перечитывается из .gitmodules при refresh и restart, включая пустой состав", async () => {
+  test("состав Project перечитывается из package.json при refresh и restart, включая пустой состав", async () => {
     const fixture = serverFixture()
     const entries = sharedEntriesFixture()
     seedPublishedSharedAssets(fixture.artifactRoot)
@@ -583,7 +583,7 @@ describe("one external Storybook server", () => {
     servers.push(running)
     const before = running.registry.snapshot()
     expect(before.entries.map(entry => entry.canonicalId)).toEqual(["package:fixture-workspace"])
-    const modulesBytes = readFileSync(join(fixture.root, ".gitmodules"), "utf8")
+    const manifestBytes = readFileSync(join(fixture.root, "package.json"), "utf8")
     const sessionReply = await fetch(new URL("/api/browser/registry-session", running.origin), {
       method: "POST", headers: {origin: running.origin, "content-type": "application/json"}, body: "{}",
     })
@@ -604,7 +604,7 @@ describe("one external Storybook server", () => {
     }
     expect(running.registry.snapshot()).toEqual(before)
     expect(readFileSync(saved, "utf8")).toBe(oldBytes)
-    expect(readFileSync(join(fixture.root, ".gitmodules"), "utf8")).toBe(modulesBytes)
+    expect(readFileSync(join(fixture.root, "package.json"), "utf8")).toBe(manifestBytes)
     const client = await fetchJson(new URL("/api/client", running.origin))
     expect(client.rootIds).toEqual(["package:fixture-workspace"])
   })
@@ -633,7 +633,8 @@ describe("one external Storybook server", () => {
       socket.send(JSON.stringify({type: "subscribe", topic: "registry"}))
       await waitFor(() => messages.some(message => message.type === "subscribed"))
       const first = messages.length
-      writeFileSync(join(fixture.root, "package.json"), JSON.stringify({name: "Renamed Project", label: "Ignored label"}))
+      const manifest = JSON.parse(readFileSync(join(fixture.root, "package.json"), "utf8"))
+      writeFileSync(join(fixture.root, "package.json"), JSON.stringify({...manifest, name: "Renamed Project", label: "Ignored label"}))
       expect((await controlPost(running, "/api/control/refresh", {})).response.status).toBe(200)
       await waitFor(() => messages.slice(first).some(message => message.type === "registry.updated"))
       const after = await fetchJson(new URL("/api/client", running.origin))
@@ -822,7 +823,7 @@ describe("one external Storybook server", () => {
     }
   })
 
-  test("один origin обслуживает Repo объявленные в .gitmodules", async () => {
+  test("один origin обслуживает Repo объявленных зависимостей Project", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
       project: createProjectFixture(fixture.root, []),
@@ -1116,7 +1117,9 @@ describe("one external Storybook server", () => {
     servers.push(running)
     const before = await controlGet(running, "/api/control/status")
     createProjectFixture(fixture.root, [fixture.workspace, fixture.standalone])
-    writeFileSync(join(fixture.root, ".gitmodules"), `${readFileSync(join(fixture.root, ".gitmodules"), "utf8")}\n[submodule "missing"]\npath = missing\n`)
+    const manifest = JSON.parse(readFileSync(join(fixture.root, "package.json"), "utf8"))
+    manifest.dependencies.missing = "*"
+    writeFileSync(join(fixture.root, "package.json"), JSON.stringify(manifest))
     const failed = await controlPost(running, "/api/control/refresh", {})
     expect(failed.response.status).toBe(400)
     const after = await controlGet(running, "/api/control/status")
@@ -1338,7 +1341,7 @@ describe("one external Storybook server", () => {
     replacement.stop(true)
   })
 
-  test("удаление участия через .gitmodules сохраняет сервер, stop удаляет только своё состояние", async () => {
+  test("удаление зависимости Project сохраняет сервер, stop удаляет только своё состояние", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
       project: createProjectFixture(fixture.root, [fixture.workspace, fixture.standalone]),

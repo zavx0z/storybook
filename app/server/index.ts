@@ -1,3 +1,4 @@
+import createLocations from "@zavx0z/storybook-app-settings-locations"
 /**
 Серверное исполнение приложения Storybook соединяет каталог, сессии пакетов,
 Web-выпуск, browser lifecycle и авторизованный HTTP/WebSocket API в одном процессе.
@@ -145,6 +146,8 @@ export default async function startExternalStorybookServer(
   const registry = new ExternalStorybookRegistry(options.resolveCatalog, () => web.readStyleSheets())
   options.onStartupPhase?.("catalog")
   let project = await readProject({path: options.project})
+  const locations = createLocations()
+  const projectRoots = (value: typeof project) => [...new Set(value.dependencies.map(dependency => dependency.repository ?? dependency.root))]
   const clients = new Set<Bun.ServerWebSocket<WebSocketData>>()
   let serverRecord!: ExternalStorybookServerRecord
   let serverRecordCreated = false
@@ -191,7 +194,7 @@ export default async function startExternalStorybookServer(
   })
   const sharedAssetRoot = web.artifactRoot
   try {
-    await registry.open(project, project.repositories.map(repository => repository.root))
+    await registry.open(project, projectRoots(project))
     options.onStartupPhase?.("sessions")
   } catch (error) {
     await registry.dispose()
@@ -270,7 +273,7 @@ export default async function startExternalStorybookServer(
     const beforeProject = project
     try {
       const snapshot = await operation()
-      if (snapshot.revision !== before.revision || project.name !== beforeProject.name) {
+      if (snapshot.revision !== before.revision || snapshot.graph.digest !== before.graph.digest || project.name !== beforeProject.name) {
         await registry.saveMetadata(project)
         commitRegistry(snapshot)
       }
@@ -309,10 +312,10 @@ export default async function startExternalStorybookServer(
     if (resolving) publish({type: "catalog.progress", state: "running"})
     try {
       const nextProject = await readProject({path: project.root})
-      const roots = nextProject.repositories.map(repository => repository.root)
-      const previousRoots = project.repositories.map(repository => repository.root)
+      const roots = projectRoots(nextProject)
+      const previousRoots = projectRoots(project)
       const changed = roots.length !== previousRoots.length || roots.some((root, index) => root !== previousRoots[index])
-      const result = await (changed ? registry.configure(roots) : force ? registry.refresh() : registry.refreshIfNeeded())
+      const result = await (changed ? registry.open(nextProject, roots) : force ? registry.refresh() : registry.refreshIfNeeded())
       project = nextProject
       if (resolving) publish({type: "catalog.progress", state: "completed"})
       return result
@@ -480,6 +483,7 @@ export default async function startExternalStorybookServer(
   let server!: Bun.Server<WebSocketData>
   const chat = createChatServer({
     project: project.root,
+    trustedRoots: () => projectRoots(project),
     authorityDirectory: join(dirname(statePath), "chat-policy"),
     projectName: () => project.name,
     toolRoot,
@@ -515,6 +519,24 @@ export default async function startExternalStorybookServer(
         if (url.pathname === "/api/environment") {
           server.timeout(request, 0)
           return await chat.environment.request(request, {origin: server.url.origin, controlToken: serverRecord.controlToken})
+        }
+        if (url.pathname === "/api/browser/settings") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: request.method !== "GET"})
+          const grant = browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+          if (grant.kind !== "registry") return responseJson({error: "Настройки доступны из общей страницы"}, 403)
+          if (request.method === "GET") return responseJson(await locations.read())
+          if (request.method !== "POST") return responseJson({error: "Метод не поддерживается"}, 405)
+          try {
+            const body = await requestObject(request)
+            assertExactRequestKeys(body, ["repositoriesDirectory", "projectsDirectory"])
+            const saved = await locations.update({
+              repositoriesDirectory: requiredText("repositoriesDirectory", body.repositoriesDirectory),
+              projectsDirectory: requiredText("projectsDirectory", body.projectsDirectory),
+            })
+            return responseJson(saved)
+          } catch (error) {
+            return responseJson({error: error instanceof Error ? error.message : String(error)}, 400)
+          }
         }
         if (url.pathname.startsWith("/api/browser/chat/")) {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: request.method !== "GET"})
@@ -958,8 +980,8 @@ export default async function startExternalStorybookServer(
         }
         if (["/api/browser/directory", "/api/control/attach", "/api/browser/attach", "/api/control/detach", "/api/browser/detach"].includes(url.pathname) && request.method === "POST") {
           if (url.pathname.startsWith("/api/browser/")) assertRegistryBrowserRequest(request)
-          // TODO: создание Repo, клонирование из GitHub и изменение .gitmodules принадлежат Project.
-          return responseJson({ok: false, error: "Состав проекта определяется .gitmodules. Добавление, создание и удаление репозиториев через GitHub ещё не реализованы."}, 501)
+          // Состав изменяется в манифесте Project.
+          return responseJson({ok: false, error: "Состав проекта определяется dependencies и devDependencies его package.json."}, 501)
         }
         if (url.pathname === "/api/control/refresh" && request.method === "POST") {
           const body = await requestObject(request)

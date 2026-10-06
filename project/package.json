@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Читает имя Git superproject и состав участвующих Repo из .gitmodules",
+  "description": "Читает установленные зависимости Project и их исходные Repo из package.json",
   "exports": {
     ".": "./index.ts"
   },

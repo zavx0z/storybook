@@ -1,9 +1,10 @@
 import {randomUUID} from "node:crypto"
 import PackageMetadata from "@zavx0z/storybook-package-metadata"
 import {lstat, mkdir, readFile, realpath, rename, unlink, writeFile} from "node:fs/promises"
-import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
+import {dirname, join, relative, resolve, sep} from "node:path"
 import type {ExternalStorybookRegistrySnapshot} from "../contract/models"
 import {contentFields, scopeFields, type MetadataTree} from "./storage"
+import {assertMetadataOwner, canonicalMetadataRoots} from "./roots"
 
 /**
 Сохраняет готовые результаты существующих читателей у владельцев, без нового анализа.
@@ -14,13 +15,13 @@ Project получает только дерево и относительные
 export async function saveCatalogMetadata(
   project: Readonly<{root: string, name: string}>,
   snapshot: ExternalStorybookRegistrySnapshot,
+  trustedRoots: readonly string[],
 ): Promise<Readonly<{owners: number, changed: number}>> {
   const root = await realpath(project.root)
   const scopes = snapshot.catalog.scopes.filter(scope => scope.kind === "package")
-  for (const scope of scopes) {
-    const local = relative(root, scope.scopeRoot)
-    if (isAbsolute(local) || local === ".." || local.startsWith(`..${sep}`)) throw new Error("Владелец meta находится вне Project")
-  }
+  const roots = canonicalMetadataRoots(trustedRoots)
+  // Проверяем весь набор до первой записи, чтобы запрещённый owner не дал частичный save.
+  for (const scope of snapshot.catalog.scopes) assertMetadataOwner(roots, scope.scopeRoot, scope.kind !== "unavailable")
   const documents: (Awaited<ReturnType<PackageMetadata["save"]>> & {local: string})[] = []
   let changed = 0
   for (const scope of scopes) {

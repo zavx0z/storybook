@@ -10,9 +10,9 @@ export type CatalogPreparation = Readonly<{
 export type CatalogWorkerInput = (Readonly<{roots: readonly string[], dirtyScopeRoots?: readonly string[]}> & (
   Readonly<{kind: "prepare", catalog?: StorybookPackageMetadataCollect.Output, previous: ExternalStorybookRegistrySnapshot, sources: readonly ExternalStorybookAttachSource[], styles: ReturnType<NonNullable<StorybookAppServerCatalog.Input[1]>>}>
   | Readonly<{kind: "discover", previous?: StorybookPackageMetadataCollect.Output}>
-)) | Readonly<{kind: "save-metadata", project: Readonly<{root: string, name: string}>, snapshot: ExternalStorybookRegistrySnapshot}>
+)) | Readonly<{kind: "save-metadata", trustedRoots: readonly string[], project: Readonly<{root: string, name: string}>, snapshot: ExternalStorybookRegistrySnapshot}>
   | (Readonly<{project: Readonly<{root: string, name: string}>, roots: readonly string[],
-      sources: readonly ExternalStorybookAttachSource[], dirtyScopeRoots?: readonly string[],
+      sources: readonly ExternalStorybookAttachSource[], trustedRoots: readonly string[], dirtyScopeRoots?: readonly string[],
       styles: ReturnType<NonNullable<StorybookAppServerCatalog.Input[1]>>}>
       & (Readonly<{kind: "open-files"}> | Readonly<{kind: "refresh-files"}>))
   | Readonly<{kind: "rename-files", project: Readonly<{root: string, name: string}>}>

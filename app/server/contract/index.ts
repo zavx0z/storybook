@@ -26,7 +26,7 @@ export declare namespace StorybookAppServer {
   publication и ready до возврата сервера; исключение отменяет запуск.
 
   @property project - Точный Git-корень Project с именем в package.json
-  и составом Repo в .gitmodules; отдельный список подключений не хранится.
+  и составом из dependencies/devDependencies; отдельный список подключений не хранится.
 
   @property [resolveCatalog] - Источник нормализованного каталога;
   при отсутствии используется действующий discovery.

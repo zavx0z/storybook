@@ -5,6 +5,7 @@ import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import createDescriptors from "@zavx0z/storybook-package-build-descriptor"
 import type {ExternalStorybookRegistrySnapshot as Snapshot} from "../contract/models"
 import type {StorybookAppServerCatalog} from "../contract"
+import {assertMetadataOwner, canonicalMetadataRoots} from "./roots"
 
 type Scope = Snapshot["catalog"]["scopes"][number]
 type Node = Snapshot["graph"]["nodes"][number]
@@ -44,7 +45,7 @@ export type MetadataTree = {
   })[]
 }
 
-const origins = new WeakMap<Snapshot, {root: string, tree: MetadataTree}>()
+const origins = new WeakMap<Snapshot, {root: string, tree: MetadataTree, trustedRoots: readonly string[]}>()
 
 function freezeTree(value: unknown): void {
   if (value === null || typeof value !== "object" || Object.isFrozen(value)) return
@@ -63,19 +64,19 @@ function readText(root: string, path: string): string {
 }
 
 /** Структура читается с ФС; содержимое владельца загружается только при обращении к его полям. */
-export function readMetadataSnapshot(root: string, styles: () => Styles): Snapshot {
+export function readMetadataSnapshot(root: string, styles: () => Styles, trustedRoots: readonly string[]): Snapshot {
   root = realpathSync(root)
   const tree = JSON.parse(readText(root, "meta/data/tree.json")) as MetadataTree
   if (tree.schemaVersion !== 2 || !Array.isArray(tree.owners) || !Array.isArray(tree.nodes)
     || !Array.isArray(tree.rootIds) || !Array.isArray(tree.entries) || !Number.isSafeInteger(tree.revision)) {
     throw new Error("Unsupported Project metadata tree")
   }
+  const roots = canonicalMetadataRoots(trustedRoots)
+  for (const owner of tree.owners) assertMetadataOwner(roots, owner.base.scopeRoot, owner.base.kind !== "unavailable")
   freezeTree(tree)
   const readers = new Map<string, () => Scope>()
   for (const owner of tree.owners) {
     if (readers.has(owner.base.id)) throw new Error("Duplicate metadata owner")
-    const local = relative(root, owner.base.scopeRoot)
-    if (isAbsolute(local) || local === ".." || local.startsWith(`..${sep}`)) throw new Error("Metadata owner escaped Project")
     let cached: WeakRef<Scope> | undefined
     readers.set(owner.base.id, () => {
       const retained = cached?.deref()
@@ -83,6 +84,7 @@ export function readMetadataSnapshot(root: string, styles: () => Styles): Snapsh
       if (owner.data === null || owner.hash === null) return owner.base as Scope
       const expected = join(owner.base.scopeRoot, "meta/data", `catalog.${owner.hash}.json`)
       if (resolve(root, owner.data) !== expected) throw new Error(`Metadata link has a different owner: ${owner.base.id}`)
+      assertMetadataOwner(roots, owner.base.scopeRoot)
       const scope = new PackageMetadata(owner.base.scopeRoot).read(owner.hash)
       if (scope.id !== owner.base.id || scope.canonicalId !== owner.base.canonicalId) {
         throw new Error(`Metadata has a different owner: ${owner.base.id}`)
@@ -144,14 +146,17 @@ export function readMetadataSnapshot(root: string, styles: () => Styles): Snapsh
     return [Object.freeze(value) as Descriptor]
   })
   const snapshot: Snapshot = Object.freeze({revision: tree.revision, entries: tree.entries, catalog, graph, descriptors: Object.freeze(descriptors)})
-  origins.set(snapshot, {root, tree})
+  origins.set(snapshot, {root, tree, trustedRoots: roots})
   return snapshot
 }
 
 /** Откат публикует прежнее дерево; документы владельцев неизменяемы и остаются доступными. */
-export function restoreMetadataSnapshot(root: string, snapshot: Snapshot): void {
+export function restoreMetadataSnapshot(root: string, snapshot: Snapshot): readonly string[] {
   const origin = origins.get(snapshot)
   if (origin === undefined || origin.root !== realpathSync(root)) throw new Error("Metadata rollback belongs to another Project")
+  // Только происхождение снимка хранит объявленное хостом доверие; дерево его не выдаёт.
+  const roots = origin.trustedRoots
+  for (const owner of origin.tree.owners) assertMetadataOwner(roots, owner.base.scopeRoot, owner.base.kind !== "unavailable")
   const path = join(root, "meta/data/tree.json")
   const temporary = `${path}.${randomUUID()}.tmp`
   try {
@@ -160,17 +165,22 @@ export function restoreMetadataSnapshot(root: string, snapshot: Snapshot): void 
   } finally {
     try { unlinkSync(temporary) } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error }
   }
+  return roots
 }
 
 /** Старый сохранённый формат переводится в новый без повторного анализа исходников. */
-export function readLegacyMetadata(root: string): Snapshot["catalog"] {
+export function readLegacyMetadata(root: string, trustedRoots: readonly string[]): Snapshot["catalog"] {
   const tree = JSON.parse(readText(root, "meta/data/tree.json"))
   if (tree.schemaVersion !== 1 || !Array.isArray(tree.nodes) || !Array.isArray(tree.rootIds)) throw new Error("Unsupported legacy metadata tree")
   const paths = [...new Set(tree.nodes.map((node: {data: unknown}) => node.data).filter((value: unknown): value is string => typeof value === "string"))] as string[]
-  const scopes = paths.map(path => {
-    const owner = dirname(dirname(dirname(resolve(root, path))))
-    if (relative(root, owner).startsWith("..")) throw new Error("Legacy metadata escaped Project")
-    return new PackageMetadata(owner).read()
-  })
+  const roots = canonicalMetadataRoots(trustedRoots)
+  const owners = paths.map(path => dirname(dirname(dirname(resolve(root, path)))))
+  for (const owner of owners) assertMetadataOwner(roots, owner)
+  const scopes = owners.map(owner => new PackageMetadata(owner).read())
   return {schemaVersion: 1, rootIds: tree.rootIds, scopes}
+}
+
+/** Проверяет точный файл дерева до чтения его формата. */
+export function readMetadataTree(root: string): MetadataTree {
+  return JSON.parse(readText(realpathSync(root), "meta/data/tree.json"))
 }

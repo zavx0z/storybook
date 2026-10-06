@@ -16,7 +16,8 @@ type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {resolve} from "node:path"
 import {statSync} from "node:fs"
 import {join} from "node:path"
-import {readMetadataSnapshot, restoreMetadataSnapshot} from "./src/storage"
+import {readMetadataSnapshot, readMetadataTree, restoreMetadataSnapshot} from "./src/storage"
+import {canonicalMetadataRoots} from "./src/roots"
 import {prepareCatalogSnapshot} from "./src/prepare"
 import {runCatalogWorker} from "./src/worker-client"
 import type {CatalogPreparation} from "./src/worker-protocol"
@@ -53,6 +54,7 @@ export default class ExternalStorybookRegistry {
   #cacheHits = 0
   #contractAnalysisSessions = 0
   #dependencyAnalysisSessions = 0
+  #trustedRoots: readonly string[] = []
   #metadataProject: Readonly<{root: string, name: string}> | undefined
   #fileSnapshot: {key: string, value: WeakRef<ExternalStorybookRegistrySnapshot>} | undefined
 
@@ -68,7 +70,7 @@ export default class ExternalStorybookRegistry {
       const key = `${info.ino}:${info.mtimeNs}:${info.size}`
       const previous = this.#fileSnapshot?.key === key ? this.#fileSnapshot.value.deref() : undefined
       if (previous !== undefined) return previous
-      const snapshot = readMetadataSnapshot(root, this.readAuthorStyleSheets)
+      const snapshot = readMetadataSnapshot(root, this.readAuthorStyleSheets, this.#trustedRoots)
       this.#fileSnapshot = {key, value: new WeakRef(snapshot)}
       return snapshot
     }
@@ -83,15 +85,29 @@ export default class ExternalStorybookRegistry {
 
   /** Открывает данные Project с ФС. Прежний формат переводится без повторного анализа; отсутствие данных или смена физического корня пересоздаёт индекс. */
   async open(project: Readonly<{root: string, name: string}>, roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot> {
+    const trustedRoots = canonicalMetadataRoots(roots)
     if (this.resolveCatalog !== undefined) {
-      await this.configure(roots)
-      await this.saveMetadata(project)
+      // Повторный open не обращается к прежнему снимку: состав мог отозвать его владельцев.
+      const catalog = roots.length === 0 ? emptyCatalog() : await this.#callResolver(roots)
+      let revision = 0
+      try {
+        const tree = readMetadataTree(project.root)
+        if (Number.isSafeInteger(tree.revision) && tree.revision >= 0) revision = tree.revision
+      } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error }
+      const previous = {revision, entries: [], catalog: emptyCatalog(), graph: createExternalStorybookGraph(emptyCatalog()), descriptors: []}
+      const prepared = prepareCatalogSnapshot(catalog, roots.map(() => "direct-package"), previous, this.readAuthorStyleSheets())
+      const snapshot = prepared.snapshot ?? {...previous, revision: previous.revision + 1}
+      const result = await this.#runWorker({kind: "save-metadata", project, trustedRoots, snapshot})
+      if (result.kind !== "metadata-saved") throw new Error("Catalog worker returned a different operation")
+      if (snapshot.graph.digest !== previous.graph.digest) this.#graphRebuilds += 1
     } else {
-      const result = await this.#runWorker({kind: "open-files", project, roots, sources: roots.map(() => "direct-package"), styles: this.readAuthorStyleSheets()})
+      const result = await this.#runWorker({kind: "open-files", project, roots, trustedRoots, sources: roots.map(() => "direct-package"), styles: this.readAuthorStyleSheets()})
       if (result.kind !== "files-ready") throw new Error("Catalog worker returned a different operation")
       if (result.discovered) this.#resolverCalls += 1
       if (result.graphChanged) this.#graphRebuilds += 1
     }
+    this.#trustedRoots = trustedRoots
+    this.#fileSnapshot = undefined
     this.#metadataProject = project
     this.#catalog = emptyCatalog()
     this.#graph = createExternalStorybookGraph(this.#catalog)
@@ -106,7 +122,7 @@ export default class ExternalStorybookRegistry {
       return {owners: this.snapshot().catalog.scopes.filter(scope => scope.kind === "package").length, changed: 0}
     }
     const result = await this.#runWorker(this.#metadataProject === undefined
-      ? {kind: "save-metadata", project, snapshot: this.snapshot()}
+      ? {kind: "save-metadata", project, trustedRoots: this.#trustedRoots, snapshot: this.snapshot()}
       : {kind: "rename-files", project})
     if (result.kind !== "metadata-saved") throw new Error("Catalog worker returned a different operation")
     if (this.#metadataProject !== undefined) this.#metadataProject = project
@@ -114,7 +130,10 @@ export default class ExternalStorybookRegistry {
   }
 
   async configure(roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot> {
-    return this.#resolve(roots, roots.map(() => "direct-package"))
+    const trustedRoots = Object.freeze(roots.map(root => resolve(root)))
+    const snapshot = await this.#resolve(roots, roots.map(() => "direct-package"))
+    if (this.#metadataProject === undefined) this.#trustedRoots = trustedRoots
+    return snapshot
   }
 
   async attach(input: string, attachSource: ExternalStorybookAttachSource = "cli"): Promise<ExternalStorybookRegistrySnapshot> {
@@ -264,7 +283,7 @@ export default class ExternalStorybookRegistry {
         const raw = roots.length === 0 ? emptyCatalog() : await this.#callResolver(roots, this.snapshot().catalog, options)
         return this.#accept(raw, sources)
       }
-      const result = await this.#runWorker({kind: "refresh-files", project: this.#metadataProject, roots, sources,
+      const result = await this.#runWorker({kind: "refresh-files", project: this.#metadataProject, roots, sources, trustedRoots: this.#trustedRoots,
         styles: this.readAuthorStyleSheets(), ...(options ?? {})})
       if (result.kind !== "files-ready") throw new Error("Catalog worker returned a different operation")
       if (result.discovered) this.#resolverCalls += 1
@@ -313,7 +332,7 @@ export default class ExternalStorybookRegistry {
       const before = this.snapshot()
       const prepared = prepareCatalogSnapshot(raw, sources, before, this.readAuthorStyleSheets())
       if (prepared.snapshot !== null) {
-        const result = await this.#runWorker({kind: "save-metadata", project: this.#metadataProject, snapshot: prepared.snapshot})
+        const result = await this.#runWorker({kind: "save-metadata", project: this.#metadataProject, trustedRoots: this.#trustedRoots, snapshot: prepared.snapshot})
         if (result.kind !== "metadata-saved") throw new Error("Catalog worker returned a different operation")
         if (before.graph.digest !== prepared.snapshot.graph.digest) this.#graphRebuilds += 1
       }
@@ -384,7 +403,8 @@ export default class ExternalStorybookRegistry {
 
   restore(snapshot: ExternalStorybookRegistrySnapshot): void {
     if (this.#metadataProject !== undefined) {
-      restoreMetadataSnapshot(this.#metadataProject.root, snapshot)
+      const trustedRoots = restoreMetadataSnapshot(this.#metadataProject.root, snapshot)
+      this.#trustedRoots = trustedRoots
       this.#fileSnapshot = undefined
       return
     }

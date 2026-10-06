@@ -4,9 +4,9 @@ import {prepareCatalogSnapshot} from "./prepare"
 import {emptyCatalog} from "./helpers"
 import type {CatalogWorkerInput, CatalogWorkerMessage} from "./worker-protocol"
 import {saveCatalogMetadata, renameMetadataProject} from "./metadata"
-import {readLegacyMetadata, readMetadataSnapshot} from "./storage"
+import {readLegacyMetadata, readMetadataSnapshot, readMetadataTree} from "./storage"
 import createGraph from "@zavx0z/storybook-package-graph-create"
-import {isAbsolute, join, relative, sep} from "node:path"
+import {MetadataRootNotTrusted} from "./roots"
 
 if (parentPort === null) throw new Error("Catalog worker requires a parent")
 const port = parentPort
@@ -16,29 +16,31 @@ try {
   if (input.kind === "rename-files") {
     send({type: "result", result: {kind: "metadata-saved", result: await renameMetadataProject(input.project)}})
   } else if (input.kind === "open-files" || input.kind === "refresh-files") {
-    const treeFile = Bun.file(join(input.project.root, "meta/data/tree.json"))
     const empty = {revision: 0, entries: [], catalog: emptyCatalog(), graph: createGraph(emptyCatalog()), descriptors: []}
     let previous = empty as Parameters<typeof prepareCatalogSnapshot>[2]
     let legacy: ReturnType<typeof readLegacyMetadata> | undefined
-    if (await treeFile.exists()) {
-      const tree = await treeFile.json()
+    let reusable = false
+    let previousDigest = previous.graph.digest
+    try {
+      const tree = readMetadataTree(input.project.root)
+      // Число версии и digest индекса не требуют доступа к прежним владельцам.
+      if (Number.isSafeInteger(tree.revision) && tree.revision >= 0) previous = {...empty, revision: tree.revision}
+      if (typeof tree.graphDigest === "string") previousDigest = tree.graphDigest
       if (tree.schemaVersion === 2) {
-        // meta/data — пересоздаваемый индекс. Старый физический корень после
-        // переноса Project не должен мешать запуску из текущего каталога.
-        const moved = Array.isArray(tree.entries) && tree.entries.some((entry: {declarationPath: string}) => {
-          const local = relative(input.project.root, entry.declarationPath)
-          return isAbsolute(local) || local === ".." || local.startsWith(`..${sep}`)
-        })
-        if (!moved) previous = readMetadataSnapshot(input.project.root, () => input.styles)
+        previous = readMetadataSnapshot(input.project.root, () => input.styles, input.trustedRoots)
+        reusable = true
       }
-      else legacy = readLegacyMetadata(input.project.root)
+      else legacy = readLegacyMetadata(input.project.root, input.trustedRoots)
+    } catch (error) {
+      if (!(error instanceof MetadataRootNotTrusted) && (error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+      // Отозванные корни не становятся previous: discover не читает их ленивые документы.
     }
     const existingRoots = legacy === undefined
       ? previous.entries.map(entry => entry.declarationPath)
       : legacy.rootIds.map(id => legacy!.scopes.find(scope => scope.canonicalId === id)!.scopeRoot)
     const sameRoots = JSON.stringify(existingRoots) === JSON.stringify(input.roots)
     let discovered = false
-    if (input.kind === "open-files" && sameRoots && legacy === undefined && previous.revision > 0) {
+    if (input.kind === "open-files" && sameRoots && legacy === undefined && reusable && previous.revision > 0) {
       await renameMetadataProject(input.project)
     } else {
       const catalog = input.kind === "open-files" && sameRoots && legacy !== undefined ? legacy
@@ -48,13 +50,13 @@ try {
         })
       discovered = catalog !== legacy && input.roots.length > 0
       const prepared = prepareCatalogSnapshot(catalog, input.sources, previous, input.styles)
-      if (prepared.snapshot !== null) await saveCatalogMetadata(input.project, prepared.snapshot)
-      else if (previous.revision === 0) await saveCatalogMetadata(input.project, {...previous, revision: 1})
+      if (prepared.snapshot !== null) await saveCatalogMetadata(input.project, prepared.snapshot, input.trustedRoots)
+      else if (!reusable || previous.revision === 0) await saveCatalogMetadata(input.project, {...previous, revision: previous.revision + 1}, input.trustedRoots)
     }
-    const current = readMetadataSnapshot(input.project.root, () => input.styles)
-    send({type: "result", result: {kind: "files-ready", discovered, graphChanged: current.graph.digest !== previous.graph.digest}})
+    const current = readMetadataSnapshot(input.project.root, () => input.styles, input.trustedRoots)
+    send({type: "result", result: {kind: "files-ready", discovered, graphChanged: current.graph.digest !== previousDigest}})
   } else if (input.kind === "save-metadata") {
-    send({type: "result", result: {kind: "metadata-saved", result: await saveCatalogMetadata(input.project, input.snapshot)}})
+    send({type: "result", result: {kind: "metadata-saved", result: await saveCatalogMetadata(input.project, input.snapshot, input.trustedRoots)}})
   } else {
     const previous = input.kind === "prepare" ? input.previous.catalog : input.previous
     const catalog = input.kind === "prepare" && input.catalog !== undefined ? input.catalog
