@@ -89,7 +89,6 @@ describe.each([{name: "Функция с контрактом", props: {path: "t
     method: "POST", body: JSON.stringify(props),
   }), {projectName, entries: [{
     path: props.path,
-    directory: owner,
     description: "Удаляет пробелы по краям текста.",
     parent: "text",
     sources: {

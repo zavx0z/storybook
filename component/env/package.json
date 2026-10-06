@@ -10,14 +10,5 @@
   "dependencies": {
     "@zavx0z/storybook-package-env": "workspace:*"
   },
-  "description": "Формирует декларацию окружения component: ссылки на правила, знания и инструменты без их исполнения",
-  "files": [
-    "contract",
-    "spec",
-    "index.ts",
-    "src"
-  ],
-  "devDependencies": {
-    "@zavx0z/storybook-package-resources-access": "workspace:*"
-  }
+  "description": "Формирует декларацию окружения component: ссылки на правила, знания и инструменты без их исполнения"
 }

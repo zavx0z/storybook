@@ -5,7 +5,9 @@
 
 @packageDocumentation
 */
-import access from "@zavx0z/storybook-package-resources-access"
+import {readFileSync, realpathSync, lstatSync, openSync, closeSync, fstatSync, constants} from "node:fs"
+import {pathToFileURL} from "node:url"
+import {isAbsolute, relative, sep} from "node:path"
 import type {StorybookAppEnvironmentBinding as Contract} from "./contract"
 export type {StorybookAppEnvironmentBinding} from "./contract"
 
@@ -13,10 +15,23 @@ export type {StorybookAppEnvironmentBinding} from "./contract"
 export default function bindTools({workspace, declaration, extensions = []}: Contract.Input): Contract.Output {
   const readOnly = new Set(["filesystem.stat", "filesystem.read", "filesystem.read-many", "filesystem.list", "git.status"])
   const tools: Contract.Output[number][] = Object.entries(declaration.tools).map(([name, source]) => {
-    const resources = access({directory: workspace.directory()})
-    const descriptionText = resources.read(source.description)
-    if (Buffer.byteLength(descriptionText) > 1_048_576) throw new Error(`Описание инструмента слишком большое: ${name}`)
-    const description: Record<string, unknown> = JSON.parse(descriptionText)
+    const root = workspace.directory()
+    const implementationPath = realpathSync(source.implementation.path)
+    const descriptionPath = realpathSync(source.description.path)
+    const local = relative(root, implementationPath)
+    const own = !isAbsolute(local) && local !== ".." && !local.startsWith(`..${sep}`)
+    const check = (path: string) => {
+      if (own) workspace.resolve(relative(root, path))
+      if (!lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) throw new Error(`Недоступен исходник инструмента: ${name}`)
+    }
+    check(implementationPath)
+    check(descriptionPath)
+    const fd = openSync(descriptionPath, constants.O_RDONLY | constants.O_NOFOLLOW)
+    let description: Record<string, unknown>
+    try {
+      if (fstatSync(fd).size > 1_048_576) throw new Error(`Описание инструмента слишком большое: ${name}`)
+      description = JSON.parse(readFileSync(fd, "utf8"))
+    } finally { closeSync(fd) }
     const schema = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value)
     if (!schema(description) || typeof description.description !== "string" || !schema(description.arguments) || !schema(description.result)) {
       throw new Error(`Описание инструмента должно содержать description, arguments и result: ${name}`)
@@ -29,10 +44,10 @@ export default function bindTools({workspace, declaration, extensions = []}: Con
       async execute(input, context) {
         context?.signal.throwIfAborted()
         workspace.directory()
-        const pending = implementation ??= resources.load(source.implementation).then(module => {
+        check(implementationPath)
+        const pending = implementation ??= import(pathToFileURL(implementationPath).href).then(module => {
           if (typeof module.default !== "function") throw new Error(`Инструмент не экспортирует функцию: ${name}`)
-          const run = module.default
-          return (input: unknown, workspace: Contract.Input["workspace"], context: unknown) => Reflect.apply(run, undefined, [input, workspace, context])
+          return module.default
         })
         let run: Awaited<typeof pending>
         try {

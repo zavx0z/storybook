@@ -9,7 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/storybook-app-knowledge-catalog": "workspace:*",
-    "@zavx0z/storybook-package-resources-access": "workspace:*"
+    "@zavx0z/storybook-app-knowledge-catalog": "workspace:*"
   }
 }

@@ -14,15 +14,5 @@
   },
   "devDependencies": {
     "@zavx0z/storybook-component": "workspace:*"
-  },
-  "files": [
-    "contract",
-    "test",
-    "spec",
-    "README.md",
-    "env",
-    "index.ts",
-    "src",
-    "meta/notes/environments.md"
-  ]
+  }
 }

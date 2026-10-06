@@ -2,6 +2,7 @@
 @packageDocumentation
 */
 import packageEnvironment from "@zavx0z/storybook-package-env"
+import {fileURLToPath} from "node:url"
 import type {StorybookRepoEnv as Contract} from "./contract"
 export type {StorybookRepoEnv} from "./contract"
 
@@ -11,17 +12,17 @@ export default function environment(input: Contract.Input = {}): Contract.Output
   if (Object.hasOwn(base.tools, "git.status")) throw new Error("Повтор имени инструмента: git.status")
   return {
     ...base,
-    rules: {...base.rules, "Роль специалиста": {package: "@zavx0z/storybook-repo-env", path: "src/initial.md"}},
+    rules: {...base.rules, "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))}},
     documents: {
-      "Роль специалиста": {package: "@zavx0z/storybook-repo-env", path: "src/initial.md"},
-      "Проектирование Repo": {package: "@zavx0z/storybook", path: "repo/src/design.md"},
+      "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))},
+      "Проектирование Repo": {path: fileURLToPath(new URL("../src/design.md", import.meta.url))},
 
-      "Архитектура Repo": {package: "@zavx0z/storybook", path: "repo/src/architecture.md"},
+      "Архитектура Repo": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url))},
       ...base.documents,
     },
     tools: {...base.tools, "git.status": {
-      implementation: {package: "@zavx0z/ai-git-status", export: "."},
-      description: {package: "@zavx0z/ai-git-status", path: "description.json"},
+      implementation: {path: fileURLToPath(import.meta.resolve("@zavx0z/ai-git-status"))},
+      description: {path: fileURLToPath(import.meta.resolve("@zavx0z/ai-git-status/description.json"))},
     }},
   }
 }

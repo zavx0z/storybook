@@ -2,6 +2,7 @@
 @packageDocumentation
 */
 import packageEnvironment from "@zavx0z/storybook-package-env"
+import {fileURLToPath} from "node:url"
 import type {StorybookDomainEnv as Contract} from "./contract"
 export type {StorybookDomainEnv} from "./contract"
 
@@ -10,11 +11,11 @@ export default function environment(input: Contract.Input = {}): Contract.Output
   const base = packageEnvironment(input)
   return {
     ...base,
-    rules: {...base.rules, "Роль специалиста": {package: "@zavx0z/storybook-domain-env", path: "src/initial.md"}},
+    rules: {...base.rules, "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))}},
     documents: {
-      "Роль специалиста": {package: "@zavx0z/storybook-domain-env", path: "src/initial.md"},
-      "Структура Domain": {package: "@zavx0z/storybook-domain", path: "src/architecture.md"},
-      "Средовые реализации Domain": {package: "@zavx0z/storybook-domain", path: "meta/notes/environments.md"},
+      "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))},
+      "Структура Domain": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url))},
+      "Средовые реализации Domain": {path: fileURLToPath(new URL("../meta/notes/environments.md", import.meta.url))},
       ...base.documents,
     },
   }

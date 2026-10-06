@@ -13,14 +13,5 @@
   },
   "devDependencies": {
     "@zavx0z/storybook-specs-guide": "workspace:*"
-  },
-  "files": [
-    "reader",
-    "contract",
-    "test",
-    "spec",
-    "README.md",
-    "index.ts",
-    "meta/notes/presentation.md"
-  ]
+  }
 }

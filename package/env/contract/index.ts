@@ -1,8 +1,8 @@
 
-/** Файловый источник внутри владельца; между Repo адресуется по имени пакета. */
-type Source = Readonly<{package?: string, path: string}>
+/** Точный файловый источник. Для npm-возможностей разрешается публичный export владельца. */
+type Source = Readonly<{path: string}>
 /** Реализация и подготовленное описание инструмента читаются исполнителем независимо. */
-type Tool = Readonly<{implementation: Readonly<{package: string, export: string}>, description: Source}>
+type Tool = Readonly<{implementation: Source, description: Source}>
 
 /** Ссылки окружения принадлежат источникам; декларация не содержит функций и текстов. */
 export declare namespace StorybookPackageEnv {

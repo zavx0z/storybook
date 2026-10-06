@@ -20,6 +20,7 @@ import type {CallEvent} from "./contract/events"
 import {inspectDescription, knowledgeDescription, protocol} from "./src/descriptions"
 import declaration from "@zavx0z/storybook-app-environment-declaration"
 import {readSource} from "./src/source"
+import {relative} from "node:path"
 import {failure, identity, object, readCommand, reply} from "./src/http"
 
 export type {StorybookAppEnvironment} from "./contract"
@@ -27,7 +28,6 @@ export type {StorybookAppEnvironment} from "./contract"
 type BoundAssignment = {
   executorId: string
   address: string
-  directory: string
   digest: string
   tools: ReturnType<typeof createEntityTools>
   declaration: ReturnType<typeof declaration>
@@ -93,7 +93,7 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
       if (args.path === root) return {path: root, description: "Документы окружения", children: documents.map(([key]) => ({path: `${root}/${encodeURIComponent(key)}`, description: key}))}
       const source = documents.find(([key]) => args.path === `${root}/${encodeURIComponent(key)}`)
       if (source !== undefined) {
-        const result = await readSource(source[1], assignment.directory)
+        const result = await readSource(source[1].path)
         assertActive(assignment)
         signal.throwIfAborted()
         return {path: args.path, ...result, children: []}
@@ -160,13 +160,13 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
         assertOpen()
         if (pending.get(executorId) !== reservation) throw new ToolError("UNAUTHORIZED", "Назначение отозвано до подготовки инструментов", 401)
         const inherited = await options.instructions?.({executorId, subject, inspectExecutors}) ?? []
-        const local = await Promise.all([...new Map(Object.values(declared.rules).map(source => [JSON.stringify(source), source])).values()].map(async source => {
-          const document = Object.entries(declared.documents).find(([, item]) => item.path === source.path && item.package === source.package)
+        const local = await Promise.all([...new Map(Object.values(declared.rules).map(source => [source.path, source])).values()].map(async source => {
+          const document = Object.entries(declared.documents).find(([, item]) => item.path === source.path)
           return {
             source: document === undefined
-              ? source.path
+              ? relative(subject.projectDirectory ?? subject.directory, source.path).split("\\").join("/")
               : `./environment/documents/${encodeURIComponent(document[0])}`,
-            ...await readSource(source, subject.directory),
+            ...await readSource(source.path),
           }
         }))
         const instructions = [...inherited, ...local]
@@ -198,7 +198,7 @@ export default function createEnvironment(options: Contract.Input): Contract.Out
         }
         const token = randomBytes(32).toString("base64url")
         const digest = createHash("sha256").update(token).digest("hex")
-        const assignment = {executorId, address, directory: subject.directory, digest, tools, declaration: declared, bootstrap: structuredClone(bootstrap), inspectExecutors}
+        const assignment = {executorId, address, digest, tools, declaration: declared, bootstrap: structuredClone(bootstrap), inspectExecutors}
         executors.set(executorId, assignment)
         grants.set(digest, assignment)
         return Object.freeze({token, bootstrap: structuredClone(bootstrap)})

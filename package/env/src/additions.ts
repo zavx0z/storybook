@@ -1,6 +1,5 @@
 import {lstatSync, readdirSync, readFileSync} from "node:fs"
-import {fileURLToPath} from "node:url"
-import {join, resolve, relative, sep} from "node:path"
+import {join, resolve} from "node:path"
 import type {StorybookPackageEnv as Contract} from "../contract"
 
 function exists(path: string) {
@@ -15,10 +14,10 @@ function directory(path: string): boolean {
   if (!info.isDirectory() || info.isSymbolicLink()) throw new Error(`Каталог окружения должен принадлежать пакету: ${path}`)
   return true
 }
-function file(path: string): string {
+function file(path: string): Contract.Output["rules"][string] {
   const info = exists(path)
   if (!info?.isFile() || info.isSymbolicLink()) throw new Error(`Отсутствует обычный исходник окружения: ${path}`)
-  return path
+  return {path}
 }
 
 /** Обнаруживает только собственные дополнения; содержимое и исполняемый код не читает. */
@@ -26,12 +25,11 @@ export function additions(root?: string): Contract.Output {
   const rules: Record<string, Contract.Output["rules"][string]> = {}
   const tools: Record<string, Contract.Output["tools"][string]> = {}
   if (root === undefined) return {rules, documents: {}, tools}
-  const assigned = resolve(fileURLToPath(new URL("../../../", import.meta.url)), root)
-  const base = join(assigned, ".agent")
+  const base = join(resolve(root), ".agent")
   if (!directory(base)) return {rules, documents: {}, tools}
   const ruleRoot = join(base, "rules")
   if (directory(ruleRoot)) for (const entry of readdirSync(ruleRoot, {withFileTypes: true}).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (entry.name.endsWith(".md")) rules[entry.name.slice(0, -3)] = {path: relative(assigned, file(join(ruleRoot, entry.name))).split(sep).join("/")}
+    if (entry.name.endsWith(".md")) rules[entry.name.slice(0, -3)] = file(join(ruleRoot, entry.name))
   }
   const toolRoot = join(base, "tools")
   if (directory(toolRoot)) for (const entry of readdirSync(toolRoot, {withFileTypes: true}).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -40,18 +38,17 @@ export function additions(root?: string): Contract.Output {
     if (!entry.isDirectory()) continue
     const owner = join(toolRoot, entry.name)
     const manifest = file(join(owner, "package.json"))
-    if (lstatSync(manifest).size > 1_048_576) throw new Error(`Слишком большой манифест инструмента: ${entry.name}`)
-    const metadata = JSON.parse(readFileSync(manifest, "utf8"))
-    if (typeof metadata.name !== "string" || metadata.exports?.["."] !== "./index.ts") {
-      throw new Error(`Инструмент ${entry.name} должен объявлять публичный index.ts`)
+    if (lstatSync(manifest.path).size > 1_048_576) throw new Error(`Слишком большой манифест инструмента: ${entry.name}`)
+    const metadata = JSON.parse(readFileSync(manifest.path, "utf8"))
+    if (typeof metadata.name !== "string" || metadata.exports?.["."] !== "./index.ts"
+      || metadata.exports?.["./description.json"] !== "./description.json") {
+      throw new Error(`Инструмент ${entry.name} должен объявлять публичные index.ts и description.json`)
     }
     directory(join(owner, "contract")) || missing(owner, "contract")
     file(join(owner, "contract/index.ts"))
     directory(join(owner, "spec")) || missing(owner, "spec")
     file(join(owner, "spec/scenario.spec.ts"))
-    file(join(owner, "index.ts"))
-    file(join(owner, "description.json"))
-    tools[entry.name] = {implementation: {package: `./.agent/tools/${entry.name}`, export: "."}, description: {package: `./.agent/tools/${entry.name}`, path: "description.json"}}
+    tools[entry.name] = {implementation: file(join(owner, "index.ts")), description: file(join(owner, "description.json"))}
   }
   return {rules, documents: {}, tools}
 }

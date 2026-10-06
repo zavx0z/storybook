@@ -11,14 +11,5 @@
     "@zavx0z/storybook-package-env": "workspace:*",
     "@zavx0z/ai-git-status": "link:@zavx0z/ai-git-status"
   },
-  "description": "Формирует декларацию окружения repo: ссылки на правила, знания и инструменты без их исполнения",
-  "files": [
-    "contract",
-    "spec",
-    "index.ts",
-    "src"
-  ],
-  "devDependencies": {
-    "@zavx0z/storybook-package-resources-access": "workspace:*"
-  }
+  "description": "Формирует декларацию окружения repo: ссылки на правила, знания и инструменты без их исполнения"
 }

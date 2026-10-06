@@ -20,17 +20,5 @@
   },
   "devDependencies": {
     "@zavx0z/storybook-specs-scenarios-reader": "workspace:*"
-  },
-  "files": [
-    "contract",
-    "test",
-    "spec",
-    "bunfig.toml",
-    "README.md",
-    "env",
-    "tsconfig.json",
-    "index.ts",
-    "src",
-    "meta/notes/draft-contracts.md"
-  ]
+  }
 }

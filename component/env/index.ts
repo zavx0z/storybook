@@ -2,6 +2,7 @@
 @packageDocumentation
 */
 import packageEnvironment from "@zavx0z/storybook-package-env"
+import {fileURLToPath} from "node:url"
 import type {StorybookComponentEnv as Contract} from "./contract"
 export type {StorybookComponentEnv} from "./contract"
 
@@ -10,12 +11,12 @@ export default function environment(input: Contract.Input = {}): Contract.Output
   const base = packageEnvironment(input)
   return {
     ...base,
-    rules: {...base.rules, "Роль специалиста": {package: "@zavx0z/storybook-component-env", path: "src/initial.md"}},
+    rules: {...base.rules, "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))}},
     documents: {
-      "Роль специалиста": {package: "@zavx0z/storybook-component-env", path: "src/initial.md"},
-      "Размещение и ответственность Component": {package: "@zavx0z/storybook-component", path: "src/architecture.md"},
-      "Границы проверки Component": {package: "@zavx0z/storybook-component", path: "meta/notes/verification.md"},
-      "Принадлежность представлений Component": {package: "@zavx0z/storybook-component", path: "meta/notes/presentation-ownership.md"},
+      "Роль специалиста": {path: fileURLToPath(new URL("./src/initial.md", import.meta.url))},
+      "Размещение и ответственность Component": {path: fileURLToPath(new URL("../src/architecture.md", import.meta.url))},
+      "Границы проверки Component": {path: fileURLToPath(new URL("../meta/notes/verification.md", import.meta.url))},
+      "Принадлежность представлений Component": {path: fileURLToPath(new URL("../meta/notes/presentation-ownership.md", import.meta.url))},
       ...base.documents,
     },
   }

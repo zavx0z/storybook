@@ -19,15 +19,5 @@
     "@zavx0z/ai-filesystem-rename": "link:@zavx0z/ai-filesystem-rename",
     "@zavx0z/ai-filesystem-apply-patch": "link:@zavx0z/ai-filesystem-apply-patch"
   },
-  "description": "Формирует декларацию окружения package: ссылки на правила, знания и инструменты без их исполнения",
-  "files": [
-    "contract",
-    "test",
-    "spec",
-    "index.ts",
-    "src"
-  ],
-  "devDependencies": {
-    "@zavx0z/storybook-package-resources-access": "workspace:*"
-  }
+  "description": "Формирует декларацию окружения package: ссылки на правила, знания и инструменты без их исполнения"
 }

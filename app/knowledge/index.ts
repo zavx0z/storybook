@@ -86,7 +86,7 @@ export default async function storybookRest(request: StorybookAppKnowledge.Input
         const sources = selected.sources
         const declaration = entityEnv[verification.type]({...(selected.directory === undefined ? {} : {directory: selected.directory}), sources})
         return Response.json({...navigation({path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}), description: selected.description, entries}),
-          ...await content(sources, declaration.documents, selected.directory), verification})
+          ...await content(sources, declaration.documents), verification})
       }
       return Response.json({
         ...navigation({path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}), description: selected.description, entries}),
@@ -97,7 +97,7 @@ export default async function storybookRest(request: StorybookAppKnowledge.Input
     }
     const sources = selected.sources
     return Response.json({...navigation({path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}), description: selected.description, entries}),
-      ...await content(sources, readPackageMcp({...(selected.directory === undefined ? {} : {directory: selected.directory}), sources}).documents, selected.directory)})
+      ...await content(sources, readPackageMcp({...(selected.directory === undefined ? {} : {directory: selected.directory}), sources}).documents)})
   } catch (error) {
     return Response.json({status: "failed", error: error instanceof Error ? error.message : String(error)},
       {status: error instanceof TypeError ? 400 : 404})

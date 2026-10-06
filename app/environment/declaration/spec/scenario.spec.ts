@@ -9,7 +9,7 @@ describe.each([
   const result = declaration(props)
   test("Файловые возможности", () => {
     expect(result.tools["filesystem.read"], "Каждый предмет получает ссылку на стандартный файловый инструмент")
-      .toEqual({implementation: {package: "@zavx0z/ai-filesystem-read", export: "."}, description: {package: "@zavx0z/ai-filesystem-read", path: "description.json"}})
+      .toEqual({implementation: {path: expect.any(String)}, description: {path: expect.any(String)}})
   })
   test("Git-граница", () => {
     expect(Object.hasOwn(result.tools, "git.status"), "Собственную операцию Git объявляет Repo; другие предметы не получают её по имени каталога")
@@ -17,6 +17,6 @@ describe.each([
   })
   test("Источники знаний", () => {
     expect(Object.values(result.documents), "Приложение выбирает декларацию владельца и сохраняет ссылки до обращения к знаниям")
-      .toEqual(expect.arrayContaining([{package: "@zavx0z/storybook", path: "package/src/architecture.md"}]))
+      .toEqual(expect.arrayContaining([{path: expect.stringContaining("/src/architecture.md")}]))
   })
 })

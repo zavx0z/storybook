@@ -14,11 +14,5 @@
   "scripts": {
     "test": "bun test ./spec",
     "typecheck": "tsc --project tsconfig.json --pretty false"
-  },
-  "files": [
-    "contract",
-    "spec",
-    "tsconfig.json",
-    "index.ts"
-  ]
+  }
 }

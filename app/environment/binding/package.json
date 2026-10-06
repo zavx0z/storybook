@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "@zavx0z/storybook-package-env": "workspace:*",
-    "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
-    "@zavx0z/storybook-package-resources-access": "workspace:*"
+    "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace"
   },
   "description": "Связывает ссылки декларации с инструментами назначенной области"
 }
