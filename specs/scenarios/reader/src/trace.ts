@@ -84,7 +84,7 @@ export async function traceScenario(input: StorybookSpecsScenariosReader.Input):
     input.signal?.throwIfAborted()
     input.onProgress?.({phase: "running"})
     const child = Bun.spawn({
-      cmd: [process.execPath, "test", "--reporter=junit", "--reporter-outfile", reportPath, "--preload", resolve(import.meta.dir, "trace-preload.ts"), path,
+      cmd: [process.execPath, "test", "--timeout", "0", "--reporter=junit", "--reporter-outfile", reportPath, "--preload", resolve(import.meta.dir, "trace-preload.ts"), path,
         ...(input.testNamePattern === undefined ? [] : ["--test-name-pattern", input.testNamePattern])],
       cwd: configuration.cwd,
       env,

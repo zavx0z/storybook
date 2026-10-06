@@ -33,8 +33,16 @@ export function setRunProps(props: Readonly<Record<string, unknown>> | undefined
 
 /** Подставляет поля строки each в шаблон названия без изменения таблицы. */
 function renderName(template: unknown, values: readonly unknown[]): string {
-  const name = String(template)
   const first = values[0]
+  const arguments_ = Array.isArray(first) ? first : values
+  let argument = 0
+  // Bun подставляет в %s только строки; остальные значения оставляют маркер.
+  const name = String(template).replace(/%%|%[sdifjop#]/g, marker => {
+    if (marker === "%%") return "%"
+    if (marker === "%#") return marker
+    const value = arguments_[argument++]
+    return marker === "%s" && typeof value === "string" ? value : marker
+  })
   if (typeof first !== "object" || first === null) return name
   return name.replace(/\$([\w.]+)/g, (_, path: string) => {
     let current: unknown = first

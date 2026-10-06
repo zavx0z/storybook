@@ -92,6 +92,7 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
   })
   let hostRevision = "a"
   const sockets: FakeSocket[] = []
+  let nextSocket = Promise.withResolvers<FakeSocket>()
   const hostReaders: string[] = []
   const navigationTargets: Readonly<{
     packageId: string | null
@@ -125,6 +126,9 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
       const socket = new FakeSocket()
       socket.url = url
       sockets.push(socket)
+      const created = nextSocket
+      nextSocket = Promise.withResolvers<FakeSocket>()
+      created.resolve(socket)
       return socket
     },
     prepareTarget: async input => {
@@ -138,6 +142,11 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     loadAppliedRevision: async (_packageId, revision) => payload(revision),
   })
   return {page, state, location, history, sockets, hostReaders, navigationTargets,
+    nextSocket: async () => {
+      const socket = await nextSocket.promise
+      await socket.listening.promise
+      return socket
+    },
     replayHost(socket: FakeSocket) {
       socket.emit("message", {data: JSON.stringify({type: "shared.updated", host: sharedHost()})})
     },
@@ -149,6 +158,7 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
 }
 
 class FakeSocket {
+  readonly listening = Promise.withResolvers<void>()
   url = ""
   sent: string[] = []
   closed = false
@@ -158,6 +168,7 @@ class FakeSocket {
     const listeners = this.listeners.get(type) ?? new Set()
     listeners.add(listener)
     this.listeners.set(type, listeners)
+    if (type === "message") this.listening.resolve()
   }
 
   removeEventListener(type: string, listener: (event: any) => void): void {
@@ -491,6 +502,7 @@ describe("Переходы и обновления одной страницы",
         await expect(currentBridge().call("applyRevision", {
           expectedPackageId: packageId, revision: "revision-b",
         })).rejects.toThrow("new platform mount failed")
+        await expect(fixture.page.whenSettled()).rejects.toThrow("new platform mount failed")
         expect(await currentBridge().call("identity")).toMatchObject({packageId, revision: "revision-a"})
         expect(fixture.page.shell.canvas).toBe(canvas)
         expect(fixture.state.lifecycle).toEqual([
@@ -576,10 +588,7 @@ describe("Переходы и обновления одной страницы",
       expect(home.textContent).toBe("Fixture Project")
       expect(home.hasAttribute("disabled")).toBeFalse()
       home.click()
-      const deadline = Date.now() + 5000
-      while ((fixture.page.packageId !== null || fixture.location.pathname !== "/") && Date.now() < deadline) {
-        await new Promise(resolve => setTimeout(resolve, 10))
-      }
+      await fixture.page.whenSettled()
       expect(fixture.navigationTargets).toEqual([{packageId: null, route: "/"}])
       expect(fixture.page.packageId).toBeNull()
       expect(fixture.location.pathname).toBe("/")
@@ -610,10 +619,7 @@ describe("Переходы и обновления одной страницы",
       first.page.shell.workbench.elements.catalogItems.scrollTop = 31
       second.page.shell.workbench.elements.catalogItems.scrollTop = 67
       for (const fixture of fixtures) fixture.updateHost()
-      const deadline = Date.now() + 5000
-      while (fixtures.some((fixture, index) => fixture.page.shell === before[index]!.shell) && Date.now() < deadline) {
-        await new Promise(resolve => setTimeout(resolve, 10))
-      }
+      await Promise.all(fixtures.map(fixture => fixture.page.whenSettled()))
       for (const [index, fixture] of fixtures.entries()) {
         expect(fixture.page.shell).not.toBe(before[index]!.shell)
         expect(fixture.page.shell.document).toBe(before[index]!.document)
@@ -644,13 +650,13 @@ describe("Переходы и обновления одной страницы",
       const socket = fixture.sockets.at(-1)!
       socket.close()
       fixture.updateHost(false)
+      const reconnected = fixture.nextSocket()
       socket.emit("close", {})
-      const deadline = Date.now() + 5000
-      while (fixture.sockets.at(-1) === socket && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
+      await reconnected
       expect(fixture.sockets.at(-1)).not.toBe(socket)
       fixture.sockets.at(-1)!.emit("open", {})
       fixture.replayHost(fixture.sockets.at(-1)!)
-      while (fixture.page.shell === shell && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
+      await fixture.page.whenSettled()
       expect(fixture.page.shell).not.toBe(shell)
       expect(fixture.hostReaders.at(-1)).toBe("reader-1")
       expect(new Set(fixture.sockets.map(socket => socket.url)).size).toBe(fixture.sockets.length)

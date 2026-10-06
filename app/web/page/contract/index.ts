@@ -91,6 +91,8 @@ export declare namespace StorybookAppWebPage {
 
   @property navigateLanding - Заменяет package scope landing scope без замены shell.
 
+  @property whenSettled - Завершение запущенных переходов, включая обновления из соединения; отклоняется с причиной ошибки.
+
   @property dispose - Abort-ит transition, освобождает текущий scope, styles, bridge и затем shell.
   */
   type Output = Readonly<{
@@ -99,6 +101,7 @@ export declare namespace StorybookAppWebPage {
     get route(): string
     navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
     navigateLanding(pathname?: string): Promise<void>
+    whenSettled(): Promise<void>
     dispose(): Promise<void>
   }>
 }

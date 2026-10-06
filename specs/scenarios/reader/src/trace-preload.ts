@@ -56,13 +56,22 @@ bunTest.afterAll(async () => {
   process.send?.({type: "storybook:assertions", assertions: await readAssertions()})
   process.send?.({type: "storybook:records", ...await readRecords()})
   await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("Не получен IPC ack")), 5_000)
-    process.once("message", message => {
-      if (typeof message === "object" && message !== null && Reflect.get(message, "type") === "storybook:trace-ack") {
-        clearTimeout(timeout)
-        resolve()
-      }
-    })
-    process.send?.({type: "storybook:trace-complete"})
+    const cleanup = () => {
+      process.removeListener("message", onMessage)
+      process.removeListener("disconnect", onDisconnect)
+    }
+    const onMessage = (message: unknown) => {
+      if (typeof message !== "object" || message === null || Reflect.get(message, "type") !== "storybook:trace-ack") return
+      cleanup()
+      resolve()
+    }
+    const onDisconnect = () => {
+      cleanup()
+      reject(new Error("IPC соединение закрыто до подтверждения отчёта"))
+    }
+    process.on("message", onMessage)
+    process.once("disconnect", onDisconnect)
+    if (!process.connected || process.send === undefined) onDisconnect()
+    else process.send({type: "storybook:trace-complete"})
   })
 })

@@ -99,6 +99,7 @@ async function startExternalStorybookPage(
   let disposed = false
   let replacement: ExternalStorybookPageController | null = null
   let transitionTail: Promise<void> = Promise.resolve()
+  let transitionResult = transitionTail
   let activeAddress = `${location.pathname}${new URL(location.href).search}${new URL(location.href).hash}`
 
   const loadPayload = async (
@@ -528,6 +529,7 @@ async function startExternalStorybookPage(
       }) : await prepareTarget({packageId: null, route: current.target.pathname, intent: "navigation"}, pageLifetime.signal)
       await replacePage(target, payload, null, nextHost)
     })
+    transitionResult = operation
     transitionTail = operation.catch(() => {})
     return operation
   }
@@ -559,6 +561,7 @@ async function startExternalStorybookPage(
           pending?.dispose()
         }
       })
+    transitionResult = operation
     transitionTail = operation.catch(() => {})
     return operation
   }
@@ -592,6 +595,7 @@ async function startExternalStorybookPage(
       })
       await installPrepared(target, payload, null)
     })
+    transitionResult = operation
     transitionTail = operation.catch(() => {})
     return operation
   }
@@ -671,6 +675,16 @@ async function startExternalStorybookPage(
   }
   globalThis.addEventListener?.("popstate", onPopState)
 
+  /** Возвращает результат запущенных переходов, включая ошибку обновления из socket. */
+  const whenSettled = async (): Promise<void> => {
+    let pending: Promise<void>
+    do {
+      pending = transitionResult
+      await pending
+    } while (pending !== transitionResult)
+    if (replacement !== null) await replacement.whenSettled()
+  }
+
   const dispose = async (): Promise<void> => {
     if (disposed) return
     disposed = true
@@ -702,6 +716,7 @@ async function startExternalStorybookPage(
     },
     navigatePackage,
     navigateLanding,
+    whenSettled,
     dispose,
   })
 }
