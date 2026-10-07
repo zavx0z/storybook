@@ -171,6 +171,7 @@ export default async function startExternalStorybookServer(
     const payload = JSON.stringify(browserEvent)
     let delivered = 0
     for (const client of clients) {
+      if (client.data.capsuleViewer) continue
       if (!matchesSubscription(client.data.subscriptions, event)) continue
       if (event.type === "shared.updated" && !canRefreshSharedHost(client.data.grant)) continue
       try {
@@ -541,8 +542,27 @@ export default async function startExternalStorybookServer(
         }
         if (url.pathname.startsWith("/api/browser/chat/")) {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: request.method !== "GET"})
-          browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+          const grant = browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+          if (url.pathname === "/api/browser/chat/capsule-viewer-open" && grant.kind !== "registry") {
+            return responseJson({error: "Viewer доступен из общей страницы"}, 403)
+          }
           return await chat.request(request)
+        }
+        if (url.pathname === "/api/browser/capsule-viewer") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+          if (request.method !== "GET" || request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+            return responseJson({error: "Нужен WebSocket viewer"}, 426)
+          }
+          if ([...url.searchParams.keys()].some(key => key !== "ticket" && key !== "peer") ||
+            url.searchParams.getAll("ticket").length !== 1 || url.searchParams.getAll("peer").length !== 1) {
+            return responseJson({error: "Некорректный адрес viewer"}, 400)
+          }
+          const capsuleViewer = await chat.capsuleViewer.consume(url.searchParams.get("ticket")!, url.searchParams.get("peer")!, request.signal)
+          try {
+            if (currentServer.upgrade(request, {data: {capsuleViewer}})) return
+          } catch (error) {await capsuleViewer.close(); throw error}
+          await capsuleViewer.close()
+          return responseJson({error: "WebSocket viewer не подключён"}, 400)
         }
         if (url.pathname === "/api/events") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
@@ -1232,12 +1252,18 @@ export default async function startExternalStorybookServer(
       }
     },
     websocket: {
-      maxPayloadLength: STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES,
+      maxPayloadLength: 65_536,
       open(websocket) {
+        if (websocket.data.capsuleViewer) {websocket.data.capsuleViewer.attach(websocket); return}
         clients.add(websocket)
       },
       async message(websocket, message) {
+        if (websocket.data.capsuleViewer) {websocket.data.capsuleViewer.message(message); return}
         try {
+          if ((typeof message === "string" ? Buffer.byteLength(message) : message.byteLength) > STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES) {
+            websocket.close(1009, "Storybook WebSocket message is too large")
+            return
+          }
           const source = typeof message === "string" ? message : new TextDecoder().decode(message)
           if (new TextEncoder().encode(source).byteLength > STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES) {
             throw new Error("Storybook WebSocket message is too large")
@@ -1304,6 +1330,7 @@ export default async function startExternalStorybookServer(
         }
       },
       close(websocket) {
+        if (websocket.data.capsuleViewer) {void websocket.data.capsuleViewer.close(); return}
         for (const unsubscribe of websocket.data.unsubscribers.values()) unsubscribe()
         websocket.data.unsubscribers.clear()
         if (websocket.data.grant.kind === "package") {

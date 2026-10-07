@@ -56,10 +56,13 @@ describe.each([{name: "Настройки среды", props: {
   test("Компактные действия только после изменения", async () => {
     ;([...element.querySelectorAll('button[role="tab"]')].find(item => item.textContent === "Провайдеры") as HTMLButtonElement).click()
     await headless.capture(element)
-    expect(element.querySelector("input"), "Сохранённые провайдеры показаны свёрнутыми панелями").toBeNull()
-    ;([...element.querySelectorAll("button")].find(item => item.textContent === "Codex · Codex") as HTMLButtonElement).click()
+    expect(element.querySelector("input[type=text]"), "Свёрнутые подключения не показывают поля редактирования").toBeNull()
+    ;([...element.querySelectorAll("button")].find(item => item.textContent === "Codex") as HTMLButtonElement).click()
     await headless.capture(element)
-    const input = element.querySelector('input') as HTMLInputElement
+    expect((element.querySelector('input[type="checkbox"]') as HTMLInputElement).checked, "Подключение включается чекбоксом в заголовке").toBe(true)
+    ;(element.querySelector('button[aria-label="Развернуть Codex"]') as HTMLButtonElement).click()
+    await headless.capture(element)
+    const input = element.querySelector('[data-provider-connection="codex"] input[type="text"]') as HTMLInputElement
     input.value = "Рабочий Codex"
     input.dispatchEvent(new InputEvent("input", {bubbles: true}))
     await headless.capture(element)
@@ -68,17 +71,17 @@ describe.each([{name: "Настройки среды", props: {
     expect(save.getBoundingClientRect().width, "Основное действие имеет ширину содержимого, а не растягивается на окно").toBeLessThan(200)
     ;([...element.querySelectorAll("button")].find(item => item.textContent === "Отменить") as HTMLButtonElement).click()
     await headless.capture(element)
-    expect((element.querySelector("input") as HTMLInputElement).value, "Отмена возвращает сохранённое имя без запроса к серверу").toBe("Codex")
+    expect((element.querySelector('[data-provider-connection="codex"] input[type="text"]') as HTMLInputElement).value, "Отмена возвращает сохранённое имя без запроса к серверу").toBe("Codex")
   })
   test("Новое подключение Ollama", async () => {
-    ;([...element.querySelectorAll("button")].find(item => item.textContent === "Добавить Ollama") as HTMLButtonElement).click()
+    ;(element.querySelector('button[aria-label="Добавить Ollama"]') as HTMLButtonElement).click()
     await headless.capture(element)
     const card = element.querySelector('[data-provider-connection="ollama"]')!
     const api = card.querySelectorAll("input")[1] as HTMLInputElement
     api.value = "http://ai-srv:11434"
     api.dispatchEvent(new InputEvent("input", {bubbles: true}))
     await headless.capture(element)
-    const probe = [...card.querySelectorAll("button")].find(item => item.textContent === "Проверить подключение") as HTMLButtonElement
+    const probe = card.closest('[data-panel]')!.querySelector('button[aria-label="Проверить подключение"]') as HTMLButtonElement
     expect(probe.disabled, "Несохранённый адрес не отправляется серверу при проверке подключения").toBe(true)
     ;([...element.querySelectorAll("button")].find(item => item.textContent === "Сохранить") as HTMLButtonElement).click()
     await headless.capture(element)
@@ -99,8 +102,10 @@ describe.each([{name: "Настройки среды", props: {
   })
   test("SSH-подключение", async () => {
     const card = element.querySelector('[data-provider-connection="ollama"]')!
-    const toggle = card.querySelectorAll('button[role="switch"]')[1] as HTMLButtonElement
+    const toggle = card.querySelector('input[type="checkbox"]') as HTMLInputElement
     toggle.click()
+    await headless.capture(element)
+    ;([...card.querySelectorAll("button")].find(item => item.textContent === "SSH") as HTMLButtonElement).click()
     await headless.capture(element)
     const fields = card.querySelectorAll('[aria-label="SSH"] input')
     for (const [index, value] of ["ai-srv-origin", "developer", "2222"].entries()) {
@@ -119,11 +124,12 @@ describe.each([{name: "Настройки среды", props: {
   })
 
   test("Capsule с готовым профилем", async () => {
-    const add = [...element.querySelectorAll("button")].find(item => item.textContent === "Добавить Capsule") as HTMLButtonElement
+    const add = element.querySelector('button[aria-label="Добавить Capsule"]') as HTMLButtonElement
     add.click()
     await headless.capture(element)
     const card = element.querySelector('[data-provider-connection="capsule"]')!
-    expect(card.textContent, "Подключение использует уже запущенный профиль локального Studio").toContain("Capsule на этом компьютере")
+    expect(card.querySelector("video"), "Новое несохранённое подключение не открывает видеосессию").toBeNull()
+    expect(card.textContent, "Просмотр профиля находится внутри подключения Capsule").toContain("Браузер")
     const fields = card.querySelector('[aria-label="Подключение Capsule"]')!
     const address = fields.querySelectorAll("input")[0] as HTMLInputElement
     expect(address.value, "Форма предлагает адрес локального Capsule Studio").toBe("http://127.0.0.1:17777")
@@ -137,7 +143,7 @@ describe.each([{name: "Настройки среды", props: {
     service.value = "deepseek"
     service.dispatchEvent(new Event("change", {bubbles: true}))
     await headless.capture(element)
-    const probe = [...card.querySelectorAll("button")].find(item => item.textContent === "Проверить подключение") as HTMLButtonElement
+    const probe = card.closest('[data-panel]')!.querySelector('button[aria-label="Проверить подключение"]') as HTMLButtonElement
     expect(probe.disabled, "Проверка возможностей доступна после сохранения профиля и сервиса").toBe(true)
     const save = [...element.querySelectorAll("button")].find(item => item.textContent === "Сохранить") as HTMLButtonElement
     save.click()
@@ -161,10 +167,12 @@ describe.each([{name: "Настройки среды", props: {
 
   test("Capsule на другой машине", async () => {
     const card = element.querySelector('[data-provider-connection="capsule"]')!
-    const toggle = card.querySelectorAll('button[role="switch"]')[1] as HTMLButtonElement
+    const toggle = card.querySelector('input[type="checkbox"]') as HTMLInputElement
     toggle.click()
     await headless.capture(element)
-    expect(card.textContent).toContain("Адрес Studio относится к этой машине")
+    ;([...card.querySelectorAll("button")].find(item => item.textContent === "SSH") as HTMLButtonElement).click()
+    await headless.capture(element)
+    expect(card.querySelector('[aria-label="Удалённое исполнение Capsule"]'), "SSH раскрывает параметры исполнения на другой машине").not.toBeNull()
     const fields = card.querySelectorAll('[aria-label="Удалённое исполнение Capsule"] input')
     for (const [index, value] of ["mesh-production1", "admin", "22", "/Users/admin/repozitarium/provider", "/Users/admin/.local/share/zavx0z/provider", "capsule-qwen"].entries()) {
       const input = fields[index] as HTMLInputElement

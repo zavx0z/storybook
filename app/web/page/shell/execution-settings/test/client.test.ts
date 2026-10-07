@@ -56,3 +56,19 @@ test("сохранение подключения обновляет катал�
   await client.options("ollama")
   expect(probes).toBe(2)
 })
+
+test("viewer отправляет только сохранённый connectionId и отменяется вместе с разделом браузера", async () => {
+  const requests: {url: string, body: string, signal: AbortSignal | null | undefined}[] = []
+  const client = createSettingsClient(Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({url: String(input), body: String(init?.body), signal: init?.signal})
+    return Response.json(String(input).endsWith("registry-session") ? {readerToken: "test"}
+      : {instanceId: "active", profile: "work", socketPath: "/api/browser/capsule-viewer?ticket=private"})
+  }, {preconnect() {}}), new AbortController().signal)
+  const controller = new AbortController()
+  expect(await client.openCapsuleViewer("qwen", controller.signal)).toMatchObject({instanceId: "active", profile: "work"})
+  expect(requests[1]).toMatchObject({url: "/api/browser/chat/capsule-viewer-open", body: '{"connectionId":"qwen"}'})
+  controller.abort()
+  expect(requests[1]!.signal?.aborted).toBeTrue()
+  await expect(client.openCapsuleViewer("qwen", controller.signal)).rejects.toThrow()
+  expect(requests).toHaveLength(2)
+})

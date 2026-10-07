@@ -1,5 +1,7 @@
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 
+export type CapsuleViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string}>
+
 type SettingsDocument = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 type Settings = NonNullable<Awaited<ReturnType<StorybookChatSession.Output["read"]>>["settings"]>
@@ -8,18 +10,20 @@ type Settings = NonNullable<Awaited<ReturnType<StorybookChatSession.Output["read
 export function createSettingsClient(fetcher: typeof fetch, signal: AbortSignal) {
   const catalog = new Map<string, {expires: number, value: Promise<Settings>}>()
   let probes = Promise.resolve()
-  const post = async <T,>(operation: string, body: object): Promise<T> => {
-    const grant = await fetcher("/api/browser/registry-session", {method: "POST", headers: {"content-type": "application/json"}, body: "{}", signal})
+  const post = async <T,>(operation: string, body: object, requestSignal: AbortSignal = signal): Promise<T> => {
+    requestSignal.throwIfAborted()
+    const grant = await fetcher("/api/browser/registry-session", {method: "POST", headers: {"content-type": "application/json"}, body: "{}", signal: requestSignal})
     if (!grant.ok) throw new Error("Не удалось открыть настройки. Обновите страницу")
     const {readerToken} = await grant.json()
     if (typeof readerToken !== "string" || !readerToken) throw new Error("Сервер не предоставил доступ к настройкам")
     const response = await fetcher(`/api/browser/chat/${operation}`, {method: "POST",
-      headers: {"content-type": "application/json", "x-storybook-session": readerToken}, body: JSON.stringify(body), signal})
+      headers: {"content-type": "application/json", "x-storybook-session": readerToken}, body: JSON.stringify(body), signal: requestSignal})
     const result = await response.json()
     if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : "Не удалось выполнить действие в настройках")
     return result as T
   }
   return {
+    openCapsuleViewer: (connectionId: string, viewerSignal: AbortSignal) => post<CapsuleViewerDescriptor>("capsule-viewer-open", {connectionId}, AbortSignal.any([signal, viewerSignal])),
     read: () => post<SettingsDocument>("execution-settings", {}),
     async save(settings: SettingsDocument) {
       const saved = await post<SettingsDocument>("execution-settings-save", {settings})

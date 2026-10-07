@@ -1,12 +1,14 @@
+import plusIcon from "@zavx0z/immersive-ui-theme-icon-plus"
+import checkIcon from "@zavx0z/immersive-ui-theme-icon-apply"
 import {useEffect, useRef, useState} from "@zavx0z/immersive-component"
 import Button from "@zavx0z/immersive-ui-component-button-basic"
 import Panel from "@zavx0z/immersive-ui-component-surface-panel"
-import SwitchField from "@zavx0z/immersive-ui-component-field-switch"
 import TextField from "@zavx0z/immersive-ui-component-field-text"
 import SelectField from "@zavx0z/immersive-ui-component-field-select"
 import Preferences from "@zavx0z/storybook-chat-preferences"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import {createSettingsClient} from "./client"
+import {CapsuleBrowser} from "./capsule-browser"
 
 type SettingsDocument = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>
 type Connection = SettingsDocument["connections"][number]
@@ -70,16 +72,18 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
     finally {if (alive.current) setBusy(false)}
   }
   return <section data-provider-settings="" style={css`
+    background: #303030;
+
     display: flex;
     flex-direction: column;
     height: 100%;
     min-height: 0;
     box-sizing: border-box;
     width: 100%;
-    max-width: 680px;
+    max-width: 600px;
     margin-inline: auto;
-    padding: 20px;
-    gap: 20px;
+    padding: 8px;
+    gap: 8px;
   `}>
     <div role="tablist" aria-label="Раздел настроек" style={css`
       display: flex;
@@ -92,7 +96,7 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
         selected={tab === "defaults"}
         aria-selected={tab === "defaults"}
         variant="text"
-        size="large"
+        size="small"
         onClick={() => setTab("defaults")}
       />
       <Button
@@ -101,7 +105,7 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
         selected={tab === "connections"}
         aria-selected={tab === "connections"}
         variant="text"
-        size="large"
+        size="small"
         onClick={() => setTab("connections")}
       />
     </div>
@@ -115,7 +119,7 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
         flex-direction: column;
         width: 100%;
         max-width: 600px;
-        gap: 20px;
+        gap: 8px;
       `}>
         {tab === "connections" ? <Connections document={draft} saved={saved} busy={busy} client={props.client} onChange={change} />
           : <Defaults document={draft} saved={saved} busy={busy} client={props.client} onChange={change} />}
@@ -161,32 +165,85 @@ function Connections(props: ConnectionsProps) {
     style={css`
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 4px;
     `}
   >
-    {props.document.connections.map(connection => (
-      <ConnectionCard
-        key={connection.id}
-        connection={connection}
-        saved={props.saved.connections.find(item => item.id === connection.id)}
+    {(["codex", "ollama", "capsule"] as const).map(provider => (
+      <ProviderGroup
+        key={provider}
+        provider={provider}
+        document={props.document}
+        saved={props.saved}
         busy={props.busy}
         client={props.client}
         onChange={update}
+        onAdd={add}
       />
     ))}
-    <Button
-      label="Добавить Ollama"
-      variant="outlined"
-      disabled={props.busy}
-      onClick={() => add("ollama")}
-    />
-    <Button
-      label="Добавить Capsule"
-      variant="outlined"
-      disabled={props.busy}
-      onClick={() => add("capsule")}
-    />
   </section>
+}
+function ProviderGroup(props: Readonly<{
+  provider: Connection["provider"]
+  document: SettingsDocument
+  saved: SettingsDocument
+  busy: boolean
+  client: ReturnType<typeof createSettingsClient>
+  onChange(value: Connection): void
+  onAdd(provider: "ollama" | "capsule"): void
+}>) {
+  const [open, setOpen] = useState(false)
+  const label = {codex: "Codex", ollama: "Ollama", capsule: "Capsule"}[props.provider]
+  return <Panel
+    style={css`
+      --panel-content-padding: 0px;
+      --panel-content-background: #333333;
+      --panel-header-background: #3d3d3d;
+      --panel-header-inset: 0px;
+      --panel-radius: 4px;
+    `}
+    actions={props.provider === "codex" ? [] : [{
+      id: "add", label: `Добавить ${label}`, title: `Добавить ${label}`, iconSrc: plusIcon,
+      disabled: props.busy,
+      action: () => {
+        if (props.provider !== "codex") {setOpen(true); props.onAdd(props.provider)}
+      },
+    }]}
+    label={label}
+    expanded={open}
+    onToggle={setOpen}
+  >
+    <ProviderConnections
+      provider={props.provider}
+      document={props.document}
+      saved={props.saved}
+      busy={props.busy}
+      client={props.client}
+      onChange={props.onChange}
+      onAdd={props.onAdd}
+    />
+  </Panel>
+}
+
+function ProviderConnections(props: Parameters<typeof ProviderGroup>[0]) {
+  const label = {codex: "Codex", ollama: "Ollama", capsule: "Capsule"}[props.provider]
+  return <div style={css`
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 0;
+    `}>
+      {props.document.connections.filter(connection => connection.provider === props.provider).map(connection => (
+        <ConnectionCard
+          key={connection.id}
+          connection={connection}
+          saved={props.saved.connections.find(item => item.id === connection.id)}
+          busy={props.busy}
+          client={props.client}
+          onChange={props.onChange}
+        />
+      ))}
+
+    </div>
 }
 function ConnectionCard(props: Readonly<{
   connection: Connection
@@ -218,11 +275,28 @@ function ConnectionCard(props: Readonly<{
     } finally {if (alive.current) setProbing(false)}
   }
   return <Panel
-    label={`${connection.label} · ${{codex: "Codex", ollama: "Ollama", capsule: "Capsule"}[connection.provider]}${connection.enabled ? "" : " · отключено"}`}
+    style={css`
+      --panel-content-padding: 0px;
+      --panel-content-background: #333333;
+      --panel-header-background: #3d3d3d;
+      --panel-header-inset: 12px;
+      --panel-radius: 0px;
+    `}
+    label={connection.label}
+    checked={connection.enabled}
+    checkDisabled={props.busy || probing}
+    onCheckedChange={enabled => props.onChange({...connection, enabled})}
+    actions={[{
+      id: "probe", label: probing ? "Проверяем…" : "Проверить подключение",
+      title: "Проверить подключение", iconSrc: checkIcon,
+      disabled: props.busy || probing || dirty || !connection.enabled,
+      action: () => {void probe()},
+    }]}
     expanded={open}
     onToggle={setOpen}
   >
     {open ? <ConnectionFields
+      client={props.client}
       connection={connection}
       busy={props.busy}
       probing={probing}
@@ -235,6 +309,7 @@ function ConnectionCard(props: Readonly<{
   </Panel>
 }
 function ConnectionFields(props: Readonly<{
+  client: ReturnType<typeof createSettingsClient>
   connection: Connection
   busy: boolean
   probing: boolean
@@ -248,19 +323,26 @@ function ConnectionFields(props: Readonly<{
   return <section
     data-provider-connection={connection.id}
     style={css`
+      background: #333333;
+      border-radius: 0;
+
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      padding: 12px;
+      gap: 0;
+      padding: 0;
     `}
   >
-      <SwitchField
-        label="Использовать"
-        checked={connection.enabled}
-        disabled={props.busy || props.probing}
-        onChange={enabled => props.onChange({...connection, enabled})}
-      />
+    {connection.provider === "capsule" ? <CapsuleBrowser
+      connectionId={connection.id}
+      available={!props.dirty && connection.enabled}
+      client={props.client}
+    /> : null}
+
       <TextField
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
         label="Название"
         value={connection.label}
         disabled={props.busy || props.probing}
@@ -276,12 +358,7 @@ function ConnectionFields(props: Readonly<{
         busy={props.busy || props.probing}
         onChange={props.onChange}
       /> : null}
-      <Button
-        label={props.probing ? "Проверяем…" : "Проверить подключение"}
-        variant="outlined"
-        disabled={props.busy || props.probing || props.dirty || !connection.enabled}
-        onClick={props.onProbe}
-      />
+
       {props.dirty ? <SettingsNotice text="Сохраните изменения, чтобы проверить подключение и получить модели." /> : null}
       {props.result ? <SettingsNotice text={props.result} /> : null}
       {props.error ? <SettingsError text={props.error} /> : null}
@@ -292,32 +369,41 @@ function CapsuleFields(props: Readonly<{
   busy: boolean
   onChange(value: Connection): void
 }>) {
+  const [remoteOpen, setRemoteOpen] = useState(false)
   const endpoint = props.connection.endpoint
   return <section
     aria-label="Подключение Capsule"
     style={css`
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 0;
     `}
   >
-    <SettingsNotice text={props.connection.ssh
-      ? "Capsule на удалённой машине. Адрес Studio относится к этой машине; укажите уже запущенный профиль."
-      : "Capsule на этом компьютере. Укажите уже запущенный профиль с открытым сервисом."} />
     <TextField
-      label="Адрес Capsule Studio"
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
+      label="Адрес Studio"
       type="url"
       value={endpoint.url}
       disabled={props.busy}
       onInput={url => props.onChange({...props.connection, endpoint: {...endpoint, url}})}
     />
     <TextField
-      label="Имя профиля Capsule"
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
+      label="Профиль"
       value={endpoint.profile}
       disabled={props.busy}
       onInput={profile => props.onChange({...props.connection, endpoint: {...endpoint, profile}})}
     />
     <SelectField
+        style={css`
+          padding: 0 12px 0 28px;
+        `}
       label="Сервис"
       value={endpoint.service}
       options={[
@@ -329,21 +415,49 @@ function CapsuleFields(props: Readonly<{
         if (service === "qwen" || service === "deepseek") props.onChange({...props.connection, endpoint: {...endpoint, service}})
       }}
     />
-    <SwitchField
-      label="Исполнять на другой машине через SSH"
+    <Panel
+    style={css`
+      --panel-content-padding: 0px;
+      --panel-content-background: #333333;
+      --panel-header-background: #3d3d3d;
+      --panel-header-inset: 24px;
+      --panel-radius: 0px;
+    `}
+      label="SSH"
       checked={!!props.connection.ssh}
-      disabled={props.busy}
-      onChange={enabled => {
+      checkDisabled={props.busy}
+      onCheckedChange={enabled => {
         const {ssh, ...local} = props.connection
         props.onChange(enabled ? {...local, ssh: {host: "", providerRoot: "", storageRoot: ""}} : local)
       }}
-    />
-    {props.connection.ssh ? <CapsuleRemoteFields
-      ssh={props.connection.ssh}
+      expanded={remoteOpen}
+      onToggle={setRemoteOpen}
+    >
+      <CapsuleSshFields
+      connection={props.connection}
       busy={props.busy}
-      onChange={ssh => props.onChange({...props.connection, ssh})}
-    /> : null}
+      onChange={props.onChange}
+    />
+    </Panel>
   </section>
+}
+function CapsuleSshFields(props: Parameters<typeof CapsuleFields>[0]) {
+  return <div style={css`
+      background: #333333;
+      border-radius: 0;
+
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+      `}>
+
+        {props.connection.ssh ? <CapsuleRemoteFields
+          ssh={props.connection.ssh}
+          busy={props.busy}
+          onChange={ssh => props.onChange({...props.connection, ssh})}
+        /> : null}
+      </div>
 }
 function CapsuleRemoteFields(props: Readonly<{
   ssh: NonNullable<Extract<Connection, {provider: "capsule"}>["ssh"]>
@@ -359,37 +473,68 @@ function CapsuleRemoteFields(props: Readonly<{
         props.onChange({...paths, ...value})
       }}
     />
-    <section aria-label="Размещение Provider на удалённой машине">
-      <SettingsNotice text="Дополнительные параметры: абсолютные пути на машине исполнения. Studio, Docker и Provider должны работать на ней вместе." />
-      <TextField
-        label="Каталог установленного Provider"
-        value={props.ssh.providerRoot}
-        disabled={props.busy}
-        onInput={providerRoot => props.onChange({...props.ssh, providerRoot})}
-      />
-      <TextField
-        label="Каталог постоянных данных Provider"
-        value={props.ssh.storageRoot}
-        disabled={props.busy}
-        onInput={storageRoot => props.onChange({...props.ssh, storageRoot})}
-      />
-      <TextField
-        label="Контекст Docker (необязательно)"
-        value={props.ssh.dockerContext ?? ""}
-        disabled={props.busy}
-        onInput={value => {
-          const {dockerContext, ...ssh} = props.ssh
-          props.onChange(value ? {...ssh, dockerContext: value} : ssh)
-        }}
-      />
-    </section>
+      <CapsulePaths
+      ssh={props.ssh}
+      busy={props.busy}
+      onChange={props.onChange}
+    />
   </section>
+}
+function CapsulePaths(props: Parameters<typeof CapsuleRemoteFields>[0]) {
+  return <section
+        aria-label="Размещение Provider на удалённой машине"
+        style={css`
+      background: #333333;
+      border-radius: 0;
+
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          padding: 0;
+        `}
+      >
+
+        <TextField
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
+          label="Provider"
+          value={props.ssh.providerRoot}
+          disabled={props.busy}
+          onInput={providerRoot => props.onChange({...props.ssh, providerRoot})}
+        />
+        <TextField
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
+          label="Данные"
+          value={props.ssh.storageRoot}
+          disabled={props.busy}
+          onInput={storageRoot => props.onChange({...props.ssh, storageRoot})}
+        />
+        <TextField
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
+          label="Docker context"
+          value={props.ssh.dockerContext ?? ""}
+          disabled={props.busy}
+          onInput={value => {
+            const {dockerContext, ...ssh} = props.ssh
+            props.onChange(value ? {...ssh, dockerContext: value} : ssh)
+          }}
+        />
+      </section>
 }
 function OllamaFields(props: Readonly<{
   connection: Extract<Connection, {provider: "ollama"}>
   busy: boolean
   onChange(value: Connection): void
 }>) {
+  const [remoteOpen, setRemoteOpen] = useState(false)
   const endpoint = props.connection.endpoint
   const updateSSH = (value: NonNullable<typeof endpoint.ssh>) => props.onChange({
     ...props.connection,
@@ -400,33 +545,67 @@ function OllamaFields(props: Readonly<{
     style={css`
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 0;
     `}
   >
     <TextField
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
       label="URL API Ollama"
       type="url"
       value={endpoint.url}
       disabled={props.busy}
       onInput={url => props.onChange({...props.connection, endpoint: {...endpoint, url}})}
     />
-    <SwitchField
-      label="Подключаться через SSH"
+    <Panel
+    style={css`
+      --panel-content-padding: 0px;
+      --panel-content-background: #333333;
+      --panel-header-background: #3d3d3d;
+      --panel-header-inset: 24px;
+      --panel-radius: 0px;
+    `}
+      label="SSH"
       checked={!!endpoint.ssh}
-      disabled={props.busy}
-      onChange={enabled => {
+      checkDisabled={props.busy}
+      onCheckedChange={enabled => {
         const {ssh, ...direct} = endpoint
         props.onChange({...props.connection, endpoint: enabled ? {...direct, ssh: {host: ""}} : direct})
       }}
-    />
-    {endpoint.ssh ? <SSHFields
-      ssh={endpoint.ssh}
+      expanded={remoteOpen}
+      onToggle={setRemoteOpen}
+    >
+      <OllamaSshFields
+      connection={props.connection}
       busy={props.busy}
-      onChange={updateSSH}
-    /> : null}
+      onChange={props.onChange}
+    />
+    </Panel>
   </section>
 }
 
+function OllamaSshFields(props: Parameters<typeof OllamaFields>[0]) {
+  const endpoint = props.connection.endpoint
+  const updateSSH = (value: NonNullable<typeof endpoint.ssh>) => props.onChange({...props.connection, endpoint: {...endpoint, ssh: value}})
+  return <div style={css`
+      background: #333333;
+      border-radius: 0;
+
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+      `}>
+
+        {endpoint.ssh ? <SSHFields
+          ssh={endpoint.ssh}
+          busy={props.busy}
+          onChange={updateSSH}
+        /> : null}
+      </div>
+}
 function SSHFields(props: Readonly<{
   ssh: NonNullable<Extract<Connection, {provider: "ollama"}>["endpoint"]["ssh"]>
   busy: boolean
@@ -437,18 +616,26 @@ function SSHFields(props: Readonly<{
     style={css`
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 0;
     `}
   >
-      <SettingsNotice text="URL API указывается относительно SSH-сервера. Используются существующие SSH-настройки и ключи." />
+
       <TextField
-        label="SSH-хост или alias"
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
+        label="Хост"
         value={props.ssh.host}
         disabled={props.busy}
         onInput={host => props.onChange({...props.ssh, host})}
       />
       <TextField
-        label="SSH-пользователь (необязательно)"
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
+        label="Пользователь"
         value={props.ssh.user ?? ""}
         disabled={props.busy}
         onInput={user => {
@@ -457,7 +644,11 @@ function SSHFields(props: Readonly<{
         }}
       />
       <TextField
-        label="SSH-порт (необязательно)"
+        style={css`
+          --field-label-height: var(--control-height-medium);
+          padding: 0 12px 0 28px;
+        `}
+        label="Порт"
         value={props.ssh.port?.toString() ?? ""}
         disabled={props.busy}
         onInput={value => {

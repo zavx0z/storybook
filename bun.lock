@@ -206,6 +206,7 @@
         "@zavx0z/provider-app-capsule": "0.0.0",
         "@zavx0z/provider-app-codex": "0.0.0",
         "@zavx0z/provider-app-ollama": "0.0.0",
+        "@zavx0z/provider-tech-ssh": "0.0.0",
         "@zavx0z/storybook-app-environment": "workspace:*",
         "@zavx0z/storybook-app-environment-declaration": "workspace:*",
         "@zavx0z/storybook-app-knowledge": "workspace:*",
@@ -615,16 +616,20 @@
       "name": "@zavx0z/storybook-app-web-page-shell-execution-settings",
       "version": "0.0.0",
       "dependencies": {
+        "@capsule/input": "link:@capsule/input",
+        "@capsule/webrtc": "link:@capsule/webrtc",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
         "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
+        "@zavx0z/immersive-ui-component-feedback-notification": "^0.0.0",
         "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
-        "@zavx0z/immersive-ui-component-field-switch": "^0.0.0",
         "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
         "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
         "@zavx0z/immersive-ui-component-surface-tab": "^0.0.0",
         "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
         "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0",
+        "@zavx0z/immersive-ui-theme-icon-apply": "^0.0.0",
+        "@zavx0z/immersive-ui-theme-icon-plus": "^0.0.0",
         "@zavx0z/storybook-app-settings": "workspace:*",
         "@zavx0z/storybook-chat-preferences": "workspace:*",
         "@zavx0z/storybook-chat-session": "workspace:*",
@@ -1575,6 +1580,7 @@
     "@zavx0z/immersive-ui-component": "link:@zavx0z/immersive-ui-component",
     "@zavx0z/immersive-ui-component-button-basic": "link:@zavx0z/immersive-ui-component-button-basic",
     "@zavx0z/immersive-ui-component-button-icon": "link:@zavx0z/immersive-ui-component-button-icon",
+    "@zavx0z/immersive-ui-component-feedback-notification": "link:@zavx0z/immersive-ui-component-feedback-notification",
     "@zavx0z/immersive-ui-component-field-select": "link:@zavx0z/immersive-ui-component-field-select",
     "@zavx0z/immersive-ui-component-field-switch": "link:@zavx0z/immersive-ui-component-field-switch",
     "@zavx0z/immersive-ui-component-field-text": "link:@zavx0z/immersive-ui-component-field-text",
@@ -1585,6 +1591,8 @@
     "@zavx0z/immersive-ui-component-view-code-editor": "link:@zavx0z/immersive-ui-component-view-code-editor",
     "@zavx0z/immersive-ui-component-widget-inspector": "link:@zavx0z/immersive-ui-component-widget-inspector",
     "@zavx0z/immersive-ui-theme-icon": "link:@zavx0z/immersive-ui-theme-icon",
+    "@zavx0z/immersive-ui-theme-icon-apply": "link:@zavx0z/immersive-ui-theme-icon-apply",
+    "@zavx0z/immersive-ui-theme-icon-plus": "link:@zavx0z/immersive-ui-theme-icon-plus",
     "@zavx0z/immersive-ui-theme-icon-set": "link:@zavx0z/immersive-ui-theme-icon-set",
     "@zavx0z/immersive-webgpu": "link:@zavx0z/immersive-webgpu",
     "@zavx0z/provider-app-capsule": "link:@zavx0z/provider-app-capsule",
@@ -1592,11 +1600,16 @@
     "@zavx0z/provider-app-ollama": "link:@zavx0z/provider-app-ollama",
     "@zavx0z/provider-connection": "link:@zavx0z/provider-connection",
     "@zavx0z/provider-connection-capsule": "link:@zavx0z/provider-connection-capsule",
+    "@zavx0z/provider-tech-ssh": "link:@zavx0z/provider-tech-ssh",
   },
   "packages": {
     "@agentclientprotocol/codex-acp": ["@agentclientprotocol/codex-acp@2.1.1", "", { "dependencies": { "@agentclientprotocol/sdk": "^1.5.0", "@openai/codex": "^0.159.1", "diff": "^9.0.0", "open": "^11.0.1", "vscode-jsonrpc": "^9.0.1", "zod": "^4.0.0" }, "bin": { "codex-acp": "dist/index.js" } }, "sha512-dppZxW3f8kNbTDbR25+lBLtNst5DIC/Sm7GtRF69PI1Ilqv12tDSsIb0hJQW0iNzkx+JdDvX76HOyv5Uibu1qQ=="],
 
     "@agentclientprotocol/sdk": ["@agentclientprotocol/sdk@1.6.0", "", { "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-XxXrmX7aZkDgOB0Rg9cu+ZFyiUUc5lF2n9seO3Gc4OR+MTdfZOwIqF6m3LvsmmM8K3qgPmXkDH8/IFM2u9vdcQ=="],
+
+    "@capsule/input": ["@capsule/input@link:@capsule/input", {}],
+
+    "@capsule/webrtc": ["@capsule/webrtc@link:@capsule/webrtc", {}],
 
     "@nodable/entities": ["@nodable/entities@3.1.0", "", {}, "sha512-LsS/DjHr+uDM647Gru/cA8+J3a3HfhttwCKLyuoyN7yXTFCxKBtSgMQBvrW9yNPa2/zDRUNuGPaH5QUFoa4arQ=="],
 
@@ -1766,9 +1779,9 @@
 
     "@zavx0z/immersive-ui-component-button-icon": ["@zavx0z/immersive-ui-component-button-icon@link:@zavx0z/immersive-ui-component-button-icon", {}],
 
-    "@zavx0z/immersive-ui-component-field-select": ["@zavx0z/immersive-ui-component-field-select@link:@zavx0z/immersive-ui-component-field-select", {}],
+    "@zavx0z/immersive-ui-component-feedback-notification": ["@zavx0z/immersive-ui-component-feedback-notification@link:@zavx0z/immersive-ui-component-feedback-notification", {}],
 
-    "@zavx0z/immersive-ui-component-field-switch": ["@zavx0z/immersive-ui-component-field-switch@link:@zavx0z/immersive-ui-component-field-switch", {}],
+    "@zavx0z/immersive-ui-component-field-select": ["@zavx0z/immersive-ui-component-field-select@link:@zavx0z/immersive-ui-component-field-select", {}],
 
     "@zavx0z/immersive-ui-component-field-text": ["@zavx0z/immersive-ui-component-field-text@link:@zavx0z/immersive-ui-component-field-text", {}],
 
@@ -1786,6 +1799,10 @@
 
     "@zavx0z/immersive-ui-theme-icon": ["@zavx0z/immersive-ui-theme-icon@link:@zavx0z/immersive-ui-theme-icon", {}],
 
+    "@zavx0z/immersive-ui-theme-icon-apply": ["@zavx0z/immersive-ui-theme-icon-apply@link:@zavx0z/immersive-ui-theme-icon-apply", {}],
+
+    "@zavx0z/immersive-ui-theme-icon-plus": ["@zavx0z/immersive-ui-theme-icon-plus@link:@zavx0z/immersive-ui-theme-icon-plus", {}],
+
     "@zavx0z/immersive-ui-theme-icon-set": ["@zavx0z/immersive-ui-theme-icon-set@link:@zavx0z/immersive-ui-theme-icon-set", {}],
 
     "@zavx0z/immersive-webgpu": ["@zavx0z/immersive-webgpu@link:@zavx0z/immersive-webgpu", {}],
@@ -1799,6 +1816,8 @@
     "@zavx0z/provider-connection": ["@zavx0z/provider-connection@link:@zavx0z/provider-connection", {}],
 
     "@zavx0z/provider-connection-capsule": ["@zavx0z/provider-connection-capsule@link:@zavx0z/provider-connection-capsule", {}],
+
+    "@zavx0z/provider-tech-ssh": ["@zavx0z/provider-tech-ssh@link:@zavx0z/provider-tech-ssh", {}],
 
     "@zavx0z/storybook-app": ["@zavx0z/storybook-app@workspace:app"],
 

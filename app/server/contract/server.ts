@@ -1,3 +1,5 @@
+import type {CapsuleViewerRelay} from "../src/capsule-viewer"
+
 /** Grant одного браузерного подключения внутри server instance. */
 export type BrowserSessionGrant = Readonly<{
   kind: "registry" | "package"
@@ -14,8 +16,11 @@ export type BrowserSessionGrant = Readonly<{
 
 /** Приватные данные WebSocket-подключения к тому же серверу. */
 export type WebSocketData = {
+  capsuleViewer: CapsuleViewerRelay
+} | {
   subscriptions: Set<string>
   unsubscribers: Map<string, () => void>
   grant: BrowserSessionGrant
   sessionToken: string
+  capsuleViewer?: never
 }

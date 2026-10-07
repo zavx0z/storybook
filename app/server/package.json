@@ -51,7 +51,8 @@
     "@zavx0z/storybook-app-settings-locations": "workspace:*",
     "@zavx0z/provider-app-ollama": "0.0.0",
     "@zavx0z/provider-app-codex": "0.0.0",
-    "@zavx0z/provider-app-capsule": "0.0.0"
+    "@zavx0z/provider-app-capsule": "0.0.0",
+    "@zavx0z/provider-tech-ssh": "0.0.0"
   },
   "devDependencies": {
     "@zavx0z/storybook-tech-build-artifacts": "workspace:*",
