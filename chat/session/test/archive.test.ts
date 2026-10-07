@@ -1,4 +1,4 @@
-import {afterEach, expect, test} from "bun:test"
+import {afterEach, expect, spyOn, test} from "bun:test"
 import {Database} from "bun:sqlite"
 import {mkdtemp, readFile, rm, stat, writeFile, appendFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
@@ -564,12 +564,21 @@ test("1000 одиночных updates на 1000 и 100000 entries использ
       {type: "append", item: {id: "started", kind: "turn", requestId: "interrupted", state: "started", origin: "local"}},
     ])
     for (let start = 0; start < entries; start += 1000) await archive.commit(undefined, Array.from({length: 1000}, (_, index) => message(`user:${start + index}`)))
-    const start = performance.now()
-    for (let index = 0; index < 1000; index++) await archive.receive({sessionUpdate: "tool_call_update", toolCallId: "cold-tool", rawOutput: {index}}, "live", {})
-    const updateMs = performance.now() - start
-    const metadataStart = performance.now()
-    for (let index = 0; index < 100; index++) await archive.commit({...archive.metadata, error: `status:${index}`})
-    const metadataMs = performance.now() - metadataStart
+    const statements = spyOn(Database.prototype, "query")
+    let updateMs: number
+    let metadataMs: number
+    try {
+      const start = performance.now()
+      for (let index = 0; index < 1000; index++) await archive.receive({sessionUpdate: "tool_call_update", toolCallId: "cold-tool", rawOutput: {index}}, "live", {})
+      updateMs = performance.now() - start
+      const metadataStart = performance.now()
+      for (let index = 0; index < 100; index++) await archive.commit({...archive.metadata, error: `status:${index}`})
+      metadataMs = performance.now() - metadataStart
+      expect(archive.displayStats().total).toBe(entries + 2)
+      // Проверяем реальные запросы чтения и подтверждённых записей. Общий
+      // пересчёт допустим при восстановлении cache, но не на каждом update.
+      expect(statements.mock.calls.filter(([sql]) => /COUNT\(\*\) FROM (?:display_message|service_group)\b/u.test(sql))).toEqual([])
+    } finally {statements.mockRestore()}
     const queryStart = performance.now()
     for (let index = 0; index < 1000; index++) {
       expect(archive.hasStarted("interrupted")).toBeTrue()
@@ -599,6 +608,7 @@ test("1000 одиночных updates на 1000 и 100000 entries использ
   }
   // Время ФС шумит, но рост corpus в100раз не должен превращать updates в полный обход.
   expect(measurements[1]!.updateMs).toBeLessThan(measurements[0]!.updateMs * 6 + 1000)
+  expect(measurements[1]!.metadataMs).toBeLessThan(measurements[0]!.metadataMs * 6 + 1000)
   expect(measurements[1]!.queryMs).toBeLessThan(measurements[0]!.queryMs * 6 + 100)
   if (process.env.CHAT_ARCHIVE_BENCHMARK === "1") console.log(JSON.stringify({operation: "single-update-comparison", updates: 1000, metadataCommits: 100, indexedLookupIterations: 1000, measurements}))
 }, 120_000)

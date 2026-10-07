@@ -1186,44 +1186,36 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     },
     async displayHistory(target, query = {}) {
       const state = await load(target)
-      await state.archive.flush()
       return state.archive.display(query)
     },
     async groupHistory(target, groupId, query = {}) {
       const state = await load(target)
-      await state.archive.flush()
       return state.archive.groupPage(groupId, query)
     },
     async groupHistoryItem(target, groupId, id) {
       const state = await load(target)
-      await state.archive.flush()
       return state.archive.groupBody(groupId, id)
     },
     async history(target, query = {}) {
       const state = await load(target)
-      await state.archive.flush()
       const value = state.archive.page(query)
       return value
     },
     async historyItem(target, id) {
       const state = await load(target)
-      await state.archive.flush()
       const value = state.archive.body(id)
       return value
     },
     async historyContent(target, id, query = {}) {
       const state = await load(target)
-      await state.archive.flush()
       return state.archive.contentPage(id, query)
     },
     async historyTerminal(target, id, query = {}) {
       const state = await load(target)
-      await state.archive.flush()
       return state.archive.terminalPage(id, query)
     },
     async historyDetail(target, id, query = {}) {
       const state = await load(target)
-      await state.archive.flush()
       return state.archive.detailPage(id, query)
     },
     async hasMedia(target, digest) {
@@ -1239,7 +1231,6 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     },
     async historyEvidence(target, id, query = {}) {
       const state = await load(target)
-      await state.archive.flush()
       const value = state.archive.evidence(id, query)
       return value
     },

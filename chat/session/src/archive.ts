@@ -20,7 +20,7 @@ import readHistory from "@zavx0z/storybook-chat-history"
 import type {HistoryBody, HistoryEntry, HistoryEvidence, HistoryEvidencePage, HistoryPage, HistoryQuery, HistoryState, HistoryDisplayPage, HistoryGroupPage, HistoryGroup, HistoryOccurrence, HistoryContentCursor, HistoryContentPage, HistoryContentQuery, HistoryDetailPage, HistoryTerminalPage, HistoryTerminalQuery} from "../contract/history"
 import type {Document} from "./document"
 import {createMediaStore, projectMedia, isStoredMediaText, isStoredBinary, mediaReferences} from "./media"
-import {prepareProjection, clearProjection, syncDisplayMessage, removeOccurrences, indexOccurrence} from "./history-projection"
+import {prepareProjection, clearProjection, syncDisplayMessage, removeOccurrences, indexOccurrence, displayTotal} from "./history-projection"
 import {defaultExecutorId} from "./identity"
 
 type Item = StorybookChatHistory.Output[number]
@@ -59,6 +59,7 @@ const SMALL_COLUMNS = "id,ordinal,sequence,revision,kind,origin,preview,body_byt
 const BODY_LIMIT = 16 * 1024 * 1024
 const CODEX_IMAGE_ECHO = "codex-image-echo-v1"
 const CODEX_TEXT_ECHO = "codex-text-echo-v1"
+const CONTEXT_ECHO = "service-context-echo-v1"
 const RECORD_LIMIT = 64 * 1024 * 1024
 const QUEUE_LIMIT = 32 * 1024 * 1024
 const ZERO_HASH = "0".repeat(64)
@@ -403,7 +404,24 @@ export class Archive {
       }
       return
     }
-    if (item.kind !== "context" || item.origin !== "local" || !item.requestId || item.content.length !== 1 || item.content[0]?.type !== "text") return
+    if (item.kind !== "context" || item.origin !== "local" || !item.requestId || !item.content.length) return
+    const start = cachedQuery(db, "SELECT sequence FROM entry WHERE kind='turn' AND origin='local' AND json_extract(preview,'$.state')='started' AND json_extract(data,'$.requestId')=? LIMIT 1")
+      .get(item.requestId) as {sequence: number} | null
+    // После durable start Session сохраняет отдельно передаваемый результат команды.
+    // Bootstrap и resource-контекст входа записаны до start и не являются отдельным prompt.
+    if (start !== null && item.sequence > start.sequence && Buffer.byteLength(JSON.stringify(item.content)) <= BODY_LIMIT) {
+      const fingerprints = [{bootstrapHash: CONTEXT_ECHO, inputHash: this.inputDigest(db, [item.id])}]
+      if (item.content.every(block => block.type === "text")) fingerprints.push({bootstrapHash: CODEX_TEXT_ECHO,
+        inputHash: digest(item.content.map(block => echoText((block as {text: unknown}).text)).join(""))})
+      for (const fingerprint of fingerprints) {
+        cachedQuery(db, "INSERT OR REPLACE INTO supplied_input(context_id,request_id,bootstrap_hash,input_hash) VALUES(?,?,?,?)")
+          .run(item.id, item.requestId, fingerprint.bootstrapHash, fingerprint.inputHash)
+        for (const replay of cachedQuery(db, "SELECT entry_id FROM replay_input WHERE bootstrap_hash=? AND input_hash=?")
+          .iterate(fingerprint.bootstrapHash, fingerprint.inputHash) as Iterable<{entry_id: string}>) this.materializeReplay(db, replay.entry_id, revision)
+      }
+      return
+    }
+    if (item.content.length !== 1 || item.content[0]?.type !== "text") return
     const userId = `user:${item.requestId}`
     const user = cachedQuery(db, "SELECT origin,kind,preview,body_bytes FROM entry WHERE id=?").get(userId) as Pick<Row, "origin" | "kind" | "preview" | "body_bytes"> | null
     if (user?.kind !== "message" || user.origin !== "local" || user.body_bytes > BODY_LIMIT || JSON.parse(user.preview).role !== "user") return
@@ -423,7 +441,7 @@ export class Archive {
   }
   /** Точное соответствие вычисляется при записи/rebuild; header чтение никогда не раскрывает payload. */
   private materializeReplay(db: Database, id: string, revision: number): void {
-    const fingerprints = cachedQuery(db, "SELECT bootstrap_hash,input_hash FROM replay_input WHERE entry_id=? LIMIT 2").all(id) as {bootstrap_hash: string; input_hash: string}[]
+    const fingerprints = cachedQuery(db, "SELECT bootstrap_hash,input_hash FROM replay_input WHERE entry_id=? LIMIT 4").all(id) as {bootstrap_hash: string; input_hash: string}[]
     if (!fingerprints.length) return
     const previous = cachedQuery(db, "SELECT context_id FROM replay_projection WHERE entry_id=?").get(id) as {context_id: string} | null
     const matches: {context_id: string; request_id: string | null}[] = []
@@ -431,13 +449,17 @@ export class Archive {
     for (const fingerprint of fingerprints) {
       const candidates = cachedQuery(db, "SELECT context_id,request_id FROM supplied_input WHERE bootstrap_hash=? AND input_hash=? LIMIT 2")
         .all(fingerprint.bootstrap_hash, fingerprint.input_hash) as {context_id: string; request_id: string}[]
-      const exactBootstrap = fingerprint.bootstrap_hash !== CODEX_TEXT_ECHO && fingerprint.bootstrap_hash !== CODEX_IMAGE_ECHO
+      const exactBootstrap = ![CODEX_TEXT_ECHO, CODEX_IMAGE_ECHO, CONTEXT_ECHO].includes(fingerprint.bootstrap_hash)
       if (candidates.length > 1 && !exactBootstrap) { ambiguous = true; continue }
       const candidate = candidates[0]
       if (candidate === undefined) continue
       const replay = this.blocks(db, id)
       const supplied = this.blocks(db, candidate.context_id)
-      const content = candidate.context_id === `user:${candidate.request_id}` ? supplied : [...supplied, ...this.blocks(db, `user:${candidate.request_id}`)]
+      const standalone = candidate.context_id === `user:${candidate.request_id}` || cachedQuery(db, `SELECT 1 FROM entry context JOIN entry started
+        ON json_extract(started.data,'$.requestId')=json_extract(context.data,'$.requestId')
+        WHERE context.id=? AND started.kind='turn' AND json_extract(started.preview,'$.state')='started'
+          AND context.sequence>started.sequence LIMIT 1`).get(candidate.context_id) !== null
+      const content = standalone ? supplied : [...supplied, ...this.blocks(db, `user:${candidate.request_id}`)]
       const confirmed = fingerprint.bootstrap_hash === CODEX_TEXT_ECHO
         ? replay.every(block => block.type === "text") && content.every(block => block.type === "text") && replay.map(block => echoText((block as {text: unknown}).text)).join("") === content.map(block => echoText((block as {text: unknown}).text)).join("")
         : fingerprint.bootstrap_hash === CODEX_IMAGE_ECHO
@@ -448,7 +470,8 @@ export class Archive {
       // Ссылка context_id выбирает идентичные bytes; requestId при этом не приписывается.
       if (confirmed) matches.push({...candidate, request_id: candidates.length > 1 ? null : candidate.request_id})
     }
-    const match = !ambiguous && matches.length === 1 ? matches[0] : undefined
+    const unique = new Map(matches.map(match => [match.context_id, match]))
+    const match = !ambiguous && unique.size === 1 ? unique.values().next().value : undefined
     if (match === undefined) {
       if (previous !== null) {
         cachedQuery(db, "DELETE FROM replay_projection WHERE entry_id=?").run(id)
@@ -472,8 +495,10 @@ export class Archive {
     if (row.provider_id === null || row.body_bytes > BODY_LIMIT) return
     const first = cachedQuery(db, "SELECT data FROM block WHERE entry_id=? AND ordinal=0").get(id) as {data: string} | null
     if (first === null) return
+    cachedQuery(db, "INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)")
+      .run(id, CONTEXT_ECHO, this.inputDigest(db, [id]))
     const block: Content = JSON.parse(first.data)
-    if (block.type !== "text") return
+    if (block.type !== "text") {this.materializeReplay(db, id, revision); return}
     let envelope: unknown
     try { envelope = JSON.parse(block.text) } catch {}
     const environment = envelope !== null && typeof envelope === "object" && Object.keys(envelope).length === 1 && "environment" in envelope ? envelope.environment : undefined
@@ -491,12 +516,21 @@ export class Archive {
     }
     this.materializeReplay(db, id, revision)
   }
-  private replayContext(row: Row): {context_id: string; request_id: string | null; body_bytes: number} | null {
-    return cachedQuery(this.db(), "SELECT context_id,request_id,body_bytes FROM replay_projection WHERE entry_id=?").get(row.id) as {context_id: string; request_id: string | null; body_bytes: number} | null
+  private replayContext(row: Row): {context_id: string; request_id: string | null; body_bytes: number; received_at: string | null} | null {
+    return cachedQuery(this.db(), `SELECT projection.context_id,projection.request_id,projection.body_bytes,
+      json_extract(context.preview,'$.receivedAt') AS received_at
+      FROM replay_projection projection JOIN entry context ON context.id=projection.context_id WHERE projection.entry_id=?`)
+      .get(row.id) as {context_id: string; request_id: string | null; body_bytes: number; received_at: string | null} | null
   }
   private projectedHeader(row: Row): HistoryEntry {
     const context = this.replayContext(row)
-    return context === null ? headerEntry(row) : headerEntry({...row, kind: "context", preview: "{}", body_bytes: context.body_bytes})
+    if (context === null) {
+      const header = headerEntry(row)
+      if (row.origin !== "replay" || header.role !== "user") return header
+      const {receivedAt, ...original} = header
+      return {...original, authorship: "unresolved"}
+    }
+    return headerEntry({...row, kind: "context", preview: JSON.stringify(context.received_at === null ? {} : {receivedAt: context.received_at}), body_bytes: context.body_bytes})
   }
   private apply(db: Database, mutation: StoredMutation, revision: number): number {
     const delta = this.applyRaw(db, mutation, revision)
@@ -600,7 +634,7 @@ export class Archive {
   }
   private sourceStamp(header: Header): string {
     const info = statSync(join(dirname(this.file), header.journal))
-    return `display-occurrences-v5:${header.hash}:${header.committedBytes}:${info.mtimeMs}:${info.ctimeMs}:${info.size}`
+    return `display-occurrences-v7:${header.hash}:${header.committedBytes}:${info.mtimeMs}:${info.ctimeMs}:${info.size}`
   }
   async initialize(): Promise<void> {
     await writeLease(this.file, async () => { await this.initializeLeased() })
@@ -676,7 +710,9 @@ export class Archive {
       let sequence = this.header.history.lastSequence
       const stored = input.mutations.map((mutation: ArchiveMutation): StoredMutation => {
         if (mutation.type !== "append") return mutation
-        const item = {...mutation.item, receivedAt: (mutation.item as Item & {receivedAt?: string}).receivedAt ?? new Date().toISOString(), sequence: mutation.item.sequence ?? ++sequence} as Item
+        const receivedAt = (mutation.item as Item & {receivedAt?: string}).receivedAt ??
+          (mutation.item.origin === "legacy" ? undefined : new Date().toISOString())
+        const item = {...mutation.item, ...(receivedAt === undefined ? {} : {receivedAt}), sequence: mutation.item.sequence ?? ++sequence} as Item
         sequence = Math.max(sequence, maximumSequence(item))
         return {type: "append", item}
       })
@@ -753,9 +789,8 @@ export class Archive {
       let total = this.header.history.total
       for (const mutation of mutations) total += this.apply(db, mutation, revision)
       const lastSequence = mutations.reduce((last, mutation) => Math.max(last, mutation.type === "append" ? maximumSequence(mutation.item) : mutation.type === "update" || mutation.type === "create" ? mutation.event.sequence : 0), this.header.history.lastSequence)
-      const counts = cachedQuery(db, "SELECT (SELECT COUNT(*) FROM display_message)+(SELECT COUNT(*) FROM service_group) AS total").get() as {total: number}
       const next: Header = {...this.header, metadata: structuredClone(metadata), history: {revision, total, lastSequence},
-        displayHistory: {revision, total: counts.total, lastSequence},
+        displayHistory: {revision, total: displayTotal(db), lastSequence},
         committedBytes: this.header.committedBytes + Buffer.byteLength(encoded) + 1, hash: digest(this.header.hash + encoded)}
       // Отдельное соединение держит неподтверждённую транзакцию; читатели
       // продолжают видеть старый индекс до fsync источника. Мутации применяются один раз.
@@ -795,6 +830,8 @@ export class Archive {
   contentPage(id: string, query: HistoryContentQuery = {}): HistoryContentPage {
     const row = this.row(id)
     if (row === null || !["message", "context"].includes(row.kind)) throw new Error("Текстовая запись истории не найдена")
+    const context = this.replayContext(row)
+    if (context !== null) return {...this.contentPage(context.context_id, query), id, revision: row.revision}
     const budget = queryLimit(query.maxBytes, 64 * 1024, 512 * 1024)
     const cursor = query.cursor ?? {block: 0, offset: 0}
     cursorValue(cursor.block); cursorValue(cursor.offset)
@@ -889,14 +926,37 @@ export class Archive {
     return {chatId: this.header.metadata.id, id, revision: row.revision, text: value.text,
       bytes: Buffer.byteLength(value.text), sourceBytes: value.bytes, next: end < value.length ? end : null}
   }
+  private projectedMessage(row: Row, data: Record<string, any>, content: readonly Content[]): HistoryBody["entry"] {
+    if (row.kind !== "message" || row.origin !== "replay" || data.role !== "user") return {...data, content} as Item
+    const {receivedAt, ...original} = data
+    const candidates = cachedQuery(this.db(), `SELECT supplied.context_id FROM replay_input replay JOIN supplied_input supplied
+      ON supplied.bootstrap_hash=replay.bootstrap_hash AND supplied.input_hash=replay.input_hash
+      WHERE replay.entry_id=? LIMIT 8`).all(row.id) as {context_id: string}[]
+    const diagnostic = new Set(candidates.map(candidate => candidate.context_id)).size > 1
+      ? "ACP replay совпал с несколькими собственными отправками. Провайдер не передал связь с requestId; авторство и первоначальное время не установлены."
+      : original.diagnostic ?? "Сообщение восстановлено из истории исполнителя. Transport role user не устанавливает авторство человека и первоначальное время."
+    return {...original, content, authorship: "unresolved", diagnostic} as HistoryBody["entry"]
+  }
   body(id: string): HistoryBody {
     const row = this.row(id)
     if (row === null) throw new Error("Запись истории не найдена")
+    const context = this.replayContext(row)
+    if (context !== null) {
+      const data = JSON.parse((cachedQuery(this.db(), "SELECT data FROM entry WHERE id=?").get(id) as {data: string}).data)
+      const page = context.body_bytes > 512 * 1024 ? this.contentPage(context.context_id) : null
+      const entry: Item = {id: row.id, sequence: row.sequence, origin: row.origin,
+        ...(data.batchId === undefined ? {} : {batchId: data.batchId}), kind: "context",
+        ...(context.request_id === null ? {} : {requestId: context.request_id}),
+        ...(context.received_at === null ? {} : {receivedAt: context.received_at}), content: page?.content ?? this.content(context.context_id)}
+      return {chatId: this.header.metadata.id, revision: row.revision, id,
+        bytes: page?.bytes ?? context.body_bytes, entry, evidenceCount: row.evidence_count,
+        ...(page === null ? {} : {sourceBytes: page.sourceBytes, ...(page.next === null ? {} : {continuation: page.next})})}
+    }
     if ((row.kind === "message" || row.kind === "context") && row.body_bytes > 512 * 1024) {
       const page = this.contentPage(id)
       const data = JSON.parse((cachedQuery(this.db(), "SELECT data FROM entry WHERE id=?").get(id) as {data: string}).data)
       return {chatId: this.header.metadata.id, revision: row.revision, id, bytes: page.bytes,
-        sourceBytes: page.sourceBytes, entry: {...data, content: page.content}, evidenceCount: row.evidence_count,
+        sourceBytes: page.sourceBytes, entry: this.projectedMessage(row, data, page.content), evidenceCount: row.evidence_count,
         ...(page.next === null ? {} : {continuation: page.next})}
     }
     if (row.kind === "tool" && row.body_bytes > 512 * 1024) {
@@ -910,28 +970,23 @@ export class Archive {
     }
     if (row.body_bytes > BODY_LIMIT) throw new Error("Тело записи превышает предел чтения 16 MiB; исходные данные сохранены")
     const data = JSON.parse((cachedQuery(this.db(), "SELECT data FROM entry WHERE id=?").get(id) as {data: string}).data)
-    const context = this.replayContext(row)
-    if (context !== null) {
-      const entry: Item = {id: row.id, sequence: row.sequence, origin: row.origin,
-        ...(data.batchId === undefined ? {} : {batchId: data.batchId}), kind: "context",
-        ...(context.request_id === null ? {} : {requestId: context.request_id}), content: this.content(context.context_id)}
-      return {chatId: this.header.metadata.id, revision: row.revision, id,
-        bytes: context.body_bytes, entry, evidenceCount: row.evidence_count}
-    }
-    let entry: Item
+    let entry: HistoryBody["entry"]
+    let copyRequiresSource = false
     if (row.kind === "message" || row.kind === "context") {
       const content: Content[] = []
       let texts: string[] = []
       const flushTexts = () => { if (texts.length) { content.push({type: "text", text: texts.join("")}); texts = [] } }
       for (const block of this.content(id)) {
+        if (block.type === "text" && typeof block.text !== "string") copyRequiresSource = true
         if (block.type === "text" && typeof block.text === "string" && Object.keys(block).every(key => key === "type" || key === "text")) texts.push(block.text)
         else { flushTexts(); content.push(block) }
       }
       flushTexts()
-      entry = {...data, content}
+      entry = this.projectedMessage(row, data, content)
     } else entry = row.kind === "tool" ? {...data, updates: []} : data
     const terminal = row.kind === "tool" ? this.terminalBody(id) : {}
-    return {chatId: this.header.metadata.id, revision: row.revision, id, bytes: row.body_bytes + (terminal.terminal?.bytes ?? 0), entry: projectMedia(entry) as Item, ...terminal, evidenceCount: row.evidence_count}
+    return {chatId: this.header.metadata.id, revision: row.revision, id, bytes: row.body_bytes + (terminal.terminal?.bytes ?? 0), entry: projectMedia(entry) as HistoryBody["entry"], ...terminal,
+      ...(copyRequiresSource ? {copyRequiresSource: true} : {}), evidenceCount: row.evidence_count}
   }
   page(query: HistoryQuery = {}): HistoryPage {
     cursorValue(query.before); cursorValue(query.after); cursorValue(query.around)
@@ -966,8 +1021,7 @@ export class Archive {
   /** Число сообщений и целых групп не зависит от окна raw entries. */
   displayStats(): HistoryState {
     if (!this.initialized) return {...this.stats(), total: 0}
-    const counts = cachedQuery(this.db(), "SELECT (SELECT COUNT(*) FROM display_message)+(SELECT COUNT(*) FROM service_group) AS total").get() as {total: number}
-    return {...this.stats(), total: counts.total}
+    return {...this.stats(), total: displayTotal(this.db())}
   }
   private groupHeader(value: Record<string, any>): HistoryGroup {
     return {id: value.id, kind: "group", origin: "local", ordinal: value.anchor, sequence: value.anchor,
@@ -993,11 +1047,11 @@ export class Archive {
     const forward = query.after !== undefined || query.around !== undefined
     const where = query.after !== undefined ? "anchor>?" : query.around !== undefined ? "anchor>=?" : "anchor<?"
     const cursor = query.after ?? (query.around === undefined ? query.before ?? Number.MAX_SAFE_INTEGER : Math.max(0, query.around - Math.floor(limit / 2)))
-    const rows = db?.query(`SELECT * FROM ${source} WHERE ${where} ORDER BY anchor ${forward ? "ASC" : "DESC"} LIMIT ?`).all(cursor, limit) as {id: string; anchor: number; grouped: number}[] | undefined
+    const rows = db ? cachedQuery(db, `SELECT * FROM ${source} WHERE ${where} ORDER BY anchor ${forward ? "ASC" : "DESC"} LIMIT ?`).all(cursor, limit) as {id: string; anchor: number; grouped: number}[] : undefined
     const items: (HistoryEntry | HistoryGroup)[] = []
     let bytes = 2
     for (const row of rows ?? []) {
-      const entry = row.grouped ? this.groupHeader(db!.query("SELECT * FROM service_group WHERE id=?").get(row.id) as Record<string, any>)
+      const entry = row.grouped ? this.groupHeader(cachedQuery(db!, "SELECT * FROM service_group WHERE id=?").get(row.id) as Record<string, any>)
         : {...this.projectedHeader(this.row(row.id)!), ordinal: row.anchor}
       const size = Buffer.byteLength(JSON.stringify(entry)) + Number(items.length > 0)
       if (bytes + size > budget) {if (!items.length) throw new RangeError("Заголовок превышает бюджет страницы"); break}
@@ -1005,12 +1059,22 @@ export class Archive {
       bytes += size
     }
     if (!forward) items.reverse()
+    const bodies: HistoryBody[] = []
+    let bodyBytes = 2
+    for (const header of items) {
+      if (header.kind !== "message" || header.role === "thought" || header.purpose === "command" || header.bodyBytes > 16 * 1024) continue
+      const body = this.body(header.id)
+      const size = Buffer.byteLength(JSON.stringify(body)) + Number(bodies.length > 0)
+      if (bodyBytes + size > 64 * 1024) continue
+      bodies.push(body)
+      bodyBytes += size
+    }
     const first = items[0]?.ordinal
     const last = items.at(-1)?.ordinal
     return {chatId: this.header.metadata.id, revision: this.stats().revision, total: this.displayStats().total,
-      rawTotal: this.stats().total, projectionRevision, start: first ?? 0, items,
-      before: first !== undefined && db!.query(`SELECT 1 FROM ${source} WHERE anchor<? LIMIT 1`).get(first) ? first : null,
-      after: last !== undefined && db!.query(`SELECT 1 FROM ${source} WHERE anchor>? LIMIT 1`).get(last) ? last : null}
+      rawTotal: this.stats().total, projectionRevision, start: first ?? 0, items, bodies,
+      before: first !== undefined && cachedQuery(db!, `SELECT 1 FROM ${source} WHERE anchor<? LIMIT 1`).get(first) ? first : null,
+      after: last !== undefined && cachedQuery(db!, `SELECT 1 FROM ${source} WHERE anchor>? LIMIT 1`).get(last) ? last : null}
   }
   groupPage(groupId: string, query: HistoryQuery = {}): HistoryGroupPage {
     const projectionRevision = this.projectionRevision(query.projectionRevision)

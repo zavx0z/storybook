@@ -1,4 +1,5 @@
 import {expect, test} from "bun:test"
+import {Database} from "bun:sqlite"
 import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
@@ -23,6 +24,65 @@ test("assistant не разделяет группу; raw корпус и пол
     expect(page.items.map(item => item.id)).toEqual(["u1", "service:user:u1", "a1", "a2", "u2", "service:user:u2"])
     expect(f.archive.groupPage("service:user:u1").items.map(item => item.entryId)).toEqual(["s1", "s2"])
     expect(f.archive.display({limit: 2}).items.map(item => item.id)).toEqual(["u2", "service:user:u2"])
+  } finally {await f.close()}
+})
+
+test("display передаёт малые сообщения той же ревизии вместе с заголовками, детали остаются отдельными", async () => {
+  const f = await fixture()
+  try {
+    await f.archive.commit(undefined, [user("u"), assistant("a"), service("event"),
+      {type: "append", item: {id: "large", kind: "message", role: "assistant", origin: "live",
+        content: [{type: "text", text: "x".repeat(32 * 1024)}]}}])
+    const page = f.archive.display()
+    expect(page.bodies?.map(body => body.id)).toEqual(["u", "a"])
+    expect(Buffer.byteLength(JSON.stringify(page.bodies))).toBeLessThanOrEqual(64 * 1024)
+    for (const body of page.bodies ?? []) {
+      const header = page.items.find(item => item.id === body.id)!
+      expect(body.revision).toBe(header.revision)
+      expect(body.entry).toEqual(f.archive.body(body.id).entry)
+    }
+    expect(page.items.some(item => item.id === "large")).toBeTrue()
+    expect(f.archive.body("large").entry.kind).toBe("message")
+    expect(f.archive.groupPage("service:user:u").items.map(item => item.entryId)).toEqual(["event"])
+  } finally {await f.close()}
+})
+test("счётчик сообщений и групп точен при разделении, слиянии, удалении, rollback и rebuild", async () => {
+  const f = await fixture()
+  const check = async (total: number) => {
+    expect(f.archive.displayStats().total).toBe(total)
+    const db = new Database(f.archive.cacheFile, {readonly: true})
+    try {
+      const actual = db.query("SELECT (SELECT COUNT(*) FROM display_message)+(SELECT COUNT(*) FROM service_group) AS total").get() as {total: number}
+      expect(actual.total).toBe(total)
+    } finally {db.close()}
+  }
+  try {
+    await f.archive.commit(undefined, [user("u1"), service("s1"), user("u2"), service("s2"), assistant("a1")])
+    await check(5)
+    await f.archive.commit(undefined, [{type: "purpose", id: "u2"}])
+    await check(3)
+    expect(f.archive.groupPage("service:user:u1").total).toBe(3)
+    await f.archive.commit(undefined, [{type: "remove", id: "s2"}, {type: "remove", id: "u2"}])
+    await check(3)
+    await f.archive.commit(undefined, [{type: "remove", id: "s1"}])
+    await check(2)
+    await f.archive.commit(undefined, [user("u3"), service("s3")])
+    await check(4)
+    await f.archive.commit(undefined, [{type: "remove", id: "u1"}])
+    await check(3)
+    await expect(f.archive.commit(undefined, [assistant("must-rollback"), {type: "purpose", id: "absent"}])).rejects.toThrow()
+    await check(3)
+    expect(f.archive.lookup("must-rollback")).toBeNull()
+    const previous = f.archive.display()
+    await f.archive.dispose()
+    await rm(f.archive.cacheFile)
+    const rebuilt = await openArchive(join(f.directory, "chat.json"), f.metadata)
+    try {
+      expect(rebuilt.displayStats().total).toBe(3)
+      expect(rebuilt.display()).toEqual(previous)
+      await rebuilt.commit({...rebuilt.metadata, error: "metadata-only"})
+      expect(rebuilt.displayStats().total).toBe(3)
+    } finally {await rebuilt.dispose()}
   } finally {await f.close()}
 })
 test("один tool пересекает user boundary по occurrences, причинный request прежний", async () => {

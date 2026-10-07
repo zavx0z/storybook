@@ -14,6 +14,8 @@ export type HistoryEntry = Readonly<{
   kind: Item["kind"]
   origin: Item["origin"]
   role?: "user" | "assistant" | "system" | "thought"
+  /** Transport role исполнителя не доказывает авторство человека. */
+  authorship?: "unresolved"
   purpose?: "command"
   title?: string
   eventType?: string
@@ -64,11 +66,13 @@ export type HistoryBody = Readonly<{
   revision: number
   id: string
   bytes: number
-  entry: Item
+  entry: Item & Readonly<{authorship?: "unresolved"}>
   terminal?: HistoryTerminalPage
   detail?: HistoryDetailPage
   continuation?: HistoryContentCursor
   sourceBytes?: number
+  /** Показанный текст содержит ссылки вместо embedded оригиналов; копировать нужно источник. */
+  copyRequiresSource?: boolean
   evidenceCount: number
 }>
 
@@ -115,6 +119,8 @@ export type HistoryGroup = Readonly<{
 /** Верхний список считает видимые сообщения и группы, а не raw events. */
 export type HistoryDisplayPage = Omit<HistoryPage, "items"> & Readonly<{
   items: readonly (HistoryEntry | HistoryGroup)[]
+  /** Малые обычные сообщения той же подтверждённой страницы, суммарно до 64 KiB. */
+  bodies?: readonly HistoryBody[]
   rawTotal: number
   projectionRevision: number
 }>
