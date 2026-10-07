@@ -1,6 +1,7 @@
 import {createAudioPlayback} from "@zavx0z/immersive-browser/audio"
 import {saveDraftMedia, loadDraftMedia} from "./chat-draft-media"
 import {createHistoryRequests} from "./history-requests"
+import {openChatOriginalImage} from "./chat-original-image"
 import {createMediaImageCache, filesToMedia, pickMedia, type MediaDraftAttachment} from "@zavx0z/chat/media"
 import {mediaAttachmentBlob, downloadMediaBlob, type MediaHost, type MediaPreview} from "@zavx0z/chat/content"
 import type {StorybookChatView} from "@zavx0z/storybook-chat-view"
@@ -527,6 +528,8 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       signal.throwIfAborted()
       return blob
     },
+    ...(pageDocument ? {openOriginal: (media: MediaPreview, signal: AbortSignal) => openChatOriginalImage(pageDocument, media,
+      AbortSignal.any([signal, lifetime.signal]), originalSignal => mediaHost.load(media.source, originalSignal))} : {}),
     async download(value, signal) {
       signal = AbortSignal.any([signal, lifetime.signal])
       if (!pageDocument) throw new Error("Скачивание доступно в браузере")
