@@ -301,7 +301,9 @@ function CapsuleFields(props: Readonly<{
       gap: 16px;
     `}
   >
-    <SettingsNotice text="Capsule на этом компьютере. Укажите уже запущенный профиль с открытым сервисом." />
+    <SettingsNotice text={props.connection.ssh
+      ? "Capsule на удалённой машине. Адрес Studio относится к этой машине; укажите уже запущенный профиль."
+      : "Capsule на этом компьютере. Укажите уже запущенный профиль с открытым сервисом."} />
     <TextField
       label="Адрес Capsule Studio"
       type="url"
@@ -327,6 +329,60 @@ function CapsuleFields(props: Readonly<{
         if (service === "qwen" || service === "deepseek") props.onChange({...props.connection, endpoint: {...endpoint, service}})
       }}
     />
+    <SwitchField
+      label="Исполнять на другой машине через SSH"
+      checked={!!props.connection.ssh}
+      disabled={props.busy}
+      onChange={enabled => {
+        const {ssh, ...local} = props.connection
+        props.onChange(enabled ? {...local, ssh: {host: "", providerRoot: "", storageRoot: ""}} : local)
+      }}
+    />
+    {props.connection.ssh ? <CapsuleRemoteFields
+      ssh={props.connection.ssh}
+      busy={props.busy}
+      onChange={ssh => props.onChange({...props.connection, ssh})}
+    /> : null}
+  </section>
+}
+function CapsuleRemoteFields(props: Readonly<{
+  ssh: NonNullable<Extract<Connection, {provider: "capsule"}>["ssh"]>
+  busy: boolean
+  onChange(value: NonNullable<Extract<Connection, {provider: "capsule"}>["ssh"]>): void
+}>) {
+  return <section aria-label="Удалённое исполнение Capsule">
+    <SSHFields
+      ssh={props.ssh}
+      busy={props.busy}
+      onChange={value => {
+        const {host, user, port, ...paths} = props.ssh
+        props.onChange({...paths, ...value})
+      }}
+    />
+    <section aria-label="Размещение Provider на удалённой машине">
+      <SettingsNotice text="Дополнительные параметры: абсолютные пути на машине исполнения. Studio, Docker и Provider должны работать на ней вместе." />
+      <TextField
+        label="Каталог установленного Provider"
+        value={props.ssh.providerRoot}
+        disabled={props.busy}
+        onInput={providerRoot => props.onChange({...props.ssh, providerRoot})}
+      />
+      <TextField
+        label="Каталог постоянных данных Provider"
+        value={props.ssh.storageRoot}
+        disabled={props.busy}
+        onInput={storageRoot => props.onChange({...props.ssh, storageRoot})}
+      />
+      <TextField
+        label="Контекст Docker (необязательно)"
+        value={props.ssh.dockerContext ?? ""}
+        disabled={props.busy}
+        onInput={value => {
+          const {dockerContext, ...ssh} = props.ssh
+          props.onChange(value ? {...ssh, dockerContext: value} : ssh)
+        }}
+      />
+    </section>
   </section>
 }
 function OllamaFields(props: Readonly<{

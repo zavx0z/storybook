@@ -12,13 +12,26 @@ export type ExecutionSource = "general" | "type" | "executor" | "session" | "nat
 /** Адрес Ollama на этой машине; SSH запускается только отдельными аргументами. */
 export type OllamaEndpoint = ProviderConnection.Input
 
-/** Локальный Capsule Studio и уже запущенный профиль выбранного сервиса. */
+/** Capsule Studio на машине ACP-исполнителя и уже запущенный профиль выбранного сервиса. */
 export type CapsuleEndpoint = ProviderConnectionCapsule.Input
+
+/** Машина исполнения Capsule: Studio, Docker и ACP работают вместе. Пути относятся к удалённой машине. */
+export type CapsuleSsh = Readonly<{
+  host: string
+  user?: string
+  port?: number
+  /** Абсолютный каталог установленного Repo Provider. */
+  providerRoot: string
+  /** Абсолютный каталог постоянных данных Provider; суффикс Project и подключения назначает среда. */
+  storageRoot: string
+  /** Контекст Docker только удалённого ACP-процесса; default context машины не изменяется. */
+  dockerContext?: string
+}>
 
 /** Реальное подключение среды; credentials и команды запуска в каталог не входят. */
 export type ExecutionConnection = Readonly<{id: string, label: string, enabled: boolean}> & (
   Readonly<{provider: "codex"}> | Readonly<{provider: "ollama", endpoint: OllamaEndpoint}> |
-  Readonly<{provider: "capsule", endpoint: CapsuleEndpoint}>
+  Readonly<{provider: "capsule", endpoint: CapsuleEndpoint, ssh?: CapsuleSsh}>
 )
 
 /** Выбранные настройки беседы и результат разрешения до обращения к исполнителю. */

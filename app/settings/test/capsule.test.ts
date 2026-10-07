@@ -61,6 +61,32 @@ test("Capsule требует локальный Studio, явный профил�
   } finally {await f.dispose()}
 })
 
+test("Машина исполнения Capsule хранится локально отдельно от loopback endpoint", async () => {
+  const f = await fixture()
+  try {
+    const ssh = {host: "mesh-production1", user: "admin", port: 22, providerRoot: "/Users/admin/Provider ' $()",
+      storageRoot: "/Users/admin/.local/share/zavx0z/provider", dockerContext: "capsule-qwen"}
+    const remote = {...capsule, ssh}
+    await f.settings.update({...await f.settings.read(), connections: [remote]})
+    expect((await createSettings({project: f.project}).read()).connections).toEqual([remote])
+    const execution = await f.settings.resolve({subject: f.subject, executorId: "developer:project", selection: {}, pinnedConnectionId: capsule.id})
+    expect(execution.pinnedConnectionId).toBe(capsule.id)
+    expect(execution.connections.find(connection => connection.id === execution.effective.connectionId)).toEqual(remote)
+    const portable = JSON.parse(await readFile(join(f.project, "meta/settings/execution.json"), "utf8"))
+    expect(portable.connections).toBeUndefined()
+    const saved = await f.settings.read()
+    for (const invalid of [
+      {...ssh, host: "-oProxyCommand=evil"}, {...ssh, host: "host;evil"}, {...ssh, user: "admin;evil"},
+      {...ssh, port: 0}, {...ssh, port: 65536}, {...ssh, providerRoot: "relative"},
+      {...ssh, providerRoot: "/remote/../provider"}, {...ssh, storageRoot: "/tmp/data\u0000"},
+      {...ssh, dockerContext: "bad context"}, {...ssh, command: "evil"}, {...ssh, password: "secret"},
+    ]) await expect(f.settings.update({...saved, connections: [{...capsule, ssh: invalid}]})).rejects.toThrow()
+    expect(await f.settings.read()).toEqual(saved)
+    const invalidCodex = {id: "codex", provider: "codex" as const, label: "Codex", enabled: true, ssh}
+    await expect(f.settings.update({...saved, connections: [invalidCodex]})).rejects.toThrow()
+  } finally {await f.dispose()}
+})
+
 test("native сессия Capsule сохраняет провайдера и закреплённое подключение при восстановлении", async () => {
   const f = await fixture()
   const resumed: (string | undefined)[] = []

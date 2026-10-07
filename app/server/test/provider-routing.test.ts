@@ -1,7 +1,8 @@
 import {expect, test} from "bun:test"
+import {spawnSync} from "node:child_process"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
-import {join} from "node:path"
+import {basename, join} from "node:path"
 import {providerTransport} from "../src/provider-routing"
 import {createExecutionOptions} from "../src/execution-options"
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
@@ -70,6 +71,33 @@ test("Capsule получает отдельный адаптер, профиль
     expect(JSON.parse(providerTransport({...f, project: join(f.project, "another")}, capsule).env!.PROVIDER_CAPSULE_CONFIG!).directory).not.toBe(config.directory)
     expect(providerTransport(f, capsule).mode).toBeUndefined()
     expect(() => providerTransport(f, {...capsule, enabled: false})).toThrow("отключено")
+  } finally {await f.dispose()}
+})
+
+test("Capsule через SSH исполняет тот же ACP entry и сохраняет identity каталога без shell-подстановок", async () => {
+  const f = await fixture()
+  try {
+    const ssh = {host: "mesh-production1", user: "admin", port: 2222,
+      providerRoot: "/remote/Provider ' $(touch hacked) $HOME", storageRoot: "/remote/Data ' $(touch hacked) $HOME", dockerContext: "capsule-qwen"}
+    const input = providerTransport(f, {...capsule, ssh})
+    expect(input.command).toBe("ssh")
+    expect(input.args!.slice(0, 5)).toEqual(["-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes"])
+    expect(input.args!.slice(-7, -1)).toEqual(["-p", "2222", "-l", "admin", "--", "mesh-production1"])
+    expect(input.env).toBeUndefined()
+    // Подставляем только executable bun; shell получает ровно команду, отправляемую OpenSSH.
+    await writeFile(join(f.toolRoot, "bun"), `#!${process.execPath}\nconsole.log(JSON.stringify({args:process.argv.slice(2),config:JSON.parse(process.env.PROVIDER_CAPSULE_CONFIG),context:process.env.DOCKER_CONTEXT}))\n`, {mode: 0o700})
+    const shell = spawnSync("/bin/sh", ["-c", input.args!.at(-1)!], {cwd: f.toolRoot,
+      env: {...process.env, PATH: `${f.toolRoot}:${process.env.PATH}`}, encoding: "utf8"})
+    expect(shell.status).toBe(0)
+    const result = JSON.parse(shell.stdout)
+    const local = JSON.parse(providerTransport(f, capsule).env!.PROVIDER_CAPSULE_CONFIG!)
+    expect(result.args).toEqual([join(ssh.providerRoot, "app/capsule/index.ts")])
+    expect(result.config).toEqual({endpoint: capsule.endpoint, directory: join(ssh.storageRoot, "capsule", basename(local.directory))})
+    expect(result.context).toBe("capsule-qwen")
+    expect(await Bun.file(join(f.toolRoot, "hacked")).exists()).toBe(false)
+    const {dockerContext, ...withoutContext} = ssh
+    expect(providerTransport(f, {...capsule, ssh: withoutContext}).args!.at(-1)).not.toContain("DOCKER_CONTEXT=")
+    expect(providerTransport({...f, toolRoot: "/absent/local/installation"}, {...capsule, ssh}).command).toBe("ssh")
   } finally {await f.dispose()}
 })
 

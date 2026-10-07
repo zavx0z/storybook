@@ -159,4 +159,31 @@ describe.each([{name: "Настройки среды", props: {
     expect(card.textContent, "Форма объясняет настройки пользователя без технических деталей браузера").not.toContain("CDP")
   })
 
+  test("Capsule на другой машине", async () => {
+    const card = element.querySelector('[data-provider-connection="capsule"]')!
+    const toggle = card.querySelectorAll('button[role="switch"]')[1] as HTMLButtonElement
+    toggle.click()
+    await headless.capture(element)
+    expect(card.textContent).toContain("Адрес Studio относится к этой машине")
+    const fields = card.querySelectorAll('[aria-label="Удалённое исполнение Capsule"] input')
+    for (const [index, value] of ["mesh-production1", "admin", "22", "/Users/admin/repozitarium/provider", "/Users/admin/.local/share/zavx0z/provider", "capsule-qwen"].entries()) {
+      const input = fields[index] as HTMLInputElement
+      input.value = value
+      input.dispatchEvent(new InputEvent("input", {bubbles: true}))
+      await headless.capture(element)
+    }
+    const save = [...element.querySelectorAll("button")].find(item => item.textContent === "Сохранить") as HTMLButtonElement
+    save.click()
+    await headless.capture(element)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await headless.capture(element)
+    expect(props.fetcher).toHaveBeenCalledWith("/api/browser/chat/execution-settings-save", expect.objectContaining({
+      body: expect.stringContaining('"ssh":{"providerRoot":"/Users/admin/repozitarium/provider","storageRoot":"/Users/admin/.local/share/zavx0z/provider","host":"mesh-production1","user":"admin","port":22,"dockerContext":"capsule-qwen"}'),
+    }))
+    expect((card.querySelector('[aria-label="Подключение Capsule"] input') as HTMLInputElement).value).toBe("http://127.0.0.1:17777")
+    toggle.click()
+    await headless.capture(element)
+    expect(card.querySelector('[aria-label="Удалённое исполнение Capsule"]')).toBeNull()
+  })
+
 })

@@ -20,15 +20,28 @@ export const internalCodexPolicy = {
 type Resolution = NonNullable<Awaited<ReturnType<NonNullable<StorybookChatSession.Input["resolveExecution"]>>>>
 type Connection = Resolution["connections"][number]
 
-/** Выбирает native процесс; история Ollama и Capsule хранится в постоянном `~/.local/share/zavx0z/provider/`, отдельно для провайдера, Project и подключения. */
+/** Выбирает native процесс; удалённый Capsule исполняет тот же ACP entry через SSH. История сохраняет identity Project и подключения, а каталог принадлежит машине исполнения. */
 export function providerTransport(options: {project: string, toolRoot: string}, connection: Connection): Partial<StorybookTechAcp.Input> {
   if (!connection.enabled) throw new Error("Подключение недоступно или отключено")
   if (connection.provider === "codex") return {
     installation: options.toolRoot, adapter: "@zavx0z/provider-app-codex", mode: "read-only", exclusiveMcp: true, config: internalCodexPolicy,
   }
   const provider = connection.provider
-  const entry = createRequire(join(options.toolRoot, "package.json")).resolve(`@zavx0z/provider-app-${provider}`)
   const identity = createHash("sha256").update(JSON.stringify([resolve(options.project), connection.id])).digest("hex")
+  if (connection.provider === "capsule" && connection.ssh) {
+    const ssh = connection.ssh
+    const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
+    const config = JSON.stringify({endpoint: connection.endpoint, directory: join(ssh.storageRoot, "capsule", identity)})
+    const remote = `exec env ${quote(`PROVIDER_CAPSULE_CONFIG=${config}`)}${ssh.dockerContext === undefined ? "" : ` ${quote(`DOCKER_CONTEXT=${ssh.dockerContext}`)}`} bun ${quote(join(ssh.providerRoot, "app/capsule/index.ts"))}`
+    return {
+      command: "ssh",
+      args: ["-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=10",
+        "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=2",
+        ...(ssh.port === undefined ? [] : ["-p", String(ssh.port)]),
+        ...(ssh.user === undefined ? [] : ["-l", ssh.user]), "--", ssh.host, remote],
+    }
+  }
+  const entry = createRequire(join(options.toolRoot, "package.json")).resolve(`@zavx0z/provider-app-${provider}`)
   return {
     command: process.execPath,
     args: [entry],

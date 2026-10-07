@@ -20,6 +20,8 @@ export declare namespace StorybookAppSettings {
   Project задаёт место общего файла и локального sidecar `.local/execution-connections.json`; subject приходит от доверенного resolver.
   Локальный каталог хранит current/previous снимки и активирует только revision
   переносимого документа; отказ его записи не активирует новый endpoint.
+  Capsule может исполняться через SSH: адрес Studio относится к удалённой машине,
+  её пути Provider и контекст Docker сохраняются только в локальном каталоге.
   Доверенная политика вне Project следует за физическим каталогом при rename
   на том же диске. Копия и перенос на другой диск не наследуют выданные права.
   */
