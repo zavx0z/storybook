@@ -239,7 +239,6 @@ function TimelineEntry(props: Readonly<{row: StorybookChatView.Input["history"][
     {message && row.body?.kind === "message" && row.body.continuation ? <ContentFragments id={header.id} body={row.body} view={view} /> : null}
     {header.kind === "turn" ? <TurnHeader row={row} /> : null}
     {!message && header.kind !== "turn" ? <TimelineFoldedEntry row={row} view={view} /> : null}
-    {header.origin === "replay" ? <ChatNotice text="Восстановлено из сессии исполнителя" /> : null}
   </div>
 }
 
