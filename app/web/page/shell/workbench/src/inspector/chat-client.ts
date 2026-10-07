@@ -140,7 +140,8 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   const historyRequests = createHistoryRequests()
   const historyRead = (operation: string, body: Record<string, unknown>, signal: AbortSignal) => {
     const active = AbortSignal.any([signal, lifetime.signal])
-    return historyRequests(() => post(operation, body, undefined, active), active)
+    const priority = operation === "history-item" ? 0 : operation === "history-display" ? 1 : 2
+    return historyRequests(() => post(operation, body, undefined, active), active, priority)
   }
   const history = createChatHistoryWindow({read: historyRead, changed: () => notify()})
   let view: ChatBrowserView = deriveView()

@@ -57,17 +57,19 @@ function TimelineToolContent(props: Readonly<{content: ToolContent, onMedia?: ((
   </div>
 }
 
-function TimelineMessage(props: Readonly<{item: Extract<Item, {kind: "message"}>, onMedia?: ((media: MediaPreview) => void) | undefined, onCopyText?: ((text: string) => Promise<void>) | undefined, onCopyMessage?: ((id: string) => Promise<void>) | undefined}>) {
-  const user = props.item.role === "user"
+function TimelineMessage(props: Readonly<{item: Extract<DisplayBody, {kind: "message"}>, onMedia?: ((media: MediaPreview) => void) | undefined, onCopyText?: ((text: string) => Promise<void>) | undefined, onCopyMessage?: ((id: string) => Promise<void>) | undefined}>) {
+  const user = props.item.role === "user" && props.item.authorship !== "unresolved"
   const blocks = useMemo(() => messageContent(props.item.content), [props.item.content])
   const source = blocks.flatMap(block => block.type === "text" ? [block.text] : []).join("")
   return <div data-chat-message={props.item.id} data-chat-role={props.item.role}>
     <MessageBubble
       id={props.item.id}
       own={user}
-      label={user ? "Ваше сообщение" : props.item.role === "system" ? "Состояние чата" : "Ответ агента"}
+      label={props.item.authorship === "unresolved" ? "Сообщение из истории исполнителя"
+        : user ? "Ваше сообщение" : props.item.role === "system" ? "Состояние чата" : "Ответ агента"}
       receivedAt={props.item.receivedAt}
-      onCopy={source && props.onCopyMessage ? () => props.onCopyMessage!(props.item.id) : source && props.onCopyText ? () => props.onCopyText!(source) : undefined}
+      onCopy={source && !props.item.continuation && !props.item.copyRequiresSource && props.onCopyText ? () => props.onCopyText!(source)
+        : source && props.onCopyMessage ? () => props.onCopyMessage!(props.item.id) : undefined}
     >
       {blocks.map((content, index) => <TimelineMessageContent
         key={index}
@@ -75,7 +77,8 @@ function TimelineMessage(props: Readonly<{item: Extract<Item, {kind: "message"}>
         onMedia={props.onMedia}
         user={user}
       />)}
-      {props.item.diagnostic ? <ChatNotice text={props.item.diagnostic} /> : null}
+      {props.item.authorship === "unresolved" ? <ChatNotice text="Автор сообщения не установлен" /> : null}
+      {props.item.authorship !== "unresolved" && props.item.diagnostic ? <ChatNotice text={props.item.diagnostic} /> : null}
     </MessageBubble>
   </div>
 }
@@ -170,7 +173,6 @@ function TimelineTurn(props: Readonly<{item: Extract<Item, {kind: "turn"}>}>) {
 function TimelineFoldedEntry(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input}>) {
   const row = props.row
   const header = row.header
-  const groupVisible = row.visible ?? row.body?.kind === "group"
   const label = header.kind === "tool" ? `${header.title ?? "Вызов инструмента"} · ${header.status ? toolStatuses[header.status] ?? "Состояние получено" : "Состояние не получено"}`
     : header.kind === "group" ? `Действия агента · ${header.memberCount}${header.status ? ` · ${toolStatuses[header.status] ?? header.status}` : ""}`
       : header.kind === "permission" ? `${header.title ?? "Подтверждение действия"} · ${toolStatuses[header.phase ?? ""] ?? "Решение"}`
@@ -183,18 +185,17 @@ function TimelineFoldedEntry(props: Readonly<{row: StorybookChatView.Input["hist
       expanded={row.expanded}
       onToggle={value => props.view.onHistoryExpand(header.id, value)}
     >
-      {row.expanded && header.kind === "group" && groupVisible ? <ServiceGroup group={header} view={props.view} /> : null}
-      {row.expanded && header.kind === "group" && !groupVisible ? <MissingBody row={row} view={props.view} /> : null}
+      {row.expanded && header.kind === "group" ? <ServiceGroup group={header} view={props.view} /> : null}
       {row.expanded && header.kind !== "group" ? <LazyDetails row={row} view={props.view} /> : null}
     </Panel>
   </section>
 }
 
 function MissingBody(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input}>) {
-  const statusText = props.row.loading ? "Загрузка записи…" : props.row.error ?? "Содержимое выгружено"
+  const statusText = props.row.loading ? "Загрузка записи…" : props.row.error ?? "Загрузка записи…"
   return <div data-chat-body-placeholder="">
     {statusText}
-    {!props.row.loading ? <ReloadBody
+    {props.row.error ? <ReloadBody
       id={props.row.header.id}
       onRetry={props.view.onHistoryRetry}
     /> : null}
@@ -215,7 +216,7 @@ function LazyDetails(props: Readonly<{row: StorybookChatView.Input["history"]["r
   </div>
 }
 
-/** Только resident заголовки и body текущего viewport; скрытые подробности не создаются. */
+/** Малые сообщения сохраняют DOM в пределах resident страниц; подробности читаются по раскрытию. */
 function TimelineEntry(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input, height: number}>) {
   const {row, view} = props
   const header = row.header

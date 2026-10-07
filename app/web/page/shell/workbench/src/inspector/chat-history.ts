@@ -26,7 +26,7 @@ function validateBody(body: DisplayBody, header: Header): DisplayBody {
 }
 function projectedBody(body: Body, sourceId = body.id, evidenceId?: string): DisplayBody {
   if (body.detail && !body.terminal) return {kind: "detail", id: body.id, sourceId, ...(evidenceId === undefined ? {} : {evidenceId}), detail: body.detail}
-  return {...body.entry, historyRevision: body.revision, ...(body.terminal === undefined ? {} : {terminal: body.terminal}), ...(body.continuation === undefined ? {} : {continuation: body.continuation}),
+  return {...body.entry, historyRevision: body.revision, ...(body.copyRequiresSource ? {copyRequiresSource: true} : {}), ...(body.terminal === undefined ? {} : {terminal: body.terminal}), ...(body.continuation === undefined ? {} : {continuation: body.continuation}),
     ...(body.sourceBytes === undefined ? {} : {sourceBytes: body.sourceBytes})}
 }
 
@@ -65,7 +65,8 @@ export function createChatHistoryWindow(input: Readonly<{
     source: {
       async readPage(id, query, signal) {
         const page = await input.read("history-display", {...identity(id), query}, signal) as Page
-        return {...page, conversationId: page?.chatId}
+        return {...page, conversationId: page?.chatId, bodies: (page?.bodies ?? []).map(body => ({...body,
+          conversationId: body.chatId, entry: projectedBody(body)}))}
       },
       async readBody(id, entryId, signal) {
         const header = controller.getSnapshot().rows.find(row => row.header.id === entryId)?.header
@@ -88,13 +89,14 @@ export function createChatHistoryWindow(input: Readonly<{
       const scope = `${selected.executorId}:${group.id}`
       let released = false
       let notificationQueued = false
+      const listeners = new Set<() => void>()
       const changed = () => {
         if (released || notificationQueued) return
         notificationQueued = true
         // Layout/commit вложенного окна не входит повторно во внешний render.
         queueMicrotask(() => {
           notificationQueued = false
-          if (!released) {projectedSnapshot = undefined; input.changed()}
+          if (!released) for (const listener of listeners) listener()
         })
       }
       let nested: HistoryController<HistoryOccurrence, DisplayBody, unknown>
@@ -120,12 +122,13 @@ export function createChatHistoryWindow(input: Readonly<{
         validateHeader, validateBody, changed,
       })
       const owned = {...nested,
+        subscribe(listener: () => void) {listeners.add(listener); return () => {listeners.delete(listener)}},
         accept(value: Parameters<typeof nested.accept>[0]) {
           if (released) return
           groups.add(owned)
           nested.accept({...value, id: chatId, scope})
         },
-        dispose() {released = true; nested.dispose(); groups.delete(owned)},
+        dispose() {released = true; listeners.clear(); nested.dispose(); groups.delete(owned)},
       }
       // Конструктор вызывается из useMemo: accept принадлежит commit effect потребителя.
       return owned

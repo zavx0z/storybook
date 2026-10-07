@@ -4,14 +4,13 @@ type Session = StorybookChatSession.Output
 type Page = Awaited<ReturnType<Session["displayHistory"]>>
 type Body = Awaited<ReturnType<Session["historyItem"]>>
 type Detail = Awaited<ReturnType<Session["historyDetail"]>>
-export type DisplayBody = (Body["entry"] & Readonly<{continuation?: Body["continuation"], sourceBytes?: number, historyRevision?: number, terminal?: Body["terminal"]}>) | Readonly<{kind: "group", id: string}> | Readonly<{kind: "detail", id: string, sourceId?: string, evidenceId?: string, detail: Detail}>
+export type DisplayBody = (Body["entry"] & Readonly<{continuation?: Body["continuation"], sourceBytes?: number, historyRevision?: number, copyRequiresSource?: boolean, terminal?: Body["terminal"]}>) | Readonly<{kind: "group", id: string}> | Readonly<{kind: "detail", id: string, sourceId?: string, evidenceId?: string, detail: Detail}>
 
 type Evidence = Awaited<ReturnType<Session["historyEvidence"]>>
 
-/** Одна resident строка: малый заголовок и только запрошенное сейчас тело. */
+/** Одна resident строка: малый заголовок и сохранённое в общем бюджете тело. */
 export type HistoryRow = Readonly<{
   header: Page["items"][number] | Awaited<ReturnType<Session["groupHistory"]>>["items"][number]
-  visible?: boolean
   body?: DisplayBody | undefined
   continuation?: Body["continuation"]
   sourceBytes?: number

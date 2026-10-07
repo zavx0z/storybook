@@ -64,7 +64,7 @@ export declare namespace StorybookChatView {
     onHistoryTail(): void
     onHistoryRetryPage?: (() => void) | undefined
     /** Создаёт пустой controller без notify/IO; ServiceGroup принимает header в commit effect. */
-    createGroupHistory?: ((group: HistoryGroup) => HistoryController<HistoryOccurrence, DisplayBody, unknown>) | undefined
+    createGroupHistory?: ((group: HistoryGroup) => (HistoryController<HistoryOccurrence, DisplayBody, unknown> & {subscribe?(listener: () => void): () => void})) | undefined
     readHistoryContent?: ((id: string, cursor: NonNullable<HistoryContentPage["next"]>, signal: AbortSignal) => Promise<HistoryContentPage>) | undefined
     readHistoryTerminal?: ((id: string, cursor: HistoryTerminalCursor, signal: AbortSignal) => Promise<HistoryTerminalPage>) | undefined
     readHistoryDetail?: ((id: string, offset: number, signal: AbortSignal, evidenceId?: string) => Promise<HistoryDetailPage>) | undefined

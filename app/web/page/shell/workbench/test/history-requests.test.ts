@@ -1,6 +1,21 @@
 import {expect, test} from "bun:test"
 import {createHistoryRequests} from "../src/inspector/history-requests"
 
+test("явное действие опережает ожидающие фоновые чтения, сохраняя FIFO и общий предел", async () => {
+  const read = createHistoryRequests(1)
+  const gate = Promise.withResolvers<void>()
+  const signal = new AbortController().signal
+  const order: string[] = []
+  const first = read(() => gate.promise, signal)
+  const background = read(async () => {order.push("background")}, signal)
+  const page = read(async () => {order.push("page")}, signal, 1)
+  const action1 = read(async () => {order.push("action1")}, signal, 2)
+  const action2 = read(async () => {order.push("action2")}, signal, 2)
+  gate.resolve()
+  await Promise.all([first, background, page, action1, action2])
+  expect(order).toEqual(["action1", "action2", "page", "background"])
+})
+
 test("все вложенные истории делят четыре IO слота; отмена очереди не удерживает слот", async () => {
   const read = createHistoryRequests(4)
   let active = 0

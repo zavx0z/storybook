@@ -1,6 +1,6 @@
 import ToolTerminal from "./terminal-output-view"
 import {readTerminalOutput} from "./terminal-output"
-import { useLayoutEffect, useMemo, useRef, useState } from "@zavx0z/immersive-component"
+import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "@zavx0z/immersive-component"
 import HistoryView from "@zavx0z/chat/history/view"
 import type { HistoryGroup } from "@zavx0z/storybook-chat-session"
 import type { StorybookChatView } from "../contract"
@@ -10,7 +10,7 @@ import type { DisplayBody } from "../contract/history"
 import type { HistoryOccurrence } from "@zavx0z/storybook-chat-session"
 import { ChatContent, ChatContextContent, ChatData } from "./content"
 
-/** Видимость/раскрытие владеют mount; обновление revision сохраняет controller и anchor.
+/** Раскрытие владеет mount; прокрутка родителя и revision сохраняют controller и anchor.
 Конструктор в useMemo не публикует состояние; чтение начинается из commit effect.
 Disposal отзывает всё вложенное окно и освобождает долю общего бюджета host. */
 export default function ServiceGroup(
@@ -28,7 +28,12 @@ export default function ServiceGroup(
       history: { revision: props.group.revision, total: props.group.memberCount }
     })
   }, [controller, props.group.revision, props.group.memberCount])
-  const { conversationId, rows, ...state } = controller?.getSnapshot() ?? {
+  const source = useMemo(() => ({
+    subscribe: (listener: () => void) => controller?.subscribe?.(listener) ?? (() => {}),
+    getSnapshot: () => controller?.getSnapshot()
+  }), [controller])
+  const snapshot = useSyncExternalStore(source.subscribe, source.getSnapshot)
+  const { conversationId, rows, ...state } = snapshot ?? {
     conversationId: props.view.history.chatId,
     rows: [],
     revision: 0,
