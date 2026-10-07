@@ -976,3 +976,26 @@ test.each(["connectionId", "model"] as const)("metadata prepare отменяет
     expect(client.getSnapshot().configuring).toBe(false)
   } finally {gate.resolve(Response.json([])); client.dispose()}
 })
+
+test("100 символов не заменяют history rows; черновик сохраняется одной записью и flush при dispose", async () => {
+  const fixture = browserChatFixture("/draft-performance")
+  const writes: [string, string][] = []
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Draft", createSocket: fixture.createSocket, fetcher: fixture.fetcher,
+    storage: () => ({getItem: () => null, setItem: (key, value) => {writes.push([key, value])}}),
+  })
+  client.start()
+  await until(() => client.getSnapshot().sessionId !== undefined)
+  try {
+    const history = client.getSnapshot().history
+    writes.length = 0
+    for (let i = 1; i <= 100; i++) {
+      client.setDraft("a".repeat(i))
+      expect(client.getSnapshot().history).toBe(history)
+    }
+    expect(writes.filter(([key]) => key.includes("draft.v1"))).toHaveLength(0)
+    await Bun.sleep(230)
+    expect(writes.filter(([key]) => key.includes("draft.v1"))).toEqual([[`storybook.chat.draft.v1:${fixture.snapshot.id}`, "a".repeat(100)]])
+    client.setDraft("Последний символ")
+  } finally {client.dispose()}
+  expect(writes.filter(([key]) => key.includes("draft.v1")).at(-1)?.[1]).toBe("Последний символ")
+})

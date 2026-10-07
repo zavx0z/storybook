@@ -95,10 +95,11 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   let historyVisible = true
   const pageDocument = globalThis.document
   let pageActive = true
-  const pageHidden = () => {pageActive = false; visibilityChanged()}
+  const pageHidden = () => {saveDraft(); pageActive = false; visibilityChanged()}
   const pageShown = () => {pageActive = true; visibilityChanged()}
   const wantsConnection = () => visible && pageActive && pageDocument?.visibilityState !== "hidden"
   const visibilityChanged = () => {
+    if (pageDocument?.visibilityState === "hidden") saveDraft()
     history.setActive(wantsConnection() && historyVisible && media === null)
     if (!wantsConnection()) {
       images.clear()
@@ -126,6 +127,8 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   let mediaRestoring: Promise<void> | null = null
   let media: MediaPreview | null = null
   let draft = ""
+  let draftTimer: ReturnType<typeof setTimeout> | undefined
+  let persistedDraft: {id: string, text: string} | undefined
   let draftChanged = false
   let draftEpoch = 0
   let configuring = false
@@ -179,9 +182,19 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   }
   const releaseAttachments = () => {for (const attachment of attachments) attachment.release(); attachments = []}
   const saveDraft = (): void => {
-    if (session === null) return
+    clearTimeout(draftTimer)
+    draftTimer = undefined
+    const value = session === null ? undefined : {id: session.id, text: draft}
+    if (!value) return
+    if (persistedDraft?.id === value.id && persistedDraft.text === value.text) return
+    rememberDraft(value.id, value.text)
+    try { storage().setItem(draftStorageKey(value.id), value.text); persistedDraft = value } catch {}
+  }
+  const scheduleDraft = (): void => {
+    if (!session) return
     rememberDraft(session.id, draft)
-    try { storage().setItem(draftStorageKey(session.id), draft) } catch {}
+    // Не откладывать бесконечно при непрерывном вводе: максимум 200 мс до записи.
+    draftTimer ??= setTimeout(saveDraft, 200)
   }
   const pendingReceipt = (key: string): SubmissionReceipt | undefined => {
     let receipt = pendingRequests.get(key)
@@ -287,7 +300,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       }).catch(failure => {if (!disposed && !lifetime.signal.aborted) {actionError = String(failure); notify()}})
     }
     history.accept(next)
-    saveDraft()
+    if (initialIdentity) saveDraft()
     notify()
   }
   const grant = async (signal = lifetime.signal): Promise<string> => {
@@ -635,12 +648,12 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     },
     preview(value: MediaPreview | null) {media = value; visibilityChanged(); notify()},
     setDraft(value: string) {
-      if (disposed) return
+      if (disposed || draft === value) return
       draft = value
       draftChanged = true
       draftEpoch++
       if (session) forgetAccepted(session.id)
-      saveDraft()
+      scheduleDraft()
       notify()
     },
     async send() {

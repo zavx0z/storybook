@@ -58,8 +58,10 @@ export function createChatHistoryWindow(input: Readonly<{
     return {...body, conversationId: body?.chatId, entry: projectedBody(body, sourceId, evidenceId)}
   }
   let controller: HistoryController<Header, DisplayBody, Evidence["items"][number]>
+  let previousSnapshot: ReturnType<typeof controller.getSnapshot> | undefined
+  let projectedSnapshot: View | undefined
   controller = createHistoryWindow<Header, DisplayBody, Evidence["items"][number]>({
-    residencyBudget,
+    residencyBudget, refreshDelayMs: 100,
     source: {
       async readPage(id, query, signal) {
         const page = await input.read("history-display", {...identity(id), query}, signal) as Page
@@ -92,13 +94,13 @@ export function createChatHistoryWindow(input: Readonly<{
         // Layout/commit вложенного окна не входит повторно во внешний render.
         queueMicrotask(() => {
           notificationQueued = false
-          if (!released) input.changed()
+          if (!released) {projectedSnapshot = undefined; input.changed()}
         })
       }
       let nested: HistoryController<HistoryOccurrence, DisplayBody, unknown>
       nested = createHistoryWindow<HistoryOccurrence, DisplayBody, unknown>({
         // Соседняя страница сохраняет anchor при prepend/eviction в обе стороны.
-        pageSize: 16, maxPages: 2, residencyBudget,
+        pageSize: 16, maxPages: 2, residencyBudget, refreshDelayMs: 100,
         source: {
           async readPage(id, query, signal) {
             const windowQuery = query.before === undefined && query.after === undefined && query.around === undefined ? {...query, before: Number.MAX_SAFE_INTEGER} : query
@@ -137,8 +139,11 @@ export function createChatHistoryWindow(input: Readonly<{
       controller.accept({id: snapshot.id, scope: snapshot.executorId, history: snapshot.displayHistory ?? snapshot.history})
     },
     getSnapshot(): View {
-      const {conversationId, rows, ...value} = controller.getSnapshot()
-      return {...value, chatId: conversationId, rows: rows.map(row => {
+      const current = controller.getSnapshot()
+      if (current === previousSnapshot && projectedSnapshot !== undefined) return projectedSnapshot
+      previousSnapshot = current
+      const {conversationId, rows, ...value} = current
+      return projectedSnapshot = {...value, chatId: conversationId, rows: rows.map(row => {
         const {evidence, ...entry} = row
         const body = row.body
         const fragments = body && "continuation" in body ? {continuation: body.continuation, ...(body.sourceBytes === undefined ? {} : {sourceBytes: body.sourceBytes})} : {}

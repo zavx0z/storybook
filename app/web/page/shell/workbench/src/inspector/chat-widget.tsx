@@ -68,7 +68,7 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
       onHistoryVisible={client.historyVisible}
       onHistoryExpand={client.historyExpand}
       onHistoryRetry={client.historyRetry}
-      onHistoryEvidence={(id, after) => {void client.historyEvidence(id, after)}}
+      onHistoryEvidence={client.historyEvidence}
       onHistoryTail={client.historyTail}
       draft={view.draft}
       status={view.status}

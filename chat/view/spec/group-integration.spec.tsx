@@ -106,6 +106,9 @@ test("external-store раскрытие группы стабилизирует�
         revision++
         group.revision = revision
         history.accept({id: "chat", executorId: "agent", history: {revision, total: 1000, lastSequence: 1002}, displayHistory: {revision, total: 1, lastSequence: 1002}} as Parameters<typeof history.accept>[0])
+        await Bun.sleep(120)
+        await settle()
+        await Bun.sleep(120)
         await settle()
         expect(nested).toBe(currentController)
         expect(creations).toBe(1)
