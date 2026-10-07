@@ -95,10 +95,38 @@ describe.each([
       }
     })
     test("Ответственность", () => {
-      expect(result.packageJson.description, "Описание сообщает, для чего существует пакет").toMatch(/\S/u)
+      expect(result.packageJson.description, "В package.json задано непустое описание пакета; наличие текста не подтверждает его смысловое качество").toMatch(/\S/u)
       expect(domain ? result.entryDocumentation.filter(entry => entry.path === ".").map(entry => entry.documentation?.markdown)
         : [result.documentation?.markdown], "TSDoc каждого основного входа раскрывает назначение и границы ответственности пакета")
         .toSatisfy(documents => documents.length > 0 && documents.every(document => typeof document === "string" && /\S/u.test(document)))
+    })
+  })
+
+  describe("Описание пакета", () => {
+    test.todo("Сущность", () => {
+      expect(result.packageJson.description,
+        "description в package.json — краткое определение того, чем является пакет. Оно раскрывает его предмет и смысловую роль; перечень выполняемых операций не заменяет определение сущности")
+        .toBeDefined()
+    })
+    test.todo("Самодостаточность", () => {
+      expect(result.packageJson.description,
+        "Описание понятно само по себе, без знания репозитория, расположения файлов и окружающего контекста. Читателю не приходится восстанавливать предмет из имени или соседних пакетов")
+        .toBeDefined()
+    })
+    test.todo("Существенные отличия", () => {
+      expect(result.packageJson.description,
+        "Смысловые свойства и отношения объясняют, к чему относится пакет и чем он отличается от похожих сущностей. Состав раскрывается, когда он существенен для понимания предмета")
+        .toBeDefined()
+    })
+    test.todo("Уровень подробности", () => {
+      expect(result.packageJson.description,
+        "Перечни файлов, экспортов, зависимостей и подробности реализации не входят в определение. Технические понятия уместны, когда обозначают сам предмет пакета, например синтаксический анализатор TypeScript")
+        .toBeDefined()
+    })
+    test.todo("Достаточная краткость", () => {
+      expect(result.packageJson.description,
+        "Текст сокращается до достаточного объяснения, сохраняя суть. Отвлечённые подписи вроде «инструмент» или «смысловая группа» без раскрытия предмета не являются понятным описанием")
+        .toBeDefined()
     })
   })
 
