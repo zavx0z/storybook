@@ -56,13 +56,16 @@ describe.each([
     ready!.configureInspector()
     ready!.setChatContext({address: "/example?view=source", label: "Пример"})
     expect(ready!.controller.read("inspector.registry").map(widget => widget.id),
-      "Workbench задаёт чат и предметные секции в одном реестре").toEqual([
-      "chat", "props", "source", "events", "diagnostics", "dom", "layout", "display", "reference",
+      "Workbench задаёт чат, агентов и предметные секции в одном реестре").toEqual([
+      "chat", "agents", "props", "source", "events", "diagnostics", "dom", "layout", "display", "reference",
     ])
     expect(ready!.controller.read("inspector.subject"),
       "Чат сохраняет канонический адрес без выбора представления").toEqual({
-      subjectId: "/example", workspaceId: "/example", widgetIds: ["chat"],
+      subjectId: "/example", workspaceId: "/example", widgetIds: ["chat", "agents"],
     })
+    const values = ready!.controller.read("inspector.values")
+    expect(values.chat, "Чат получает канонический адрес и имя предмета").toEqual({address: "/example", label: "Пример"})
+    expect(values.agents, "Агенты получают тот же канонический предмет независимо от вида представления").toEqual({address: "/example", label: "Пример"})
     ready!.present({
       label: "Исходник",
       presentation: {node: null, projection: "display"},
@@ -71,7 +74,9 @@ describe.each([
       chat: {address: "/example?view=source", label: "Пример"},
     })
     expect(ready!.controller.read("inspector.subject")?.widgetIds,
-      "Предметная секция остаётся рядом с чатом при согласованной публикации").toEqual(["chat", "source"])
+      "Предметная секция остаётся рядом с чатом и агентами при согласованной публикации").toEqual(["chat", "agents", "source"])
+    expect(ready!.controller.read("inspector.values").source,
+      "Добавление чата и агентов сохраняет опубликованное значение предметной секции").toBe("text")
     expect(ready!.events.navigate, "Страница подписывается на события конкретного Workbench").toBe("storybooknavigate")
   })
 

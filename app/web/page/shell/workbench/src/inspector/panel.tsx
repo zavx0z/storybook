@@ -47,7 +47,7 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     categories={categories}
     selectedCategoryId={props.selectedId}
     query={props.query}
-    showSearch={props.selectedId !== "chat"}
+    showSearch={props.selectedId !== "chat" && props.selectedId !== "tree"}
     searchLabel="Поиск по инспектору"
     searchPlaceholder="Поиск…"
     onCategoryChange={props.onCategoryChange}
