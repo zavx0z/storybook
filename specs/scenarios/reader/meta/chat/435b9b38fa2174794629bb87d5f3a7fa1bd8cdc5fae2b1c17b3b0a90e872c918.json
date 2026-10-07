@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 3,
+  "metadata": {
+    "id": "503541c10ded316ea1e7f8078edcba7f4f95363b32f585dda277034542bd2b28",
+    "executorId": "2deef859-8653-579c-aa26-3f19b3760dde",
+    "executorLabel": "Основной",
+    "address": "/storybook/specs/scenarios/reader",
+    "pending": [],
+    "historyComplete": true,
+    "status": "idle",
+    "error": null,
+    "controlVersion": 9,
+    "executionBaseline": {
+      "model": "gpt-6-astra",
+      "thoughtLevel": "medium"
+    },
+    "sessionId": "01a111fe-71cc-77c1-a7f4-51f667819d02",
+    "connectionId": "codex",
+    "cwd": "."
+  },
+  "history": {
+    "revision": 4,
+    "total": 1,
+    "lastSequence": 1
+  },
+  "journal": "435b9b38fa2174794629bb87d5f3a7fa1bd8cdc5fae2b1c17b3b0a90e872c918.json.journal.5b4322a6-043f-41e8-abba-ef8b598d700a.ndjson",
+  "committedBytes": 6932,
+  "hash": "166b63c02ebea29143666e21efa93a7fd26a9f76da3a131b4600e82add70ef1e",
+  "displayHistory": {
+    "revision": 4,
+    "total": 1,
+    "lastSequence": 1
+  }
+}

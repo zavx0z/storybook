@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 3,
+  "metadata": {
+    "id": "c3cf0a66-c4f4-4bd6-b776-400aa4bf29f9",
+    "executorId": "4983dd95-0692-59f8-965f-66c1ef36f186",
+    "executorLabel": "Основной",
+    "sessionLabel": "Ответь только словом подключено",
+    "sessionLabelSource": "auto",
+    "address": "/storybook/app/web/page/shell/execution-settings",
+    "pending": [],
+    "historyComplete": false,
+    "status": "idle",
+    "error": null,
+    "controlVersion": 42,
+    "executionSelection": {
+      "connectionId": "capsule"
+    },
+    "preserveNativeSettings": false,
+    "sessionLabelAssigned": true,
+    "executionBaseline": {},
+    "sessionId": "fc1fe714-2aea-492a-ac38-f235e68055a0",
+    "connectionId": "capsule",
+    "provider": "capsule",
+    "cwd": ".",
+    "environmentContext": "075288825d1658cdc56a367f75b4a036a66eaff9283f9df46b98abf2f0d0c255",
+    "pendingPermissions": []
+  },
+  "history": {
+    "revision": 38,
+    "total": 19,
+    "lastSequence": 22
+  },
+  "journal": "097641a0ea7463017c04e05c60df994f5ae7b0ef1b1255da02301b5ccb1f202e.4983dd95-0692-59f8-965f-66c1ef36f186.c3cf0a66-c4f4-4bd6-b776-400aa4bf29f9.json.journal.ef40e75b-bac3-4c90-86f1-8754569cc9b4.ndjson",
+  "committedBytes": 141678,
+  "hash": "7915c388d4abd27aa66a01feda04395f386218db5671b26c65eb6cce6bd3c8be",
+  "displayHistory": {
+    "revision": 38,
+    "total": 9,
+    "lastSequence": 22
+  }
+}

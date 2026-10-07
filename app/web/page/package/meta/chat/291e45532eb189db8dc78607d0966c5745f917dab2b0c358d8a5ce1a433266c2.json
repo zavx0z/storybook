@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 3,
+  "metadata": {
+    "id": "fffb869e87fd3704610c1835d26e7c97b558a7ae43d7fa3cc9eb4443fd728e75",
+    "executorId": "042cb045-76b6-5965-82f9-3703bdfa0c86",
+    "executorLabel": "Основной",
+    "address": "/storybook/app/web/page/package",
+    "pending": [],
+    "historyComplete": true,
+    "status": "idle",
+    "error": null,
+    "controlVersion": 9,
+    "executionBaseline": {
+      "model": "gpt-6-astra",
+      "thoughtLevel": "medium"
+    },
+    "sessionId": "01a111ff-7fad-77f0-a121-8395f6c63a9a",
+    "connectionId": "codex",
+    "cwd": "."
+  },
+  "history": {
+    "revision": 4,
+    "total": 1,
+    "lastSequence": 1
+  },
+  "journal": "291e45532eb189db8dc78607d0966c5745f917dab2b0c358d8a5ce1a433266c2.json.journal.a0b91461-5043-479d-afa0-aac42a846143.ndjson",
+  "committedBytes": 6924,
+  "hash": "9e67c9bd2aa6007bf3ff0c155ebf5ec6ccf0f2b46833d0e124b51d0e4b65e9f0",
+  "displayHistory": {
+    "revision": 4,
+    "total": 1,
+    "lastSequence": 1
+  }
+}
