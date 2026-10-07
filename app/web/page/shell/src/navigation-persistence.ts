@@ -5,10 +5,10 @@ const STORAGE_KEY = "storybook.navigation-tree.v1"
 const MAX_IDS = 4096
 
 /** Недоступное или повреждённое хранилище не препятствует навигации. */
-export function createNavigationExpansion(storage: () => Pick<Storage, "getItem" | "setItem">): NavigationExpansion {
+export function createNavigationExpansion(storage: () => Pick<Storage, "getItem" | "setItem">, storageKey = STORAGE_KEY): NavigationExpansion {
   let initialCollapsedIds: readonly string[] | undefined
   try {
-    const value = JSON.parse(storage().getItem(STORAGE_KEY) ?? "null")
+    const value = JSON.parse(storage().getItem(storageKey) ?? "null")
     if (value?.version === 1 && Array.isArray(value.collapsedIds)) {
       initialCollapsedIds = normalizedIds(value.collapsedIds)
     }
@@ -17,7 +17,7 @@ export function createNavigationExpansion(storage: () => Pick<Storage, "getItem"
     initialCollapsedIds,
     save(ids) {
       try {
-        storage().setItem(STORAGE_KEY, JSON.stringify({version: 1, collapsedIds: normalizedIds(ids)}))
+        storage().setItem(storageKey, JSON.stringify({version: 1, collapsedIds: normalizedIds(ids)}))
       } catch {}
     },
   }

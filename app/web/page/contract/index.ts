@@ -51,9 +51,13 @@ export declare namespace StorybookAppWebPage {
   @property [loadAppliedRevision] - Generic exact package/revision payload loader. Default использует {@link loadStorybookAppliedRevision}.
   */
   type Input = Readonly<{
+    /** Бюджет удерживаемых предметных исполнений, по умолчанию 6; активный ввод удерживается до завершения. */
+    maxWarmSubjects?: number
     initialTarget?: ExternalStorybookPreparedPageTarget
     initialPayload?: ExternalStorybookAppliedRevision | null
     initialHistory?: "push" | "replace"
+    /** Фокусирует целевой Display после перехода с заменой Web; обычный HMR сохраняет камеру. */
+    initialFocus?: boolean
     sharedModuleEpoch: string
     hostModuleEpoch?: string
     browserDocument?: globalThis.Document
@@ -79,21 +83,21 @@ export declare namespace StorybookAppWebPage {
   }>
 
   /**
-  Page-level lifecycle одного Root, Canvas и Workbench.
+  Page-level lifecycle одного Root и Canvas с несколькими предметными Display.
 
-  @property shell - Текущая {@link ExternalStorybookShell}; сохраняется между package scopes; host-обновление заменяет её App в том же Browser root.
+  @property shell - Оболочка выбранного предмета; все оболочки используют один Browser root.
 
   @property packageId - Текущий committed package либо `null` на landing.
 
   @property route - Committed package route или landing pathname.
 
-  @property navigatePackage - Сериализует prepare, scoped teardown, mount и history commit.
+  @property navigatePackage - Выбирает Display предмета, лениво готовит его содержимое и фиксирует адрес.
 
-  @property navigateLanding - Заменяет package scope landing scope без замены shell.
+  @property navigateLanding - Выбирает предмет или Project в том же пространстве.
 
   @property whenSettled - Завершение запущенных переходов, включая обновления из соединения; отклоняется с причиной ошибки.
 
-  @property dispose - Abort-ит transition, освобождает текущий scope, styles, bridge и затем shell.
+  @property dispose - Отменяет переходы, освобождает все предметные scopes, bridge и общий shell.
   */
   type Output = Readonly<{
     shell: ExternalStorybookShell

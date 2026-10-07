@@ -10,7 +10,7 @@ import type {StorybookContractNavigationReady, StorybookContractSelection} from 
 import type {StorybookContractDocument, StorybookDependencyCase} from "./documents"
 import type {StorybookOverviewAction} from "./overview-action"
 import type {StorybookPreviewBounds, StorybookSpacePreviewRegistration, StorybookSpacePreview} from "./preview"
-import type {ExternalStorybookRootFactory, ExternalStorybookNativeKey, StorybookShellUserState, StorybookRetainedRoot} from "./types"
+import type {ExternalStorybookRootFactory, ExternalStorybookNativeKey, StorybookShellUserState, StorybookRetainedRoot, StorybookShellSubject} from "./types"
 
 type Workbench = StorybookAppWebPageShellWorkbench.Output
 type WorkbenchPresentationUpdate = Parameters<Workbench["present"]>[0]
@@ -30,6 +30,11 @@ export declare namespace StorybookAppWebPageShell {
   }>
 
   type Output = Readonly<{
+    /** Все предметы находятся в одном Space; выбор сохраняет их Displays и состояние. */
+    configureSubjects(items: readonly StorybookShellSubject[], onSelect: (id: string) => void, onDemand?: (id: string) => void): void
+    createSubjectView(options: Readonly<{id: string; title: string; userState?: StorybookShellUserState}>): Output
+    selectSubject(id: string, focus?: boolean): void
+    releaseSubjectView(id: string): void
     document: SemanticDocument
     browserDocument: globalThis.Document
     canvas: HTMLCanvasElement

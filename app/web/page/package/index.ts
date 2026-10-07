@@ -63,6 +63,7 @@ async function startExternalStorybookPackage(
   validateRevisionUrl(packageId, initialCandidateRevision, input.revisionUrl)
   const environment = input.environment ?? {}
   const embeddedPageScope = environment.pageScope
+  const isSelected = () => embeddedPageScope?.isSelected?.() !== false
   const browserDocument = environment.browserDocument ?? globalThis.document
   const location = environment.location ?? globalThis.location
   const history = environment.history ?? globalThis.history
@@ -73,12 +74,12 @@ async function startExternalStorybookPackage(
     browserDocument.defaultView.name = `storybook:${packageId}`
   }
   if (embeddedPageScope === undefined) {
-    browserDocument.documentElement.dataset.externalStorybook = "starting"
-    browserDocument.documentElement.dataset.externalStorybookPackage = "starting"
-    browserDocument.documentElement.dataset.externalStorybookPackageId = packageId
-    browserDocument.documentElement.dataset.externalStorybookRevision = initialCandidateRevision ?? "unavailable"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybook = "starting"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPackage = "starting"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPackageId = packageId
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookRevision = initialCandidateRevision ?? "unavailable"
   }
-  browserDocument.documentElement.dataset.externalStorybookPhase = "snapshot"
+  if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPhase = "snapshot"
 
   const fetcher = environment.fetcher ?? globalThis.fetch
   const initialRevisionGraph = input.graphSnapshot === undefined
@@ -106,10 +107,10 @@ async function startExternalStorybookPackage(
         initialModel: deriveExternalStorybookPackageTab(snapshot, packageId, initialRoute),
       })
     } catch (error) {
-      browserDocument.documentElement.dataset.externalStorybook = "error"
-      browserDocument.documentElement.dataset.externalStorybookPackage = "error"
-      browserDocument.documentElement.dataset.externalStorybookPhase = "error"
-      browserDocument.documentElement.dataset.externalStorybookError = errorText(error).slice(0, 2_048)
+      if (isSelected()) browserDocument.documentElement.dataset.externalStorybook = "error"
+      if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPackage = "error"
+      if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPhase = "error"
+      if (isSelected()) browserDocument.documentElement.dataset.externalStorybookError = errorText(error).slice(0, 2_048)
       throw error
     }
   })()
@@ -139,7 +140,7 @@ async function startExternalStorybookPackage(
 
         scenarioLoaders,
       })
-  browserDocument.documentElement.dataset.externalStorybookPhase = "shell"
+  if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPhase = "shell"
   let shell: ExternalStorybookShell
   try {
     shell = embeddedPageScope?.shell ?? await createExternalStorybookShell({
@@ -154,10 +155,10 @@ async function startExternalStorybookPackage(
     })
   } catch (error) {
     const diagnostic = errorText(error)
-    browserDocument.documentElement.dataset.externalStorybook = "error"
-    browserDocument.documentElement.dataset.externalStorybookPackage = "error"
-    browserDocument.documentElement.dataset.externalStorybookPhase = "error"
-    browserDocument.documentElement.dataset.externalStorybookError = diagnostic.slice(0, 2_048)
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybook = "error"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPackage = "error"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPhase = "error"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookError = diagnostic.slice(0, 2_048)
     throw error
   }
   const lifetime = new AbortController()
@@ -377,8 +378,7 @@ async function startExternalStorybookPackage(
     if (revision !== navigationRevision || signal.aborted) return
     currentRoute = route
     currentModel = model
-    if (embeddedPageScope === undefined ||
-      browserDocument.documentElement.dataset.externalStorybookPackageId === packageId) {
+    if (isSelected()) {
       browserDocument.documentElement.dataset.externalStorybookPackage = "starting"
       browserDocument.documentElement.dataset.externalStorybookRoute = route
     }
@@ -417,20 +417,22 @@ async function startExternalStorybookPackage(
       if (frameSequence <= beforeFrame) throw new Error("Storybook activation did not present a new frame")
       if (disposed || revision !== navigationRevision || signal.aborted) return
       restoreInspectorSelection()
-      browserDocument.title = WebProtocol.pageTitle(packageId, model.packageNode.label)
       shell.workbench.element.setAttribute("aria-label", model.packageNode.label)
-      if (browserDocument.defaultView !== null && browserDocument.defaultView !== undefined) {
-        browserDocument.defaultView.name = `storybook:${packageId}`
+      if (isSelected()) {
+        browserDocument.title = WebProtocol.pageTitle(packageId, model.packageNode.label)
+        if (browserDocument.defaultView !== null && browserDocument.defaultView !== undefined) {
+          browserDocument.defaultView.name = `storybook:${packageId}`
+        }
+        delete browserDocument.documentElement.dataset.externalStorybookLanding
+        browserDocument.documentElement.dataset.externalStorybookPackageId = packageId
+        browserDocument.documentElement.dataset.externalStorybookRevision = candidateRevision ?? "unavailable"
+        browserDocument.documentElement.dataset.externalStorybookRoute = route
+        browserDocument.documentElement.dataset.externalStorybook = "ready"
+        browserDocument.documentElement.dataset.externalStorybookPackage = "ready"
       }
-      delete browserDocument.documentElement.dataset.externalStorybookLanding
-      browserDocument.documentElement.dataset.externalStorybookPackageId = packageId
-      browserDocument.documentElement.dataset.externalStorybookRevision = candidateRevision ?? "unavailable"
-      browserDocument.documentElement.dataset.externalStorybookRoute = route
-      browserDocument.documentElement.dataset.externalStorybook = "ready"
-      browserDocument.documentElement.dataset.externalStorybookPackage = "ready"
     } catch (error) {
       if (disposed || revision !== navigationRevision) return
-      isolatePackageError(browserDocument, shell, model, error)
+      isolatePackageError(browserDocument, shell, model, error, isSelected())
       if (failActivation) throw error
     }
   }
@@ -683,7 +685,7 @@ async function startExternalStorybookPackage(
       const route = restored || routeAvailable(binding.graph, packageId, previousRoute) ? previousRoute : ""
       await applyRoute(route, revision, routeAbort.signal, true)
       restoreScrollState(stableScroll, presentationScroll)
-      browserDocument.documentElement.dataset.externalStorybookRevision = binding.candidateRevision ?? "unavailable"
+      if (isSelected()) browserDocument.documentElement.dataset.externalStorybookRevision = binding.candidateRevision ?? "unavailable"
       agentBridge?.updateIdentity(packageId, binding.candidateRevision ?? "unavailable", binding.snapshot.graphDigest)
       if (!restored) delete browserDocument.documentElement.dataset.externalStorybookUpdateError
     })
@@ -729,10 +731,10 @@ async function startExternalStorybookPackage(
   }
 
   const followPageNavigation = (operation: Promise<void>): void => {
-    delete browserDocument.documentElement.dataset.externalStorybookNavigationError
+    if (isSelected()) delete browserDocument.documentElement.dataset.externalStorybookNavigationError
     void operation.catch(error => {
       if (disposed) return
-      browserDocument.documentElement.dataset.externalStorybookNavigationError = errorText(error).slice(0, 4096)
+      if (isSelected()) browserDocument.documentElement.dataset.externalStorybookNavigationError = errorText(error).slice(0, 4096)
       reportDiagnostic(error)
       shell.updateStatus("Storybook · Переход не выполнен; показана текущая страница")
     })
@@ -744,7 +746,7 @@ async function startExternalStorybookPackage(
       const node = externalStorybookClientNode(navigationSnapshot, detail.id)
       if (node.packageId === packageId) {
         const exact = externalStorybookClientNode(snapshot, node.id)
-        void navigate(exact.routePath ?? "").catch(error => isolatePackageError(browserDocument, shell, currentModel, error))
+        void navigate(exact.routePath ?? "").catch(error => isolatePackageError(browserDocument, shell, currentModel, error, isSelected()))
       } else if (node.packageId !== null && embeddedPageScope !== undefined) {
         followPageNavigation(embeddedPageScope.navigatePackage({packageId: node.packageId, route: node.routePath ?? ""}))
       } else if (node.packageId !== null) {
@@ -788,16 +790,16 @@ async function startExternalStorybookPackage(
       return
     }
     const route = detail.route
-    void navigate(route).catch((error) => isolatePackageError(browserDocument, shell, currentModel, error))
+    void navigate(route).catch((error) => isolatePackageError(browserDocument, shell, currentModel, error, isSelected()))
   }
   const onTab = (event: unknown): void => {
     const detail = (event as CustomEvent<{id: string; route: string}>).detail
     const item = currentModel.tabs.find(tab => tab.id === detail.id && tab.route === detail.route)
     if (item === undefined) {
-      isolatePackageError(browserDocument, shell, currentModel, new Error(`Unknown Storybook tab: ${detail.id}`))
+      isolatePackageError(browserDocument, shell, currentModel, new Error(`Unknown Storybook tab: ${detail.id}`), isSelected())
       return
     }
-    void navigate(item.route).catch(error => isolatePackageError(browserDocument, shell, currentModel, error))
+    void navigate(item.route).catch(error => isolatePackageError(browserDocument, shell, currentModel, error, isSelected()))
   }
   const onPopState = (): void => {
     try {
@@ -809,7 +811,7 @@ async function startExternalStorybookPackage(
       }
       void scheduleRoute(route)
     } catch (error) {
-      isolatePackageError(browserDocument, shell, currentModel, error)
+      isolatePackageError(browserDocument, shell, currentModel, error, isSelected())
     }
   }
   shell.workbench.element.addEventListener(shell.workbench.events.navigate, onNavigate)
@@ -865,13 +867,14 @@ async function startExternalStorybookPackage(
     }).catch(error => {
       if (disposed) return
       reportDiagnostic(error)
-      browserDocument.documentElement.dataset.externalStorybookUpdateError = errorText(error).slice(0, 2_048)
+      if (isSelected()) browserDocument.documentElement.dataset.externalStorybookUpdateError = errorText(error).slice(0, 2_048)
       shell.updateStatus("Пакет · Обновление отклонено")
     })
   }
   /** Project меняет имя независимо от package revision; его metadata обновляется без замены содержимого. */
   const applyNavigationSnapshot = (value: ExternalStorybookClientSnapshot): void => {
     navigationSnapshot = value
+    embeddedPageScope?.catalogChanged?.(value)
     if (snapshot.projectName !== value.projectName) {
       snapshot = Object.freeze({...snapshot, projectName: value.projectName})
       graph = snapshot
@@ -976,7 +979,7 @@ async function startExternalStorybookPackage(
         }).catch(error => {
           reloadingFallback = false
           reportDiagnostic(error)
-          browserDocument.documentElement.dataset.externalStorybookUpdateError = errorText(error).slice(0, 2_048)
+          if (isSelected()) browserDocument.documentElement.dataset.externalStorybookUpdateError = errorText(error).slice(0, 2_048)
         })
         return
       }
@@ -1055,9 +1058,9 @@ async function startExternalStorybookPackage(
   }
   try {
     publishInspectorRegistry()
-    browserDocument.documentElement.dataset.externalStorybookPhase = "route"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPhase = "route"
     await scheduleRoute(currentRoute, true, embeddedPageScope === undefined)
-    browserDocument.documentElement.dataset.externalStorybookPhase = "bridge"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPhase = "bridge"
     if (embeddedPageScope === undefined) agentBridge = createStorybookAgentBridge({
       packageId,
       revision: candidateRevision ?? "unavailable",
@@ -1070,9 +1073,9 @@ async function startExternalStorybookPackage(
       applyRevision,
       canApplyRevision: () => environment.loadAppliedRevision !== undefined && sharedModuleEpoch !== null && /^[a-f0-9]{64}$/u.test(sharedModuleEpoch),
     })
-    browserDocument.documentElement.dataset.externalStorybookPhase = "ready"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPhase = "ready"
   } catch (error) {
-    browserDocument.documentElement.dataset.externalStorybookPhase = "error"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookPhase = "error"
     if (embeddedPageScope !== undefined) {
       await dispose(error)
       throw error

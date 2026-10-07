@@ -13,6 +13,9 @@ export type GlobalMcpWindowState = McpWindowState & Readonly<{tab?: Readonly<{ed
 
 export type ExternalStorybookRootFactory = typeof createBrowserRoot
 
+/** Предмет пространства и его родитель в опубликованной иерархии. */
+export type StorybookShellSubject = Readonly<{id: string; parentId?: string; label: string}>
+
 export type ExternalStorybookNativeKey = Readonly<{
   key: string
   altKey: boolean

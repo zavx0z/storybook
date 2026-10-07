@@ -20,6 +20,8 @@ export declare namespace StorybookAppWebPageHome {
     pageScope?: Readonly<{
       shell: ExternalStorybookShell
       initialPathname: string
+      isSelected?(): boolean
+      catalogChanged?(snapshot: ExternalStorybookClientSnapshot): void
       refreshSharedHost?(): Promise<void>
       reconnectSocket?(): Promise<StorybookTechHmrConnection.Input["socket"]>
       navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>

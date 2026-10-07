@@ -1,3 +1,6 @@
+import type {DisplayElement} from "@zavx0z/immersive-dom/display"
+import {SpatialGraph, spatialContentBounds, type SpatialGraphNode} from "@zavx0z/immersive-nodes/spatial"
+import type {SubjectGraphPresentation} from "./subject-graph-state"
 import {WorkbenchMinimap} from "./workbench-minimap.tsx"
 import ViewPointTab from "@zavx0z/storybook-app-web-page-shell-viewpoint-tab"
 import Workbench, {type StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
@@ -15,6 +18,8 @@ import type {StorybookAppProps} from "./application-props"
 
 /** Одна сцена с правой системой координат, осью Z вверх и расстояниями в миллиметрах. */
 export function StorybookApp(props: StorybookAppProps) {
+  const graph = useSyncExternalStore(props.subjectGraphState?.subscribe ?? noSubscription,
+    props.subjectGraphState?.getSnapshot ?? emptyGraphSnapshot)
   const [workbench, setWorkbench] = useState<StorybookAppWebPageShellWorkbench.Output | null>(null)
   return <space>
     <viewpoint
@@ -44,6 +49,16 @@ export function StorybookApp(props: StorybookAppProps) {
         localMcpJournal={props.localMcpJournal}
       />
     </StorybookDisplay>
+    {graph === null ? null : <SpatialGraph
+      bounds={graph.bounds}
+      nodes={graph.nodes}
+      links={graph.links}
+      selectedId={graph.selectedId}
+      millimetersPerPixel={graph.millimetersPerPixel}
+      contentSurface={graph.contentSurface}
+      onSelect={graph.onSelect}
+    />}
+    {graph === null ? null : <SubjectDisplays graph={graph} />}
     <hud id={props.hudId}>
       <ViewPointTab controls={props.viewPointControls} />
       {props.directorySettingsClient === undefined ? null : <DirectorySettingsWindow
@@ -65,8 +80,47 @@ export function StorybookApp(props: StorybookAppProps) {
   </space>
 }
 
+/** Составляет прежние Display приложения как непосредственных соседей в Space. */
+function SubjectDisplays(props: Readonly<{graph: SubjectGraphPresentation}>) {
+  return <>
+    {props.graph.nodes.map(node => <SubjectDisplay
+      key={node.id}
+      node={node}
+      graph={props.graph}
+    />)}
+  </>
+}
+
+/** Сохраняет самостоятельный Display и ref при выборе и изменении геометрии графа. */
+function SubjectDisplay(props: Readonly<{node: SpatialGraphNode; graph: SubjectGraphPresentation}>) {
+  const ready = useMemo(() => (display: DisplayElement | null) => {
+    props.graph.onContentHost(props.node.id, display)
+  }, [props.node.id, props.graph.onContentHost])
+  const content = props.graph.contentById.get(props.node.id)
+  return <StorybookDisplay
+    id={`spatial-content-${encodeURIComponent(props.node.id)}`}
+    surface={spatialContentBounds(props.node.rect, props.graph)}
+    viewport={props.graph.contentViewport}
+    onReady={ready}
+  >
+    {content === undefined ? null : <StorybookSurface
+      viewPointControls={content.viewPointControls}
+      title={content.title}
+      statusOwner={content.statusOwner}
+      displayId={content.displayId}
+      hudId={content.hudId}
+      onReady={content.onReady}
+      userState={content.userState}
+      navigationExpansion={content.navigationExpansion}
+      loadMcpRequests={content.loadMcpRequests}
+      mcpAddressSource={content.mcpAddressSource}
+      localMcpJournal={content.localMcpJournal}
+    />}
+  </StorybookDisplay>
+}
+
 /** Workbench и его окна принадлежат Display; изменение окон сохраняет камеру и поверхность. */
-function StorybookSurface(props: StorybookAppProps) {
+export function StorybookSurface(props: StorybookAppProps) {
   const local = useSyncExternalStore(props.localMcpJournal?.subscribe ?? noSubscription,
     props.localMcpJournal?.getSnapshot ?? emptySnapshot)
   const mcpOpen = local.state?.minimized !== true && local.state?.open === true
@@ -115,3 +169,5 @@ function StorybookSurface(props: StorybookAppProps) {
 const noSubscription = () => () => {}
 const emptyLocal = {address: "/", state: undefined}
 const emptySnapshot = () => emptyLocal
+
+const emptyGraphSnapshot = () => null

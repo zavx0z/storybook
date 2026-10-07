@@ -1,3 +1,4 @@
+import type {createSubjectGraphState} from "./subject-graph-state"
 import type {StorybookAppWebPageShellExecutionSettings as ExecutionSettings} from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 import type {StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 import type {createLocalMcpState} from "./local-mcp-state"
@@ -20,6 +21,8 @@ import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-a
 type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
 
 export type StorybookAppProps = Readonly<{
+  subjectGraphState?: ReturnType<typeof createSubjectGraphState>
+
   directorySettingsClient?: ReturnType<typeof createDirectorySettingsClient>
   executionWindowState?: ExecutionSettings.Input["initialState"]
   saveExecutionWindowState?: ExecutionSettings.Input["onStateChange"]

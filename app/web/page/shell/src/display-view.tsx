@@ -1,17 +1,27 @@
+import type {DisplayElement} from "@zavx0z/immersive-dom/display"
 import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
 
-/** Поверхность всего Workbench; shell синхронизирует её метрики с viewport общего Root. */
-export function StorybookDisplay(props: Readonly<{id: string; children?: JSX.Element | readonly JSX.Element[]}>) {
+/** Одна оболочка Workbench; положение и физический габарит не меняют её оформление. */
+export function StorybookDisplay(props: Readonly<{
+  id: string
+  surface?: Readonly<{x: number; y: number; z: number; width: number; height: number}>
+  viewport?: Readonly<{width: number; height: number}>
+  onReady?: (display: DisplayElement | null) => void
+  children?: JSX.Element | null
+}>) {
   return (
     <display
       id={props.id}
-      width={960 * 25.4 / 96}
-      height={540 * 25.4 / 96}
+      ref={props.onReady}
+      width={props.surface?.width ?? 960 * 25.4 / 96}
+      height={props.surface?.height ?? 540 * 25.4 / 96}
       style={css`
         box-sizing: border-box;
+        --workbench-resolution-width: ${props.viewport?.width ?? 960}px;
+        --workbench-resolution-height: ${props.viewport?.height ?? 540}px;
         width: var(--workbench-resolution-width, 960px);
         height: var(--workbench-resolution-height, 540px);
-        translate: 0 0 0;
+        translate: ${props.surface?.x ?? 0}mm ${props.surface?.y ?? 0}mm ${props.surface?.z ?? 0}mm;
         rotate: x 90deg;
         scale: 1;
 

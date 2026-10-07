@@ -61,6 +61,9 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
   pageScope?: Readonly<{
     shell: ExternalStorybookShell
     initialRoute: string
+    /** Фоновое представление не публикует identity в общий native Document. */
+    isSelected?(): boolean
+    catalogChanged?(snapshot: ExternalStorybookClientSnapshot): void
     navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
     navigateLanding(pathname: string): Promise<void>
     applyRevision?(revision: string): Promise<void>

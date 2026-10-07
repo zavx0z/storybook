@@ -49,9 +49,10 @@ async function startExternalStorybookLanding(
   const browserDocument = options.browserDocument ?? globalThis.document
   if (browserDocument === undefined) throw new Error("External Storybook landing Document is unavailable")
   const embeddedPageScope = options.pageScope
+  const isSelected = () => embeddedPageScope?.isSelected?.() !== false
   if (embeddedPageScope === undefined) {
-    browserDocument.documentElement.dataset.externalStorybook = "starting"
-    browserDocument.documentElement.dataset.externalStorybookLanding = "starting"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybook = "starting"
+    if (isSelected()) browserDocument.documentElement.dataset.externalStorybookLanding = "starting"
   }
   const fetcher = options.fetcher ?? globalThis.fetch
   let snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
@@ -101,7 +102,7 @@ async function startExternalStorybookLanding(
   shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(graph)))
   const showRootOverview = (): void => {
     selectedNodeId = null
-    browserDocument.title = WebProtocol.pageTitle(null)
+    if (isSelected()) browserDocument.title = WebProtocol.pageTitle(null)
     selectionRevision += 1
     shell.document.transaction(() => {
       publishChat("/", snapshot.projectName)
@@ -151,7 +152,7 @@ async function startExternalStorybookLanding(
       })
     })
     const clientNode = externalStorybookClientNode(snapshot, selection.overviewNode.id)
-    browserDocument.title = clientNode.label
+    if (isSelected()) browserDocument.title = clientNode.label
     if (updateHistory && location !== undefined && history !== undefined &&
       location.pathname !== ReadGraph.browsePath(clientNode)) {
       history.pushState(null, "", ReadGraph.browsePath(clientNode))
@@ -184,6 +185,7 @@ async function startExternalStorybookLanding(
     const updated = await fetchExternalStorybookClientSnapshot(fetcher)
     if (disposed || revision !== refreshRevision) return
     snapshot = updated
+    embeddedPageScope?.catalogChanged?.(updated)
     graph = updated
     landing = deriveExternalStorybookLanding(graph)
     shell.workbench.update("projectName", snapshot.projectName)
@@ -343,8 +345,8 @@ async function startExternalStorybookLanding(
   delete browserDocument.documentElement.dataset.externalStorybookPackageId
   delete browserDocument.documentElement.dataset.externalStorybookRevision
   delete browserDocument.documentElement.dataset.externalStorybookRoute
-  browserDocument.documentElement.dataset.externalStorybook = "ready"
-  browserDocument.documentElement.dataset.externalStorybookLanding = "ready"
+  if (isSelected()) browserDocument.documentElement.dataset.externalStorybook = "ready"
+  if (isSelected()) browserDocument.documentElement.dataset.externalStorybookLanding = "ready"
   return Object.freeze({get snapshot() { return snapshot }, shell, select, dispose})
 }
 

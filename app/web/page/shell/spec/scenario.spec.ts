@@ -46,6 +46,68 @@ describe("external Storybook shared Browser Root", () => {
     }
   })
 
+  test("полный граф сохраняет один Root и независимое содержимое каждого Display", async () => {
+    const state = createFakeRootState()
+    const shell = await createShell(state)
+    try {
+      state.emitFrame(shell.hud, shell.hud, {contentX: 0, contentY: 0, contentWidth: 1024, contentHeight: 768})
+      const originalViewport = readDisplayStyle(shell.document, shell.display).viewport
+      const selected: string[] = []
+      shell.configureSubjects([
+        {id: "/", label: "Проект"},
+        {id: "/repo", parentId: "/", label: "Репозиторий"},
+      ], id => selected.push(id))
+      const project = shell.createSubjectView({id: "/", title: "Проект"})
+      const repository = shell.createSubjectView({id: "/repo", title: "Репозиторий"})
+      expect(state.creations).toBe(1)
+      expect(shell.viewPoint.parentElement).toBe(shell.space)
+      expect(shell.hud.parentElement).toBe(shell.space)
+      expect(shell.display.parentElement).toBe(shell.space)
+      expect(project.document).toBe(shell.document)
+      expect(repository.root).toBe(shell.root)
+      expect(repository.space).toBe(shell.space)
+      expect(repository.viewPoint).toBe(shell.viewPoint)
+      expect(project.display).not.toBe(repository.display)
+      expect(project.workbench).not.toBe(repository.workbench)
+      expect(project.display.parentElement).toBe(shell.space)
+      expect(repository.display.parentElement).toBe(shell.space)
+      expect(repository.workbench.element.parentElement, "Workbench непосредственно в прежней оболочке Display").toBe(repository.display)
+      expect(readDisplayStyle(shell.document, repository.display).viewport, "Пространственный Display сохраняет разрешение обычного Workbench").toEqual(originalViewport)
+      expect(repository.display.width / repository.display.height, "Физическая поверхность не искажает пропорции UI").toBeCloseTo(1024 / 768)
+      const first = shell.document.createElement("button")
+      const second = shell.document.createElement("button")
+      project.mountPreview("Первый", first)
+      repository.mountPreview("Второй", second)
+      expect(project.display.contains(first)).toBe(true)
+      expect(repository.display.contains(second)).toBe(true)
+      expect(repository.projectionFor(second).owner).toBe(repository.display)
+      expect(project.projectionFor(second).owner).toBe(repository.display)
+      const graphLabel = shell.document.querySelector('[data-spatial-node-id="/repo"]')!
+      expect(repository.projectionFor(graphLabel).kind).toBe("display")
+      const display = repository.display
+      const dimensions = [display.width, display.height, display.getAttribute("style")]
+      shell.selectSubject("/repo", true)
+      const focused = viewPointValues(shell.viewPoint)
+      shell.selectSubject("/", false)
+      expect(viewPointValues(shell.viewPoint)).toEqual(focused)
+      expect([display.width, display.height, display.getAttribute("style")]).toEqual(dimensions)
+      expect(repository.display.contains(second)).toBe(true)
+      state.emitFrame(shell.hud, shell.hud,
+        {contentX: 0, contentY: 0, contentWidth: 1600, contentHeight: 900}, {width: 1600, height: 900})
+      expect(repository.display).toBe(display)
+      expect(repository.workbench.element.parentElement).toBe(display)
+      expect(display.contains(second)).toBe(true)
+      expect(readDisplayStyle(shell.document, display).viewport).toEqual({width: 1600, height: 900})
+      expect(display.width / display.height).toBeCloseTo(1600 / 900)
+      shell.releaseSubjectView("/repo")
+      expect(display.parentElement).toBe(shell.space)
+      expect(project.display.contains(first)).toBe(true)
+      const replacement = shell.createSubjectView({id: "/repo", title: "Репозиторий"})
+      expect(replacement.display).toBe(display)
+      expect(replacement.workbench).not.toBe(repository.workbench)
+    } finally { shell.dispose() }
+  })
+
   test("creates one semantic Space/ViewPoint/Display/HUD and mounts the Workbench in Display and mounts camera controls in HUD", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)
@@ -464,9 +526,15 @@ async function createShell(
     storage?: Pick<Storage, "getItem" | "setItem">
   }> = {},
 ) {
+  const location = new URL("http://storybook.test/")
+  const saved = new Map<string, string>()
+  const localStorage = options.storage ?? {
+    getItem: (key: string) => saved.get(key) ?? null,
+    setItem: (key: string, value: string) => { saved.set(key, value) },
+  }
   return createExternalStorybookShell({
     title: "Fixture Storybook",
-    browserDocument: {defaultView: {localStorage: options.storage}} as globalThis.Document,
+    browserDocument: {location, defaultView: {location, localStorage}} as unknown as globalThis.Document,
     canvas: {width: 1024, height: 768} as HTMLCanvasElement,
     loadFont: async () => ({}) as never,
     createRoot: fakeRootFactory(state),

@@ -117,6 +117,7 @@ export function createStorybookScopeAddress(
         updateDraft(url ?? null)
         return
       }
+      updateDraft(url ?? null)
       pageHistory.pushState(data, unused, url)
       onCommittedAddress(currentPageAddress(pageLocation))
     },
@@ -125,6 +126,7 @@ export function createStorybookScopeAddress(
         updateDraft(url ?? null)
         return
       }
+      updateDraft(url ?? null)
       pageHistory.replaceState(data, unused, url)
       onCommittedAddress(currentPageAddress(pageLocation))
     },
@@ -135,6 +137,9 @@ export function createStorybookScopeAddress(
     get address() {
       const current = committed ? new URL(pageLocation.href) : draft
       return `${current.pathname}${current.search}${current.hash}`
+    },
+    deactivate() {
+      committed = false
     },
     commit(mode) {
       if (committed) return

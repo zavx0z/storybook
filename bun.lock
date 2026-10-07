@@ -382,7 +382,9 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-app-web-page-agent-bridge": "workspace:*",
+        "@zavx0z/storybook-app-web-page-client": "workspace:*",
         "@zavx0z/storybook-app-web-page-home": "workspace:*",
+        "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
         "@zavx0z/storybook-app-web-page-package": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell": "workspace:*",
         "@zavx0z/storybook-app-web-page-status": "workspace:*",

@@ -373,10 +373,13 @@ export function isolatePackageError(
   shell: ExternalStorybookShell,
   model: ExternalStorybookPackageTabModel,
   error: unknown,
+  publishNative = true,
 ): void {
   const message = errorText(error)
-  document.documentElement.dataset.externalStorybookPackage = "error"
-  document.documentElement.dataset.externalStorybookError = message
+  if (publishNative) {
+    document.documentElement.dataset.externalStorybookPackage = "error"
+    document.documentElement.dataset.externalStorybookError = message
+  }
   shell.reportDiagnostic(message)
   shell.showMessage(`${model.selectedNode.label} · Ошибка`, model.selectedNode.label, message)
   shell.updateStatus(`${model.packageNode.ownerId} · isolated error`)

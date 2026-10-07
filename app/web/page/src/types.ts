@@ -37,7 +37,7 @@ export type ActiveLandingPageScope = {
   address: StorybookScopeAddress
 }
 
-/** Ровно один committed child scope page controller. */
+/** Исполняемое представление предмета; page выбирает одно из удерживаемых представлений. */
 export type ActivePageScope = ActivePackagePageScope | ActiveLandingPageScope
 
 /** Минимальный public scroll transport semantic Workbench host. */
@@ -58,11 +58,13 @@ Staged URL одного ещё не committed scope.
 
 @property address - Последний нормализованный адрес этого scope.
 
-@property commit - Создаёт либо заменяет browser entry ровно один раз и начинает отслеживать дальнейшие route/Inspector изменения.
+@property commit - Выбирает адрес этого представления; повторный commit активного адреса ничего не меняет.
 */
 export type StorybookScopeAddress = Readonly<{
   location: Pick<Location, "href" | "pathname" | "reload">
   history: Pick<History, "pushState" | "replaceState">
   readonly address: string
   commit(mode: "push" | "replace"): void
+  /** Оставляет адрес фоновому представлению без права менять History страницы. */
+  deactivate(): void
 }>

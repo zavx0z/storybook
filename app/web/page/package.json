@@ -18,7 +18,9 @@
     "@zavx0z/storybook-app-web-page-agent-bridge": "workspace:*",
     "@zavx0z/storybook-app-web-page-target": "workspace:*",
     "@zavx0z/storybook-app-web-page-status": "workspace:*",
-    "@zavx0z/storybook-app-web-page-style-sheets": "workspace:*"
+    "@zavx0z/storybook-app-web-page-style-sheets": "workspace:*",
+    "@zavx0z/storybook-app-web-page-client": "workspace:*",
+    "@zavx0z/storybook-app-web-page-navigation": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",

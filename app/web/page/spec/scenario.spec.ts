@@ -62,7 +62,7 @@ function currentBridge(): StorybookAgentBridge {
 }
 
 /** Реальный page controller с управляемыми immutable payloads и наблюдаемым Root lifecycle. */
-async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>, selectedPackageId: string | null = "@fixture/components") {
+async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>, selectedPackageId: string | null = "@fixture/components", stableNavigation = false, navigationCandidate = false) {
   const packageId = selectedPackageId ?? "@fixture/components"
   const graph = await fixtureGraph()
   const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
@@ -72,27 +72,29 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
   const history = environment.history as ReturnType<typeof historyFixture>
   Object.assign(environment.browserDocument!, {location})
   const state = createFakeRootState()
-  const payload = (revision: string) => ({
+  const payload = (revision: string, ownerId = packageId) => ({
     protocol: STORYBOOK_PAGE_REALM_PROTOCOL,
-    packageId,
+    packageId: ownerId,
     candidateRevision: revision,
-    revisionUrl: `/__storybook/revisions/${encodeURIComponent(packageId)}/${revision}/`,
+    revisionUrl: `/__storybook/revisions/${encodeURIComponent(ownerId)}/${revision}/`,
     sharedModuleEpoch: (revision === "revision-a" || !changePlatform ? "a" : "b").repeat(64),
     hostModuleEpoch: (revision === "revision-a" ? "a" : "b").repeat(64),
-    graphSnapshot: Revision.create(graph, packageId, revision),
+    graphSnapshot: Revision.create(graph, ownerId, revision),
     startPage: async () => { throw new Error("Ревизия пакета не выбирает page host") },
     startPackage: async () => { throw new Error("Ревизия пакета не выбирает package host") },
   })
-  const target = (revision: string, route = ""): ExternalStorybookPreparedPackageTarget => ({
-    kind: "revision", packageId, revision,
-    revisionUrl: payload(revision).revisionUrl,
-    route, urlPath: deriveExternalStorybookPackageTab(snapshot, packageId, route).urlPath,
-    intent: "reader", preview: false, initialAppliedRevision: "revision-a", fallbackRevision: null,
+  const target = (revision: string, route = "", ownerId = packageId): ExternalStorybookPreparedPackageTarget => ({
+    kind: "revision", packageId: ownerId, revision,
+    revisionUrl: payload(revision, ownerId).revisionUrl,
+    route, urlPath: deriveExternalStorybookPackageTab(snapshot, ownerId, route).urlPath,
+    intent: navigationCandidate ? "navigation-candidate" : "reader", preview: false, initialAppliedRevision: "revision-a", fallbackRevision: null,
     readerToken: "fixture-reader",
   })
   let hostRevision = "a"
+  const requests: string[] = []
   const sockets: FakeSocket[] = []
   let nextSocket = Promise.withResolvers<FakeSocket>()
+  const confirmation = Promise.withResolvers<void>()
   const hostReaders: string[] = []
   const navigationTargets: Readonly<{
     packageId: string | null
@@ -120,8 +122,12 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
         ? {startPackage: async () => { throw new Error("new platform mount failed") }} : {}),
     }),
     shell: {...environment.shell!, createRoot: fakeRootFactory(state)},
-    fetcher: (async input => String(input).includes("/api/browser/session")
-      ? Response.json({token: `reader-${++readerGeneration}`}) : Response.json(snapshot)) as typeof fetch,
+    fetcher: (async input => {
+      requests.push(String(input))
+      if (String(input) === "/api/browser/confirm-navigation") confirmation.resolve()
+      return String(input).includes("/api/browser/session")
+        ? Response.json({token: `reader-${++readerGeneration}`}) : Response.json(snapshot)
+    }) as typeof fetch,
     createSocket: url => {
       const socket = new FakeSocket()
       socket.url = url
@@ -134,14 +140,15 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     prepareTarget: async input => {
       navigationTargets.push({packageId: input.packageId, route: input.route})
       // Подготовка пакетов моделирует HMR; переход домой сохраняет текущий host.
-      if (input.packageId !== null) hostRevision = "b"
+      if (input.packageId !== null && !stableNavigation) hostRevision = "b"
       await beforePrepare?.()
       if (input.packageId === null) return {kind: "landing", pathname: input.route, readerToken: `reader-${++readerGeneration}`}
-      return target(input.requestedRevision ?? "revision-c", input.route)
+      return target(input.requestedRevision ?? (stableNavigation ? "revision-a" : "revision-c"), input.route, input.packageId)
     },
-    loadAppliedRevision: async (_packageId, revision) => payload(revision),
+    loadAppliedRevision: async (ownerId, revision) => payload(revision, ownerId),
   })
-  return {page, state, location, history, sockets, hostReaders, navigationTargets,
+  return {page, state, location, history, sockets, hostReaders, navigationTargets, requests,
+    confirmation: confirmation.promise,
     nextSocket: async () => {
       const socket = await nextSocket.promise
       await socket.listening.promise
@@ -350,7 +357,8 @@ function fakeRootFactory(
       const projection: RootDocumentProjection = Object.freeze({
         kind: owner instanceof DisplayElement ? "display" : "hud",
         owner,
-        projectPoint: (point: {x: number; y: number}) => point,
+        // Эта HMR-фикстура не рассчитывает мировую проекцию Display.
+        projectPoint: (point: {x: number; y: number}) => owner instanceof DisplayElement ? null : point,
         readFrame: () => frame,
         subscribeFrames(listener) {
           subscribers.add(listener)
@@ -463,6 +471,100 @@ function fakeRenderFrame(
 }
 
 describe("Переходы и обновления одной страницы", () => {
+  test("два пакета сохраняют собственное содержимое и возвращаются без remount", async () => {
+    const fixture = await pageFixture(false, false, undefined, packageId, true)
+    try {
+      const first = fixture.page.shell
+      const input = first.document.createElement("input")
+      input.value = "Сохранённый ввод"
+      first.mountPreview("Состояние", input)
+      await fixture.page.navigatePackage({packageId: "@fixture/standalone", route: ""})
+      const second = fixture.page.shell
+      expect(second).not.toBe(first)
+      expect(second.root).toBe(first.root)
+      expect(second.canvas).toBe(first.canvas)
+      expect(second.document).toBe(first.document)
+      expect(first.display.contains(input)).toBe(true)
+      await fixture.page.navigatePackage({packageId, route: ""})
+      expect(fixture.page.shell).toBe(first)
+      expect(input.value).toBe("Сохранённый ввод")
+      expect(second.display.isConnected).toBe(true)
+      expect(fixture.state.creations).toBe(1)
+      expect(fixture.location.reloads).toBe(0)
+    } finally { await fixture.page.dispose() }
+  })
+
+  test("внутренняя директория открывается в том же Display пакета без отдельного узла", async () => {
+    const fixture = await pageFixture(false, false, undefined, packageId, true)
+    try {
+      const first = fixture.page.shell
+      const displays = [...first.document.querySelectorAll("display")]
+      await fixture.page.navigatePackage({packageId, route: "dir-docs"})
+      expect(fixture.page.route).toBe("dir-docs")
+      expect(fixture.page.shell).toBe(first)
+      expect(fixture.page.shell.display).toBe(first.display)
+      expect(fixture.history.pushed).toEqual([`${packagePath}/docs?inspector=chat`])
+      expect([...first.document.querySelectorAll("display")]).toEqual(displays)
+      expect(first.document.getElementById(`spatial-content-${encodeURIComponent(`${packagePath}/docs`)}`)).toBeNull()
+      await fixture.page.navigatePackage({packageId, route: ""})
+      expect(fixture.page.shell).toBe(first)
+      expect(fixture.page.route).toBe("")
+      expect(fixture.state.creations).toBe(1)
+    } finally { await fixture.page.dispose() }
+  })
+
+  test("ревизия предмета сохраняет его Display, Workbench, поиск и прокрутку", async () => {
+    const fixture = await pageFixture(false, false, undefined, packageId, true)
+    try {
+      const before = fixture.page.shell
+      before.workbench.controller.update("catalog.search", "docs")
+      before.workbench.elements.catalogItems.scrollTop = 57
+      const result = await currentBridge().call("applyRevision", {expectedPackageId: packageId, revision: "revision-b"})
+      expect(result).toMatchObject({packageId, revision: "revision-b"})
+      expect(fixture.page.shell).toBe(before)
+      expect(fixture.page.shell.workbench).toBe(before.workbench)
+      expect(fixture.page.shell.display).toBe(before.display)
+      expect(before.workbench.controller.read("catalog.search")).toBe("docs")
+      expect(before.workbench.elements.catalogItems.scrollTop).toBe(57)
+      expect(fixture.state.creations).toBe(1)
+      expect(fixture.location.reloads).toBe(0)
+    } finally { await fixture.page.dispose() }
+  })
+
+  test("фоновая ревизия другой платформы сохраняет работающую среду выбранного предмета", async () => {
+    const fixture = await pageFixture(false, true, undefined, packageId, true)
+    try {
+      const first = fixture.page.shell
+      await fixture.page.navigatePackage({packageId: "@fixture/standalone", route: ""})
+      const selected = fixture.page.shell
+      const address = fixture.location.href
+      fixture.sockets[0]!.emit("message", {data: JSON.stringify({
+        type: "package.updated", packageId, revision: "revision-b",
+      })})
+      const result = await currentBridge().call("identity")
+      expect(result).toMatchObject({packageId: "@fixture/standalone", revision: "revision-a"})
+      expect(fixture.page.shell).toBe(selected)
+      expect(fixture.location.href).toBe(address)
+      expect(fixture.state.creations).toBe(1)
+      expect(first.display.isConnected).toBe(true)
+      expect(first.workbench.controller.read("status").detail).toContain("Обновление отклонено")
+    } finally { await fixture.page.dispose() }
+  })
+
+  test("явное применение ревизии не запускает повторное подтверждение навигации", async () => {
+    const fixture = await pageFixture(false, false, undefined, packageId, true, true)
+    try {
+      const confirmations = () => fixture.requests.filter(path => path === "/api/browser/confirm-navigation").length
+      await fixture.confirmation
+      const before = confirmations()
+      expect(before).toBe(1)
+      await currentBridge().call("applyRevision", {expectedPackageId: packageId, revision: "revision-b"})
+      await Promise.resolve()
+      expect(confirmations()).toBe(before)
+      expect(await currentBridge().call("identity")).toMatchObject({revision: "revision-b", ready: true})
+    } finally { await fixture.page.dispose() }
+  })
+
   test("HMR платформы сохраняет browser Document, Canvas, адрес и действующий bridge", async () => {
       const fixture = await pageFixture()
       const page = fixture.page
@@ -593,12 +695,17 @@ describe("Переходы и обновления одной страницы",
       expect(fixture.page.packageId).toBeNull()
       expect(fixture.location.pathname).toBe("/")
       expect(fixture.page.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Fixture Project")
-      expect(fixture.page.shell === shell).toBeTrue()
+      expect(fixture.page.shell).not.toBe(shell)
+      expect(fixture.page.shell.root).toBe(shell.root)
+      expect(fixture.page.shell.document).toBe(shell.document)
+      expect(fixture.page.shell.space).toBe(shell.space)
+      expect(shell.display.isConnected).toBe(true)
       expect(fixture.page.shell.document === shell.document).toBeTrue()
       expect(fixture.page.shell.space === shell.space).toBeTrue()
       expect(shell.document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
       expect(shell.hud.querySelector('[aria-label="Общий журнал вызовов"][data-window]')).toBe(globalJournal)
-      expect(shell.captureUserState().localMcpWindows?.map(state => state.address)).toContain("/")
+      expect(shell.captureUserState().localMcpWindows?.map(state => state.address)).toEqual([packagePath])
+      expect(fixture.page.shell.captureUserState().localMcpWindows?.map(state => state.address)).toContain("/")
       expect(shell.captureUserState().minimap).toEqual(settings)
       expect(fixture.state.creations).toBe(1)
       expect(fixture.location.reloads).toBe(0)
