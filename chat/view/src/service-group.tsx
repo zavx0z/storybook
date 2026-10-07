@@ -70,8 +70,8 @@ export default function ServiceGroup(
         flex-direction: column;
         width: 100%;
         min-width: 0;
-        min-height: 120px;
-        height: 320px;
+        min-height: 0;
+        height: auto;
         max-height: 320px;
       `}
     >

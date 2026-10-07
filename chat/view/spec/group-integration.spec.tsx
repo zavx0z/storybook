@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
-import {Event, createDocument} from "@zavx0z/immersive-dom"
+import {Event, createDocument, type HTMLElement} from "@zavx0z/immersive-dom"
 import {createRoot} from "@zavx0z/immersive-component"
-import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
+import {createDocumentRenderer, createDocumentInteractionController} from "@zavx0z/immersive-renderer-html"
 import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import type {StorybookChatView} from "../contract"
@@ -218,4 +218,131 @@ test("33 KiB Markdown и два одинаковых вопроса стабил
     expect(counters(), "Новая геометрия и входные события отсутствуют: история не запускает повторную работу").toEqual(stable)
     expect(listeners.size).toBe(1)
   } finally {history.dispose(); root.unmount(); renderer.dispose()}
+}, 20_000)
+
+
+test.each([2, 64])("группа с %i записями измеряет естественную высоту, сохраняет cap и anchor при сворачивании", async count => {
+  const document = createDocument()
+  const host = document.createElement("div")
+  document.append(host)
+  const root = createRoot(host)
+  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive-ui-component/theme/theme.css"))).text()
+  const renderer = createDocumentRenderer({document, root: host, viewport: {width: 480, height: 700}, styleSheets: [theme]})
+  const input = createDocumentInteractionController({document})
+  const group = {id: "service:user:u", kind: "group" as const, origin: "local" as const, ordinal: 1, sequence: 2,
+    revision: 1, bodyBytes: 0 as const, evidenceCount: count, memberCount: count, userId: "u", lastSequence: count + 1, title: "Действия агента"}
+  const calls: string[] = []
+  const listeners = new Set<() => void>()
+  let view: StorybookChatView.Input
+  let nested: ReturnType<ReturnType<typeof createChatHistoryWindow>["createGroupHistory"]> | undefined
+  const history = createChatHistoryWindow({
+    changed() {
+      view = {...view, history: history.getSnapshot()}
+      for (const listener of listeners) listener()
+    },
+    async read(operation, body) {
+      calls.push(operation)
+      if (operation === "history-display") return {chatId: "chat", revision: 1, total: 1, rawTotal: count,
+        projectionRevision: 1, start: 1, items: [group], before: null, after: null}
+      if (operation === "history-group") {
+        const query = body.query as {before?: number, limit: number}
+        const end = Math.min(query.before ?? count, count)
+        const start = Math.max(0, end - query.limit)
+        return {chatId: "chat", groupId: group.id, revision: 1, total: count, start,
+          before: start === 0 ? null : start, after: end < count ? end - 1 : null,
+          items: Array.from({length: end - start}, (_, index) => ({id: `context:${start + index}`, entryId: `context:${start + index}`, groupId: group.id,
+            kind: "context", origin: "local", ordinal: start + index, sequence: start + index + 1, revision: 1, bodyBytes: 50000, evidenceCount: 0}))}
+      }
+      if (operation === "history-group-item") return {chatId: "chat", id: body.id, revision: 1, bytes: 50000, evidenceCount: 0,
+        entry: {id: body.id, kind: "context", sequence: 1, origin: "local", content: [{type: "text", text: "Большой исходник для ограниченного CodeEditor.\n".repeat(1000)}]}}
+      throw new Error(`Неожиданная операция ${operation}`)
+    },
+  })
+  view = {address: "/group-height", label: "Group", status: "idle", draft: "", history: history.getSnapshot(),
+    createGroupHistory(value) {
+      nested = history.createGroupHistory(value)
+      return nested
+    },
+    onDraftChange() {}, onSend() {}, onCancel() {}, onHistoryViewport: history.viewport,
+    onHistoryVisible: history.setActive, onHistoryExpand: history.expand, onHistoryRetry: history.retry,
+    onHistoryEvidence: history.evidence, onHistoryTail: history.tail}
+  const store = {
+    getSnapshot: () => view,
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => {listeners.delete(listener)}
+    },
+    rendered() {},
+  }
+  const settle = async () => {
+    for (let turn = 0; turn < 12; turn++) {
+      root.flush()
+      renderer.flush()
+      flushDocumentLayoutObservers(document)
+      await Bun.sleep(0)
+    }
+  }
+  const click = (element: ReturnType<typeof host.querySelector>) => {
+    expect(element).not.toBeNull()
+    element!.dispatchEvent(new Event("pointerdown", {bubbles: true}))
+    element!.dispatchEvent(new Event("click", {bubbles: true}))
+  }
+  try {
+    history.accept({id: "chat", executorId: "agent", history: {revision: 1, total: count, lastSequence: count},
+      displayHistory: {revision: 1, total: 1, lastSequence: count}} as Parameters<typeof history.accept>[0])
+    await Bun.sleep(0)
+    root.render(GroupIntegration as unknown as CompiledTemplate<GroupIntegrationProps>, {store})
+    await settle()
+    const outer = host.querySelector('[data-chat-messages]')!
+    const row = host.querySelector('[data-chat-history-id="service:user:u"]')!
+    const closedHeight = row.getLayoutRect()!.height
+    const top = row.getLayoutRect(outer)!.top
+    click(row.querySelector('[aria-expanded="false"]'))
+    await settle()
+    const groupElement = host.querySelector('[data-chat-service-group]')!
+    expect(groupElement, "Пустой viewport получает начальную геометрию и загружает первую страницу").not.toBeNull()
+    expect(calls.filter(operation => operation === "history-group")).toHaveLength(1)
+    expect(nested!.getSnapshot().rows.length).toBe(Math.min(16, count))
+    const groupHeight = groupElement.getLayoutRect()!.height
+    expect(groupHeight, "Высота естественного содержимого положительна и ограничена320px").toBeGreaterThan(0)
+    expect(groupHeight).toBeLessThanOrEqual(320)
+    if (count === 2) expect(groupHeight, "Две короткие строки не резервируют пустой блок320px").toBeLessThan(160)
+    else {
+      expect(groupHeight, "Длинная группа использует ограниченный scroll viewport").toBe(320)
+      nested!.viewport({ids: ["context:48"], nearStart: true, nearEnd: false, following: false})
+      await settle()
+      expect(nested!.getSnapshot().rows).toHaveLength(32)
+      expect(host.querySelectorAll('[data-chat-service-group] [data-chat-history-id]').length).toBeLessThanOrEqual(32)
+      expect(groupElement.getLayoutRect()!.height).toBe(320)
+    }
+    const nestedLog = groupElement.querySelector('[data-chat-messages]') as HTMLElement
+    const contextRow = [...groupElement.querySelectorAll('[data-chat-history-id]')].find(entry => {
+      const rect = entry.getLayoutRect(nestedLog)
+      return rect !== null && rect.top >= 0 && rect.bottom <= nestedLog.getLayoutRect()!.height
+    })!
+    click(contextRow.querySelector('[aria-expanded="false"]'))
+    await settle()
+    expect(calls.filter(operation => operation === "history-group-item")).toHaveLength(1)
+    expect(contextRow.querySelector('[data-chat-service-body]')).not.toBeNull()
+    const code = contextRow.querySelector('[role="region"][aria-label="Контекст"]') as HTMLElement
+    expect(code.getLayoutRect()!.height, "Развёрнутый исходник сохраняет собственный viewport максимум240px").toBeLessThanOrEqual(240)
+    const codeBox = code.getLayoutRect()!
+    input.wheel(renderer.flush(), {clientX: codeBox.x + codeBox.width / 2, clientY: codeBox.y + codeBox.height / 2, deltaY: 120})
+    await settle()
+    expect(code.scrollTop, "Штатный wheel прокручивает большой исходник в собственном viewport").toBeGreaterThan(0)
+    expect(groupElement.getLayoutRect()!.height, "Большой CodeEditor остаётся внутри cap группы").toBeLessThanOrEqual(320)
+    click(contextRow.querySelector('[aria-expanded="true"]'))
+    await settle()
+    expect(groupElement.getLayoutRect()!.height).toBe(groupHeight)
+    click(row.querySelector('[aria-expanded="true"]'))
+    await settle()
+    expect(host.querySelector('[data-chat-service-group]')).toBeNull()
+    expect(row.getLayoutRect()!.height, "Сворачивание возвращает высоту исходной строки").toBe(closedHeight)
+    expect(Math.abs(row.getLayoutRect(outer)!.top - top), "Выбранная строка сохраняет внешний anchor").toBeLessThanOrEqual(1)
+  } finally {
+    history.dispose()
+    input.dispose()
+    root.unmount()
+    renderer.dispose()
+  }
 }, 20_000)
