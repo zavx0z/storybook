@@ -9,6 +9,14 @@ export type StoredBinary = Readonly<{$chatMedia: MediaReference, encoding?: "utf
 export type StoredMediaText = Readonly<{$chatText: readonly (string | StoredBinary)[]}>
 export type MediaStore = ReturnType<typeof createMediaStore>
 const META = "storybook/media"
+type NormalizationScope = "payload" | "content" | "update" | "mutations" | "mutation" | "history" | "evidence"
+const contentScopes: Partial<Record<NormalizationScope, Readonly<Record<string, NormalizationScope>>>> = {
+  mutation: {item: "history"},
+  history: {content: "content", call: "update", update: "update", updates: "evidence"},
+  evidence: {update: "update"},
+  update: {content: "content", rawInput: "payload", rawOutput: "payload"},
+  content: {content: "content", resource: "content", text: "payload", oldText: "payload", newText: "payload"},
+}
 function storedContent(value: unknown): Record<string, unknown> | null {
   if (!record(value) || value.type !== "resource_link" || !record(value._meta)) return null
   const metadata = value._meta[META]
@@ -110,43 +118,51 @@ export function createMediaStore(directory: string) {
     if (bytes.toString("base64") !== text) throw new Error("Неканонический base64 не может быть сохранён без потерь")
     return {$chatMedia: await put(bytes, {mimeType, ...(name === undefined ? {} : {name})}, signal)}
   }
-  const normalize = async (value: unknown, signal?: AbortSignal): Promise<unknown> => {
-    const visit = async (entry: unknown, depth: number): Promise<unknown> => {
+  /** Текст остаётся текстом: externalization меняет хранение, не вид content block. */
+  const text = async (source: string, signal?: AbortSignal): Promise<string | StoredMediaText> => {
+    if (!source.includes("data:image/")) return source
+    const expression = /data:(image\/[A-Za-z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})(?=[\s)\]"'<>]|$)/gu
+    const parts: (string | StoredBinary)[] = []
+    let offset = 0
+    for (const match of source.matchAll(expression)) {
+      const start = match.index!
+      try {
+        const saved = await binary(match[2]!, match[1]!, undefined, signal)
+        parts.push(source.slice(offset, start), `data:${match[1]};base64,`, saved)
+      } catch (error) {
+        // Незнакомый/неканонический URI остаётся точным исходным текстом.
+        if (signal?.aborted) throw error
+        if (!(error instanceof Error) || !error.message.includes("base64")) throw error
+        continue
+      }
+      offset = start + match[0].length
+    }
+    return parts.length ? {$chatText: [...parts, source.slice(offset)]} : source
+  }
+  /** Protocol scalars сохраняют тип; произвольные данные обходятся только внутри payload. */
+  const normalize = async (value: unknown, signal?: AbortSignal, scope: "content" | "update" | "mutations" | "payload" = "content"): Promise<unknown> => {
+    const visit = async (entry: unknown, depth: number, current: NormalizationScope): Promise<unknown> => {
       check(signal)
       if (depth > 128) throw new Error("Слишком глубокий payload медиа")
       if (isStoredBinary(entry) || isStoredMediaText(entry) || storedContent(entry)) return entry
+      if (typeof entry === "string") return current === "payload" ? await text(entry, signal) : entry
       if (Array.isArray(entry)) {
         const result: unknown[] = []
-        for (const child of entry) result.push(await visit(child, depth + 1))
+        for (const child of entry) result.push(await visit(child, depth + 1, current === "mutations" ? "mutation" : current))
         return result
       }
       if (!record(entry)) return entry
       const result: Record<string, unknown> = {}
       for (const [key, child] of Object.entries(entry)) {
         const mimeType = typeof entry.mimeType === "string" ? entry.mimeType : "application/octet-stream"
-        if (typeof child === "string" && (key === "data" && ["image", "audio"].includes(String(entry.type)) || key === "blob" && typeof entry.uri === "string")) {
+        if (current === "content" && typeof child === "string" && (key === "data" && ["image", "audio"].includes(String(entry.type)) || key === "blob" && typeof entry.uri === "string")) {
           result[key] = await binary(child, mimeType, typeof entry.name === "string" ? entry.name : undefined, signal)
-        } else if (key === "text" && typeof child === "string" && child.includes("data:image/")) {
-          const expression = /data:(image\/[A-Za-z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})(?=[\s)\]"'<>]|$)/gu
-          const parts: (string | StoredBinary)[] = []
-          let offset = 0
-          for (const match of child.matchAll(expression)) {
-            const start = match.index!
-            try {
-              const saved = await binary(match[2]!, match[1]!, undefined, signal)
-              parts.push(child.slice(offset, start), `data:${match[1]};base64,`, saved)
-            } catch (error) {
-              // Незнакомое/неканоническое data URI остаётся точным пользовательским текстом.
-              if (signal?.aborted) throw error
-              if (!(error instanceof Error) || !error.message.includes("base64")) throw error
-              continue
-            }
-            offset = start + match[0].length
-          }
-          result[key] = parts.length ? {$chatText: [...parts, child.slice(offset)]} : child
-        } else result[key] = await visit(child, depth + 1)
+        } else {
+          const next = current === "payload" ? "payload" : contentScopes[current]?.[key]
+          result[key] = next === undefined ? child : await visit(child, depth + 1, next)
+        }
       }
-      const media = (entry.type === "image" || entry.type === "audio") && isStoredBinary(result.data) ? result.data.$chatMedia
+      const media = current !== "content" ? null : (entry.type === "image" || entry.type === "audio") && isStoredBinary(result.data) ? result.data.$chatMedia
         : entry.type === "resource" && record(result.resource) && isStoredBinary(result.resource.blob) ? result.resource.blob.$chatMedia : null
       if (media) {
         const originalName = typeof entry.name === "string" ? entry.name : entry.type === "resource" && record(entry.resource) && typeof entry.resource.uri === "string" ? resourceName(entry.resource.uri) : entry.type === "image" ? "Изображение" : "Аудио"
@@ -155,7 +171,7 @@ export function createMediaStore(directory: string) {
       }
       return result
     }
-    return await visit(value, 0)
+    return await visit(value, 0, scope)
   }
   const materialize = async (value: unknown, signal?: AbortSignal): Promise<unknown> => {
     let loaded = 0

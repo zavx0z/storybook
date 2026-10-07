@@ -704,7 +704,7 @@ export class Archive {
   }
   commit(metadata: ArchiveMetadata | undefined, mutations: readonly ArchiveMutation[] = []): Promise<void> {
     return this.enqueue(JSON.stringify({metadata, mutations}), async input => {
-      input = await this.media.normalize(input)
+      input.mutations = await this.media.normalize(input.mutations, undefined, "mutations")
       // Повтор сохранения тех же metadata не создаёт ревизию и fsync без новых данных.
       if (this.sourceExists && input.mutations.length === 0 && JSON.stringify(input.metadata ?? this.header.metadata) === JSON.stringify(this.header.metadata)) return
       let sequence = this.header.history.lastSequence
@@ -721,7 +721,7 @@ export class Archive {
   }
   receive(update: Update, origin: "live" | "replay" | "local", cursor: ArchiveCursor): Promise<void> {
     return this.enqueue(JSON.stringify({update, origin}), async input => {
-      input = await this.media.normalize(input)
+      input.update = await this.media.normalize(input.update, undefined, "update")
       const update = input.update as Update
       const sequence = this.header.history.lastSequence + 1
       const batchId = origin === "replay" ? cursor.batchId ??= randomUUID() : undefined
