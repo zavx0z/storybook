@@ -5,7 +5,7 @@ import Preferences, {type StorybookChatPreferences} from "@zavx0z/storybook-chat
 
 describe.each([
   {name: "Наследование типа", props: {
-    selection: {model: "fast"}, effective: {connectionId: "codex", model: "fast", thoughtLevel: "high"},
+    selection: {model: "fast", thoughtLevel: "high"}, effective: {connectionId: "codex", model: "fast", thoughtLevel: "high"},
     sources: {connectionId: "general", model: "session", thoughtLevel: "type"},
     connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}],
     settings: [{id: "model", category: "model", name: "Model", value: "fast", options: [{value: "fast", name: "Fast"}]}],
@@ -28,6 +28,10 @@ describe.each([
   test("Сохранённый выбор", () => {
     const select = element.querySelectorAll("select")[1] as HTMLSelectElement
     expect(select.value, "Явная модель остаётся видимой независимо от загрузки вариантов").toBe(props.selection.model)
+  })
+  test("Мышление по возможностям", () => {
+    const thought = element.querySelectorAll("select")[2] as HTMLSelectElement
+    expect(thought.disabled, "Недоступные варианты не заменяются выдуманными уровнями мышления").toBe(!props.selection.thoughtLevel)
   })
   test("Источники значений", () => {
     expect(element.textContent, "Человек видит уровень, задающий выбранную модель").toContain("Эта беседа")
