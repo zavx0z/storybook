@@ -16,4 +16,3 @@ export function fixtureHistory(messages: readonly Message[], timeline?: readonly
       body: item.kind === "message" && item.role !== "thought" && item.purpose !== "command" || expanded.includes(item.id) ? item : undefined,
       expanded: expanded.includes(item.id), loading: false}))}
 }
-
