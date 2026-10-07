@@ -96,8 +96,6 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       </InspectorRegion>
     </div>
     <StatusRegion
-      mcpOpen={props.mcpOpen}
-      onMcpOpenChange={props.onMcpOpenChange}
       status={state.status}
       onNavigate={props.onStatusNavigate}
     />

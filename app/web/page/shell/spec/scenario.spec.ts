@@ -20,30 +20,37 @@ import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shel
 type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 describe("external Storybook shared Browser Root", () => {
-  test("открытие и закрытие среды сохраняет камеру и дисплей", async () => {
+  test("уведомления статусов находятся слева внизу HUD и сохраняют камеру и Display", async () => {
     const shell = await createShell(createFakeRootState())
     try {
       shell.viewPoint.x = 71
       shell.viewPoint.y = -333
       shell.viewPoint.z = 19
-      shell.display.width = 321
-      shell.display.height = 123
       const before = viewPointValues(shell.viewPoint)
       const display = shell.display
-      const button = shell.document.querySelector('[aria-label="Среда"][aria-controls="storybook-mcp-window"]')!
-      button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      expect(shell.document.querySelector('[aria-label="Среда"]'), "Кнопка локального журнала удалена").toBeNull()
+      expect(shell.document.querySelector('[aria-label="Журнал агента"]'), "История агента остаётся в чате").toBeNull()
+      shell.updateStatus("Пакет собран")
       await Promise.resolve()
-      const dialog = shell.document.querySelector('[data-mcp-window] [data-window]')!
-      expect(dialog.hasAttribute("hidden")).toBe(false)
-      expect(viewPointValues(shell.viewPoint)).toEqual(before)
-      expect([display.width, display.height]).toEqual([321, 123])
-      button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      const notifications = shell.hud.querySelector("[data-storybook-status-notifications]")!
+      expect(notifications.textContent, "HUD показывает актуальный статус").toContain("Пакет собран")
+      expect(display.textContent, "Статус не дублируется на Display").not.toContain("Пакет собран")
+      expect(shell.workbench.elements.status.textContent, "Нижняя строка сохраняет навигацию").toContain("Fixture Storybook")
+      const renderer = createDocumentRenderer({document: shell.document, root: shell.hud, viewport: {width: 1024, height: 768}})
+      try {
+        const box = renderer.flush().boxByNode.get(notifications)!
+        expect(box.x, "Уведомления отступают от левого края HUD").toBe(12)
+        expect(box.y + box.height, "Нижний край привязан к viewport HUD").toBe(756)
+      } finally { renderer.dispose() }
+      notifications.querySelector('[aria-label="Закрыть уведомление"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       await Promise.resolve()
-      expect(dialog.hasAttribute("hidden")).toBe(true)
-      expect(viewPointValues(shell.viewPoint)).toEqual(before)
-    } finally {
-      shell.dispose()
-    }
+      expect(notifications.textContent, "Закрытое уведомление исчезает").not.toContain("Пакет собран")
+      shell.updateStatus("Проверка завершена")
+      await Promise.resolve()
+      expect(notifications.textContent, "Новое событие снова видно").toContain("Проверка завершена")
+      expect(viewPointValues(shell.viewPoint), "Уведомления не меняют камеру").toEqual(before)
+      expect(shell.display, "Сохраняется исходный Display").toBe(display)
+    } finally { shell.dispose() }
   })
 
   test("полный граф сохраняет один Root и независимое содержимое каждого Display", async () => {
@@ -69,6 +76,16 @@ describe("external Storybook shared Browser Root", () => {
       expect(repository.viewPoint).toBe(shell.viewPoint)
       expect(project.display).not.toBe(repository.display)
       expect(project.workbench).not.toBe(repository.workbench)
+      project.updateStatus("Проект готов")
+      repository.updateStatus("Репозиторий проверяется")
+      await Promise.resolve()
+      const notifications = shell.hud.querySelector("[data-storybook-status-notifications]")!
+      expect(notifications.textContent, "Все Displays сообщают в один HUD").toContain("Проект готов")
+      expect(notifications.textContent, "Сохраняется статус другого Display").toContain("Репозиторий проверяется")
+      repository.updateStatus("Репозиторий готов")
+      await Promise.resolve()
+      expect(notifications.textContent, "Статус Display обновляется без дубликата").not.toContain("Репозиторий проверяется")
+      expect(notifications.querySelectorAll("aside").length, "По одному сообщению на Display").toBe(2)
       expect(project.display.parentElement).toBe(shell.space)
       expect(repository.display.parentElement).toBe(shell.space)
       expect(repository.workbench.element.parentElement, "Workbench непосредственно в прежней оболочке Display").toBe(repository.display)
@@ -100,6 +117,8 @@ describe("external Storybook shared Browser Root", () => {
       expect(readDisplayStyle(shell.document, display).viewport).toEqual({width: 1600, height: 900})
       expect(display.width / display.height).toBeCloseTo(1600 / 900)
       shell.releaseSubjectView("/repo")
+      await Promise.resolve()
+      expect(notifications.textContent, "Освобождение Display убирает его статус").not.toContain("Репозиторий готов")
       expect(display.parentElement).toBe(shell.space)
       expect(project.display.contains(first)).toBe(true)
       const replacement = shell.createSubjectView({id: "/repo", title: "Репозиторий"})
@@ -136,7 +155,7 @@ describe("external Storybook shared Browser Root", () => {
     expect(shell.hud.parentElement).toBe(shell.space)
     expect(shell.workbench.element.parentElement).toBe(shell.display)
     expect(shell.hud.querySelector('[aria-label="Управление ViewPoint"]')).not.toBeNull()
-    expect(shell.display.contains(shell.document.querySelector("[data-mcp-window]"))).toBeTrue()
+    expect(shell.display.querySelector("[data-mcp-window]"), "Display не содержит отдельный журнал агента").toBeNull()
 
     const displayNode = shell.document.createElement("button")
     shell.mountPreview("Display", displayNode)

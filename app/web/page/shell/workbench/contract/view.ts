@@ -6,8 +6,6 @@ import type {
 } from "./workbench"
 
 export type WorkbenchViewProps = Readonly<{
-  mcpOpen?: boolean | undefined
-  onMcpOpenChange?: ((open: boolean) => void) | undefined
   document: SemanticDocument
   onElement?: ((node: HTMLDivElement | null) => void) | undefined
   state: WorkbenchViewState

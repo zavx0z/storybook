@@ -54,6 +54,7 @@ export declare namespace StorybookAppWebPageShell {
     showDependencies(label: string, cases: readonly StorybookDependencyCase[], signal: AbortSignal): Promise<SemanticHTMLElement>
     reportDiagnostic(value: unknown): void
     clearDiagnostics(): void
+    /** Обновляет уведомление этого Display в нижнем левом углу общего HUD. */
     updateStatus(detail: string): void
     requestRender(): void
     presentFrame(): number

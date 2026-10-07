@@ -1,7 +1,7 @@
 import type {createSubjectGraphState} from "./subject-graph-state"
+import type {createStatusNotifications} from "./status-notifications"
 import type {StorybookAppWebPageShellExecutionSettings as ExecutionSettings} from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 import type {StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
-import type {createLocalMcpState} from "./local-mcp-state"
 import type {GlobalMcpWindowState} from "../contract/types"
 import type {createDirectorySettingsClient} from "./directory-settings-client"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
@@ -10,10 +10,6 @@ type ViewPointTabProps = StorybookAppWebPageShellViewpointTab.Input
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 type WorkbenchHandle = StorybookAppWebPageShellWorkbench.Output
 type WorkbenchUserState = NonNullable<StorybookAppWebPageShellWorkbench.Input["userState"]>
-import type {StorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-page-shell-mcp-window"
-type McpAddressSource = NonNullable<StorybookAppWebPageShellMcpWindow.Input["addressSource"]>
-type McpWindowInitialState = NonNullable<StorybookAppWebPageShellMcpWindow.Input["initialState"]>
-type McpWindowState = StorybookAppWebPageShellMcpWindow.Output
 import type {StorybookAppWebPageShellMinimap} from "@zavx0z/storybook-app-web-page-shell-minimap"
 type MinimapInitialState = NonNullable<StorybookAppWebPageShellMinimap.Input["initialState"]>
 type MinimapState = StorybookAppWebPageShellMinimap.Output
@@ -21,6 +17,7 @@ import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-a
 type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
 
 export type StorybookAppProps = Readonly<{
+  statusNotifications?: ReturnType<typeof createStatusNotifications>
   subjectGraphState?: ReturnType<typeof createSubjectGraphState>
 
   directorySettingsClient?: ReturnType<typeof createDirectorySettingsClient>
@@ -28,8 +25,6 @@ export type StorybookAppProps = Readonly<{
   saveExecutionWindowState?: ExecutionSettings.Input["onStateChange"]
   userState?: WorkbenchUserState | undefined
   loadMcpRequests?: ((address?: string) => Promise<readonly McpRequestRecord[]>) | undefined
-  localMcpJournal?: ReturnType<typeof createLocalMcpState> | undefined
-  mcpAddressSource?: McpAddressSource | undefined
   mcpWindowState?: GlobalMcpWindowState | undefined
   saveMcpWindowState?: ((state: GlobalMcpWindowState) => void) | undefined
   navigationExpansion?: NavigationExpansion | undefined

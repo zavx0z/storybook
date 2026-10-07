@@ -11,8 +11,6 @@ export declare namespace StorybookAppWebPageShellWorkbench {
   @property onReady - Получает управление существующими узлами после монтажа.
   */
   export type Input = Readonly<{
-    mcpOpen?: boolean | undefined
-    onMcpOpenChange?: ((open: boolean) => void) | undefined
     initial?: Partial<WorkbenchAddressMap> | undefined
     userState?: WorkbenchUserState | undefined
     navigationExpansion?: NavigationExpansion | undefined

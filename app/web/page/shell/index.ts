@@ -6,6 +6,8 @@
 Тот же Document и Space принимают обзоры, контракты, зависимости и пространственное
 содержимое; Shell связывает выбор представления с кадрами и диагностикой.
 Настройки обзора, окон и навигации сохраняются между сессиями и заменами Web.
+Статусы всех Displays показаны уведомлениями слева внизу общего HUD.
+В нижней строке остаётся навигационный путь; локальный журнал агента заменён чатом.
 Tab «Настройки» открывает каталоги проектов и репозиториев; незаданный каталог
 открывает окно автоматически. Сохранение конфигурации не перемещает файлы.
 Обычное завершение освобождает подключение; releaseRoot передаёт существующий Root
@@ -17,18 +19,17 @@ import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 import {createViewPointPersistence} from "./src/viewpoint-persistence.ts"
 import createViewPointControls from "@zavx0z/storybook-app-web-page-shell-viewpoint-controls"
 import {DisplayElement} from "@zavx0z/immersive-dom/display"
-import {createMcpAddressSource} from "./src/mcp-address.ts"
 import {createWebRebuildAction} from "./src/web-rebuild.ts"
 import {createMinimapPersistence} from "./src/minimap-persistence.ts"
 import {createExecutionWindowPersistence} from "./src/execution-window-persistence"
 import {createDirectorySettingsClient} from "./src/directory-settings-client"
 import {createMcpWindowPersistence} from "./src/mcp-window-persistence.ts"
-import {createLocalMcpState} from "./src/local-mcp-state"
+import {createStatusNotifications} from "./src/status-notifications"
 import {createMcpRequestSource} from "./src/mcp-requests"
 import {createNavigationExpansion} from "./src/navigation-persistence.ts"
 import {createRoot as createBrowserRoot, type Presentation as Root, type RootProjection} from "@zavx0z/immersive-browser/integration"
 import {loadDocumentDefaultFont} from "@zavx0z/immersive-engine/default-font"
-import {StorybookApp, StorybookSurface} from "./src/application.tsx"
+import {StorybookApp} from "./src/application.tsx"
 import type {StorybookAppProps} from "./src/application-props"
 import {component} from "@zavx0z/immersive-component"
 import {createSubjectGraphState} from "./src/subject-graph-state.ts"
@@ -94,12 +95,10 @@ async function createExternalStorybookShell(
     Object.assign(viewPointPersistence.state, structuredClone(options.userState.viewPoint))
   }
   const viewPointControls = createViewPointControls(viewPointPersistence)
+  const statusNotifications = createStatusNotifications()
   const minimap = createMinimapPersistence(() => browserDocument.defaultView!.localStorage)
   const executionWindow = createExecutionWindowPersistence(() => browserDocument.defaultView!.localStorage)
   const mcpWindow = createMcpWindowPersistence(() => browserDocument.defaultView!.localStorage, "storybook.mcp-window.global.v1")
-  const localMcpJournal = createLocalMcpState(() => browserDocument.defaultView!.localStorage,
-    browserDocument.location.pathname, options.userState?.localMcpWindows)
-  let stopMcpContext: (() => void) | undefined
   const navigationPersistence = createNavigationExpansion(() => browserDocument.defaultView!.localStorage)
   let minimapState = options.userState?.minimap ?? minimap.initialState
   let executionWindowState = options.userState?.executionWindow ?? executionWindow.initialState
@@ -116,13 +115,13 @@ async function createExternalStorybookShell(
   application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
     title: options.title,
     subjectGraphState,
+    statusNotifications,
     directorySettingsClient: createDirectorySettingsClient(globalThis.fetch, () => undefined),
     userState: options.userState?.workbench,
     viewPointControls,
     statusOwner: options.statusOwner ?? options.title,
     displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
     hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
-    mcpAddressSource: createMcpAddressSource(() => `${browserDocument.location.pathname}${browserDocument.location.search}`),
     onRebuildWeb: createWebRebuildAction(),
     minimapState,
     saveMinimapState(value) {
@@ -132,7 +131,6 @@ async function createExternalStorybookShell(
     executionWindowState,
     saveExecutionWindowState(value) {executionWindowState = value; executionWindow.save(value)},
     mcpWindowState,
-    localMcpJournal,
     saveMcpWindowState(value) {
       mcpWindowState = value
       mcpWindow.save(value)
@@ -141,20 +139,10 @@ async function createExternalStorybookShell(
     loadMcpRequests: createMcpRequestSource(),
     onReady(value) {
       workbench = value
-      stopMcpContext?.()
-      const select = () => {
-        const chat = value.getSnapshot().state["inspector.values"].chat
-        if (chat !== null && typeof chat === "object" && "address" in chat && typeof chat.address === "string") {
-          localMcpJournal.select(chat.address)
-        }
-      }
-      stopMcpContext = value.subscribe(select)
-      select()
     },
   }, globalThis.crypto.randomUUID()))
   let root: Root
   try { root = await application.whenReady() } catch (error) {
-    stopMcpContext?.()
     viewPointControls.dispose()
     if (options.retainedRoot === undefined) application.unmount()
     throw error
@@ -182,10 +170,8 @@ async function createExternalStorybookShell(
     getViewport: () => latestViewport,
     createView(id, title, mount, subjectDisplay, onRelease, userState) {
       let subjectWorkbench!: Workbench
-      let stopSubjectMcp = (): void => {}
       const subjectNavigation = createNavigationExpansion(() => browserDocument.defaultView!.localStorage, `storybook.navigation-tree.subject.${id}.v1`)
       let subjectCollapsed = userState?.collapsedNavigation ?? subjectNavigation.initialCollapsedIds
-      const journal = createLocalMcpState(() => browserDocument.defaultView!.localStorage, id, userState?.localMcpWindows)
       try {
         mount({
           title,
@@ -194,31 +180,20 @@ async function createExternalStorybookShell(
           displayId: subjectDisplay.id,
           hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
           viewPointControls,
-          localMcpJournal: journal,
           navigationExpansion: {
             initialCollapsedIds: subjectCollapsed,
             save(ids) { subjectCollapsed = [...ids]; subjectNavigation.save(ids) },
           },
-          loadMcpRequests: createMcpRequestSource(),
-          mcpAddressSource: createMcpAddressSource(() => id),
           onReady(value) {
             subjectWorkbench = value
-            const select = () => {
-              const chat = value.getSnapshot().state["inspector.values"].chat
-              if (chat !== null && typeof chat === "object" && "address" in chat && typeof chat.address === "string") journal.select(chat.address)
-            }
-            stopSubjectMcp = value.subscribe(select)
-            select()
           },
         })
         if (subjectWorkbench === undefined) throw new Error(`Subject Workbench ${id} did not mount`)
         return createViewFacade(subjectDisplay, subjectWorkbench, title, false, () => {
-          stopSubjectMcp()
           mount(null)
           onRelease()
-        }, () => journal.capture(), () => subjectCollapsed)
+        }, () => subjectCollapsed)
       } catch (error) {
-        stopSubjectMcp()
         mount(null)
         throw error
       }
@@ -231,10 +206,18 @@ async function createExternalStorybookShell(
     statusOwner: string,
     primary: boolean,
     releaseView?: () => void,
-    captureJournal: () => ReturnType<typeof localMcpJournal.capture> = () => localMcpJournal.capture(),
     captureNavigation: () => readonly string[] | undefined = () => collapsedNavigation,
   ): ExternalStorybookShell {
     const hud = sharedHud
+    let previousStatus = workbench.controller.read("status")
+    const publishStatus = () => {
+      const status = workbench.controller.read("status")
+      if (status.detail === previousStatus.detail && status.owner === previousStatus.owner) return
+      previousStatus = status
+      statusNotifications.report(display.id, status.owner, status.detail)
+    }
+    const stopStatus = workbench.subscribe(publishStatus)
+    if (previousStatus.detail !== "") statusNotifications.report(display.id, previousStatus.owner, previousStatus.detail)
     const displayProjection = root.getProjection(display)
     const boundsListeners = new Set<(bounds: StorybookPreviewBounds | null) => void>()
     const frameWaiters = new Set<Readonly<{
@@ -679,7 +662,7 @@ async function createExternalStorybookShell(
       captureUserState() {
         assertActive(disposed)
         return structuredClone({workbench: workbench.controller.captureUserState(), minimap: minimapState,
-          executionWindow: executionWindowState, mcpWindow: mcpWindowState, localMcpWindows: captureJournal(), viewPoint: viewPointPersistence.state, collapsedNavigation: captureNavigation()})
+          executionWindow: executionWindowState, mcpWindow: mcpWindowState, viewPoint: viewPointPersistence.state, collapsedNavigation: captureNavigation()})
       },
       releaseRoot() {
         if (disposed) throw new Error("Storybook shell is already disposed")
@@ -693,8 +676,9 @@ async function createExternalStorybookShell(
     function release(unmount: boolean): void {
       if (disposed) return
       disposed = true
+      stopStatus()
+      statusNotifications.dismiss(display.id)
       if (primary) {
-        stopMcpContext?.()
         viewPointControls.dispose()
         graph.dispose()
       }

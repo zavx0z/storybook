@@ -1,6 +1,5 @@
 import {Breadcrumbs, type ImmersiveUiComponentNavigationBreadcrumb} from "@zavx0z/immersive-ui-component"
 import {StatusBar} from "@zavx0z/immersive-ui-component"
-import {WindowControl} from "@zavx0z/immersive-ui-component"
 import type {
   WorkbenchBreadcrumb,
   WorkbenchStatus,
@@ -9,13 +8,10 @@ import type {
 export type StatusRegionProps = Readonly<{
   status: WorkbenchStatus
   onNavigate(item: WorkbenchBreadcrumb, source: HTMLElement): void
-  mcpOpen?: boolean | undefined
-  onMcpOpenChange?: ((open: boolean) => void) | undefined
 }>
 
 /** Строка состояния сохраняет путь; домашняя ссылка показывает имя текущего Project. */
 export function StatusRegion(props: StatusRegionProps) {
-  const title = `${props.status.lead}${props.status.owner}${props.status.detail}`
   const breadcrumbs: readonly WorkbenchBreadcrumb[] = props.status.breadcrumbs ?? Object.freeze([{
     id: "status-owner",
     label: props.status.owner,
@@ -33,12 +29,8 @@ export function StatusRegion(props: StatusRegionProps) {
         flex-grow: 1;
         width: 0;
       `}
-      title={title}
+      title={props.status.owner}
       separator=""
-      end={props.status.detail === "" ? [] : [{
-        id: "workbench-status-detail",
-        text: props.status.detail,
-      }]}
     >
       <Breadcrumbs
         items={items}
@@ -49,11 +41,5 @@ export function StatusRegion(props: StatusRegionProps) {
         }}
       />
     </StatusBar>
-    <WindowControl
-      windowId="storybook-mcp-window"
-      label="Среда"
-      open={props.mcpOpen ?? false}
-      onOpenChange={open => props.onMcpOpenChange?.(open)}
-    />
   </div>
 }

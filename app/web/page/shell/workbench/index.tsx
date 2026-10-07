@@ -2,6 +2,7 @@
 Рабочая область одного Experience: содержимое и Inspector с вкладкой дерева.
 Общая модель принимает данные приложения и переносит содержимое между проекциями
 того же Document. Display показывает текущую ветвь, а Minimap получает полный каталог.
+Нижняя строка содержит навигационный путь. Статус модели доступен оболочке для уведомлений HUD.
 
 @packageDocumentation
 */
@@ -45,8 +46,6 @@ export default function Workbench(props: StorybookAppWebPageShellWorkbench.Input
   }, [model])
   useLayoutEffect(() => () => model.dispose(), [model])
   return <WorkbenchView
-    mcpOpen={props.mcpOpen}
-    onMcpOpenChange={props.onMcpOpenChange}
     document={view.document}
     onElement={node => { element.current = node }}
     state={displayState}
