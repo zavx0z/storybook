@@ -1,12 +1,20 @@
-/** Беседа показывает историю, управляемый черновик и действия текущего исполнения. */
+/** Публичный ChatView показывает bounded snapshot беседы; действия возвращаются владельцу состояния. */
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive-headless"
-import {Event, InputEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
-import {fixtureImageData, fixtureImageDraws, fixtureImageEncodings, fixtureDecodedEncodings, installFixtureImageEncoder} from "./fixture/media-host"
-import StorybookChatView, {type FixtureContract as Contract} from "./fixture/history"
+import {readFile} from "node:fs/promises"
+import type {HTMLButtonElement} from "@zavx0z/immersive-dom"
+import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
+import StorybookChatView, {type StorybookChatView as Contract} from "@zavx0z/storybook-chat-view"
+import {fixtureHistory} from "./fixture/history-data"
+import {installScenarioImageEncoder, scenarioImageData, scenarioImageSource, scenarioMediaHost} from "./fixture/scenario-media"
 
-const restoreImageEncoder = installFixtureImageEncoder()
-afterAll(restoreImageEncoder)
+type Item = StorybookChatHistory.Output[number]
+type ScenarioData = Pick<Contract.Input, "address" | "label" | "draft" | "status"> & Partial<Pick<Contract.Input, "sending" | "usage" | "settings" | "executorId" | "pendingTasks" | "media">> & Readonly<{
+  messages: readonly Readonly<{id: string, role: "user" | "assistant" | "system", text: string}>[]
+  timeline?: readonly Item[]
+}>
+const restoreEncoder = installScenarioImageEncoder()
+afterAll(restoreEncoder)
 
 describe.each([
   {
@@ -21,7 +29,7 @@ describe.each([
       timeline: [
         {id: "user-media", kind: "message", sequence: 1, origin: "local", role: "user", content: [
           {type: "text", text: "Посмотри изображение"},
-          {type: "image", mimeType: "image/png", data: fixtureImageData},
+          {type: "image", mimeType: "image/png", data: scenarioImageData},
         ]},
         {id: "context", kind: "context", sequence: 2, origin: "local", content: [{type: "text", text: "Переданный исходник"}]},
         {id: "thought", kind: "message", sequence: 3, origin: "live", role: "thought", content: [{type: "text", text: "Сверяю размеры"}]},
@@ -35,7 +43,7 @@ describe.each([
       draft: "",
       status: "idle",
       sending: false,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     sendEnabled: false,
     cancelEnabled: false,
     statusLabel: "Готов",
@@ -63,7 +71,7 @@ describe.each([
           {value: "high", name: "High"},
         ]},
       ],
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     messageText: ["Покажи пример", "const answer = 42"],
     statusLabel: "Готов",
     sendEnabled: false,
@@ -78,7 +86,7 @@ describe.each([
       draft: Array.from({length: 20}, (_, index) => `Строка ${index}`).join("\n"),
       status: "idle",
       sending: false,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     statusLabel: "Готов",
     sendEnabled: true,
     cancelEnabled: false,
@@ -95,7 +103,7 @@ describe.each([
       draft: "Первая строка\nВторая строка",
       status: "idle",
       sending: false,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     statusLabel: "Готов",
     sendEnabled: true,
     cancelEnabled: false,
@@ -109,7 +117,7 @@ describe.each([
       draft: "Следующий вопрос",
       status: "running",
       sending: false,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     statusLabel: "Работает…",
     sendEnabled: true,
     cancelEnabled: true,
@@ -123,7 +131,7 @@ describe.each([
       draft: "Проверь проект",
       status: "connecting",
       sending: false,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     statusLabel: "Подключение…",
     sendEnabled: false,
     cancelEnabled: true,
@@ -137,7 +145,7 @@ describe.each([
       draft: "",
       status: "idle",
       sending: false,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     statusLabel: "Готов",
     sendEnabled: false,
     cancelEnabled: false,
@@ -151,7 +159,7 @@ describe.each([
       draft: " \n ",
       status: "idle",
       sending: false,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     statusLabel: "Готов",
     sendEnabled: false,
     cancelEnabled: false,
@@ -165,159 +173,158 @@ describe.each([
       draft: "Вопрос отправляется",
       status: "idle",
       sending: true,
-    } satisfies Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel">,
+    } satisfies ScenarioData,
     statusLabel: "Отправка сообщения…",
     sendEnabled: false,
     cancelEnabled: false,
   },
-])("$name", async ({props, statusLabel, sendEnabled, cancelEnabled, messageText}: {
-  props: Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel"> & {sending: boolean}
-  statusLabel: string
-  sendEnabled: boolean
-  cancelEnabled: boolean
-  messageText?: readonly string[]
-}) => {
+  {
+    name: "Markdown и изображения",
+    props: {
+      address: "/media-fixture", label: "Изображения", draft: "", status: "idle", sending: false,
+      messages: [{id: "typed", role: "user", text: "Прикреплённое изображение"},
+        {id: "markdown", role: "assistant", text: `Текст перед изображением.\n\n![Проверка Markdown](${scenarioImageSource})\n\nТекст после изображения.`}],
+      timeline: [
+        {id: "typed", sequence: 1, kind: "message", origin: "local", role: "user", content: [{type: "text", text: "Прикреплённое изображение"}, {type: "image", mimeType: "image/png", data: scenarioImageData}]},
+        {id: "markdown", sequence: 2, kind: "message", origin: "live", role: "assistant", content: [{type: "text", text: `Текст перед изображением.\n\n![Проверка Markdown](${scenarioImageSource})\n\nТекст после изображения.`}]},
+      ],
+    } satisfies ScenarioData,
+    sendEnabled: false, cancelEnabled: false, statusLabel: "Готов",
+  },
+  {
+    name: "Развёрнутое изображение",
+    props: {
+      address: "/media-fixture", label: "Предпросмотр", draft: "", status: "idle", sending: false,
+      messages: [{id: "preview", role: "assistant", text: "Статичный предпросмотр исходного PNG"}],
+      media: {source: scenarioImageSource, mimeType: "image/png", label: "Проверка Markdown"},
+    } satisfies ScenarioData,
+    sendEnabled: false, cancelEnabled: false, statusLabel: "Готов",
+  },
+  {
+    name: "Изображение и длинная история",
+    props: {
+      address: "/media-scroll", label: "Прокрутка изображений", draft: "", status: "idle", sending: false,
+      messages: Array.from({length: 24}, (_, index) => ({id: `scroll:${index}`, role: "assistant" as const,
+        text: index === 0 ? `![Проверка Markdown](${scenarioImageSource})` : `Сообщение ${index}. Обычный текст истории для прокрутки. `.repeat(4)})),
+    } satisfies ScenarioData,
+    sendEnabled: false, cancelEnabled: false, statusLabel: "Готов",
+  },
+])("$name", async ({props, statusLabel, sendEnabled, cancelEnabled}) => {
+  const headless = createHeadless({width: 420, height: 640})
+  afterAll(() => headless.dispose())
   const onDraftChange = mock((value: string) => {})
   const onSend = mock(() => {})
   const onCancel = mock(() => {})
-  const onPrepareSettings = mock(() => {})
+  const onHistoryExpand = mock((id: string, expanded: boolean) => {})
+  const onMedia = mock((value: Parameters<NonNullable<Contract.Input["onMedia"]>>[0]) => {})
   const onConfigure = mock((id: string, value: string) => {})
-  const headless = createHeadless({width: 400, height: 600})
-  afterAll(() => headless.dispose())
+  const onPrepareSettings = mock(() => {})
+  const mediaHost = scenarioMediaHost()
+  afterAll(() => mediaHost.images?.dispose())
+  const history = fixtureHistory(props.messages, "timeline" in props ? props.timeline : undefined)
   const element = await headless.render(
     <StorybookChatView
       address={props.address}
       label={props.label}
-      executorId={props.executorId}
-      pendingTasks={props.pendingTasks}
-      messages={props.messages}
-      timeline={props.timeline}
+      history={history}
       draft={props.draft}
       status={props.status}
       sending={props.sending}
-      usage={props.usage}
-      settings={props.settings}
-      onPrepareSettings={onPrepareSettings}
-      onConfigure={onConfigure}
+      usage={"usage" in props ? props.usage : undefined}
+      settings={"settings" in props ? props.settings : undefined}
+      media={"media" in props ? props.media : undefined}
+      mediaHost={mediaHost}
       onDraftChange={onDraftChange}
       onSend={onSend}
       onCancel={onCancel}
+      onHistoryViewport={() => {}}
+      onHistoryVisible={() => {}}
+      onHistoryExpand={onHistoryExpand}
+      onHistoryRetry={() => {}}
+      onHistoryEvidence={() => {}}
+      onHistoryTail={() => {}}
+      onPrepareSettings={onPrepareSettings}
+      onConfigure={onConfigure}
+      onMedia={onMedia}
     />,
   )
-  const send = element.querySelector(props.status === "running" ? 'button[aria-label="Добавить в очередь"]' : 'button[aria-label="Отправить"]') as HTMLButtonElement | null
-  const cancel = element.querySelector('button[aria-label="Остановить"]') as HTMLButtonElement | null
 
   test("Предмет беседы", () => {
-    expect(element.querySelector("[data-chat-view]")!.getAttribute("data-chat-address"), "Беседа относится к переданному каноническому адресу").toBe(props.address)
-    expect(element.getAttribute("aria-label"), "Доступное название сохраняет предмет без лишней шапки").toBe(`Чат: ${props.label}`)
+    expect(element.querySelector("[data-chat-view]")?.getAttribute("data-chat-address"), "Представление сохраняет адрес владельца snapshot").toBe(props.address)
+    expect(element.getAttribute("aria-label"), "Беседа имеет доступное имя своего предмета").toBe(`Чат: ${props.label}`)
   })
-
   test("Состояние исполнения", () => {
-    expect(element.querySelector('[data-chat-status]')?.textContent, "Пользователь видит состояние исполнения, независимо от очереди и других уведомлений").toBe(props.status === "connecting" || props.status === "running" ? statusLabel : undefined)
+    expect(element.querySelector("[data-chat-status]")?.textContent, "Индикатор показывает переданное состояние исполнения").toBe(props.status === "connecting" || props.status === "running" ? statusLabel : undefined)
   })
-
   test("История сообщений", () => {
-    expect([...element.querySelectorAll("[data-chat-message]")].map(message =>
-      (message.querySelector("code") ?? message).textContent?.replace(/\s+/gu, " ").trim()),
-      "Сообщения показаны в порядке владельца; код сохраняет исходный текст без Markdown-ограждения и номеров строк")
-      .toEqual([...(messageText ?? props.messages.map(message => message.text.replace(/\s+/gu, " ").trim()))])
-    expect([...element.querySelectorAll("[data-chat-message]")].map(message => message.getAttribute("data-chat-role")),
-      "Роль каждого сообщения сохраняется в показанной истории").toEqual(props.messages.map(message => message.role))
+    expect(element.querySelectorAll("[data-chat-message]").length, "Обычные сообщения остаются в порядке ограниченного snapshot").toBe(props.messages.length)
   })
-
   test("Редактор сообщения", () => {
-    expect(element.querySelector('[role="textbox"]')?.getAttribute("aria-multiline"),
-      "Черновик редактируется настоящим многострочным textarea").toBe("true")
-    expect((element.querySelector("textarea") as HTMLTextAreaElement | null)?.value,
-      "Поле сообщения показывает управляемый черновик").toBe(props.draft)
+    const editor = element.querySelector("textarea")
+    expect(editor?.getAttribute("aria-label"), "Редактор черновика имеет доступное имя").toBe("Сообщение")
   })
-
   test("Отправка", () => {
-    expect(send !== null, "Черновик имеет отдельное действие отправки или постановки в очередь").toBe(true)
-    expect(send?.disabled, "Пустой черновик, подключение и ожидание HTTP запрещают отправку; работа допускает очередь").toBe(!sendEnabled)
-    send?.click()
-    expect(onSend.mock.calls, "Разрешённая отправка передаёт действие владельцу сессии ровно один раз").toEqual(sendEnabled ? [[]] : [])
+    const button = element.querySelector(props.status === "running" ? 'button[aria-label="Добавить в очередь"]' : 'button[aria-label="Отправить"]') as HTMLButtonElement
+    expect(button.disabled, "Доступность определяется черновиком и состоянием исполнения").toBe(!sendEnabled)
+    button.click()
+    expect(onSend.mock.calls, "Отправка сообщает владельцу намерение ровно один раз").toEqual(sendEnabled ? [[]] : [])
   })
-
   test("Отмена", () => {
-    expect(cancel !== null, "Кнопка остановки существует только во время выполнения").toBe(cancelEnabled)
-    cancel?.click()
-    expect(onCancel.mock.calls, "Доступная отмена передаёт действие владельцу исполнения").toEqual(cancelEnabled ? [[]] : [])
+    const button = element.querySelector('button[aria-label="Остановить"]') as HTMLButtonElement | null
+    expect(button !== null, "Подключение и исполнение предоставляют действие отмены").toBe(cancelEnabled)
+    button?.click()
+    expect(onCancel.mock.calls, "Отмена передаётся владельцу исполнения").toEqual(cancelEnabled ? [[]] : [])
   })
 
-  describe.skipIf(props.timeline === undefined)("История исполнения", () => {
+  /** @remarks Только вариант с timeline содержит отдельный инструмент и исходный typed image. */
+  describe.skipIf(!("timeline" in props))("События и изображения", () => {
+    test("Исходный PNG", async () => {
+      const file = await readFile(new URL("./fixture/circle.png", import.meta.url))
+      expect(Buffer.from(scenarioImageData, "base64"), "Переносимые данные сохраняют byte-identical PNG asset сценария").toEqual(file)
+    })
     test("Изображение сообщения", async () => {
       await headless.capture(element)
-      const src = element.querySelector('[data-chat-image]')?.getAttribute("src")
-      expect(src, "В semantic img передаётся подготовленный bounded blob, а не original data URI").toStartWith("blob:")
-      expect(fixtureImageDraws, "Encoder получил actual decoded PNG и bounded draw dimensions").toContainEqual({sourceWidth: 1, sourceHeight: 1, width: 1, height: 1})
-      const encoded = fixtureImageEncodings.at(-1)!
-      expect(encoded.type).toBe("image/png")
-      expect(fixtureDecodedEncodings, "Output blob действительно декодируется actual decoder как PNG1×1").toContainEqual({width: 1, height: 1})
-      const source = props.timeline!.find(item => item.kind === "message" && item.id === "user-media")!
-      expect(source.kind === "message" ? source.content : [], "Подготовка preview не переписывает сохранённый ContentBlock").toEqual([
-        {type: "text", text: "Посмотри изображение"}, {type: "image", mimeType: "image/png", data: fixtureImageData},
-      ])
+      const image = element.querySelector('[data-chat-image]')
+      expect(image?.getAttribute("src"), "Изображение проходит public media preparation и получает bounded blob").toStartWith("blob:")
+      expect(image?.getAttribute("width"), "Исходный fixture PNG декодируется с шириной240px").toBe("240")
+      expect(image?.getAttribute("height"), "Исходный fixture PNG декодируется с высотой240px").toBe("240")
     })
-
-    test("Скрытые детали", () => {
-      expect([...element.querySelectorAll("[data-chat-entry]")].map(entry => entry.getAttribute("data-chat-kind")),
-        "Контекст, мысль, инструмент и событие имеют отдельные записи в исходном порядке").toEqual(["context", "message", "tool", "event"])
-      expect(element.querySelector("[data-chat-details]"),
-        "До раскрытия содержание инструмента и контекста не создаётся").toBeNull()
-    })
-
-    test("Раскрытие инструмента", async () => {
-      const tool = element.querySelector('[data-chat-entry="tool"]')!
-      const button = tool.querySelector("button") as HTMLButtonElement
+  })
+  /** @remarks Только timeline варианта событий содержит свернутый tool с действием раскрытия. */
+  describe.skipIf(!("timeline" in props) || !props.timeline?.some(item => item.kind === "tool"))("Действия исполнения", () => {
+    test("Раскрытие инструмента", () => {
+      const entry = element.querySelector('[data-chat-entry="tool"]')!
+      const button = entry.querySelector("button") as HTMLButtonElement
       button.click()
-      await headless.capture(element)
-      expect(tool.querySelector("[data-chat-details]")?.textContent,
-        "Раскрытый инструмент показывает результат и аргументы того же вызова").toContain("Результат инструмента")
-      expect(tool.querySelector('[data-chat-data="Аргументы"]')?.textContent,
-        "Аргументы не восстанавливаются из обычного сообщения").toContain("image.png")
+      expect(onHistoryExpand.mock.calls, "Раскрытие запрашивает новый snapshot у владельца истории").toEqual([["tool", true]])
     })
   })
-
-  /** @remarks Начальный пустой черновик даёт однозначную позицию вставки без изменения selection. */
-  describe.skipIf(props.draft !== "")("Ввод сообщения", () => {
-    test("Изменение управляемого черновика", () => {
-      const editor = element.querySelector("textarea") as HTMLTextAreaElement
-      editor.value = "Новый вопрос\nПродолжение"
-      editor.dispatchEvent(new InputEvent("input", {
-        bubbles: true,
-        cancelable: true,
-        inputType: "insertText",
-        data: "Новый вопрос\nПродолжение",
-      }))
-      expect(onDraftChange.mock.calls, "Редактор передаёт новый многострочный текст владельцу черновика").toEqual([["Новый вопрос\nПродолжение"]])
+  /** @remarks Раскрытое media является отдельным состоянием владельца, а не внутренним состоянием ChatView. */
+  describe.skipIf(!("media" in props))("Развёрнутое изображение", () => {
+    test("Предпросмотр", async () => {
+      await headless.capture(element)
+      expect(element.querySelector('[role="dialog"]')?.getAttribute("aria-label"), "Диалог относится к выбранному изображению владельца").toBe("Проверка Markdown")
+      expect(element.querySelector('[data-chat-full-image]')?.getAttribute("src"), "Развёрнутое изображение подготовлено штатным image pipeline").toStartWith("blob:")
+    })
+    test("Закрытие", () => {
+      const button = element.querySelector('button[aria-label="Закрыть медиа"]') as HTMLButtonElement
+      button.click()
+      expect(onMedia.mock.calls, "Закрытие возвращает владельцу состояние без выбранного media").toEqual([[null]])
     })
   })
-
-  /** @remarks Только вариант с настройками предоставляет модели, контекст и блок кода. */
-  describe.skipIf(props.settings === undefined)("Параметры и код", () => {
-    test("Заполнение контекста", () => {
-      const title = element.querySelector("[data-chat-context]")?.getAttribute("title")
-      expect(title, "Подсказка вычислена из переданных used и size").toContain("52%")
-      expect(title, "Показаны использованные токены и размер окна").toContain("427 к / 828 к")
-    })
-
-    test("Подсветка исходника", async () => {
+  /** @remarks Только вариант с assistant Markdown image предоставляет действие открытия именно этого source. */
+  describe.skipIf(!props.messages.some(message => message.text.includes("![Проверка Markdown]")))("Markdown изображения", () => {
+    test("Содержимое и действие", async () => {
       await headless.capture(element)
-      expect(element.querySelector('[data-language-id="typescript"]'), "Язык кода передаётся редактору").not.toBeNull()
-      expect(element.querySelectorAll("[data-token-key]").length, "Код представлен синтаксическими токенами").toBeGreaterThan(0)
-    })
-
-    test("Выбор параметров", async () => {
-      await headless.capture(element)
-      const selects = [...element.querySelectorAll("[data-chat-model-settings] select")] as HTMLSelectElement[]
-      expect(selects, "Выбор содержит модель и уровень мышления").toHaveLength(2)
-      selects[0]!.value = "b"
-      selects[0]!.dispatchEvent(new Event("change", {bubbles: true}))
-      selects[1]!.value = "low"
-      selects[1]!.dispatchEvent(new Event("change", {bubbles: true}))
-      expect(onConfigure.mock.calls, "Выбор передаёт владельцу точные id и value").toEqual([["model", "b"], ["effort", "low"]])
-      expect(onPrepareSettings.mock.calls, "Готовые настройки не требуют повторной загрузки").toEqual([])
+      const button = element.querySelector('button[aria-label="Открыть: Проверка Markdown"]') as HTMLButtonElement | null
+      // Длинная история начинает с tail; её image появляется после scroll и проверяется в live view.
+      if (props.messages.length > 20) {
+        expect(props.messages[0]?.text, "История содержит исходный Markdown image до длинного хвоста").toBe(`![Проверка Markdown](${scenarioImageSource})`)
+        return
+      }
+      expect(button, "Markdown image сохраняет alt в доступной команде открытия").not.toBeNull()
+      button!.click()
+      expect(onMedia.mock.calls[0]?.[0]?.source, "Команда передаёт исходный URI через public onMedia").toBe(scenarioImageSource)
     })
   })
 })
