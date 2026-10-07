@@ -632,3 +632,39 @@ test("перенос корпуса между владельцами перен
   expect(await archive.media.materialize(archive.content("image"))).toEqual(content)
   expect(copied.hasMedia("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81")).toBeTrue()
 })
+
+test("сохранение неизменных metadata не пишет журнал, но изменение остаётся durable", async () => {
+  const f = await fixture()
+  const archive = await f.open()
+  await archive.commit(f.metadata, [message("one")])
+  const first = await readFile(f.file, "utf8")
+  const header = JSON.parse(first)
+  const journal = join(f.root, "meta/chat", header.journal)
+  const originalBytes = (await stat(journal)).size
+  for (let i = 0; i < 20; i++) await archive.commit(archive.metadata)
+  expect(await readFile(f.file, "utf8")).toBe(first)
+  expect((await stat(journal)).size).toBe(originalBytes)
+  await archive.commit({...archive.metadata, sessionLabel: "Сохранённое имя"})
+  expect((await stat(journal)).size).toBeGreaterThan(originalBytes)
+  expect(JSON.parse(await readFile(f.file, "utf8")).metadata.sessionLabel).toBe("Сохранённое имя")
+})
+
+test("чтение во время durable записи видит только целиком подтверждённый индекс", async () => {
+  const f = await fixture()
+  const archive = await f.open()
+  await archive.commit(f.metadata, [message("first")])
+  let completed = false
+  let observed = 0
+  const writing = archive.commit(undefined, Array.from({length: 1000}, (_, i) => message(`next:${i}`, "x".repeat(1000)))).then(() => {completed = true})
+  while (!completed) {
+    const page = archive.page({around: 0})
+    expect([1, 1001]).toContain(page.total)
+    expect(page.items.length).toBe(page.total === 1 ? 1 : 32)
+    observed++
+    await Bun.sleep(0)
+  }
+  await writing
+  expect(observed).toBeGreaterThan(0)
+  expect(archive.stats().total).toBe(1001)
+  expect(archive.page({around: 0}).items[0]?.id).toBe("first")
+})

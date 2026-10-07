@@ -8,6 +8,7 @@ provider identity и evidence остаются на диске, а бинарн�
 вынесены в неизменяемые объекты meta/chat/media. SQLite восстанавливает отдельную
 проекцию сообщений и служебных групп, не загружая оригиналы вложений.
 */
+import {query as cachedQuery} from "./queries"
 import {Database} from "bun:sqlite"
 import {createHash, randomUUID} from "node:crypto"
 import {createReadStream, statSync} from "node:fs"
@@ -123,7 +124,7 @@ function database(file: string): Database {
     pool.delete(key)
   }
   const db = new Database(file, {create: true})
-  db.exec(`PRAGMA journal_mode=DELETE; PRAGMA synchronous=NORMAL; PRAGMA cache_size=-2048; PRAGMA temp_store=FILE;
+  db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA cache_size=-2048; PRAGMA temp_store=FILE;
     CREATE TABLE IF NOT EXISTS stamp (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS entry (id TEXT PRIMARY KEY, ordinal INTEGER UNIQUE NOT NULL, sequence INTEGER NOT NULL,
       revision INTEGER NOT NULL, kind TEXT NOT NULL, origin TEXT NOT NULL, preview TEXT NOT NULL, data TEXT NOT NULL,
@@ -140,6 +141,8 @@ function database(file: string): Database {
       WHERE kind='turn' AND json_extract(preview,'$.state')='started';
     CREATE INDEX IF NOT EXISTS terminal_request ON entry(json_extract(data,'$.requestId'))
       WHERE kind='turn' AND json_extract(preview,'$.state')!='started';
+    CREATE INDEX IF NOT EXISTS local_context_request ON entry(json_extract(data,'$.requestId'))
+      WHERE kind='context' AND origin='local';
     CREATE TABLE IF NOT EXISTS block (entry_id TEXT NOT NULL, ordinal INTEGER NOT NULL, bytes INTEGER NOT NULL, data TEXT NOT NULL,
       PRIMARY KEY(entry_id,ordinal));
     CREATE TABLE IF NOT EXISTS evidence (entry_id TEXT NOT NULL, ordinal INTEGER NOT NULL, id TEXT UNIQUE NOT NULL,
@@ -158,13 +161,13 @@ function database(file: string): Database {
     CREATE INDEX IF NOT EXISTS replay_projection_context ON replay_projection(context_id);
     CREATE INDEX IF NOT EXISTS replay_projection_request ON replay_projection(request_id);`
   db.exec(replayIndexSchema)
-  const replayColumns = db.query("PRAGMA table_info(replay_projection)").all() as {name: string; notnull: number}[]
+  const replayColumns = cachedQuery(db, "PRAGMA table_info(replay_projection)").all() as {name: string; notnull: number}[]
   if (replayColumns.some(column => column.name === "request_id" && column.notnull === 1)) {
     // Меняется только восстанавливаемый cache; journal и metadata остаются источником.
     db.exec("DROP TABLE replay_projection; DELETE FROM stamp;")
     db.exec(replayIndexSchema)
   }
-  const keys = db.query("PRAGMA table_info(supplied_input)").all() as {pk: number}[]
+  const keys = cachedQuery(db, "PRAGMA table_info(supplied_input)").all() as {pk: number}[]
   if (keys.filter(column => column.pk > 0).length === 1) {
     db.exec("DROP TABLE supplied_input; DROP TABLE replay_input; DELETE FROM replay_projection; DELETE FROM stamp;")
     db.exec(replayIndexSchema)
@@ -277,61 +280,61 @@ export class Archive {
     return database(this.cacheFile)
   }
   private row(id: string): Row | null {
-    return !this.initialized ? null : this.db().query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE id=?`).get(id) as Row | null
+    return !this.initialized ? null : cachedQuery(this.db(), `SELECT ${SMALL_COLUMNS} FROM entry WHERE id=?`).get(id) as Row | null
   }
   lookup(id: string): HistoryEntry | null { const row = this.row(id); return row === null ? null : headerEntry(row) }
   findProvider(role: string, providerId: string): HistoryEntry | null {
     if (!this.initialized) return null
-    const rows = this.db().query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE provider_id=? ORDER BY ordinal LIMIT 1`).get(`${role}\0${providerId}`) as Row | null
+    const rows = cachedQuery(this.db(), `SELECT ${SMALL_COLUMNS} FROM entry WHERE provider_id=? ORDER BY ordinal LIMIT 1`).get(`${role}\0${providerId}`) as Row | null
     return rows === null ? null : headerEntry(rows)
   }
   findTool(toolCallId: string): HistoryEntry | null {
     if (!this.initialized) return null
-    const row = this.db().query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE tool_id=? ORDER BY ordinal LIMIT 1`).get(toolCallId) as Row | null
+    const row = cachedQuery(this.db(), `SELECT ${SMALL_COLUMNS} FROM entry WHERE tool_id=? ORDER BY ordinal LIMIT 1`).get(toolCallId) as Row | null
     return row === null ? null : headerEntry(row)
   }
   lastAssistant(afterSequence: number): HistoryEntry | null {
     if (!this.initialized) return null
-    const row = this.db().query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE kind='message' AND sequence>=? AND json_extract(preview,'$.role')='assistant' ORDER BY sequence DESC LIMIT 1`).get(afterSequence) as Row | null
+    const row = cachedQuery(this.db(), `SELECT ${SMALL_COLUMNS} FROM entry WHERE kind='message' AND sequence>=? AND json_extract(preview,'$.role')='assistant' ORDER BY sequence DESC LIMIT 1`).get(afterSequence) as Row | null
     return row === null ? null : headerEntry(row)
   }
   unfinishedRequest(): string | undefined {
     if (!this.initialized) return undefined
-    const started = this.db().query("SELECT json_extract(data,'$.requestId') AS request FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' ORDER BY ordinal DESC LIMIT 1").get() as {request: string} | null
+    const started = cachedQuery(this.db(), "SELECT json_extract(data,'$.requestId') AS request FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' ORDER BY ordinal DESC LIMIT 1").get() as {request: string} | null
     if (started === null) return undefined
-    const completed = this.db().query("SELECT 1 FROM entry WHERE kind='turn' AND json_extract(data,'$.requestId')=? AND json_extract(preview,'$.state')!='started' LIMIT 1").get(started.request)
+    const completed = cachedQuery(this.db(), "SELECT 1 FROM entry WHERE kind='turn' AND json_extract(data,'$.requestId')=? AND json_extract(preview,'$.state')!='started' LIMIT 1").get(started.request)
     return completed === null ? started.request : undefined
   }
   hasStarted(requestId: string): boolean {
-    return this.initialized && this.db().query("SELECT 1 FROM entry WHERE kind='turn' AND json_extract(data,'$.requestId')=? AND json_extract(preview,'$.state')='started' LIMIT 1").get(requestId) !== null
+    return this.initialized && cachedQuery(this.db(), "SELECT 1 FROM entry WHERE kind='turn' AND json_extract(data,'$.requestId')=? AND json_extract(preview,'$.state')='started' LIMIT 1").get(requestId) !== null
   }
   hasTerminal(requestId: string): boolean {
-    return this.initialized && this.db().query("SELECT 1 FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')!='started' AND json_extract(data,'$.requestId')=? LIMIT 1").get(requestId) !== null
+    return this.initialized && cachedQuery(this.db(), "SELECT 1 FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')!='started' AND json_extract(data,'$.requestId')=? LIMIT 1").get(requestId) !== null
   }
   private identity(db: Database, id: string, sequence: number, parent: string): void {
     // Первый raw event имеет sequence самой записи; остальные sequence глобально уникальны.
-    db.query("INSERT INTO identity(id,sequence,entry_id) VALUES(?,?,?)").run(id, sequence, parent)
+    cachedQuery(db, "INSERT INTO identity(id,sequence,entry_id) VALUES(?,?,?)").run(id, sequence, parent)
   }
   hasMedia(digest: string): boolean {
-    return /^[a-f0-9]{64}$/u.test(digest) && this.initialized && this.db().query("SELECT 1 FROM entry_media WHERE digest=? LIMIT 1").get(digest) !== null
+    return /^[a-f0-9]{64}$/u.test(digest) && this.initialized && cachedQuery(this.db(), "SELECT 1 FROM entry_media WHERE digest=? LIMIT 1").get(digest) !== null
   }
   private indexMedia(db: Database, id: string, value: unknown): void {
-    for (const reference of mediaReferences(value)) db.query("INSERT OR IGNORE INTO entry_media(entry_id,digest) VALUES(?,?)").run(id, reference.digest)
+    for (const reference of mediaReferences(value)) cachedQuery(db, "INSERT OR IGNORE INTO entry_media(entry_id,digest) VALUES(?,?)").run(id, reference.digest)
   }
   private addBlock(db: Database, id: string, content: Content): void {
     this.indexMedia(db, id, content)
     const encoded = JSON.stringify(content)
-    db.query("INSERT INTO block(entry_id,ordinal,bytes,data) VALUES(?,(SELECT COALESCE(MAX(ordinal),-1)+1 FROM block WHERE entry_id=?),?,?)").run(id, id, Buffer.byteLength(encoded), encoded)
-    db.query("UPDATE entry SET body_bytes=body_bytes+? WHERE id=?").run(Buffer.byteLength(encoded), id)
+    cachedQuery(db, "INSERT INTO block(entry_id,ordinal,bytes,data) VALUES(?,(SELECT COALESCE(MAX(ordinal),-1)+1 FROM block WHERE entry_id=?),?,?)").run(id, id, Buffer.byteLength(encoded), encoded)
+    cachedQuery(db, "UPDATE entry SET body_bytes=body_bytes+? WHERE id=?").run(Buffer.byteLength(encoded), id)
   }
   private addEvidence(db: Database, id: string, event: HistoryEvidence): void {
     this.indexMedia(db, id, event)
     const encoded = JSON.stringify(event)
     // Sequence совпадает только у entry и первого события; для identity сырого события сохраняется 0 в этом случае.
-    const row = db.query("SELECT sequence FROM entry WHERE id=?").get(id) as {sequence: number}
+    const row = cachedQuery(db, "SELECT sequence FROM entry WHERE id=?").get(id) as {sequence: number}
     this.identity(db, event.id, event.sequence === row.sequence ? 0 : event.sequence, id)
-    db.query("INSERT INTO evidence(entry_id,ordinal,id,sequence,bytes,data) VALUES(?,(SELECT COALESCE(MAX(ordinal),-1)+1 FROM evidence WHERE entry_id=?),?,?,?,?)").run(id, id, event.id, event.sequence, Buffer.byteLength(encoded), encoded)
-    db.query("UPDATE entry SET evidence_count=evidence_count+1 WHERE id=?").run(id)
+    cachedQuery(db, "INSERT INTO evidence(entry_id,ordinal,id,sequence,bytes,data) VALUES(?,(SELECT COALESCE(MAX(ordinal),-1)+1 FROM evidence WHERE entry_id=?),?,?,?,?)").run(id, id, event.id, event.sequence, Buffer.byteLength(encoded), encoded)
+    cachedQuery(db, "UPDATE entry SET evidence_count=evidence_count+1 WHERE id=?").run(id)
     const update = event.update as Record<string, any>
     const meta = update?._meta
     const delta = meta?.terminal_output_delta
@@ -340,15 +343,15 @@ export class Archive {
     if (delta && typeof delta === "object" || exit && typeof exit === "object" || info && typeof info === "object") {
       if (event.origin === "replay" && event.batchId && typeof delta?.data === "string") {
         const key = `terminal-replay:${id}`
-        const previous = db.query("SELECT value FROM stamp WHERE key=?").get(key) as {value: string} | null
+        const previous = cachedQuery(db, "SELECT value FROM stamp WHERE key=?").get(key) as {value: string} | null
         if (previous?.value !== event.batchId) {
           // Полный повтор вывода заменяет только его проекцию; исходные evidence остаются.
-          db.query("DELETE FROM terminal_event WHERE entry_id=? AND has_output=1").run(id)
-          db.query("INSERT OR REPLACE INTO stamp(key,value) VALUES(?,?)").run(key, event.batchId)
+          cachedQuery(db, "DELETE FROM terminal_event WHERE entry_id=? AND has_output=1").run(id)
+          cachedQuery(db, "INSERT OR REPLACE INTO stamp(key,value) VALUES(?,?)").run(key, event.batchId)
         }
       }
-      const ordinal = (db.query("SELECT ordinal FROM evidence WHERE id=?").get(event.id) as {ordinal: number}).ordinal
-      db.query("INSERT OR REPLACE INTO terminal_event(entry_id,evidence_id,ordinal,sequence,stream,has_output,terminal_id,cwd,exit_code,exit_signal,has_exit) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
+      const ordinal = (cachedQuery(db, "SELECT ordinal FROM evidence WHERE id=?").get(event.id) as {ordinal: number}).ordinal
+      cachedQuery(db, "INSERT OR REPLACE INTO terminal_event(entry_id,evidence_id,ordinal,sequence,stream,has_output,terminal_id,cwd,exit_code,exit_signal,has_exit) VALUES(?,?,?,?,?,?,?,?,?,?,?)")
         .run(id, event.id, ordinal, event.sequence, ["stdout", "stderr"].includes(delta?.stream) ? delta.stream : "combined",
           Number(typeof delta?.data === "string"), delta?.terminal_id ?? exit?.terminal_id ?? info?.terminal_id ?? null,
           typeof info?.cwd === "string" ? info.cwd : null, Number.isInteger(exit?.exit_code) ? exit.exit_code : null,
@@ -359,7 +362,7 @@ export class Archive {
   private inputDigest(db: Database, ids: readonly string[]): string {
     const hash = createHash("sha256").update("[")
     let first = true
-    for (const id of ids) for (const block of db.query("SELECT data FROM block WHERE entry_id=? ORDER BY ordinal").iterate(id) as Iterable<{data: string}>) {
+    for (const id of ids) for (const block of cachedQuery(db, "SELECT data FROM block WHERE entry_id=? ORDER BY ordinal").iterate(id) as Iterable<{data: string}>) {
       if (!first) hash.update(",")
       hash.update(contentEncoding(JSON.parse(block.data)))
       first = false
@@ -367,13 +370,13 @@ export class Archive {
     return hash.update("]").digest("hex")
   }
   private blocks(db: Database, id: string): Content[] {
-    const row = db.query("SELECT body_bytes FROM entry WHERE id=?").get(id) as {body_bytes: number} | null
+    const row = cachedQuery(db, "SELECT body_bytes FROM entry WHERE id=?").get(id) as {body_bytes: number} | null
     if (row === null || row.body_bytes > BODY_LIMIT) throw new Error("Тело записи превышает предел ограниченного сопоставления")
-    return (db.query("SELECT data FROM block WHERE entry_id=? ORDER BY ordinal").all(id) as {data: string}[]).map(block => JSON.parse(block.data))
+    return (cachedQuery(db, "SELECT data FROM block WHERE entry_id=? ORDER BY ordinal").all(id) as {data: string}[]).map(block => JSON.parse(block.data))
   }
   private indexSuppliedInput(db: Database, item: Item, revision: number): void {
     if (item.kind === "turn" && item.state === "started") {
-      const user = db.query("SELECT data,body_bytes FROM entry WHERE id=? AND kind='message' AND origin='local'").get(`user:${item.requestId}`) as {data: string; body_bytes: number} | null
+      const user = cachedQuery(db, "SELECT data,body_bytes FROM entry WHERE id=? AND kind='message' AND origin='local'").get(`user:${item.requestId}`) as {data: string; body_bytes: number} | null
       if (user !== null && user.body_bytes <= BODY_LIMIT) {
         const data = JSON.parse(user.data)
         this.indexSuppliedInput(db, {...data, content: this.blocks(db, data.id)}, revision)
@@ -385,15 +388,15 @@ export class Archive {
       const imageEcho = codexImageEcho(item.content)
       const echo = imageEcho ?? (item.content.every(block => block.type === "text" && typeof block.text === "string") ? item.content.map(block => (block as {text: string}).text).join("") : null)
       const echoKind = imageEcho === null ? CODEX_TEXT_ECHO : CODEX_IMAGE_ECHO
-      const started = db.query("SELECT 1 FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' AND json_extract(data,'$.requestId')=? LIMIT 1").get(requestId) !== null
+      const started = cachedQuery(db, "SELECT 1 FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' AND json_extract(data,'$.requestId')=? LIMIT 1").get(requestId) !== null
       if (started && echo !== null && Buffer.byteLength(echo) <= BODY_LIMIT) {
         const inputHash = digest(echo)
-        db.query("INSERT OR REPLACE INTO supplied_input(context_id,request_id,bootstrap_hash,input_hash) VALUES(?,?,?,?)")
+        cachedQuery(db, "INSERT OR REPLACE INTO supplied_input(context_id,request_id,bootstrap_hash,input_hash) VALUES(?,?,?,?)")
           .run(item.id, requestId, echoKind, inputHash)
-        for (const replay of db.query("SELECT entry_id FROM replay_input WHERE bootstrap_hash=? AND input_hash=?")
+        for (const replay of cachedQuery(db, "SELECT entry_id FROM replay_input WHERE bootstrap_hash=? AND input_hash=?")
           .iterate(echoKind, inputHash) as Iterable<{entry_id: string}>) this.materializeReplay(db, replay.entry_id, revision)
       }
-      for (const context of db.query("SELECT data FROM entry WHERE kind='context' AND origin='local' AND json_extract(data,'$.requestId')=? AND body_bytes<=?")
+      for (const context of cachedQuery(db, "SELECT data FROM entry WHERE kind='context' AND origin='local' AND json_extract(data,'$.requestId')=? AND body_bytes<=?")
         .iterate(requestId, BODY_LIMIT) as Iterable<{data: string}>) {
         const data = JSON.parse(context.data)
         this.indexSuppliedInput(db, {...data, content: this.blocks(db, data.id)}, revision)
@@ -402,31 +405,31 @@ export class Archive {
     }
     if (item.kind !== "context" || item.origin !== "local" || !item.requestId || item.content.length !== 1 || item.content[0]?.type !== "text") return
     const userId = `user:${item.requestId}`
-    const user = db.query("SELECT origin,kind,preview,body_bytes FROM entry WHERE id=?").get(userId) as Pick<Row, "origin" | "kind" | "preview" | "body_bytes"> | null
+    const user = cachedQuery(db, "SELECT origin,kind,preview,body_bytes FROM entry WHERE id=?").get(userId) as Pick<Row, "origin" | "kind" | "preview" | "body_bytes"> | null
     if (user?.kind !== "message" || user.origin !== "local" || user.body_bytes > BODY_LIMIT || JSON.parse(user.preview).role !== "user") return
     if (Buffer.byteLength(JSON.stringify(item.content[0])) > BODY_LIMIT) return
     const bootstrapHash = digest(contentEncoding(item.content[0]))
     const inputHash = this.inputDigest(db, [item.id, userId])
     const fingerprints = [{bootstrapHash, inputHash}]
     const echo = codexImageEcho([...item.content, ...this.blocks(db, userId)])
-    const started = db.query("SELECT 1 FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' AND json_extract(data,'$.requestId')=? LIMIT 1").get(item.requestId) !== null
+    const started = cachedQuery(db, "SELECT 1 FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' AND json_extract(data,'$.requestId')=? LIMIT 1").get(item.requestId) !== null
     if (started && echo !== null && Buffer.byteLength(echo) <= BODY_LIMIT) fingerprints.push({bootstrapHash: CODEX_IMAGE_ECHO, inputHash: digest(echo)})
     for (const fingerprint of fingerprints) {
-      db.query("INSERT OR REPLACE INTO supplied_input(context_id,request_id,bootstrap_hash,input_hash) VALUES(?,?,?,?)")
+      cachedQuery(db, "INSERT OR REPLACE INTO supplied_input(context_id,request_id,bootstrap_hash,input_hash) VALUES(?,?,?,?)")
         .run(item.id, item.requestId, fingerprint.bootstrapHash, fingerprint.inputHash)
-      for (const replay of db.query("SELECT entry_id FROM replay_input WHERE bootstrap_hash=? AND input_hash=?")
+      for (const replay of cachedQuery(db, "SELECT entry_id FROM replay_input WHERE bootstrap_hash=? AND input_hash=?")
         .iterate(fingerprint.bootstrapHash, fingerprint.inputHash) as Iterable<{entry_id: string}>) this.materializeReplay(db, replay.entry_id, revision)
     }
   }
   /** Точное соответствие вычисляется при записи/rebuild; header чтение никогда не раскрывает payload. */
   private materializeReplay(db: Database, id: string, revision: number): void {
-    const fingerprints = db.query("SELECT bootstrap_hash,input_hash FROM replay_input WHERE entry_id=? LIMIT 2").all(id) as {bootstrap_hash: string; input_hash: string}[]
+    const fingerprints = cachedQuery(db, "SELECT bootstrap_hash,input_hash FROM replay_input WHERE entry_id=? LIMIT 2").all(id) as {bootstrap_hash: string; input_hash: string}[]
     if (!fingerprints.length) return
-    const previous = db.query("SELECT context_id FROM replay_projection WHERE entry_id=?").get(id) as {context_id: string} | null
+    const previous = cachedQuery(db, "SELECT context_id FROM replay_projection WHERE entry_id=?").get(id) as {context_id: string} | null
     const matches: {context_id: string; request_id: string | null}[] = []
     let ambiguous = false
     for (const fingerprint of fingerprints) {
-      const candidates = db.query("SELECT context_id,request_id FROM supplied_input WHERE bootstrap_hash=? AND input_hash=? LIMIT 2")
+      const candidates = cachedQuery(db, "SELECT context_id,request_id FROM supplied_input WHERE bootstrap_hash=? AND input_hash=? LIMIT 2")
         .all(fingerprint.bootstrap_hash, fingerprint.input_hash) as {context_id: string; request_id: string}[]
       const exactBootstrap = fingerprint.bootstrap_hash !== CODEX_TEXT_ECHO && fingerprint.bootstrap_hash !== CODEX_IMAGE_ECHO
       if (candidates.length > 1 && !exactBootstrap) { ambiguous = true; continue }
@@ -448,26 +451,26 @@ export class Archive {
     const match = !ambiguous && matches.length === 1 ? matches[0] : undefined
     if (match === undefined) {
       if (previous !== null) {
-        db.query("DELETE FROM replay_projection WHERE entry_id=?").run(id)
-        db.query("UPDATE entry SET revision=? WHERE id=?").run(revision, id)
+        cachedQuery(db, "DELETE FROM replay_projection WHERE entry_id=?").run(id)
+        cachedQuery(db, "UPDATE entry SET revision=? WHERE id=?").run(revision, id)
         syncDisplayMessage(db, id, revision)
       }
       return
     }
-    const context = db.query("SELECT body_bytes FROM entry WHERE id=?").get(match.context_id) as {body_bytes: number}
-    db.query("INSERT OR REPLACE INTO replay_projection(entry_id,context_id,request_id,body_bytes) VALUES(?,?,?,?)")
+    const context = cachedQuery(db, "SELECT body_bytes FROM entry WHERE id=?").get(match.context_id) as {body_bytes: number}
+    cachedQuery(db, "INSERT OR REPLACE INTO replay_projection(entry_id,context_id,request_id,body_bytes) VALUES(?,?,?,?)")
       .run(id, match.context_id, match.request_id, context.body_bytes)
-    db.query("UPDATE entry SET revision=? WHERE id=?").run(revision, id)
+    cachedQuery(db, "UPDATE entry SET revision=? WHERE id=?").run(revision, id)
     syncDisplayMessage(db, id, revision)
   }
   /** Только собственный envelope с native identity может стать кандидатом exact supplied replay. */
   private indexReplay(db: Database, id: string, revision: number): void {
-    const row = db.query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE id=?`).get(id) as Row | null
+    const row = cachedQuery(db, `SELECT ${SMALL_COLUMNS} FROM entry WHERE id=?`).get(id) as Row | null
     if (row === null || row.kind !== "message" || row.origin !== "replay" || JSON.parse(row.preview).role !== "user") return
-    db.query("DELETE FROM replay_input WHERE entry_id=?").run(id)
-    db.query("DELETE FROM replay_projection WHERE entry_id=?").run(id)
+    cachedQuery(db, "DELETE FROM replay_input WHERE entry_id=?").run(id)
+    cachedQuery(db, "DELETE FROM replay_projection WHERE entry_id=?").run(id)
     if (row.provider_id === null || row.body_bytes > BODY_LIMIT) return
-    const first = db.query("SELECT data FROM block WHERE entry_id=? AND ordinal=0").get(id) as {data: string} | null
+    const first = cachedQuery(db, "SELECT data FROM block WHERE entry_id=? AND ordinal=0").get(id) as {data: string} | null
     if (first === null) return
     const block: Content = JSON.parse(first.data)
     if (block.type !== "text") return
@@ -476,20 +479,20 @@ export class Archive {
     const environment = envelope !== null && typeof envelope === "object" && Object.keys(envelope).length === 1 && "environment" in envelope ? envelope.environment : undefined
     if (environment !== null && typeof environment === "object" && "executorId" in environment && environment.executorId === this.header.metadata.executorId &&
       "subject" in environment && environment.subject !== null && typeof environment.subject === "object" && "address" in environment.subject && environment.subject.address === this.header.metadata.address) {
-      db.query("INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)")
+      cachedQuery(db, "INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)")
         .run(id, digest(contentEncoding(block)), this.inputDigest(db, [id]))
     }
     const content = this.blocks(db, id)
     if (content.every(block => block.type === "text")) {
       const text = content.map(block => block.type === "text" ? echoText(block.text) : "").join("")
-      if (!text.includes("[@image](")) db.query("INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)").run(id, CODEX_TEXT_ECHO, digest(text))
-      if (text.includes("[@image](")) db.query("INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)")
+      if (!text.includes("[@image](")) cachedQuery(db, "INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)").run(id, CODEX_TEXT_ECHO, digest(text))
+      if (text.includes("[@image](")) cachedQuery(db, "INSERT OR REPLACE INTO replay_input(entry_id,bootstrap_hash,input_hash) VALUES(?,?,?)")
         .run(id, CODEX_IMAGE_ECHO, digest(text))
     }
     this.materializeReplay(db, id, revision)
   }
   private replayContext(row: Row): {context_id: string; request_id: string | null; body_bytes: number} | null {
-    return this.db().query("SELECT context_id,request_id,body_bytes FROM replay_projection WHERE entry_id=?").get(row.id) as {context_id: string; request_id: string | null; body_bytes: number} | null
+    return cachedQuery(this.db(), "SELECT context_id,request_id,body_bytes FROM replay_projection WHERE entry_id=?").get(row.id) as {context_id: string; request_id: string | null; body_bytes: number} | null
   }
   private projectedHeader(row: Row): HistoryEntry {
     const context = this.replayContext(row)
@@ -501,7 +504,7 @@ export class Archive {
     syncDisplayMessage(db, id, revision)
     if (mutation.type === "remove") removeOccurrences(db, id, revision)
     else {
-      const row = db.query("SELECT kind,preview,data,sequence FROM entry WHERE id=?").get(id) as {kind: string; preview: string; data: string; sequence: number} | null
+      const row = cachedQuery(db, "SELECT kind,preview,data,sequence FROM entry WHERE id=?").get(id) as {kind: string; preview: string; data: string; sequence: number} | null
       if (row !== null) {
         const data = JSON.parse(row.data)
         const event = mutation.type === "create" || mutation.type === "update" ? mutation.event : undefined
@@ -529,39 +532,39 @@ export class Archive {
       readHistory(projectMedia([candidate]))
       const item = candidate as unknown as Item
       const delta = this.apply(db, {type: "append", item}, revision)
-      if (mutation.event.origin === "replay" && entry.kind === "message") db.query("UPDATE entry SET replay_batch=? WHERE id=?").run(mutation.event.batchId ?? null, String(entry.id))
+      if (mutation.event.origin === "replay" && entry.kind === "message") cachedQuery(db, "UPDATE entry SET replay_batch=? WHERE id=?").run(mutation.event.batchId ?? null, String(entry.id))
       return delta
     }
     if (mutation.type === "remove") {
-      db.query("DELETE FROM supplied_input WHERE context_id=? OR request_id=?").run(mutation.id, mutation.id.startsWith("user:") ? mutation.id.slice(5) : "")
-      db.query("DELETE FROM replay_input WHERE entry_id=?").run(mutation.id)
-      db.query("DELETE FROM replay_projection WHERE entry_id=? OR context_id=? OR request_id=?").run(mutation.id, mutation.id, mutation.id.startsWith("user:") ? mutation.id.slice(5) : "")
-      db.query("DELETE FROM stamp WHERE key=?").run(`terminal-replay:${mutation.id}`)
-      db.query("DELETE FROM terminal_event WHERE entry_id=?").run(mutation.id)
-      db.query("DELETE FROM entry_media WHERE entry_id=?").run(mutation.id)
-      db.query("DELETE FROM block WHERE entry_id=?").run(mutation.id)
-      db.query("DELETE FROM evidence WHERE entry_id=?").run(mutation.id)
-      db.query("DELETE FROM identity WHERE entry_id=?").run(mutation.id)
-      const removed = db.query("DELETE FROM entry WHERE id=?").run(mutation.id)
+      cachedQuery(db, "DELETE FROM supplied_input WHERE context_id=? OR request_id=?").run(mutation.id, mutation.id.startsWith("user:") ? mutation.id.slice(5) : "")
+      cachedQuery(db, "DELETE FROM replay_input WHERE entry_id=?").run(mutation.id)
+      cachedQuery(db, "DELETE FROM replay_projection WHERE entry_id=? OR context_id=? OR request_id=?").run(mutation.id, mutation.id, mutation.id.startsWith("user:") ? mutation.id.slice(5) : "")
+      cachedQuery(db, "DELETE FROM stamp WHERE key=?").run(`terminal-replay:${mutation.id}`)
+      cachedQuery(db, "DELETE FROM terminal_event WHERE entry_id=?").run(mutation.id)
+      cachedQuery(db, "DELETE FROM entry_media WHERE entry_id=?").run(mutation.id)
+      cachedQuery(db, "DELETE FROM block WHERE entry_id=?").run(mutation.id)
+      cachedQuery(db, "DELETE FROM evidence WHERE entry_id=?").run(mutation.id)
+      cachedQuery(db, "DELETE FROM identity WHERE entry_id=?").run(mutation.id)
+      const removed = cachedQuery(db, "DELETE FROM entry WHERE id=?").run(mutation.id)
       return -removed.changes
     }
     if (mutation.type === "purpose") {
-      const row = db.query("SELECT * FROM entry WHERE id=?").get(mutation.id) as Row | null
+      const row = cachedQuery(db, "SELECT * FROM entry WHERE id=?").get(mutation.id) as Row | null
       if (row === null || row.kind !== "message") throw new Error("Команда не имеет сохранённого сообщения")
-      db.query("UPDATE entry SET data=?,preview=?,revision=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.data!), purpose: "command"}), preview({...JSON.parse(row.preview), purpose: "command"}), revision, mutation.id)
+      cachedQuery(db, "UPDATE entry SET data=?,preview=?,revision=? WHERE id=?").run(JSON.stringify({...JSON.parse(row.data!), purpose: "command"}), preview({...JSON.parse(row.preview), purpose: "command"}), revision, mutation.id)
       return 0
     }
     if (mutation.type === "append") {
       const item = mutation.item
       readHistory(projectMedia([item]))
-      const previous = db.query("SELECT sequence FROM entry ORDER BY ordinal DESC LIMIT 1").get() as {sequence: number} | null
+      const previous = cachedQuery(db, "SELECT sequence FROM entry ORDER BY ordinal DESC LIMIT 1").get() as {sequence: number} | null
       if (previous !== null && item.sequence <= previous.sequence) throw new Error("Нарушен первоначальный порядок timeline")
-      const ordinal = (db.query("SELECT COALESCE(MAX(ordinal),-1)+1 AS ordinal FROM entry").get() as {ordinal: number}).ordinal
+      const ordinal = (cachedQuery(db, "SELECT COALESCE(MAX(ordinal),-1)+1 AS ordinal FROM entry").get() as {ordinal: number}).ordinal
       this.indexMedia(db, item.id, item)
       const data = compactData(item)
       const encoded = JSON.stringify(data)
       this.identity(db, item.id, item.sequence, item.id)
-      db.query("INSERT INTO entry(id,ordinal,sequence,revision,kind,origin,preview,data,body_bytes,provider_id,tool_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)").run(
+      cachedQuery(db, "INSERT INTO entry(id,ordinal,sequence,revision,kind,origin,preview,data,body_bytes,provider_id,tool_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)").run(
         item.id, ordinal, item.sequence, revision, item.kind, item.origin, preview(item), encoded,
         item.kind !== "message" && item.kind !== "context" ? Buffer.byteLength(encoded) : 0,
         item.kind === "message" && item.providerMessageId !== undefined ? `${item.role}\0${item.providerMessageId}` : null,
@@ -572,28 +575,28 @@ export class Archive {
       this.indexReplay(db, item.id, revision)
       return 1
     }
-    const row = db.query("SELECT * FROM entry WHERE id=?").get(mutation.id) as Row | null
+    const row = cachedQuery(db, "SELECT * FROM entry WHERE id=?").get(mutation.id) as Row | null
     if (row === null) throw new Error("Обновление не имеет сохранённой записи")
     const data = JSON.parse(row.data!)
     const update = mutation.event.update as Update
     if (row.kind === "message" && (update.sessionUpdate === "agent_message_chunk" || update.sessionUpdate === "user_message_chunk" || update.sessionUpdate === "agent_thought_chunk")) {
       if (mutation.reset) {
-        db.query("DELETE FROM block WHERE entry_id=?").run(row.id)
-        db.query("UPDATE entry SET body_bytes=0 WHERE id=?").run(row.id)
+        cachedQuery(db, "DELETE FROM block WHERE entry_id=?").run(row.id)
+        cachedQuery(db, "UPDATE entry SET body_bytes=0 WHERE id=?").run(row.id)
       }
       this.addBlock(db, row.id, update.content)
     } else if (row.kind === "tool" && (update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update")) {
       data.call = mergeTool(data.call, update)
       const encoded = JSON.stringify(data)
-      db.query("UPDATE entry SET data=?,preview=?,body_bytes=? WHERE id=?").run(encoded, preview(data), Buffer.byteLength(encoded), row.id)
+      cachedQuery(db, "UPDATE entry SET data=?,preview=?,body_bytes=? WHERE id=?").run(encoded, preview(data), Buffer.byteLength(encoded), row.id)
     } else throw new Error("Обновление не соответствует виду записи")
     this.addEvidence(db, row.id, mutation.event)
-    db.query("UPDATE entry SET revision=?,replay_batch=COALESCE(?,replay_batch) WHERE id=?").run(revision, mutation.replayBatch ?? null, row.id)
+    cachedQuery(db, "UPDATE entry SET revision=?,replay_batch=COALESCE(?,replay_batch) WHERE id=?").run(revision, mutation.replayBatch ?? null, row.id)
     this.indexReplay(db, row.id, revision)
     return 0
   }
   private stamp(db: Database, header: Header): void {
-    db.query("INSERT OR REPLACE INTO stamp(key,value) VALUES('source',?)").run(this.sourceStamp(header))
+    cachedQuery(db, "INSERT OR REPLACE INTO stamp(key,value) VALUES('source',?)").run(this.sourceStamp(header))
   }
   private sourceStamp(header: Header): string {
     const info = statSync(join(dirname(this.file), header.journal))
@@ -625,7 +628,7 @@ export class Archive {
       await unlink(this.cacheFile).catch(error => { if (error.code !== "ENOENT") throw error })
       db = database(this.cacheFile)
     }
-    const saved = db.query("SELECT value FROM stamp WHERE key='source'").get() as {value: string} | null
+    const saved = cachedQuery(db, "SELECT value FROM stamp WHERE key='source'").get() as {value: string} | null
     if (saved?.value === this.sourceStamp(this.header)) { this.initialized = true; return }
     db.exec("DELETE FROM stamp; DELETE FROM block; DELETE FROM evidence; DELETE FROM identity; DELETE FROM entry; DELETE FROM supplied_input; DELETE FROM replay_input; DELETE FROM replay_projection;")
     db.exec("DELETE FROM entry_media; DELETE FROM terminal_event;")
@@ -647,7 +650,7 @@ export class Archive {
       hash = digest(hash + encoded)
     }
     db = database(this.cacheFile)
-    const total = (db.query("SELECT COUNT(*) AS total FROM entry").get() as {total: number}).total
+    const total = (cachedQuery(db, "SELECT COUNT(*) AS total FROM entry").get() as {total: number}).total
     if (offset !== this.header.committedBytes || hash !== this.header.hash || revision !== this.header.history.revision || total !== this.header.history.total || lastSequence !== this.header.history.lastSequence) {
       throw new Error("Подтверждённый журнал не совпадает с заголовком истории")
     }
@@ -668,6 +671,8 @@ export class Archive {
   commit(metadata: ArchiveMetadata | undefined, mutations: readonly ArchiveMutation[] = []): Promise<void> {
     return this.enqueue(JSON.stringify({metadata, mutations}), async input => {
       input = await this.media.normalize(input)
+      // Повтор сохранения тех же metadata не создаёт ревизию и fsync без новых данных.
+      if (this.sourceExists && input.mutations.length === 0 && JSON.stringify(input.metadata ?? this.header.metadata) === JSON.stringify(this.header.metadata)) return
       let sequence = this.header.history.lastSequence
       const stored = input.mutations.map((mutation: ArchiveMutation): StoredMutation => {
         if (mutation.type !== "append") return mutation
@@ -736,21 +741,24 @@ export class Archive {
       database(this.cacheFile)
       this.initialized = true
     }
-    const db = this.db()
+    this.db()
     const encoded = JSON.stringify({schemaVersion: 1, previous: this.header.hash, metadata, mutations} satisfies Transaction)
     if (Buffer.byteLength(encoded) > RECORD_LIMIT) throw new Error("Одна транзакция истории превышает 64 MiB; источник не изменён")
     if (Buffer.byteLength(JSON.stringify(metadata)) > 512 * 1024) throw new Error("Метаданные истории превышают 512 KiB; источник не изменён")
     const revision = this.header.history.revision + 1
-    db.exec("BEGIN")
+    const db = new Database(this.cacheFile)
     try {
+      db.exec("PRAGMA cache_size=-2048; PRAGMA temp_store=FILE; PRAGMA synchronous=NORMAL;")
+      db.exec("BEGIN")
       let total = this.header.history.total
       for (const mutation of mutations) total += this.apply(db, mutation, revision)
       const lastSequence = mutations.reduce((last, mutation) => Math.max(last, mutation.type === "append" ? maximumSequence(mutation.item) : mutation.type === "update" || mutation.type === "create" ? mutation.event.sequence : 0), this.header.history.lastSequence)
+      const counts = cachedQuery(db, "SELECT (SELECT COUNT(*) FROM display_message)+(SELECT COUNT(*) FROM service_group) AS total").get() as {total: number}
       const next: Header = {...this.header, metadata: structuredClone(metadata), history: {revision, total, lastSequence},
-        displayHistory: {revision, total: this.displayStats().total, lastSequence},
+        displayHistory: {revision, total: counts.total, lastSequence},
         committedBytes: this.header.committedBytes + Buffer.byteLength(encoded) + 1, hash: digest(this.header.hash + encoded)}
-      // Во время disk await читатели видят только прежний подтверждённый индекс.
-      db.exec("ROLLBACK")
+      // Отдельное соединение держит неподтверждённую транзакцию; читатели
+      // продолжают видеть старый индекс до fsync источника. Мутации применяются один раз.
       await mkdir(dirname(this.file), {recursive: true})
       const handle = await open(join(dirname(this.file), this.header.journal), "a+", 0o600)
       try {
@@ -764,26 +772,24 @@ export class Archive {
       this.sourceExists = true
       this.recoveryBytes = 0
       try {
-        const confirmed = this.db()
-        confirmed.transaction(() => {
-          for (const mutation of mutations) this.apply(confirmed, mutation, revision)
-          this.stamp(confirmed, next)
-        })()
+        this.stamp(db, next)
+        db.exec("COMMIT")
       } catch {
+        try {db.exec("ROLLBACK")} catch {}
         this.initialized = false
         await this.initializeLeased()
       }
     } catch (error) {
       try { db.exec("ROLLBACK") } catch {}
       throw error
-    }
+    } finally {db.close()}
   }
   content(id: string): Content[] {
     const row = this.row(id)
     if (row === null) throw new Error("Запись истории не найдена")
     if (row.body_bytes > BODY_LIMIT) throw new Error("Тело записи превышает предел чтения 16 MiB; исходные данные сохранены")
     const content: Content[] = []
-    for (const block of this.db().query("SELECT data FROM block WHERE entry_id=? ORDER BY ordinal").iterate(id) as Iterable<{data: string}>) content.push(JSON.parse(block.data))
+    for (const block of cachedQuery(this.db(), "SELECT data FROM block WHERE entry_id=? ORDER BY ordinal").iterate(id) as Iterable<{data: string}>) content.push(JSON.parse(block.data))
     return content
   }
   contentPage(id: string, query: HistoryContentQuery = {}): HistoryContentPage {
@@ -792,7 +798,7 @@ export class Archive {
     const budget = queryLimit(query.maxBytes, 64 * 1024, 512 * 1024)
     const cursor = query.cursor ?? {block: 0, offset: 0}
     cursorValue(cursor.block); cursorValue(cursor.offset)
-    const rows = this.db().query("SELECT ordinal,bytes,json_extract(data,'$.type') AS type,json_type(data,'$.text') AS text_type,json_type(data,'$.resource.text') AS resource_text FROM block WHERE entry_id=? AND ordinal>=? ORDER BY ordinal LIMIT 64").all(id, cursor.block) as {ordinal: number; bytes: number; type: string; text_type: string | null; resource_text: string | null}[]
+    const rows = cachedQuery(this.db(), "SELECT ordinal,bytes,json_extract(data,'$.type') AS type,json_type(data,'$.text') AS text_type,json_type(data,'$.resource.text') AS resource_text FROM block WHERE entry_id=? AND ordinal>=? ORDER BY ordinal LIMIT 64").all(id, cursor.block) as {ordinal: number; bytes: number; type: string; text_type: string | null; resource_text: string | null}[]
     const content: Content[] = []
     let bytes = 2
     let next: HistoryContentCursor | null = null
@@ -802,7 +808,7 @@ export class Archive {
         const remaining = budget - bytes - 256
         if (remaining < 6) {if (!content.length) throw new RangeError("Бюджет слишком мал для текстовой порции"); next = {block: block.ordinal, offset}; break}
         const path = block.type === "text" ? "$.text" : "$.resource.text"
-        const part = this.db().query("SELECT substr(json_extract(data,?),?,?) AS text,length(json_extract(data,?)) AS length,json_extract(data,'$.resource.uri') AS uri,json_extract(data,'$.resource.mimeType') AS mime FROM block WHERE entry_id=? AND ordinal=?")
+        const part = cachedQuery(this.db(), "SELECT substr(json_extract(data,?),?,?) AS text,length(json_extract(data,?)) AS length,json_extract(data,'$.resource.uri') AS uri,json_extract(data,'$.resource.mimeType') AS mime FROM block WHERE entry_id=? AND ordinal=?")
           .get(path, offset + 1, Math.max(1, Math.floor(remaining / 6)), path, id, block.ordinal) as {text: string; length: number; uri: string; mime: string | null}
         const value: Content = block.type === "text" ? {type: "text", text: part.text}
           : {type: "resource", resource: {uri: part.uri, text: part.text, ...(part.mime === null ? {} : {mimeType: part.mime})}}
@@ -817,14 +823,14 @@ export class Archive {
           next = {block: block.ordinal, offset: 0}
           break
         }
-        const stored = this.db().query("SELECT data FROM block WHERE entry_id=? AND ordinal=?").get(id, block.ordinal) as {data: string}
+        const stored = cachedQuery(this.db(), "SELECT data FROM block WHERE entry_id=? AND ordinal=?").get(id, block.ordinal) as {data: string}
         const value = projectMedia(JSON.parse(stored.data)) as Content
         content.push(value)
         bytes += Buffer.byteLength(JSON.stringify(value)) + 1
       }
       next = {block: block.ordinal + 1, offset: 0}
     }
-    if (next !== null && this.db().query("SELECT 1 FROM block WHERE entry_id=? AND ordinal>=? LIMIT 1").get(id, next.block) === null) next = null
+    if (next !== null && cachedQuery(this.db(), "SELECT 1 FROM block WHERE entry_id=? AND ordinal>=? LIMIT 1").get(id, next.block) === null) next = null
     return {chatId: this.header.metadata.id, id, revision: row.revision, bytes, sourceBytes: row.body_bytes, content, next}
   }
   terminalPage(id: string, query: HistoryTerminalQuery = {}): HistoryTerminalPage {
@@ -837,10 +843,10 @@ export class Archive {
     if (cursor.evidenceId !== undefined && (typeof cursor.evidenceId !== "string" || cursor.evidenceId.length > 512)) throw new TypeError("Недопустимый evidence id")
     const selection = cursor.evidenceId === undefined ? "entry_id=?" : "entry_id=? AND evidence_id=?"
     const parameters = cursor.evidenceId === undefined ? [id] : [id, cursor.evidenceId]
-    const latest = db.query(`SELECT terminal_id FROM terminal_event WHERE ${selection} ORDER BY ordinal DESC LIMIT 1`).get(...parameters) as {terminal_id: string | null} | null
-    const info = db.query(`SELECT cwd FROM terminal_event WHERE ${selection} AND cwd IS NOT NULL ORDER BY ordinal DESC LIMIT 1`).get(...parameters) as {cwd: string} | null
-    const exit = db.query(`SELECT exit_code,exit_signal FROM terminal_event WHERE ${selection} AND has_exit=1 ORDER BY ordinal DESC LIMIT 1`).get(...parameters) as {exit_code: number | null; exit_signal: string | null} | null
-    const events = db.query(`SELECT ordinal,sequence,evidence_id,stream FROM terminal_event WHERE ${selection} AND has_output=1 AND ordinal>=? ORDER BY ordinal LIMIT 64`).all(...parameters, cursor.ordinal) as {ordinal: number; sequence: number; evidence_id: string; stream: "stdout" | "stderr" | "combined"}[]
+    const latest = cachedQuery(db, `SELECT terminal_id FROM terminal_event WHERE ${selection} ORDER BY ordinal DESC LIMIT 1`).get(...parameters) as {terminal_id: string | null} | null
+    const info = cachedQuery(db, `SELECT cwd FROM terminal_event WHERE ${selection} AND cwd IS NOT NULL ORDER BY ordinal DESC LIMIT 1`).get(...parameters) as {cwd: string} | null
+    const exit = cachedQuery(db, `SELECT exit_code,exit_signal FROM terminal_event WHERE ${selection} AND has_exit=1 ORDER BY ordinal DESC LIMIT 1`).get(...parameters) as {exit_code: number | null; exit_signal: string | null} | null
+    const events = cachedQuery(db, `SELECT ordinal,sequence,evidence_id,stream FROM terminal_event WHERE ${selection} AND has_output=1 AND ordinal>=? ORDER BY ordinal LIMIT 64`).all(...parameters, cursor.ordinal) as {ordinal: number; sequence: number; evidence_id: string; stream: "stdout" | "stderr" | "combined"}[]
     const chunks: HistoryTerminalPage["chunks"][number][] = []
     let bytes = 2
     let next: HistoryTerminalPage["next"] = null
@@ -848,7 +854,7 @@ export class Archive {
       const offset = event.ordinal === cursor.ordinal ? cursor.offset : 0
       const remaining = budget - bytes - 128
       if (remaining < 6) {if (!chunks.length) throw new RangeError("Бюджет слишком мал для вывода терминала"); next = {ordinal: event.ordinal, offset}; break}
-      const fragment = db.query("SELECT substr(json_extract(data,'$.update._meta.terminal_output_delta.data'),?,?) AS text,length(json_extract(data,'$.update._meta.terminal_output_delta.data')) AS length FROM evidence WHERE id=? AND entry_id=?")
+      const fragment = cachedQuery(db, "SELECT substr(json_extract(data,'$.update._meta.terminal_output_delta.data'),?,?) AS text,length(json_extract(data,'$.update._meta.terminal_output_delta.data')) AS length FROM evidence WHERE id=? AND entry_id=?")
         .get(offset + 1, Math.floor(remaining / 6), event.evidence_id, id) as {text: string; length: number}
       const chunk = {sequence: event.sequence, stream: event.stream, text: fragment.text}
       chunks.push(chunk)
@@ -857,14 +863,14 @@ export class Archive {
       if (end < fragment.length) {next = {ordinal: event.ordinal, offset: end}; break}
       next = {ordinal: event.ordinal + 1, offset: 0}
     }
-    if (next !== null && db.query(`SELECT 1 FROM terminal_event WHERE ${selection} AND has_output=1 AND ordinal>=? LIMIT 1`).get(...parameters, next.ordinal) === null) next = null
+    if (next !== null && cachedQuery(db, `SELECT 1 FROM terminal_event WHERE ${selection} AND has_output=1 AND ordinal>=? LIMIT 1`).get(...parameters, next.ordinal) === null) next = null
     if (next !== null && cursor.evidenceId !== undefined) next = {...next, evidenceId: cursor.evidenceId}
     return {chatId: this.header.metadata.id, id, revision: row.revision, chunks, bytes, next,
       ...(latest?.terminal_id ? {terminalId: latest.terminal_id} : {}), ...(info ? {cwd: info.cwd} : {}),
       ...(exit ? {exit: {code: exit.exit_code, signal: exit.exit_signal}} : {})}
   }
   private terminalBody(id: string): {terminal?: HistoryTerminalPage} {
-    return this.db().query("SELECT 1 FROM terminal_event WHERE entry_id=? LIMIT 1").get(id) === null ? {} : {terminal: this.terminalPage(id)}
+    return cachedQuery(this.db(), "SELECT 1 FROM terminal_event WHERE entry_id=? LIMIT 1").get(id) === null ? {} : {terminal: this.terminalPage(id)}
   }
   detailPage(id: string, query: {offset?: number; maxBytes?: number; evidenceId?: string} = {}): HistoryDetailPage {
     const row = this.row(id)
@@ -874,9 +880,9 @@ export class Archive {
     const offset = query.offset ?? 0
     if (query.evidenceId !== undefined && (typeof query.evidenceId !== "string" || query.evidenceId.length > 512)) throw new TypeError("Недопустимый evidence id")
     const value = (query.evidenceId === undefined
-      ? this.db().query("SELECT substr(data,?,?) AS text,length(data) AS length,length(CAST(data AS BLOB)) AS bytes FROM entry WHERE id=?")
+      ? cachedQuery(this.db(), "SELECT substr(data,?,?) AS text,length(data) AS length,length(CAST(data AS BLOB)) AS bytes FROM entry WHERE id=?")
         .get(offset + 1, Math.max(1, Math.floor(budget / 6)), id)
-      : this.db().query("SELECT substr(data,?,?) AS text,length(data) AS length,bytes FROM evidence WHERE entry_id=? AND id=?")
+      : cachedQuery(this.db(), "SELECT substr(data,?,?) AS text,length(data) AS length,bytes FROM evidence WHERE entry_id=? AND id=?")
         .get(offset + 1, Math.max(1, Math.floor(budget / 6)), id, query.evidenceId)) as {text: string; length: number; bytes: number} | null
     if (value === null) throw new Error("Исходное свидетельство не найдено у записи")
     const end = offset + [...value.text].length
@@ -888,7 +894,7 @@ export class Archive {
     if (row === null) throw new Error("Запись истории не найдена")
     if ((row.kind === "message" || row.kind === "context") && row.body_bytes > 512 * 1024) {
       const page = this.contentPage(id)
-      const data = JSON.parse((this.db().query("SELECT data FROM entry WHERE id=?").get(id) as {data: string}).data)
+      const data = JSON.parse((cachedQuery(this.db(), "SELECT data FROM entry WHERE id=?").get(id) as {data: string}).data)
       return {chatId: this.header.metadata.id, revision: row.revision, id, bytes: page.bytes,
         sourceBytes: page.sourceBytes, entry: {...data, content: page.content}, evidenceCount: row.evidence_count,
         ...(page.next === null ? {} : {continuation: page.next})}
@@ -903,7 +909,7 @@ export class Archive {
         sourceBytes: row.body_bytes, entry, detail, ...terminal, evidenceCount: row.evidence_count}
     }
     if (row.body_bytes > BODY_LIMIT) throw new Error("Тело записи превышает предел чтения 16 MiB; исходные данные сохранены")
-    const data = JSON.parse((this.db().query("SELECT data FROM entry WHERE id=?").get(id) as {data: string}).data)
+    const data = JSON.parse((cachedQuery(this.db(), "SELECT data FROM entry WHERE id=?").get(id) as {data: string}).data)
     const context = this.replayContext(row)
     if (context !== null) {
       const entry: Item = {id: row.id, sequence: row.sequence, origin: row.origin,
@@ -935,9 +941,9 @@ export class Archive {
     let rows: Row[] = []
     if (this.initialized) {
       const db = this.db()
-      if (query.after !== undefined) rows = db.query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE ordinal>? ORDER BY ordinal LIMIT ?`).all(query.after, limit) as Row[]
-      else if (query.around !== undefined) rows = db.query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE ordinal>=? ORDER BY ordinal LIMIT ?`).all(Math.max(0, query.around - Math.floor(limit / 2)), limit) as Row[]
-      else rows = db.query(`SELECT ${SMALL_COLUMNS} FROM entry WHERE ordinal<? ORDER BY ordinal DESC LIMIT ?`).all(query.before ?? Number.MAX_SAFE_INTEGER, limit) as Row[]
+      if (query.after !== undefined) rows = cachedQuery(db, `SELECT ${SMALL_COLUMNS} FROM entry WHERE ordinal>? ORDER BY ordinal LIMIT ?`).all(query.after, limit) as Row[]
+      else if (query.around !== undefined) rows = cachedQuery(db, `SELECT ${SMALL_COLUMNS} FROM entry WHERE ordinal>=? ORDER BY ordinal LIMIT ?`).all(Math.max(0, query.around - Math.floor(limit / 2)), limit) as Row[]
+      else rows = cachedQuery(db, `SELECT ${SMALL_COLUMNS} FROM entry WHERE ordinal<? ORDER BY ordinal DESC LIMIT ?`).all(query.before ?? Number.MAX_SAFE_INTEGER, limit) as Row[]
     }
     const items: HistoryEntry[] = []
     let bytes = 2
@@ -952,15 +958,15 @@ export class Archive {
     if (backwards) items.reverse()
     const first = items[0]?.ordinal
     const last = items.at(-1)?.ordinal
-    const hasBefore = this.initialized && first !== undefined && this.db().query("SELECT 1 FROM entry WHERE ordinal<? LIMIT 1").get(first) !== null
-    const hasAfter = this.initialized && last !== undefined && this.db().query("SELECT 1 FROM entry WHERE ordinal>? LIMIT 1").get(last) !== null
+    const hasBefore = this.initialized && first !== undefined && cachedQuery(this.db(), "SELECT 1 FROM entry WHERE ordinal<? LIMIT 1").get(first) !== null
+    const hasAfter = this.initialized && last !== undefined && cachedQuery(this.db(), "SELECT 1 FROM entry WHERE ordinal>? LIMIT 1").get(last) !== null
     return {chatId: this.header.metadata.id, revision: this.header.history.revision, total: this.header.history.total, start: first ?? 0,
       items, before: hasBefore ? first! : null, after: hasAfter ? last! : null}
   }
   /** Число сообщений и целых групп не зависит от окна raw entries. */
   displayStats(): HistoryState {
     if (!this.initialized) return {...this.stats(), total: 0}
-    const counts = this.db().query("SELECT (SELECT COUNT(*) FROM display_message)+(SELECT COUNT(*) FROM service_group) AS total").get() as {total: number}
+    const counts = cachedQuery(this.db(), "SELECT (SELECT COUNT(*) FROM display_message)+(SELECT COUNT(*) FROM service_group) AS total").get() as {total: number}
     return {...this.stats(), total: counts.total}
   }
   private groupHeader(value: Record<string, any>): HistoryGroup {
@@ -971,7 +977,7 @@ export class Archive {
   }
   private projectionRevision(expected?: number): number {
     cursorValue(expected)
-    const row = this.initialized ? this.db().query("SELECT value FROM stamp WHERE key='display-boundary'").get() as {value: string} | null : null
+    const row = this.initialized ? cachedQuery(this.db(), "SELECT value FROM stamp WHERE key='display-boundary'").get() as {value: string} | null : null
     const current = row === null ? 0 : Number(row.value)
     if (expected !== undefined && expected !== current) throw new Error("Проекция истории изменилась; обновите страницу")
     return current
@@ -1012,17 +1018,17 @@ export class Archive {
     if ([query.before, query.after, query.around].filter(value => value !== undefined).length > 1) throw new TypeError("Укажите один cursor группы")
     const limit = queryLimit(query.limit, 32, 64)
     const budget = queryLimit(query.maxBytes, 65536, 65536)
-    const group = this.db().query("SELECT * FROM service_group WHERE id=?").get(groupId) as Record<string, any> | null
+    const group = cachedQuery(this.db(), "SELECT * FROM service_group WHERE id=?").get(groupId) as Record<string, any> | null
     if (group === null) throw new Error("Группа истории не найдена; обновите страницу")
     const backwards = query.before !== undefined
     const where = backwards ? "sequence<?" : "sequence>=?"
     const cursor = query.before ?? (query.after === undefined ? Math.max(0, (query.around ?? 0) - Math.floor(limit / 2)) : query.after + 1)
-    const rows = this.db().query(`SELECT * FROM service_occurrence WHERE group_id=? AND ${where} ORDER BY sequence ${backwards ? "DESC" : "ASC"} LIMIT ?`).all(groupId, cursor, limit) as Record<string, any>[]
+    const rows = cachedQuery(this.db(), `SELECT * FROM service_occurrence WHERE group_id=? AND ${where} ORDER BY sequence ${backwards ? "DESC" : "ASC"} LIMIT ?`).all(groupId, cursor, limit) as Record<string, any>[]
     const items: HistoryOccurrence[] = []
     let bytes = 2
     for (const occurrence of rows) {
       const row = this.row(occurrence.entry_id)!
-      const evidence = occurrence.evidence_id === null ? null : this.db().query("SELECT bytes FROM evidence WHERE id=?").get(occurrence.evidence_id) as {bytes: number} | null
+      const evidence = occurrence.evidence_id === null ? null : cachedQuery(this.db(), "SELECT bytes FROM evidence WHERE id=?").get(occurrence.evidence_id) as {bytes: number} | null
       const entry: HistoryOccurrence = {...headerEntry({...row, preview: occurrence.preview, revision: occurrence.revision,
         body_bytes: evidence?.bytes ?? row.body_bytes}), id: occurrence.id, entryId: row.id, groupId,
         ordinal: occurrence.sequence, sequence: occurrence.sequence, evidenceCount: 0,
@@ -1038,19 +1044,19 @@ export class Archive {
     const first = items[0]?.sequence
     const last = items.at(-1)?.sequence
     return {chatId: this.header.metadata.id, groupId, projectionRevision, revision: group.revision, total: group.count, start: first ?? 0, items,
-      before: first !== undefined && this.db().query("SELECT 1 FROM service_occurrence WHERE group_id=? AND sequence<? LIMIT 1").get(groupId, first) ? first : null,
-      after: last !== undefined && this.db().query("SELECT 1 FROM service_occurrence WHERE group_id=? AND sequence>? LIMIT 1").get(groupId, last) ? last : null}
+      before: first !== undefined && cachedQuery(this.db(), "SELECT 1 FROM service_occurrence WHERE group_id=? AND sequence<? LIMIT 1").get(groupId, first) ? first : null,
+      after: last !== undefined && cachedQuery(this.db(), "SELECT 1 FROM service_occurrence WHERE group_id=? AND sequence>? LIMIT 1").get(groupId, last) ? last : null}
   }
   groupBody(groupId: string, id: string): HistoryBody {
-    const occurrence = this.db().query("SELECT * FROM service_occurrence WHERE group_id=? AND id=?").get(groupId, id) as Record<string, any> | null
+    const occurrence = cachedQuery(this.db(), "SELECT * FROM service_occurrence WHERE group_id=? AND id=?").get(groupId, id) as Record<string, any> | null
     if (occurrence === null) throw new Error("Occurrence группы не найден")
     if (occurrence.evidence_id === null) return {...this.body(occurrence.entry_id), id, revision: occurrence.revision}
-    const stored = this.db().query("SELECT bytes FROM evidence WHERE id=?").get(occurrence.evidence_id) as {bytes: number}
+    const stored = cachedQuery(this.db(), "SELECT bytes FROM evidence WHERE id=?").get(occurrence.evidence_id) as {bytes: number}
     const original = this.row(occurrence.entry_id)!
     if (original.kind === "tool" && stored.bytes > 512 * 1024) {
       const small = JSON.parse(occurrence.preview)
       const detail = this.detailPage(original.id, {evidenceId: occurrence.evidence_id})
-      const terminal = this.db().query("SELECT 1 FROM terminal_event WHERE entry_id=? AND evidence_id=?").get(original.id, occurrence.evidence_id) === null
+      const terminal = cachedQuery(this.db(), "SELECT 1 FROM terminal_event WHERE entry_id=? AND evidence_id=?").get(original.id, occurrence.evidence_id) === null
         ? undefined : this.terminalPage(original.id, {cursor: {ordinal: 0, offset: 0, evidenceId: occurrence.evidence_id}})
       const entry: Item = {id, sequence: occurrence.sequence, origin: original.origin, kind: "tool", toolCallId: original.tool_id!,
         call: {sessionUpdate: "tool_call_update", toolCallId: original.tool_id!, title: small.title, status: small.status}, updates: []}
@@ -1058,7 +1064,7 @@ export class Archive {
         entry, detail, ...(terminal ? {terminal} : {}), sourceBytes: stored.bytes, evidenceCount: 0}
     }
     if (stored.bytes > BODY_LIMIT) throw new Error("Occurrence превышает предел чтения 16 MiB")
-    const event = JSON.parse((this.db().query("SELECT data FROM evidence WHERE id=?").get(occurrence.evidence_id) as {data: string}).data) as HistoryEvidence
+    const event = JSON.parse((cachedQuery(this.db(), "SELECT data FROM evidence WHERE id=?").get(occurrence.evidence_id) as {data: string}).data) as HistoryEvidence
     const row = this.row(occurrence.entry_id)!
     const update = event.update as Update
     const base = {id, sequence: event.sequence, origin: event.origin, ...(event.receivedAt === undefined ? {} : {receivedAt: event.receivedAt})}
@@ -1079,8 +1085,8 @@ export class Archive {
     cursorValue(query.around)
     if ([query.before, query.after, query.around].filter(value => value !== undefined).length > 1) throw new TypeError("Укажите один cursor evidence")
     const rows = query.before !== undefined
-      ? this.db().query("SELECT ordinal,bytes FROM evidence WHERE entry_id=? AND ordinal<? ORDER BY ordinal DESC LIMIT ?").all(id, query.before, limit)
-      : this.db().query("SELECT ordinal,bytes FROM evidence WHERE entry_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(id, query.after !== undefined ? query.after + 1 : Math.max(0, (query.around ?? 0) - Math.floor(limit / 2)), limit)
+      ? cachedQuery(this.db(), "SELECT ordinal,bytes FROM evidence WHERE entry_id=? AND ordinal<? ORDER BY ordinal DESC LIMIT ?").all(id, query.before, limit)
+      : cachedQuery(this.db(), "SELECT ordinal,bytes FROM evidence WHERE entry_id=? AND ordinal>=? ORDER BY ordinal LIMIT ?").all(id, query.after !== undefined ? query.after + 1 : Math.max(0, (query.around ?? 0) - Math.floor(limit / 2)), limit)
     const items: HistoryEvidence[] = []
     let bytes = 0
     let first: number | undefined
@@ -1089,7 +1095,7 @@ export class Archive {
       if (value.bytes > BODY_LIMIT) throw new Error("Evidence превышает предел чтения 16 MiB; исходное событие сохранено")
       if (bytes + value.bytes > maxBytes && items.length) break
       // Один большой event остаётся читаемым отдельной ограниченной страницей.
-      const payload = this.db().query("SELECT data FROM evidence WHERE entry_id=? AND ordinal=?").get(id, value.ordinal) as {data: string}
+      const payload = cachedQuery(this.db(), "SELECT data FROM evidence WHERE entry_id=? AND ordinal=?").get(id, value.ordinal) as {data: string}
       items.push(JSON.parse(payload.data)); bytes += value.bytes; first ??= value.ordinal; last = value.ordinal
       if (bytes >= maxBytes) break
     }
