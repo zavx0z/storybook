@@ -20,18 +20,19 @@ export const internalCodexPolicy = {
 type Resolution = NonNullable<Awaited<ReturnType<NonNullable<StorybookChatSession.Input["resolveExecution"]>>>>
 type Connection = Resolution["connections"][number]
 
-/** Выбирает native процесс; история Ollama хранится в постоянном `~/.local/share/zavx0z/provider/`, отдельно для провайдера, Project и подключения. */
+/** Выбирает native процесс; история Ollama и Capsule хранится в постоянном `~/.local/share/zavx0z/provider/`, отдельно для провайдера, Project и подключения. */
 export function providerTransport(options: {project: string, toolRoot: string}, connection: Connection): Partial<StorybookTechAcp.Input> {
   if (!connection.enabled) throw new Error("Подключение недоступно или отключено")
   if (connection.provider === "codex") return {
     installation: options.toolRoot, adapter: "@zavx0z/provider-app-codex", mode: "read-only", exclusiveMcp: true, config: internalCodexPolicy,
   }
-  const entry = createRequire(join(options.toolRoot, "package.json")).resolve("@zavx0z/provider-app-ollama")
+  const provider = connection.provider
+  const entry = createRequire(join(options.toolRoot, "package.json")).resolve(`@zavx0z/provider-app-${provider}`)
   const identity = createHash("sha256").update(JSON.stringify([resolve(options.project), connection.id])).digest("hex")
   return {
     command: process.execPath,
     args: [entry],
-    env: {PROVIDER_OLLAMA_CONFIG: JSON.stringify({endpoint: connection.endpoint,
-      directory: join(homedir(), ".local/share/zavx0z/provider", "ollama", identity)})},
+    env: {[provider === "capsule" ? "PROVIDER_CAPSULE_CONFIG" : "PROVIDER_OLLAMA_CONFIG"]: JSON.stringify({endpoint: connection.endpoint,
+      directory: join(homedir(), ".local/share/zavx0z/provider", provider, identity)})},
   }
 }

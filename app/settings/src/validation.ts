@@ -45,6 +45,16 @@ export function validateConnection(input: unknown): Execution["connections"][num
     if (value.endpoint !== undefined) throw new TypeError("Codex не принимает endpoint подключения")
     return structuredClone(value) as Execution["connections"][number]
   }
+  if (value.provider === "capsule") {
+    const endpoint = object(value.endpoint, ["url", "profile", "service"])
+    if (typeof endpoint.url !== "string" || endpoint.url.length > 2048 || endpoint.url !== endpoint.url.trim()) throw new TypeError("Нужен HTTP-адрес Capsule Studio на этом компьютере")
+    let url: URL
+    try {url = new URL(endpoint.url)} catch {throw new TypeError("Нужен HTTP-адрес Capsule Studio на этом компьютере")}
+    if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash || endpoint.url.includes("?") || endpoint.url.includes("#")) throw new TypeError("Capsule Studio подключается только по локальному origin без пути, credentials, query или fragment")
+    if (typeof endpoint.profile !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/.test(endpoint.profile)) throw new TypeError("Укажите имя уже запущенного профиля Capsule")
+    if (endpoint.service !== "qwen" && endpoint.service !== "deepseek") throw new TypeError("Сервис Capsule не поддерживается")
+    return structuredClone(value) as Execution["connections"][number]
+  }
   if (value.provider !== "ollama") throw new TypeError("Провайдер не поддерживается")
   const endpoint = object(value.endpoint, ["url", "ssh"])
   if (typeof endpoint.url !== "string" || endpoint.url.length > 2048 || endpoint.url !== endpoint.url.trim()) throw new TypeError("Нужен HTTP-адрес Ollama")

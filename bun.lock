@@ -203,6 +203,7 @@
         "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure",
         "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
         "@zavx0z/immersive-markdown": "^0.0.0",
+        "@zavx0z/provider-app-capsule": "0.0.0",
         "@zavx0z/provider-app-codex": "0.0.0",
         "@zavx0z/provider-app-ollama": "0.0.0",
         "@zavx0z/storybook-app-environment": "workspace:*",
@@ -820,6 +821,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/provider-connection": "0.0.0",
+        "@zavx0z/provider-connection-capsule": "0.0.0",
         "@zavx0z/storybook-chat-history": "workspace:*",
         "@zavx0z/storybook-tech-acp": "workspace:*",
       },
@@ -1583,9 +1585,11 @@
     "@zavx0z/immersive-ui-theme-icon": "link:@zavx0z/immersive-ui-theme-icon",
     "@zavx0z/immersive-ui-theme-icon-set": "link:@zavx0z/immersive-ui-theme-icon-set",
     "@zavx0z/immersive-webgpu": "link:@zavx0z/immersive-webgpu",
+    "@zavx0z/provider-app-capsule": "link:@zavx0z/provider-app-capsule",
     "@zavx0z/provider-app-codex": "link:@zavx0z/provider-app-codex",
     "@zavx0z/provider-app-ollama": "link:@zavx0z/provider-app-ollama",
     "@zavx0z/provider-connection": "link:@zavx0z/provider-connection",
+    "@zavx0z/provider-connection-capsule": "link:@zavx0z/provider-connection-capsule",
   },
   "packages": {
     "@agentclientprotocol/codex-acp": ["@agentclientprotocol/codex-acp@2.1.1", "", { "dependencies": { "@agentclientprotocol/sdk": "^1.5.0", "@openai/codex": "^0.159.1", "diff": "^9.0.0", "open": "^11.0.1", "vscode-jsonrpc": "^9.0.1", "zod": "^4.0.0" }, "bin": { "codex-acp": "dist/index.js" } }, "sha512-dppZxW3f8kNbTDbR25+lBLtNst5DIC/Sm7GtRF69PI1Ilqv12tDSsIb0hJQW0iNzkx+JdDvX76HOyv5Uibu1qQ=="],
@@ -1784,11 +1788,15 @@
 
     "@zavx0z/immersive-webgpu": ["@zavx0z/immersive-webgpu@link:@zavx0z/immersive-webgpu", {}],
 
+    "@zavx0z/provider-app-capsule": ["@zavx0z/provider-app-capsule@link:@zavx0z/provider-app-capsule", {}],
+
     "@zavx0z/provider-app-codex": ["@zavx0z/provider-app-codex@link:@zavx0z/provider-app-codex", {}],
 
     "@zavx0z/provider-app-ollama": ["@zavx0z/provider-app-ollama@link:@zavx0z/provider-app-ollama", {}],
 
     "@zavx0z/provider-connection": ["@zavx0z/provider-connection@link:@zavx0z/provider-connection", {}],
+
+    "@zavx0z/provider-connection-capsule": ["@zavx0z/provider-connection-capsule@link:@zavx0z/provider-connection-capsule", {}],
 
     "@zavx0z/storybook-app": ["@zavx0z/storybook-app@workspace:app"],
 

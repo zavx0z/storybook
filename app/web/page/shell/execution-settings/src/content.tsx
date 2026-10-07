@@ -3,6 +3,7 @@ import Button from "@zavx0z/immersive-ui-component-button-basic"
 import Panel from "@zavx0z/immersive-ui-component-surface-panel"
 import SwitchField from "@zavx0z/immersive-ui-component-field-switch"
 import TextField from "@zavx0z/immersive-ui-component-field-text"
+import SelectField from "@zavx0z/immersive-ui-component-field-select"
 import Preferences from "@zavx0z/storybook-chat-preferences"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import {createSettingsClient} from "./client"
@@ -139,11 +140,14 @@ function Connections(props: ConnectionsProps) {
     ...props.document,
     connections: props.document.connections.map(item => item.id === connection.id ? connection : item),
   })
-  const add = (provider: "ollama") => {
+  const add = (provider: "ollama" | "capsule") => {
     let suffix = 1
     let id: string = provider
     while (props.document.connections.some(item => item.id === id)) id = `${provider}-${++suffix}`
-    const connection: Connection = {
+    const connection: Connection = provider === "capsule" ? {
+      id, provider, label: "Capsule", enabled: true,
+      endpoint: {url: "http://127.0.0.1:17777", profile: "", service: "qwen"},
+    } : {
       id, provider, label: "Ollama", enabled: true,
       endpoint: {url: "http://localhost:11434"},
     }
@@ -175,6 +179,12 @@ function Connections(props: ConnectionsProps) {
       variant="outlined"
       disabled={props.busy}
       onClick={() => add("ollama")}
+    />
+    <Button
+      label="Добавить Capsule"
+      variant="outlined"
+      disabled={props.busy}
+      onClick={() => add("capsule")}
     />
   </section>
 }
@@ -208,7 +218,7 @@ function ConnectionCard(props: Readonly<{
     } finally {if (alive.current) setProbing(false)}
   }
   return <Panel
-    label={`${connection.label} · ${{codex: "Codex", ollama: "Ollama"}[connection.provider]}${connection.enabled ? "" : " · отключено"}`}
+    label={`${connection.label} · ${{codex: "Codex", ollama: "Ollama", capsule: "Capsule"}[connection.provider]}${connection.enabled ? "" : " · отключено"}`}
     expanded={open}
     onToggle={setOpen}
   >
@@ -261,6 +271,11 @@ function ConnectionFields(props: Readonly<{
         busy={props.busy || props.probing}
         onChange={props.onChange}
       /> : null}
+      {connection.provider === "capsule" ? <CapsuleFields
+        connection={connection}
+        busy={props.busy || props.probing}
+        onChange={props.onChange}
+      /> : null}
       <Button
         label={props.probing ? "Проверяем…" : "Проверить подключение"}
         variant="outlined"
@@ -271,6 +286,48 @@ function ConnectionFields(props: Readonly<{
       {props.result ? <SettingsNotice text={props.result} /> : null}
       {props.error ? <SettingsError text={props.error} /> : null}
     </section>
+}
+function CapsuleFields(props: Readonly<{
+  connection: Extract<Connection, {provider: "capsule"}>
+  busy: boolean
+  onChange(value: Connection): void
+}>) {
+  const endpoint = props.connection.endpoint
+  return <section
+    aria-label="Подключение Capsule"
+    style={css`
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    `}
+  >
+    <SettingsNotice text="Capsule на этом компьютере. Укажите уже запущенный профиль с открытым сервисом." />
+    <TextField
+      label="Адрес Capsule Studio"
+      type="url"
+      value={endpoint.url}
+      disabled={props.busy}
+      onInput={url => props.onChange({...props.connection, endpoint: {...endpoint, url}})}
+    />
+    <TextField
+      label="Имя профиля Capsule"
+      value={endpoint.profile}
+      disabled={props.busy}
+      onInput={profile => props.onChange({...props.connection, endpoint: {...endpoint, profile}})}
+    />
+    <SelectField
+      label="Сервис"
+      value={endpoint.service}
+      options={[
+        {key: "qwen", value: "qwen", label: "Qwen"},
+        {key: "deepseek", value: "deepseek", label: "DeepSeek"},
+      ]}
+      disabled={props.busy}
+      onChange={service => {
+        if (service === "qwen" || service === "deepseek") props.onChange({...props.connection, endpoint: {...endpoint, service}})
+      }}
+    />
+  </section>
 }
 function OllamaFields(props: Readonly<{
   connection: Extract<Connection, {provider: "ollama"}>

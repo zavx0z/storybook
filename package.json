@@ -143,7 +143,9 @@
     "@zavx0z/immersive-ui-component-field-switch": "link:@zavx0z/immersive-ui-component-field-switch",
     "@zavx0z/provider-app-ollama": "link:@zavx0z/provider-app-ollama",
     "@zavx0z/provider-app-codex": "link:@zavx0z/provider-app-codex",
-    "@zavx0z/provider-connection": "link:@zavx0z/provider-connection"
+    "@zavx0z/provider-connection": "link:@zavx0z/provider-connection",
+    "@zavx0z/provider-connection-capsule": "link:@zavx0z/provider-connection-capsule",
+    "@zavx0z/provider-app-capsule": "link:@zavx0z/provider-app-capsule"
   },
   "bin": {
     "zavx0z": "./app/bin/zavx0z.ts"

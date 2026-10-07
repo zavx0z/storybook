@@ -118,4 +118,45 @@ describe.each([{name: "Настройки среды", props: {
     )
   })
 
+  test("Capsule с готовым профилем", async () => {
+    const add = [...element.querySelectorAll("button")].find(item => item.textContent === "Добавить Capsule") as HTMLButtonElement
+    add.click()
+    await headless.capture(element)
+    const card = element.querySelector('[data-provider-connection="capsule"]')!
+    expect(card.textContent, "Подключение использует уже запущенный профиль локального Studio").toContain("Capsule на этом компьютере")
+    const fields = card.querySelector('[aria-label="Подключение Capsule"]')!
+    const address = fields.querySelectorAll("input")[0] as HTMLInputElement
+    expect(address.value, "Форма предлагает адрес локального Capsule Studio").toBe("http://127.0.0.1:17777")
+    const profile = fields.querySelectorAll("input")[1] as HTMLInputElement
+    expect(profile.value, "Имя существующего профиля задаётся явно").toBe("")
+    profile.value = "work"
+    profile.dispatchEvent(new InputEvent("input", {bubbles: true}))
+    await headless.capture(element)
+    const service = fields.querySelector("select") as HTMLSelectElement
+    expect([...service.querySelectorAll("option")].filter(option => !option.hasAttribute("disabled")).map(option => option.getAttribute("value")), "Подключение поддерживает Qwen и DeepSeek").toEqual(["qwen", "deepseek"])
+    service.value = "deepseek"
+    service.dispatchEvent(new Event("change", {bubbles: true}))
+    await headless.capture(element)
+    const probe = [...card.querySelectorAll("button")].find(item => item.textContent === "Проверить подключение") as HTMLButtonElement
+    expect(probe.disabled, "Проверка возможностей доступна после сохранения профиля и сервиса").toBe(true)
+    const save = [...element.querySelectorAll("button")].find(item => item.textContent === "Сохранить") as HTMLButtonElement
+    save.click()
+    await headless.capture(element)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await headless.capture(element)
+    expect(props.fetcher, "Сохраняются адрес Studio, готовый профиль и выбранный сервис").toHaveBeenCalledWith(
+      "/api/browser/chat/execution-settings-save",
+      expect.objectContaining({body: expect.stringContaining('"provider":"capsule","label":"Capsule","enabled":true,"endpoint":{"url":"http://127.0.0.1:17777","profile":"work","service":"deepseek"}')}),
+    )
+    expect(probe.disabled, "Сохранённое подключение готово к проверке").toBe(false)
+    probe.click()
+    await headless.capture(element)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await headless.capture(element)
+    expect(props.fetcher, "Проверка обращается к сохранённому подключению, не передавая настройки профиля из браузера").toHaveBeenCalledWith(
+      "/api/browser/chat/execution-options", expect.objectContaining({body: '{"connectionId":"capsule"}'}),
+    )
+    expect(card.textContent, "Форма объясняет настройки пользователя без технических деталей браузера").not.toContain("CDP")
+  })
+
 })
