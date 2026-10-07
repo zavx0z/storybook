@@ -15,6 +15,10 @@ export type {StorybookChatPreferences} from "./contract"
 export default function ChatPreferences(props: StorybookChatPreferences.Input) {
   const change = (key: "connectionId" | "model" | "thoughtLevel", value: string) => {
     const next = {...props.selection}
+    if (key === "connectionId") {
+      delete next.model
+      delete next.thoughtLevel
+    } else if (key === "model") delete next.thoughtLevel
     if (value) next[key] = value
     else delete next[key]
     props.onChange(next)
@@ -25,30 +29,41 @@ export default function ChatPreferences(props: StorybookChatPreferences.Input) {
     gap: 8px;
     min-width: 0;
   `}>
-    {props.connections.length > 1 ? <SelectField
-      label="Подключение"
+    <SelectField
+      label="Провайдер"
       value={props.selection.connectionId ?? ""}
       options={[
-        {key: "inherit", value: "", label: props.inheritLabel ?? "Наследовать"},
+        {key: "inherit", value: "", label: `${props.inheritLabel ?? "Наследовать"}${props.effective?.connectionId ? ` · ${props.connections.find(item => item.id === props.effective?.connectionId)?.label ?? props.effective.connectionId}` : ""}`},
         ...props.connections.map(item => ({key: item.id, value: item.id, label: `${item.label}${item.enabled ? "" : " · отключено"}`})),
       ]}
       disabled={props.busy}
       onChange={value => change("connectionId", value)}
-    /> : null}
-    {props.connections.length > 1 ? <PreferenceField field="connectionId" selection={props.selection} effective={props.effective} sources={props.sources} connections={props.connections} settings={props.settings} busy={props.busy} onChange={props.onChange} /> : null}
-    {(["model", "thoughtLevel"] as const).map(field => <PreferenceField
-      key={field}
-      field={field}
+    />
+    <PreferenceField
+      field="connectionId"
       selection={props.selection}
       effective={props.effective}
       sources={props.sources}
       connections={props.connections}
       settings={props.settings}
       busy={props.busy}
-      inheritLabel={props.inheritLabel}
       onChange={props.onChange}
-      onValue={value => change(field, value)}
-    />)}
+    />
+    {(["model", "thoughtLevel"] as const).map(field => (
+      <PreferenceField
+        key={field}
+        field={field}
+        selection={props.selection}
+        effective={props.effective}
+        sources={props.sources}
+        connections={props.connections}
+        settings={props.settings}
+        busy={props.busy}
+        inheritLabel={props.inheritLabel}
+        onChange={props.onChange}
+        onValue={value => change(field, value)}
+      />
+    ))}
     <SelectField
       label="Подтверждения"
       value={props.selection.approvalMode ?? ""}

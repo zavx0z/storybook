@@ -14,10 +14,12 @@ type Document = Readonly<{
 }>
 type ExecutorInput = Readonly<{subject: Subject, executorId: string}>
 
-/** Сохранение переносимых настроек среды без запуска исполнителей. */
+/** Переносимые выборы и локальный каталог подключений, без запуска исполнителей. */
 export declare namespace StorybookAppSettings {
   /**
-  Project задаёт место общего файла; subject приходит от доверенного resolver.
+  Project задаёт место общего файла и локального sidecar `.local/execution-connections.json`; subject приходит от доверенного resolver.
+  Локальный каталог хранит current/previous снимки и активирует только revision
+  переносимого документа; отказ его записи не активирует новый endpoint.
   Доверенная политика вне Project следует за физическим каталогом при rename
   на том же диске. Копия и перенос на другой диск не наследуют выданные права.
   */
@@ -31,7 +33,7 @@ export declare namespace StorybookAppSettings {
     updateExecutor(input: ExecutorInput & Readonly<{selection: Selection}>): Promise<void>
     /** Только доверенный управляющий канал: значение не читается из истории или файлов агента. */
     updateSessionApproval(input: Readonly<{sessionId: string, approvalMode?: Selection["approvalMode"]}>): Promise<void>
-    /** Разрешает general → подтверждённый тип → агент → беседа по каждому полю отдельно. */
+    /** Разрешает general → подтверждённый тип → агент → беседа. Смена провайдера сбрасывает модель и мышление; новая модель сбрасывает унаследованное мышление. Native подключение закрепляется до проверки выбора. */
     resolve(input: ExecutorInput & Readonly<{selection: Selection, sessionId?: string, executorSelection?: Selection, pinnedConnectionId?: string}>): Promise<Execution>
   }>
 }

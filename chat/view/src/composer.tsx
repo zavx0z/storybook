@@ -14,7 +14,7 @@ export function ChatComposer(input: Readonly<{view: Contract.Input}>) {
   const busy = props.status === "connecting" || props.sending === true || props.attaching === true
   const settings = props.settings ?? []
   const loaded = settings.some(option => option.category === "model")
-  const identity = `${props.address}:${props.executorId ?? ""}:${props.history.chatId ?? ""}`
+  const identity = `${props.address}:${props.executorId ?? ""}:${props.history.chatId ?? ""}:${props.execution?.effective.connectionId ?? ""}:${props.execution?.effective.model ?? ""}`
   useEffect(() => {
     if (preparation.current.identity !== identity) preparation.current = {identity, requested: false}
     if (preparation.current.requested || loaded || props.history.chatId == null || props.status !== "idle" ||

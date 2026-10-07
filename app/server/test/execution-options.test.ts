@@ -1,4 +1,6 @@
 import {expect, test} from "bun:test"
+const codex = {id: "codex", provider: "codex" as const, label: "Codex", enabled: true}
+
 import {createExecutionOptions} from "../src/execution-options"
 
 test("закрытие среды ожидает cleanup probe и не принимает новый запрос", async () => {
@@ -13,13 +15,13 @@ test("закрытие среды ожидает cleanup probe и не прин�
       async cancel() {}, async dispose() {await cleanup.promise},
     }
   }})
-  const pending = options.read(undefined, new AbortController().signal)
+  const pending = options.read(codex, undefined, new AbortController().signal)
   await started.promise
   let disposed = false
   const closing = options.dispose().then(() => {disposed = true})
   await Promise.resolve()
   expect(disposed).toBe(false)
-  await expect(options.read(undefined, new AbortController().signal)).rejects.toThrow("закрыта")
+  await expect(options.read(codex, undefined, new AbortController().signal)).rejects.toThrow("закрыта")
   cleanup.resolve()
   await pending
   await closing
@@ -31,10 +33,10 @@ test("сбой подготовки Codex объясняет действие п
   const cause = new AggregateError([new Error("startup"), new Error("cleanup")], "ACP startup")
   const options = createExecutionOptions({project: "/fixture", toolRoot: "/fixture", async connect() {throw cause}})
   try {
-    await options.read(undefined, new AbortController().signal)
+    await options.read(codex, undefined, new AbortController().signal)
     throw new Error("Ожидался отказ")
   } catch (error) {
-    expect((error as Error).message).toBe("Не удалось завершить подключение к Codex. Повторите загрузку моделей")
+    expect((error as Error).message).toBe("Не удалось завершить подключение Codex. Повторите загрузку моделей")
     expect((error as Error).cause).toBe(cause)
   } finally {await options.dispose()}
 })

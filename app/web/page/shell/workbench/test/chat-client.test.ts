@@ -899,3 +899,80 @@ test("encoded image cache принадлежит одному клиенту, hi
     expect(cache.inspect()).toMatchObject({activeLeases: 0, retiredBytes: 0})
   } finally {first.dispose(); second.dispose()}
 })
+
+
+test.each([
+  {name: "Новая беседа", pinnedConnectionId: undefined, pending: [] as string[], operation: "execution-options"},
+  {name: "Native беседа", pinnedConnectionId: "codex", pending: [] as string[], operation: "prepare"},
+  {name: "Очередь без native сессии", pinnedConnectionId: undefined, pending: ["queued"], operation: "prepare"},
+])("prepare: $name использует $operation", async ({pinnedConnectionId, pending, operation}) => {
+  const fixture = browserChatFixture("/prepare-provider")
+  const execution: NonNullable<ChatBrowserSnapshot["execution"]> = {
+    selection: {}, executorSelection: {}, effective: {connectionId: "codex", model: "a"}, sources: {connectionId: "general"},
+    connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}],
+    ...(pinnedConnectionId === undefined ? {} : {pinnedConnectionId}),
+  }
+  const initial = {...fixture.snapshot, execution, pending}
+  const settings: NonNullable<ChatBrowserSnapshot["settings"]> = [
+    {id: "model", category: "model", name: "Model", value: "a", options: [{value: "a", name: "A"}]},
+  ]
+  const requests: {operation: string, body: unknown}[] = []
+  const client = createChatBrowserClient({address: initial.address, label: "Prepare", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => {
+      if (String(url).endsWith("/session")) return Response.json(initial)
+      for (const action of ["execution-options", "prepare"]) {
+        if (String(url).endsWith(`/${action}`)) {
+          requests.push({operation: action, body: JSON.parse(String(init?.body))})
+          return Response.json(action === "execution-options" ? settings : {...initial, settings, version: 1})
+        }
+      }
+      return fixture.fetcher(url, init)
+    }) as typeof fetch})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    await client.prepare()
+    expect(requests.map(item => item.operation)).toEqual([operation])
+    expect(client.getSnapshot().settings).toEqual(settings)
+    expect(client.getSnapshot().configuring).toBe(false)
+    expect(client.getSnapshot().execution?.pinnedConnectionId).toBe(pinnedConnectionId)
+    if (operation === "execution-options") {
+      expect(requests[0]!.body).toMatchObject({connectionId: "codex", model: "a"})
+      fixture.emit({...initial, version: 1, settings: []})
+      await tick()
+      expect(client.getSnapshot().settings, "Обычный снимок native-free беседы сохраняет тот же каталог").toEqual(settings)
+    }
+  } finally {client.dispose()}
+})
+
+test.each(["connectionId", "model"] as const)("metadata prepare отменяется при смене %s и не применяет поздний каталог", async field => {
+  const fixture = browserChatFixture("/stale-provider-metadata")
+  const gate = Promise.withResolvers<Response>()
+  const execution: NonNullable<ChatBrowserSnapshot["execution"]> = {
+    selection: {}, executorSelection: {}, effective: {connectionId: "codex", model: "a"}, sources: {connectionId: "general"},
+    connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}],
+  }
+  const initial = {...fixture.snapshot, execution}
+  let probeSignal: AbortSignal | undefined
+  const client = createChatBrowserClient({address: initial.address, label: "Metadata", createSocket: fixture.createSocket,
+    fetcher: (async (url, init) => {
+      if (String(url).endsWith("/session")) return Response.json(initial)
+      if (String(url).endsWith("/execution-options")) {probeSignal = init?.signal ?? undefined; return gate.promise}
+      return fixture.fetcher(url, init)
+    }) as typeof fetch})
+  client.start()
+  try {
+    await until(() => fixture.sockets.length === 1)
+    const preparing = client.prepare()
+    await until(() => probeSignal !== undefined)
+    fixture.emit({...initial, version: 1, execution: {...execution, effective: {
+      connectionId: field === "connectionId" ? "ollama" : "codex", model: field === "model" ? "b" : "a",
+    }}})
+    await until(() => probeSignal!.aborted)
+    gate.resolve(Response.json([{id: "model", category: "model", name: "Old model", value: "a", options: [{value: "a", name: "A"}]}]))
+    await preparing
+    expect(client.getSnapshot().settings).toEqual([])
+    expect(client.getSnapshot().error).toBeUndefined()
+    expect(client.getSnapshot().configuring).toBe(false)
+  } finally {gate.resolve(Response.json([])); client.dispose()}
+})

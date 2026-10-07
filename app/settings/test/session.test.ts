@@ -189,3 +189,15 @@ test("выбор агента не меняется во время исполн
     await f.dispose()
   }
 })
+
+
+test("новая модель беседы использует собственный native уровень вместо мышления прежней модели", async () => {
+  const f = await fixture()
+  try {
+    await f.sessions.prepare("/")
+    await f.sessions.configureExecution("/", {scope: "session", selection: {model: "b"}})
+    expect((await f.sessions.read("/")).settings?.map(option => option.value)).toEqual(["b", "medium"])
+    expect((await f.sessions.read("/")).execution?.sources.thoughtLevel).toBe("native")
+    expect(f.changes).toEqual(["native-model:b"])
+  } finally {await f.dispose()}
+})

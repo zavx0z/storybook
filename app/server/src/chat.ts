@@ -7,7 +7,8 @@ import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-re
 import createServerEnvironment from "./environment"
 import createTeamTools from "./team"
 import createSettings from "@zavx0z/storybook-app-settings"
-import {createExecutionOptions, internalCodexPolicy} from "./execution-options"
+import {createExecutionOptions} from "./execution-options"
+import {providerTransport} from "./provider-routing"
 import type {StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
 
 type Graph = StorybookPackageGraphRead.Input
@@ -92,13 +93,11 @@ export function createChatServer(options: Readonly<{
     },
     async connect(input) {
       // Назначение принадлежит окружению: освобождение или отказ ACP его не отзывает.
+      const connection = input.execution.connections.find(item => item.id === input.execution.effective.connectionId)
+      if (!connection) throw new Error("Выбранное подключение недоступно")
       return (options.connect ?? createAcp)({
+        ...providerTransport(options, connection),
         cwd: input.subject.cwd,
-        installation: options.toolRoot,
-        mode: "read-only",
-        exclusiveMcp: true,
-        // Штатные ограничения отдельного Codex; это ещё не общий provider no-tools контракт.
-        config: internalCodexPolicy,
         signal: input.signal,
         ...(input.previousSessionId === undefined ? {} : {previousSessionId: input.previousSessionId}),
         ...(input.preferResume === undefined ? {} : {preferResume: input.preferResume}),
@@ -150,7 +149,7 @@ export function createChatServer(options: Readonly<{
         const configuration = await settings.read()
         const connection = configuration.connections.find(item => item.id === body.connectionId)
         if (!connection || !connection.enabled) throw new Error("Подключение недоступно или отключено")
-        return Response.json(await executionOptions.read(body.model, request.signal), {headers: {"cache-control": "no-store"}})
+        return Response.json(await executionOptions.read(connection, body.model, request.signal), {headers: {"cache-control": "no-store"}})
       }
       if (typeof body?.address !== "string") throw new TypeError("Нужен адрес чата")
       if (Object.hasOwn(body, "executorId") && typeof body.executorId !== "string") throw new TypeError("Нужна identity исполнителя")

@@ -21,7 +21,11 @@ export function createSettingsClient(fetcher: typeof fetch, signal: AbortSignal)
   }
   return {
     read: () => post<SettingsDocument>("execution-settings", {}),
-    save: (settings: SettingsDocument) => post<SettingsDocument>("execution-settings-save", {settings}),
+    async save(settings: SettingsDocument) {
+      const saved = await post<SettingsDocument>("execution-settings-save", {settings})
+      catalog.clear()
+      return saved
+    },
     options(connectionId: string, model?: string): Promise<Settings> {
       signal.throwIfAborted()
       const key = JSON.stringify([connectionId, model])

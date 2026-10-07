@@ -1,17 +1,8 @@
 import type createAcp from "@zavx0z/storybook-tech-acp"
+import {providerTransport} from "./provider-routing"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
-/** Общая политика внутренних исполнителей применяется и к чтению возможностей. */
-export const internalCodexPolicy = {
-  "features.shell_tool": false,
-  "features.unified_exec": false,
-  "features.view_image": false,
-  "features.multi_agent": false,
-  "features.hooks": false,
-  "skills.include_instructions": false,
-  project_doc_max_bytes: 0,
-  web_search: "disabled",
-}
+export {internalCodexPolicy} from "./provider-routing"
 
 /**
 Одно короткоживущее ACP-подключение читает реальные варианты по явному запросу HUD.
@@ -23,7 +14,7 @@ export function createExecutionOptions(options: {project: string, toolRoot: stri
   let finished: Promise<void> | undefined
   let disposed = false
   return {
-    async read(model: unknown, signal: AbortSignal): Promise<NonNullable<Awaited<ReturnType<StorybookChatSession.Output["read"]>>["settings"]>> {
+    async read(selected: NonNullable<Awaited<ReturnType<NonNullable<StorybookChatSession.Input["resolveExecution"]>>>>["connections"][number], model: unknown, signal: AbortSignal): Promise<NonNullable<Awaited<ReturnType<StorybookChatSession.Output["read"]>>["settings"]>> {
       if (disposed) throw new Error("Среда настроек закрыта")
       if (model !== undefined && (typeof model !== "string" || !model || model.length > 256)) throw new TypeError("Нужен идентификатор модели")
       if (active) throw new Error("Возможности подключения уже загружаются. Дождитесь завершения")
@@ -36,8 +27,8 @@ export function createExecutionOptions(options: {project: string, toolRoot: stri
       let connection: Awaited<ReturnType<typeof createAcp>> | undefined
       try {
         connection = await options.connect({
-          cwd: options.project, installation: options.toolRoot,
-          mode: "read-only", exclusiveMcp: true, config: internalCodexPolicy,
+          ...providerTransport(options, selected),
+          cwd: options.project,
           signal: lifetime,
           mcpServers: [], onUpdate() {},
           async onPermission() {return {outcome: {outcome: "cancelled"}}},
@@ -55,9 +46,9 @@ export function createExecutionOptions(options: {project: string, toolRoot: stri
           options: option.options.flatMap(item => "options" in item ? item.options : [item]).map(item => ({value: item.value, name: item.name})),
         }])
       } catch (cause) {
-        if (deadline.aborted) throw new Error("Codex не ответил за минуту. Повторите загрузку моделей", {cause})
+        if (deadline.aborted) throw new Error(`Подключение ${selected.label} не ответило за минуту. Повторите загрузку моделей`, {cause})
         if (lifetime.aborted) throw new Error("Загрузка моделей отменена", {cause})
-        if (cause instanceof AggregateError) throw new Error("Не удалось завершить подключение к Codex. Повторите загрузку моделей", {cause})
+        if (cause instanceof AggregateError) throw new Error(`Не удалось завершить подключение ${selected.label}. Повторите загрузку моделей`, {cause})
         throw cause
       } finally {
         try {await connection?.dispose()} finally {

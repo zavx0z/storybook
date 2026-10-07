@@ -22,7 +22,7 @@ describe.each([{name: "Настройки среды", props: {
     expect(element.querySelector("[data-provider-settings]"), "Закрытое окно освобождает форму и каталоги").toBeNull()
   })
   test("Подключения", async () => {
-    ;(element.querySelector('button[aria-label="Подключения и модели"]') as HTMLButtonElement).click()
+    ;(element.querySelector('button[aria-label="Провайдеры и модели"]') as HTMLButtonElement).click()
     await headless.capture(element)
     await new Promise(resolve => setTimeout(resolve, 0))
     await headless.capture(element)
@@ -36,13 +36,13 @@ describe.each([{name: "Настройки среды", props: {
     await new Promise(resolve => setTimeout(resolve, 0))
     await headless.capture(element)
     expect(element.textContent, "Варианты появляются при открытии раздела, без служебной кнопки загрузки").toContain("Native Model")
-    expect(element.querySelectorAll("select").length, "Внутри уровня остаются только модель и мышление").toBe(2)
+    expect(element.querySelectorAll("select").length, "Уровень показывает провайдера, модель, мышление и подтверждения").toBe(4)
     if (process.env.SETTINGS_UI_CAPTURE) await Bun.write(process.env.SETTINGS_UI_CAPTURE, await headless.screenshot(element))
   })
   test("Выбор для репозиториев и сохранение", async () => {
     ;([...element.querySelectorAll('[data-settings-level="Repo"] button')].find(item => item.textContent === "Репозитории") as HTMLButtonElement).click()
     await headless.capture(element)
-    const model = element.querySelector('[data-settings-level="Repo"] select') as HTMLSelectElement
+    const model = element.querySelectorAll('[data-settings-level="Repo"] select')[1] as HTMLSelectElement
     model.value = "native"
     model.dispatchEvent(new Event("change", {bubbles: true}))
     await headless.capture(element)
@@ -54,7 +54,10 @@ describe.each([{name: "Настройки среды", props: {
     expect(element.textContent, "Завершённое действие подтверждено человеку").toContain("Сохранено")
   })
   test("Компактные действия только после изменения", async () => {
-    ;([...element.querySelectorAll('button[role="tab"]')].find(item => item.textContent === "Подключения") as HTMLButtonElement).click()
+    ;([...element.querySelectorAll('button[role="tab"]')].find(item => item.textContent === "Провайдеры") as HTMLButtonElement).click()
+    await headless.capture(element)
+    expect(element.querySelector("input"), "Сохранённые провайдеры показаны свёрнутыми панелями").toBeNull()
+    ;([...element.querySelectorAll("button")].find(item => item.textContent === "Codex · Codex") as HTMLButtonElement).click()
     await headless.capture(element)
     const input = element.querySelector('input') as HTMLInputElement
     input.value = "Рабочий Codex"
@@ -67,4 +70,52 @@ describe.each([{name: "Настройки среды", props: {
     await headless.capture(element)
     expect((element.querySelector("input") as HTMLInputElement).value, "Отмена возвращает сохранённое имя без запроса к серверу").toBe("Codex")
   })
+  test("Новое подключение Ollama", async () => {
+    ;([...element.querySelectorAll("button")].find(item => item.textContent === "Добавить Ollama") as HTMLButtonElement).click()
+    await headless.capture(element)
+    const card = element.querySelector('[data-provider-connection="ollama"]')!
+    const api = card.querySelectorAll("input")[1] as HTMLInputElement
+    api.value = "http://ai-srv:11434"
+    api.dispatchEvent(new InputEvent("input", {bubbles: true}))
+    await headless.capture(element)
+    const probe = [...card.querySelectorAll("button")].find(item => item.textContent === "Проверить подключение") as HTMLButtonElement
+    expect(probe.disabled, "Несохранённый адрес не отправляется серверу при проверке подключения").toBe(true)
+    ;([...element.querySelectorAll("button")].find(item => item.textContent === "Сохранить") as HTMLButtonElement).click()
+    await headless.capture(element)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await headless.capture(element)
+    expect(props.fetcher, "Сетевой Ollama сохраняется как самостоятельный провайдер с URL API").toHaveBeenCalledWith(
+      "/api/browser/chat/execution-settings-save",
+      expect.objectContaining({body: expect.stringContaining('"provider":"ollama","label":"Ollama","enabled":true,"endpoint":{"url":"http://ai-srv:11434"}')}),
+    )
+    expect(probe.disabled, "После сохранения сервер проверяет зарегистрированное подключение по id").toBe(false)
+    probe.click()
+    await headless.capture(element)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await headless.capture(element)
+    expect(props.fetcher, "В запросе проверки передан только сохранённый id").toHaveBeenCalledWith(
+      "/api/browser/chat/execution-options", expect.objectContaining({body: '{"connectionId":"ollama"}'}),
+    )
+  })
+  test("SSH-подключение", async () => {
+    const card = element.querySelector('[data-provider-connection="ollama"]')!
+    const toggle = card.querySelectorAll('button[role="switch"]')[1] as HTMLButtonElement
+    toggle.click()
+    await headless.capture(element)
+    const fields = card.querySelectorAll('[aria-label="SSH"] input')
+    for (const [index, value] of ["ai-srv-origin", "developer", "2222"].entries()) {
+      const input = fields[index] as HTMLInputElement
+      input.value = value
+      input.dispatchEvent(new InputEvent("input", {bubbles: true}))
+      await headless.capture(element)
+    }
+    ;([...element.querySelectorAll("button")].find(item => item.textContent === "Сохранить") as HTMLButtonElement).click()
+    await headless.capture(element)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await headless.capture(element)
+    expect(props.fetcher, "SSH сохраняет alias, пользователя и порт, используя существующую авторизацию хоста").toHaveBeenCalledWith(
+      "/api/browser/chat/execution-settings-save", expect.objectContaining({body: expect.stringContaining('"ssh":{"host":"ai-srv-origin","user":"developer","port":2222}')}),
+    )
+  })
+
 })

@@ -129,7 +129,7 @@ type ModelSettingsInput = Pick<Parameters<typeof ChatSettings>[0], "settings" | 
   usage: Contract.Input["usage"]
 }>
 
-/** Кольцо контекста и два независимых селекта занимают одну строку над вводом. */
+/** Провайдер новой беседы выбирается до native identity; модель и мышление остаются в строке над вводом. */
 export function ChatModelSettings(props: ModelSettingsInput) {
   return <section
     data-chat-model-settings=""
@@ -142,6 +142,7 @@ export function ChatModelSettings(props: ModelSettingsInput) {
       gap: 6px;
     `}
   >
+    {props.execution ? <ProviderSetting input={props} /> : null}
     <div style={css`
       display: flex;
       flex-direction: row;
@@ -157,7 +158,35 @@ export function ChatModelSettings(props: ModelSettingsInput) {
   </section>
 }
 
-/** Выбор меняет только собственное поле, сохраняя остальные overrides беседы. */
+/** Native identity закрепляет провайдера; новый выбор удаляет зависимые параметры прежнего исполнения. */
+function ProviderSetting(props: Readonly<{input: ModelSettingsInput}>) {
+  const input = props.input
+  const execution = input.execution!
+  const pinned = execution.pinnedConnectionId !== undefined
+  const current = execution.connections.find(item => item.id === execution.effective.connectionId)
+  return <SelectField
+    label="Провайдер"
+    title={pinned ? "Провайдер закреплён за существующей сессией" : "Провайдер новой беседы"}
+    density="compact"
+    value={execution.selection.connectionId ?? ""}
+    options={[
+      {key: "inherit", value: "", label: `Наследовать · ${current?.label ?? execution.effective.connectionId}`},
+      ...execution.connections.map(item => ({key: item.id, value: item.id, label: `${item.label}${item.enabled ? "" : " · отключено"}`})),
+    ]}
+    disabled={input.busy || pinned || input.onExecutionChange === undefined}
+    onChange={value => {
+      if (pinned) return
+      const next = {...execution.selection}
+      delete next.model
+      delete next.thoughtLevel
+      if (value) next.connectionId = value
+      else delete next.connectionId
+      input.onExecutionChange?.(next)
+    }}
+  />
+}
+
+/** Смена модели удаляет зависимое мышление; остальные overrides беседы сохраняются. */
 function ResponseSetting(props: Readonly<{field: "model" | "thoughtLevel", input: ModelSettingsInput}>) {
   const input = props.input
   const category = props.field === "model" ? "model" : "thought_level"
@@ -195,6 +224,7 @@ function ResponseSetting(props: Readonly<{field: "model" | "thoughtLevel", input
       onChange={value => {
         if (inherit) {
           const next = {...input.execution!.selection}
+          if (props.field === "model") delete next.thoughtLevel
           if (value) next[props.field] = value
           else delete next[props.field]
           input.onExecutionChange?.(next)

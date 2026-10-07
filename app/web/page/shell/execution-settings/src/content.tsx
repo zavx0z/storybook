@@ -8,6 +8,7 @@ import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import {createSettingsClient} from "./client"
 
 type SettingsDocument = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>
+type Connection = SettingsDocument["connections"][number]
 type Scope = "general" | NonNullable<Parameters<StorybookAppSettings.Output["resolve"]>[0]["subject"]["type"]>
 const scopes: readonly {value: Scope, label: string}[] = [
   {value: "general", label: "Общие"}, {value: "Project", label: "Проект"},
@@ -84,10 +85,24 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
       gap: 8px;
       flex-shrink: 0;
     `}>
-      <Button label="Модели по умолчанию" role="tab" selected={tab === "defaults"} aria-selected={tab === "defaults"}
-        variant="text" size="large" onClick={() => setTab("defaults")} />
-      <Button label="Подключения" role="tab" selected={tab === "connections"} aria-selected={tab === "connections"}
-        variant="text" size="large" onClick={() => setTab("connections")} />
+      <Button
+        label="Модели по умолчанию"
+        role="tab"
+        selected={tab === "defaults"}
+        aria-selected={tab === "defaults"}
+        variant="text"
+        size="large"
+        onClick={() => setTab("defaults")}
+      />
+      <Button
+        label="Провайдеры"
+        role="tab"
+        selected={tab === "connections"}
+        aria-selected={tab === "connections"}
+        variant="text"
+        size="large"
+        onClick={() => setTab("connections")}
+      />
     </div>
     <div style={css`
       flex: 1;
@@ -101,8 +116,8 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
         max-width: 600px;
         gap: 20px;
       `}>
-        {tab === "connections" ? <Connections document={draft} busy={busy} onChange={change} />
-          : <Defaults document={draft} busy={busy} client={props.client} onChange={change} />}
+        {tab === "connections" ? <Connections document={draft} saved={saved} busy={busy} client={props.client} onChange={change} />
+          : <Defaults document={draft} saved={saved} busy={busy} client={props.client} onChange={change} />}
         {error ? <SettingsError text={error} /> : null}
       </div>
     </div>
@@ -112,33 +127,235 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
   </section>
 }
 
-function Connections(props: Readonly<{document: SettingsDocument, busy: boolean, onChange(value: SettingsDocument): void}>) {
-  return <section aria-label="Подключения">
-    {props.document.connections.map(connection => <ConnectionCard key={connection.id}
-      label={connection.label} enabled={connection.enabled} busy={props.busy}
-      onLabel={label => props.onChange({...props.document, connections: props.document.connections.map(item => item.id === connection.id ? {...item, label} : item)})}
-      onEnabled={enabled => props.onChange({...props.document, connections: props.document.connections.map(item => item.id === connection.id ? {...item, enabled} : item)})} />)}
+type ConnectionsProps = Readonly<{
+  document: SettingsDocument
+  saved: SettingsDocument
+  busy: boolean
+  client: ReturnType<typeof createSettingsClient>
+  onChange(value: SettingsDocument): void
+}>
+function Connections(props: ConnectionsProps) {
+  const update = (connection: Connection) => props.onChange({
+    ...props.document,
+    connections: props.document.connections.map(item => item.id === connection.id ? connection : item),
+  })
+  const add = (provider: "ollama") => {
+    let suffix = 1
+    let id: string = provider
+    while (props.document.connections.some(item => item.id === id)) id = `${provider}-${++suffix}`
+    const connection: Connection = {
+      id, provider, label: "Ollama", enabled: true,
+      endpoint: {url: "http://localhost:11434"},
+    }
+    props.onChange({
+      ...props.document,
+      connections: [...props.document.connections, connection],
+    })
+  }
+  return <section
+    aria-label="Провайдеры"
+    style={css`
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    `}
+  >
+    {props.document.connections.map(connection => (
+      <ConnectionCard
+        key={connection.id}
+        connection={connection}
+        saved={props.saved.connections.find(item => item.id === connection.id)}
+        busy={props.busy}
+        client={props.client}
+        onChange={update}
+      />
+    ))}
+    <Button
+      label="Добавить Ollama"
+      variant="outlined"
+      disabled={props.busy}
+      onClick={() => add("ollama")}
+    />
   </section>
 }
-function ConnectionCard(props: Readonly<{label: string, enabled: boolean, busy: boolean, onLabel(value: string): void, onEnabled(value: boolean): void}>) {
-  return <div style={css`
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px;
-    border: 1px solid var(--widget-regular-outline);
-    border-radius: 8px;
-  `}>
-    <h3 style={css`
-      margin: 0;
-      font-size: 16px;
-    `}>Codex</h3>
-    <SwitchField label="Использовать" checked={props.enabled} disabled={props.busy} onChange={props.onEnabled} />
-    <TextField label="Название" value={props.label} disabled={props.busy} onInput={props.onLabel} />
-  </div>
+function ConnectionCard(props: Readonly<{
+  connection: Connection
+  saved: Connection | undefined
+  busy: boolean
+  client: ReturnType<typeof createSettingsClient>
+  onChange(value: Connection): void
+}>) {
+  const [open, setOpen] = useState(!props.saved)
+  const [probing, setProbing] = useState(false)
+  const [result, setResult] = useState("")
+  const [error, setError] = useState("")
+  const alive = useRef(true)
+  useEffect(() => () => {alive.current = false}, [])
+  const connection = props.connection
+  const dirty = JSON.stringify(connection) !== JSON.stringify(props.saved)
+  useEffect(() => {setResult(""); setError("")}, [connection])
+  const probe = async () => {
+    if (dirty || probing || props.busy || !connection.enabled) return
+    setProbing(true)
+    setResult("")
+    setError("")
+    try {
+      const options = await props.client.options(connection.id)
+      const count = options.find(item => item.category === "model")?.options.length ?? 0
+      if (alive.current) setResult(`Подключение доступно. Моделей: ${count}.`)
+    } catch (cause) {
+      if (alive.current) setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {if (alive.current) setProbing(false)}
+  }
+  return <Panel
+    label={`${connection.label} · ${{codex: "Codex", ollama: "Ollama"}[connection.provider]}${connection.enabled ? "" : " · отключено"}`}
+    expanded={open}
+    onToggle={setOpen}
+  >
+    {open ? <ConnectionFields
+      connection={connection}
+      busy={props.busy}
+      probing={probing}
+      dirty={dirty}
+      result={result}
+      error={error}
+      onChange={props.onChange}
+      onProbe={() => {void probe()}}
+    /> : null}
+  </Panel>
+}
+function ConnectionFields(props: Readonly<{
+  connection: Connection
+  busy: boolean
+  probing: boolean
+  dirty: boolean
+  result: string
+  error: string
+  onChange(value: Connection): void
+  onProbe(): void
+}>) {
+  const connection = props.connection
+  return <section
+    data-provider-connection={connection.id}
+    style={css`
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 12px;
+    `}
+  >
+      <SwitchField
+        label="Использовать"
+        checked={connection.enabled}
+        disabled={props.busy || props.probing}
+        onChange={enabled => props.onChange({...connection, enabled})}
+      />
+      <TextField
+        label="Название"
+        value={connection.label}
+        disabled={props.busy || props.probing}
+        onInput={label => props.onChange({...connection, label})}
+      />
+      {connection.provider === "ollama" ? <OllamaFields
+        connection={connection}
+        busy={props.busy || props.probing}
+        onChange={props.onChange}
+      /> : null}
+      <Button
+        label={props.probing ? "Проверяем…" : "Проверить подключение"}
+        variant="outlined"
+        disabled={props.busy || props.probing || props.dirty || !connection.enabled}
+        onClick={props.onProbe}
+      />
+      {props.dirty ? <SettingsNotice text="Сохраните изменения, чтобы проверить подключение и получить модели." /> : null}
+      {props.result ? <SettingsNotice text={props.result} /> : null}
+      {props.error ? <SettingsError text={props.error} /> : null}
+    </section>
+}
+function OllamaFields(props: Readonly<{
+  connection: Extract<Connection, {provider: "ollama"}>
+  busy: boolean
+  onChange(value: Connection): void
+}>) {
+  const endpoint = props.connection.endpoint
+  const updateSSH = (value: NonNullable<typeof endpoint.ssh>) => props.onChange({
+    ...props.connection,
+    endpoint: {...endpoint, ssh: value},
+  })
+  return <section
+    aria-label="Подключение Ollama"
+    style={css`
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    `}
+  >
+    <TextField
+      label="URL API Ollama"
+      type="url"
+      value={endpoint.url}
+      disabled={props.busy}
+      onInput={url => props.onChange({...props.connection, endpoint: {...endpoint, url}})}
+    />
+    <SwitchField
+      label="Подключаться через SSH"
+      checked={!!endpoint.ssh}
+      disabled={props.busy}
+      onChange={enabled => {
+        const {ssh, ...direct} = endpoint
+        props.onChange({...props.connection, endpoint: enabled ? {...direct, ssh: {host: ""}} : direct})
+      }}
+    />
+    {endpoint.ssh ? <SSHFields
+      ssh={endpoint.ssh}
+      busy={props.busy}
+      onChange={updateSSH}
+    /> : null}
+  </section>
 }
 
-type DefaultsProps = Readonly<{document: SettingsDocument, busy: boolean, client: ReturnType<typeof createSettingsClient>, onChange(value: SettingsDocument): void}>
+function SSHFields(props: Readonly<{
+  ssh: NonNullable<Extract<Connection, {provider: "ollama"}>["endpoint"]["ssh"]>
+  busy: boolean
+  onChange(value: NonNullable<Extract<Connection, {provider: "ollama"}>["endpoint"]["ssh"]>): void
+}>) {
+  return <section
+    aria-label="SSH"
+    style={css`
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    `}
+  >
+      <SettingsNotice text="URL API указывается относительно SSH-сервера. Используются существующие SSH-настройки и ключи." />
+      <TextField
+        label="SSH-хост или alias"
+        value={props.ssh.host}
+        disabled={props.busy}
+        onInput={host => props.onChange({...props.ssh, host})}
+      />
+      <TextField
+        label="SSH-пользователь (необязательно)"
+        value={props.ssh.user ?? ""}
+        disabled={props.busy}
+        onInput={user => {
+          const {user: previous, ...ssh} = props.ssh
+          props.onChange(user ? {...ssh, user} : ssh)
+        }}
+      />
+      <TextField
+        label="SSH-порт (необязательно)"
+        value={props.ssh.port?.toString() ?? ""}
+        disabled={props.busy}
+        onInput={value => {
+          const {port: previous, ...ssh} = props.ssh
+          props.onChange(value ? {...ssh, port: Number(value)} : ssh)
+        }}
+      />
+    </section>
+}
+
+type DefaultsProps = Readonly<{document: SettingsDocument, saved: SettingsDocument, busy: boolean, client: ReturnType<typeof createSettingsClient>, onChange(value: SettingsDocument): void}>
 function Defaults(props: DefaultsProps) {
   return <section aria-label="Модели по уровням" style={css`
     display: flex;
@@ -146,15 +363,32 @@ function Defaults(props: DefaultsProps) {
     gap: 8px;
   `}>
     <SettingsNotice text="Настройки уровня применяются, если у агента или беседы нет своего выбора." />
-    {scopes.map(item => <LevelPanel key={item.value} level={item.value} label={item.label}
-      document={props.document} busy={props.busy} client={props.client} onChange={props.onChange} />)}
+    {scopes.map(item => (
+      <LevelPanel
+        key={item.value}
+        level={item.value}
+        label={item.label}
+        document={props.document}
+        saved={props.saved}
+        busy={props.busy}
+        client={props.client}
+        onChange={props.onChange}
+      />
+    ))}
   </section>
 }
 function LevelPanel(props: DefaultsProps & Readonly<{level: Scope, label: string}>) {
   const [open, setOpen] = useState(props.level === "general")
   return <div data-settings-level={props.level}>
     <Panel label={props.label} expanded={open} onToggle={setOpen}>
-      {open ? <LevelFields level={props.level} document={props.document} busy={props.busy} client={props.client} onChange={props.onChange} /> : null}
+      {open ? <LevelFields
+        level={props.level}
+        document={props.document}
+        saved={props.saved}
+        busy={props.busy}
+        client={props.client}
+        onChange={props.onChange}
+      /> : null}
     </Panel>
   </div>
 }
@@ -167,15 +401,24 @@ function LevelFields(props: DefaultsProps & Readonly<{level: Scope}>) {
   const queued = useRef(Promise.resolve())
   const epoch = useRef(0)
   const selected = scope === "general" ? props.document.general : props.document.types[scope] ?? {}
-  const effective = {connectionId: "codex", ...props.document.general, ...selected}
+  const inherited = {...props.document.general}
+  if (selected.connectionId && selected.connectionId !== inherited.connectionId) {
+    delete inherited.model
+    delete inherited.thoughtLevel
+  } else if (selected.model && selected.model !== inherited.model) delete inherited.thoughtLevel
+  const effective = {connectionId: "codex", ...inherited, ...selected}
+  const connection = props.document.connections.find(item => item.id === effective.connectionId)
+  const savedConnection = props.saved.connections.find(item => item.id === effective.connectionId)
+  const connectionDirty = JSON.stringify(connection) !== JSON.stringify(savedConnection)
   const enabled = props.document.connections.some(item => item.id === effective.connectionId && item.enabled)
   const sources = Object.fromEntries((["connectionId", "model", "thoughtLevel"] as const).map(key => [key,
-    selected[key] !== undefined ? scope === "general" ? "general" : "type" : props.document.general[key] !== undefined ? "general" : "native",
+    selected[key] !== undefined ? scope === "general" ? "general" : "type" : inherited[key] !== undefined ? "general" : "native",
   ])) as Awaited<ReturnType<StorybookAppSettings.Output["resolve"]>>["sources"]
   useEffect(() => {
     const current = ++epoch.current
     setError("")
-    if (!enabled) {setSettings([]); setLoading(false); return () => {epoch.current++}}
+    if (!enabled || connectionDirty) {setSettings([]); setLoading(false); return () => {epoch.current++}}
+    setSettings([])
     setLoading(true)
     queued.current = queued.current.catch(() => {}).then(async () => {
       if (current !== epoch.current) return
@@ -187,19 +430,28 @@ function LevelFields(props: DefaultsProps & Readonly<{level: Scope}>) {
       } finally {if (current === epoch.current) setLoading(false)}
     })
     return () => {epoch.current++}
-  }, [props.client, effective.connectionId, effective.model, enabled, attempt])
+  }, [props.client, effective.connectionId, effective.model, enabled, connectionDirty, props.saved.revision, attempt])
   return <section aria-label="Параметры уровня" style={css`
     display: flex;
     flex-direction: column;
     gap: 12px;
     padding: 8px;
   `}>
-    <Preferences selection={selected} effective={effective} sources={sources} connections={props.document.connections}
+    <Preferences
+      selection={selected}
+      effective={effective}
+      sources={sources}
+      connections={props.document.connections}
       inheritLabel={scope === "general" ? "По умолчанию" : "Из общих настроек"}
-      settings={settings} busy={props.busy || loading || !enabled} onChange={selection => props.onChange(scope === "general"
-        ? {...props.document, general: selection} : {...props.document, types: {...props.document.types, [scope]: selection}})} />
+      settings={settings}
+      busy={props.busy}
+      onChange={selection => props.onChange(scope === "general"
+        ? {...props.document, general: selection}
+        : {...props.document, types: {...props.document.types, [scope]: selection}})}
+    />
+    {connectionDirty ? <SettingsNotice text="Сохраните изменения провайдера, чтобы получить его модели." /> : null}
     {loading ? <SettingsNotice text="Получаем модели…" /> : null}
-    {!enabled ? <SettingsNotice text="Включите подключение на вкладке «Подключения»." /> : null}
+    {!enabled ? <SettingsNotice text="Включите подключение на вкладке «Провайдеры»." /> : null}
     {error ? <LoadState error={error} onRetry={() => setAttempt(value => value + 1)} /> : null}
   </section>
 }

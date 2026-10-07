@@ -39,3 +39,20 @@ test("положение окна восстанавливается без пе
   expect(windowState(saved)).toEqual(saved)
   expect(windowState({geometry: {x: NaN, y: -9, width: 2, height: Infinity}}).geometry).toEqual({x: 80, y: 0, width: 340, height: 580})
 })
+
+
+test("сохранение подключения обновляет каталог возможностей", async () => {
+  let probes = 0
+  const client = createSettingsClient(Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).endsWith("registry-session")) return Response.json({readerToken: "test"})
+    if (String(input).endsWith("execution-settings-save")) return Response.json(JSON.parse(String(init?.body)).settings)
+    probes++
+    return Response.json([])
+  }, {preconnect() {}}), new AbortController().signal)
+  await client.options("ollama")
+  await client.save({schemaVersion: 1, revision: 0, connections: [
+    {id: "ollama", provider: "ollama", label: "Ollama", enabled: true, endpoint: {url: "http://server:11434"}},
+  ], general: {connectionId: "ollama"}, types: {}})
+  await client.options("ollama")
+  expect(probes).toBe(2)
+})

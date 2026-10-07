@@ -195,14 +195,19 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       if (effective[field] === undefined) {
         const baseline = state.document.executionBaseline
         const native = field === "model" ? baseline?.model ?? state.settings?.find(option => option.category === category)?.value
-          : effective.model === baseline?.model && baseline?.thoughtLevel !== undefined ? baseline.thoughtLevel : state.settings?.find(option => option.category === category)?.value
+          : effective.model === baseline?.model && baseline?.thoughtLevel !== undefined ? baseline.thoughtLevel
+            : effective.model === undefined || effective.model === state.settings?.find(option => option.category === "model")?.value
+              ? state.settings?.find(option => option.category === category)?.value : undefined
         if (native !== undefined) {
           effective[field] = native
           sources[field] = "native"
         }
       }
     }
-    return state.execution = {...resolved, effective, sources}
+    const {pinnedConnectionId: _resolvedPin, ...details} = resolved
+    return state.execution = {...details, effective, sources,
+      ...(state.document.sessionId === undefined ? {} : {pinnedConnectionId: state.document.connectionId ?? "codex"}),
+    }
   }
   const refreshExecution = async (state: Pick<State, "document" | "subject" | "settings" | "execution">, executorSelection?: ExecutionSelection): Promise<ExecutionResolution> => {
     const selection = state.document.executionSelection ?? {}
@@ -210,10 +215,15 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     const resolved = await input.resolveExecution?.({subject: state.subject, executorId: state.document.executorId, sessionId: state.document.id, selection,
       ...(executorSelection === undefined ? {} : {executorSelection}),
       ...(pinnedConnectionId === undefined ? {} : {pinnedConnectionId})}) ?? {
+      ...(pinnedConnectionId === undefined ? {} : {pinnedConnectionId}),
       selection, executorSelection: {}, effective: {connectionId: pinnedConnectionId ?? selection.connectionId ?? "codex", ...Object.fromEntries(Object.entries(selection).filter(([key]) => key !== "approvalMode"))},
       sources: {connectionId: (selection.connectionId === undefined ? pinnedConnectionId === undefined ? "general" : "native" : "session") as ExecutionSource,
         ...(selection.model === undefined ? {} : {model: "session" as const}), ...(selection.thoughtLevel === undefined ? {} : {thoughtLevel: "session" as const})},
       connections: [{id: "codex", provider: "codex" as const, label: "Codex", enabled: true}],
+    }
+    if (state.document.sessionId !== undefined) {
+      const provider = resolved.connections.find(connection => connection.id === resolved.effective.connectionId)?.provider
+      if (provider !== (state.document.provider ?? "codex")) throw new Error("Провайдер существующей native сессии отличается: несовместимое восстановление запрещено")
     }
     return projectExecution(state, resolved)
   }
@@ -719,6 +729,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       if (state.document.sessionId !== undefined && state.document.connectionId === undefined) state.document.preserveNativeSettings = true
       state.document.sessionId = connection.sessionId
       state.document.connectionId = execution.effective.connectionId
+      state.document.provider = execution.connections.find(connection => connection.id === execution.effective.connectionId)!.provider
       state.document.cwd = "."
       await save(state)
       await applyExecution(state, connection, execution)
@@ -1289,7 +1300,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       const selected = change.selection
       if (selected === null || typeof selected !== "object" || Array.isArray(selected) || Object.keys(selected).some(key => !["connectionId", "model", "thoughtLevel", "approvalMode"].includes(key)) ||
         Object.values(selected).some(value => typeof value !== "string" || !value.trim() || value.length > 256)) throw new TypeError("Недопустимый выбор исполнения")
-      if (selected.connectionId !== undefined && selected.connectionId !== (state.document.connectionId ?? "codex")) throw new Error("Подключение существующей native сессии отличается: несовместимое восстановление запрещено")
+      if (state.document.sessionId !== undefined && selected.connectionId !== undefined && selected.connectionId !== (state.document.connectionId ?? "codex")) throw new Error("Подключение существующей native сессии отличается: несовместимое восстановление запрещено")
       for (const [field, category] of [["model", "model"], ["thoughtLevel", "thought_level"]] as const) {
         const option = state.settings?.find(item => item.category === category)
         if (selected[field] !== undefined && option !== undefined && !(category === "thought_level" && selected.model !== undefined) && !option.options.some(item => item.value === selected[field])) throw new Error(`Выбранная настройка ${category} недоступна`)

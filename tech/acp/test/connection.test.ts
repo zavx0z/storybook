@@ -335,3 +335,41 @@ test("Codex launcher передаёт bootstrap overrides до app-server без
   expect(stderr).toBe("")
   expect(JSON.parse(stdout)).toEqual([...args, "app-server"])
 })
+
+test("provider Codex entry сохраняет CLI probe и native bootstrap overrides установленного Codex", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "storybook-provider-codex-"))
+  const adapter = join(directory, "node_modules/@agentclientprotocol/codex-acp")
+  const composition = join(directory, "node_modules/@zavx0z/provider-app-codex")
+  const native = join(directory, "node_modules/@openai/codex/bin")
+  const observed = join(directory, "observed.json")
+  for (const path of [adapter, composition, native, join(directory, "tech/acp/src")]) mkdirSync(path, {recursive: true})
+  writeFileSync(join(directory, "package.json"), JSON.stringify({name: "fixture-tool", type: "module"}))
+  writeFileSync(join(adapter, "package.json"), JSON.stringify({name: "@agentclientprotocol/codex-acp", main: "index.js", type: "module"}))
+  writeFileSync(join(adapter, "index.js"), `await import(${JSON.stringify(pathToFileURL(fixture).href)})\n`)
+  writeFileSync(join(native, "codex.js"), "throw new Error('Native model должен оставаться не запущен')\n")
+  writeFileSync(join(native, "../package.json"), JSON.stringify({name: "@openai/codex", type: "module"}))
+  writeFileSync(join(composition, "package.json"), JSON.stringify({name: "@zavx0z/provider-app-codex", main: "index.js", type: "module"}))
+  writeFileSync(join(composition, "index.js"), `
+    import {writeFileSync} from "node:fs"
+    if (!process.argv.includes("cli")) writeFileSync(${JSON.stringify(observed)}, JSON.stringify({
+      path: process.env.CODEX_PATH, command: process.env.STORYBOOK_ACP_NATIVE_COMMAND,
+      args: JSON.parse(process.env.STORYBOOK_ACP_NATIVE_ARGUMENTS),
+    }))
+    await import(${JSON.stringify(pathToFileURL(fixture).href)})
+  `)
+  let connection: StorybookTechAcp.Output | undefined
+  try {
+    connection = await createAcp({cwd, installation: directory, adapter: "@zavx0z/provider-app-codex",
+      exclusiveMcp: true, mcpServers: [], onUpdate() {},
+      async onPermission() {return {outcome: {outcome: "cancelled"}}},
+    })
+    const value = JSON.parse(await Bun.file(observed).text())
+    expect(value.path).toBe(join(directory, "tech/acp/src/codex.ts"))
+    expect(value.command).toBe(process.execPath)
+    expect(value.args[0]).toBe(join(native, "codex.js"))
+    expect(value.args).toContain("features.plugins=false")
+    expect(value.args).toContain("features.apps=false")
+    expect(value.args).toContain("mcp_servers.global-fixture.enabled=false")
+    expect(value.args).toContain("mcp_servers.scope-fixture.enabled=false")
+  } finally {await connection?.dispose(); rmSync(directory, {recursive: true, force: true})}
+})

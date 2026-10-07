@@ -94,7 +94,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     ? import.meta.url
     : join(input.installation, "package.json")
   const args = input.command === undefined
-    ? [createRequire(installation).resolve("@agentclientprotocol/codex-acp"), ...(input.args ?? [])]
+    ? [createRequire(installation).resolve(input.adapter ?? "@agentclientprotocol/codex-acp"), ...(input.args ?? [])]
     : [...(input.args ?? [])]
   const detached = process.platform !== "win32"
   const env = {...process.env, ...input.env}
@@ -133,7 +133,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     env.CODEX_CONFIG = JSON.stringify(prepared.config)
     env.DISABLE_MCP_CONFIG_FILTERING = "true"
     if (input.command === undefined) {
-      const adapter = args[0]!
+      const adapter = createRequire(installation).resolve("@agentclientprotocol/codex-acp")
       const nativeCommand = env.CODEX_PATH ?? process.execPath
       const nativeArgs = env.CODEX_PATH === undefined
         ? [createRequire(adapter).resolve("@openai/codex/bin/codex.js")]

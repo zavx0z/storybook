@@ -1,6 +1,6 @@
 import type {Snapshot, ContextUsage} from "../contract/state"
 import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
-import type {ExecutionSelection} from "../contract/execution"
+import type {ExecutionConnection, ExecutionSelection} from "../contract/execution"
 import {isAbsolute} from "node:path"
 
 /** Рабочая папка относится к владельцу истории; старый абсолютный cwd читается без привязки к машине. */
@@ -25,6 +25,8 @@ export type Document = {
   sessionId?: string
   /** Подключение, которому принадлежит native session; старый sessionId принадлежит Codex. */
   connectionId?: string
+  /** Провайдер native identity; старые сессии без поля принадлежат Codex. */
+  provider?: ExecutionConnection["provider"]
   /** Явные настройки беседы; отсутствие отдельных значений сохраняет наследование. */
   executionSelection?: ExecutionSelection
   /** Существующие native настройки неизвестны: defaults среды не перезаписывают их автоматически. */

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@zavx0z/storybook-tech-acp": "workspace:*",
-    "@zavx0z/storybook-chat-history": "workspace:*"
+    "@zavx0z/storybook-chat-history": "workspace:*",
+    "@zavx0z/provider-connection": "0.0.0"
   }
 }

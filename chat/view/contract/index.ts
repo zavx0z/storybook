@@ -87,7 +87,10 @@ export declare namespace StorybookChatView {
     onSend(): void
     onCancel(): void
     settings?: Snapshot["settings"]
-    /** Разрешённые настройки и их источники; изменение сохраняет override только этой беседы. */
+    /**
+    Разрешённые настройки и их источники; изменение сохраняет override только этой беседы.
+    pinnedConnectionId блокирует смену провайдера существующей native сессии.
+    */
     execution?: Snapshot["execution"]
     onExecutionChange?: ((selection: Selection) => void) | undefined
     configuring?: boolean | undefined

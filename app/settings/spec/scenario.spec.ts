@@ -18,10 +18,10 @@ describe.each((["Project", "Repo", "Domain", "Cluster", "Container", "Component"
   const execution = await settings.resolve({subject, executorId, selection: {model: "session"}})
 
   test("Наследование по каждому полю", () => {
-    expect(execution.effective, "Явная беседа задаёт модель, агент — мышление, среда — подключение")
-      .toEqual({connectionId: "codex", model: "session", thoughtLevel: "high"})
+    expect(execution.effective, "Явная новая модель сбрасывает унаследованное мышление, среда задаёт подключение")
+      .toEqual({connectionId: "codex", model: "session"})
     expect(execution.sources, "Источники сохраняются независимо по каждому полю")
-      .toEqual({connectionId: "general", model: "session", thoughtLevel: "executor"})
+      .toEqual({connectionId: "general", model: "session"})
   })
   test("Подтверждённый тип", async () => {
     expect((await settings.resolve({subject, executorId, selection: {}})).effective.model,
@@ -30,10 +30,12 @@ describe.each((["Project", "Repo", "Domain", "Cluster", "Container", "Component"
       "Неизвестный тип не получает правило по имени или пути").toBe("general")
   })
   test("Сохранение у владельцев", async () => {
-    expect(JSON.parse(await readFile(join(project, "meta/settings/execution.json"), "utf8")), "Записанный документ Project соответствует подтверждённой revision").toEqual(updated)
+    const {connections, ...portable} = updated
+    expect(JSON.parse(await readFile(join(project, "meta/settings/execution.json"), "utf8")), "Переносимый документ соответствует подтверждённой revision").toEqual(portable)
+    expect(JSON.parse(await readFile(join(project, ".local/execution-connections.json"), "utf8")).current.connections, "Каталог подключений остаётся на этой машине").toEqual(connections)
     expect(await settings.readExecutor({subject, executorId}), "Выбор агента сохраняется у предмета независимо от его бесед").toEqual({thoughtLevel: "high"})
     expect(JSON.parse(await readFile(join(project, "meta/settings/execution.json"), "utf8")).connections,
-      "Каталог содержит только реально установленное подключение").toEqual([{id: "codex", provider: "codex", label: "Codex", enabled: true}])
+      "Переносимый документ не раскрывает адреса машины").toBeUndefined()
   })
   test("Устаревшая запись", async () => {
     await expect(settings.update({...initial, general: {}}),

@@ -1,6 +1,7 @@
 /**
 Сохраняет переносимый выбор исполнения Project и предметных исполнителей.
-Общие подключения и правила типов принадлежат среде, явный выбор агента сохраняется
+Каталог подключений сохраняется только в `.local/` текущей машины.
+Переносимые правила типов принадлежат среде, явный выбор агента сохраняется
 у его предмета независимо от бесед. Настройки разрешаются по каждому значению
 с указанием источника; доступные модели и уровни подтверждает само подключение.
 Чтение и запись настроек не запускают модель и не предоставляют инструментальных прав.
@@ -10,7 +11,7 @@
 import {isAbsolute, join} from "node:path"
 import type {StorybookAppSettings} from "./contract"
 
-import {document, entityTypes, fields, initial, object, selection} from "./src/validation"
+import {document, entityTypes, fields, initial, object, selection, validateSelectionConnection} from "./src/validation"
 import {exclusive, executorFile, readJson, save} from "./src/storage"
 import {createAuthority, withoutApproval} from "./src/authority"
 
@@ -32,10 +33,24 @@ type EntityType = NonNullable<ExecutorInput["subject"]["type"]>
 export default function createSettings(input: StorybookAppSettings.Input): StorybookAppSettings.Output {
   if (!isAbsolute(input.project)) throw new TypeError("Project настроек должен быть абсолютным каталогом")
   const file = join(input.project, "meta/settings/execution.json")
+  const connectionsFile = join(input.project, ".local/execution-connections.json")
   const authority = createAuthority(input.project, input.authorityDirectory)
   const base = async (): Promise<Document> => {
-    const saved = await readJson(file)
-    return saved === undefined ? initial() : document(saved)
+    const [saved, local] = await Promise.all([readJson(file), readJson(connectionsFile)])
+    const value = saved === undefined ? initial() : object(saved, ["schemaVersion", "revision", "connections", "general", "types"])
+    if (Array.isArray(value.connections) && value.connections.some(connection => connection?.provider !== "codex" || connection?.endpoint !== undefined)) throw new TypeError("Адреса подключений должны храниться только в локальном каталоге машины")
+    let connections = local
+    if (local !== undefined && !Array.isArray(local)) {
+      const record = object(local, ["schemaVersion", "current", "previous"])
+      if (record.schemaVersion !== 1 || record.current === undefined) throw new TypeError("Повреждён локальный каталог подключений")
+      const snapshots = [record.current, record.previous].filter(snapshot => snapshot !== undefined).map(snapshot => {
+        const entry = object(snapshot, ["revision", "connections"])
+        if (!Number.isSafeInteger(entry.revision) || Number(entry.revision) < 0 || !Array.isArray(entry.connections)) throw new TypeError("Повреждена ревизия каталога подключений")
+        return entry
+      })
+      connections = snapshots.find(snapshot => snapshot.revision === value.revision)?.connections
+    }
+    return document({...value, connections: connections ?? value.connections ?? initial().connections}, true)
   }
   const executorKey = (value: ExecutorInput) => `executor:${value.subject.address}:${value.executorId}`
   const withMode = (value: Selection, mode: Selection["approvalMode"]): Selection => ({
@@ -67,16 +82,25 @@ export default function createSettings(input: StorybookAppSettings.Input): Story
     update: value => exclusive(file, async () => {
       const current = await read()
       if (value.revision !== current.revision) throw new Error("Настройки изменились: обновите снимок перед сохранением")
-      const next = document({...value, schemaVersion: 1, revision: (await base()).revision + 1})
+      const previous = await base()
+      const next = document({...value, schemaVersion: 1, revision: previous.revision + 1})
       await authority.change({general: next.general.approvalMode,
         ...Object.fromEntries(entityTypes.map(type => [`type:${type}`, next.types[type]?.approvalMode]))})
-      await save(file, {...next, general: withoutApproval(next.general),
+      // Local pending snapshot активируется только revision переносимого документа.
+      // Отказ второй записи оставляет previous endpoint действующим и не меняет CAS.
+      await save(connectionsFile, {schemaVersion: 1,
+        current: {revision: next.revision, connections: next.connections},
+        previous: {revision: previous.revision, connections: previous.connections},
+      })
+      const {connections: _connections, ...portable} = next
+      await save(file, {...portable, general: withoutApproval(next.general),
         types: Object.fromEntries(Object.entries(next.types).map(([type, selected]) => [type, withoutApproval(selected!)]))})
       return read()
     }),
     readExecutor,
     updateExecutor: value => exclusive(file, async () => {
       const selected = selection(value.selection)
+      validateSelectionConnection(selected, (await base()).connections)
       await authority.change({[executorKey(value)]: selected.approvalMode})
       await save(executorFile(value), {schemaVersion: 1, executorId: value.executorId, selection: withoutApproval(selected)})
     }),
@@ -92,20 +116,50 @@ export default function createSettings(input: StorybookAppSettings.Input): Story
       const trustedExecutor = await readExecutor(value, policy)
       const executorSelection = value.executorSelection === undefined ? trustedExecutor : withMode(selection(value.executorSelection), trustedExecutor.approvalMode)
       const confirmed = entityTypes.includes(value.subject.type as EntityType) ? current.types[value.subject.type!] : undefined
-      const effective: {connectionId: string, model?: string, thoughtLevel?: string, approvalMode?: NonNullable<Selection["approvalMode"]>} = {connectionId: "codex"}
+      const effective: {connectionId: string, model?: string, thoughtLevel?: string, approvalMode?: NonNullable<Selection["approvalMode"]>} = {connectionId: current.connections.find(connection => connection.provider === "codex")?.id ?? current.connections[0]!.id}
       const sources: {connectionId: Execution["sources"]["connectionId"], model?: Execution["sources"]["connectionId"], thoughtLevel?: Execution["sources"]["connectionId"], approvalMode?: Execution["sources"]["connectionId"]} = {connectionId: "general"}
-      for (const [source, layer] of [["general", current.general], ["type", confirmed], ["executor", executorSelection], ["session", selected]] as const) {
-        for (const key of fields) if (layer?.[key] !== undefined) {
+      const provider = (id: string) => {
+        const connection = current.connections.find(connection => connection.id === id)
+        if (!connection) throw new Error("Подключение native сессии недоступно в этой среде")
+        return connection.provider
+      }
+      const changeConnection = (id: string, source: Execution["sources"]["connectionId"]) => {
+        provider(id)
+        if (effective.connectionId !== id) {
+          delete effective.model
+          delete effective.thoughtLevel
+          delete sources.model
+          delete sources.thoughtLevel
+        }
+        effective.connectionId = id
+        sources.connectionId = source
+      }
+      // Native identity закрепляется до проверки defaults и модели.
+      let inheritedConnection = effective.connectionId
+      if (value.pinnedConnectionId !== undefined) changeConnection(value.pinnedConnectionId, "native")
+      const layers = [["general", current.general], ["type", confirmed], ["executor", executorSelection], ["session", selected]] as const
+      for (const [source, layer] of layers) {
+        if (layer === undefined) continue
+        const nativeDefaults = value.pinnedConnectionId !== undefined && (source === "general" || source === "type")
+        if (nativeDefaults) inheritedConnection = layer.connectionId ?? inheritedConnection
+        else validateSelectionConnection(layer, current.connections)
+        const compatibleDefaults = !nativeDefaults || current.connections.find(connection => connection.id === inheritedConnection)?.provider === provider(effective.connectionId)
+        if (!nativeDefaults && layer.connectionId !== undefined) {
+          if ((source === "executor" || source === "session") && value.pinnedConnectionId !== undefined && layer.connectionId !== value.pinnedConnectionId) throw new Error("Подключение существующей native сессии отличается: несовместимое восстановление запрещено")
+          changeConnection(layer.connectionId, source)
+        }
+        if (compatibleDefaults && layer.model !== undefined && layer.model !== effective.model && layer.thoughtLevel === undefined) {
+          delete effective.thoughtLevel
+          delete sources.thoughtLevel
+        }
+        for (const key of fields) if (key !== "connectionId" && layer[key] !== undefined && (compatibleDefaults || key === "approvalMode")) {
           Object.assign(effective, {[key]: layer[key]!})
           sources[key] = source
         }
       }
-      if (value.pinnedConnectionId !== undefined && executorSelection.connectionId === undefined && selected.connectionId === undefined) {
-        effective.connectionId = value.pinnedConnectionId
-        sources.connectionId = "native"
-      }
       if (!current.connections.some(connection => connection.id === effective.connectionId)) throw new Error("Подключение native сессии недоступно в этой среде")
       return {selection: selected, executorSelection, effective, sources, connections: current.connections,
+        ...(value.pinnedConnectionId === undefined ? {} : {pinnedConnectionId: value.pinnedConnectionId}),
         approvalPolicyRevision: policy.revision,
         approvalCapabilities: {modes: authority.enabled ? ["ask", "scoped-autonomous"] : ["ask"], autoReview: false, scope: "assignment"}}
     },

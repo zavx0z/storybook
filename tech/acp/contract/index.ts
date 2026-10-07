@@ -34,6 +34,10 @@ export declare namespace StorybookTechAcp {
   @property [command] - Подставленный executable вместо установленного адаптера.
   Предназначен также для изолированной проверки на отдельном fake process.
 
+  @property [adapter] - Установленный ACP entry вместо Codex адаптера по умолчанию.
+  Разрешается относительно installation; сохраняет native Codex bootstrap при exclusiveMcp.
+  Не применяется вместе с подставленным command.
+
   @property [args] - Аргументы подставленного executable без shell-интерпретации.
 
   @property [env] - Дополнительные переменные только дочернего процесса.
@@ -77,6 +81,7 @@ export declare namespace StorybookTechAcp {
     onReplay?(update: SessionUpdate): void | Promise<void>
     onPermission(request: RequestPermissionRequest, signal?: AbortSignal): Promise<RequestPermissionResponse>
     command?: string
+    adapter?: string
     args?: readonly string[]
     env?: Readonly<Record<string, string | undefined>>
     mode?: "read-only" | "workspace-write"

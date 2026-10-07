@@ -13,13 +13,13 @@ test("селект модели доступен над вводом и сним
   const element = await headless.render(<StorybookChatView
     address="/" label="Project" messages={[]} draft="" status="idle"
     settings={[{id: "model", category: "model", name: "Модель", value: "fast", options: [{value: "fast", name: "Fast"}]}]}
-    execution={{selection: {model: "fast"}, executorSelection: {}, effective: {connectionId: "codex", model: "fast"},
+    execution={{selection: {model: "fast", thoughtLevel: "high"}, executorSelection: {}, effective: {connectionId: "codex", model: "fast"},
       sources: {connectionId: "general", model: "session"}, connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}]}}
     onPrepareSettings={prepare} onExecutionChange={change}
     onDraftChange={() => {}} onSend={() => {}} onCancel={() => {}}
   />)
   await headless.capture(element)
-  expect(element.querySelectorAll("select")).toHaveLength(2)
+  expect(element.querySelectorAll("select")).toHaveLength(3)
   const model = element.querySelector('[data-chat-response-setting="model"] select') as HTMLSelectElement
   model.value = ""
   model.dispatchEvent(new Event("change", {bubbles: true}))
@@ -158,3 +158,48 @@ test.each([{width: 400, height: 700}, {width: 360, height: 300}])("меню на
     expect(element.querySelector('button[aria-label="Закрыть настройки"]')).not.toBeNull()
   } finally {await host.dispose()}
 })
+
+
+test.each([{name: "Новая беседа", pinnedConnectionId: undefined}, {name: "Native беседа", pinnedConnectionId: "codex"}])(
+  "провайдер $name выбирается только до закрепления native сессии",
+  async ({pinnedConnectionId}) => {
+    const change = mock((value: unknown) => {})
+    const element = await headless.render(<StorybookChatView
+      address="/providers"
+      label="Провайдеры"
+      messages={[]}
+      draft=""
+      status="idle"
+      settings={[{id: "model", category: "model", name: "Модель", value: "fast", options: [{value: "fast", name: "Fast"}]}]}
+      execution={{
+        selection: {connectionId: "codex", model: "fast", thoughtLevel: "high", approvalMode: "ask"},
+        executorSelection: {},
+        effective: {connectionId: "codex", model: "fast"},
+        sources: {connectionId: "session", model: "session"},
+        ...(pinnedConnectionId === undefined ? {} : {pinnedConnectionId}),
+        connections: [
+          {id: "codex", provider: "codex", label: "Codex", enabled: true},
+          {id: "ollama", provider: "ollama", label: "Ollama", enabled: true, endpoint: {url: "http://localhost:11434"}},
+        ],
+      }}
+      onExecutionChange={change}
+      onDraftChange={() => {}}
+      onSend={() => {}}
+      onCancel={() => {}}
+    />)
+    await headless.capture(element)
+    const selects = element.querySelectorAll("[data-chat-model-settings] select")
+    expect(selects).toHaveLength(3)
+    const provider = selects[0] as HTMLSelectElement
+    expect(provider.querySelectorAll('option[value="codex"]')).toHaveLength(1)
+    expect(provider.querySelectorAll('option[value="ollama"]')).toHaveLength(1)
+    expect(provider.disabled).toBe(pinnedConnectionId !== undefined)
+    provider.value = "ollama"
+    provider.dispatchEvent(new Event("change", {bubbles: true}))
+    expect(change.mock.calls).toEqual(pinnedConnectionId === undefined
+      ? [[{connectionId: "ollama", approvalMode: "ask"}]] : [])
+    const thought = element.querySelector('[data-chat-response-setting="thoughtLevel"] select') as HTMLSelectElement
+    expect(thought.disabled, "Отсутствующий thought capability не подменяется сохранённым усилием Codex").toBe(true)
+    expect(thought.textContent).not.toContain("Высокое")
+  },
+)

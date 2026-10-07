@@ -1,8 +1,11 @@
 /**
 Настройки подключений и общих параметров исполнителей доступны в HUD страницы.
-Общие значения и переопределения по подтверждённым типам сущностей сохраняет
-среда. Открытие выбора модели автоматически читает возможности адаптера,
-не отправляя модели сообщений. Закрытие освобождает данные и незавершённые запросы.
+Codex и сетевые подключения Ollama настраиваются независимо.
+Ollama принимает URL API и необязательный SSH-хост с существующими ключами.
+Общие значения
+и переопределения по подтверждённым типам сущностей сохраняет среда. Открытие выбора модели автоматически читает возможности адаптера,
+не отправляя модели сообщений. Проверка подключения использует только сохранённые настройки.
+Закрытие освобождает данные и незавершённые запросы.
 
 @packageDocumentation
 */
@@ -30,13 +33,13 @@ export default function ExecutionSettings(props: StorybookAppWebPageShellExecuti
     height: 100%;
     pointer-events: none;
   `}>
-    <Window id="storybook-execution-settings" title="Подключения и модели" open={open}
+    <Window id="storybook-execution-settings" title="Провайдеры и модели" open={open}
       onOpenChange={setOpen} geometry={geometry} onGeometryChange={(next, phase) => {if (phase !== "change") setGeometry(next)}}
       movable={true} resizable={true} minWidth={340} minHeight={280}>
       <SettingsContent open={open} fetcher={props.fetcher ?? globalThis.fetch} />
     </Window>
-    {open ? null : <Tab label="Подключения" position={tab} onPositionChange={(next, phase) => {if (phase === "end") setTab(next)}}>
-      <WindowControl windowId="storybook-execution-settings" label="Подключения и модели" open={open} onOpenChange={setOpen} />
+    {open ? null : <Tab label="Провайдеры и модели" position={tab} onPositionChange={(next, phase) => {if (phase === "end") setTab(next)}}>
+      <WindowControl windowId="storybook-execution-settings" label="Провайдеры и модели" open={open} onOpenChange={setOpen} />
     </Tab>}
   </div>
 }

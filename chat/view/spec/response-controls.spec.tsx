@@ -54,7 +54,7 @@ test.each([
   } finally {await headless.dispose()}
 })
 
-test("каждый селект сохраняет собственный параметр, оставляя права и соседний выбор", async () => {
+test("смена модели сбрасывает мышление и сохраняет режим подтверждений", async () => {
   const headless = createHeadless({width: 354, height: 600})
   const saved: unknown[] = []
   try {
@@ -71,13 +71,13 @@ test("каждый селект сохраняет собственный пар
     expect(select("thoughtLevel").value).toBe("low")
     expect(select("model").value).toBe("b")
     expect(saved).toEqual([
-      {model: "b", thoughtLevel: "high", approvalMode: "ask"},
+      {model: "b", approvalMode: "ask"},
       {model: "b", thoughtLevel: "low", approvalMode: "ask"},
     ])
     select("model").value = ""
     select("model").dispatchEvent(new Event("change", {bubbles: true}))
     await headless.capture(element)
-    expect(saved.at(-1)).toEqual({thoughtLevel: "low", approvalMode: "ask"})
+    expect(saved.at(-1)).toEqual({approvalMode: "ask"})
     expect(select("model").value).toBe("")
     expect(select("model").textContent).not.toContain("· наследовать")
     expect(select("model").getAttribute("title")).toBe("Наследовать модель: GPT-6 Astra")

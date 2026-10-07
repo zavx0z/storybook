@@ -129,6 +129,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   let draftChanged = false
   let draftEpoch = 0
   let configuring = false
+  let metadataProbe: Readonly<{identity: string, controller: AbortController}> | null = null
   let pendingConfiguration: Readonly<{sessionId: string, setting?: Readonly<{id: string, value: string}>, selection?: Selection}> | null = null
   let submitting = false
   let activeSocket: ChatSocket | null = null
@@ -233,9 +234,13 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     if (!ids.size) removedMedia.delete(id)
   }
   const signature = (text: string, values: readonly MediaDraftAttachment[]) => JSON.stringify({text, attachments: values.map(item => item.attachment.id)})
+  const metadataIdentity = (snapshot: ChatBrowserSnapshot | null): string | undefined => {
+    if (!snapshot?.execution || snapshot.execution.pinnedConnectionId !== undefined || snapshot.pending.length > 0) return
+    return JSON.stringify([snapshot.id, snapshot.execution.effective.connectionId, snapshot.execution.effective.model])
+  }
   const accept = (value: unknown, initial = false): void => {
     if (disposed) return
-    const next = readChatBrowserSnapshot(value, address)
+    let next = readChatBrowserSnapshot(value, address)
     if (options.sessionId !== undefined && next.sessionId !== options.sessionId) throw new Error("Получен снимок другой сессии")
     if (options.executorId !== undefined && next.executorId !== options.executorId) throw new Error("Получен снимок другого исполнителя")
     if (session !== null && (session.id !== next.id || session.executorId !== next.executorId)) throw new Error("Получен снимок другой сессии")
@@ -247,6 +252,12 @@ export function createChatBrowserClient(options: ChatClientOptions) {
           try { draft = storage().getItem(draftStorageKey(next.id)) ?? "" } catch {}
         }
       }
+    }
+    const identity = metadataIdentity(next)
+    if (metadataProbe && metadataProbe.identity !== identity) metadataProbe.controller.abort()
+    // Probe не создаёт native сессию; её компактный каталог сохраняется при обычном серверном снимке.
+    if (identity !== undefined && identity === metadataIdentity(session) && !next.settings?.length && session?.settings?.length) {
+      next = {...next, settings: session.settings}
     }
     const initialIdentity = session === null
     session = next
@@ -691,9 +702,39 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     },
     async prepare() {
       if (disposed || configuring) return
+      const identity = metadataIdentity(session)
+      if (identity === undefined) {
+        configuring = true
+        notify()
+        try {await perform("prepare", {})} finally {configuring = false; notify()}
+        return
+      }
+      const execution = session!.execution!
+      const probe = {identity, controller: new AbortController()}
+      metadataProbe = probe
       configuring = true
+      actionError = undefined
       notify()
-      try { await perform("prepare", {}) } finally { configuring = false; notify() }
+      try {
+        const settings = await post("execution-options", {
+          connectionId: execution.effective.connectionId,
+          ...(execution.effective.model === undefined ? {} : {model: execution.effective.model}),
+        }, undefined, probe.controller.signal)
+        probe.controller.signal.throwIfAborted()
+        if (!disposed && metadataIdentity(session) === identity) {
+          session = readChatBrowserSnapshot({...session!, settings}, address)
+        }
+      } catch (error) {
+        if (!disposed && !probe.controller.signal.aborted && metadataIdentity(session) === identity) {
+          actionError = error instanceof Error ? error.message : String(error)
+        }
+      } finally {
+        if (metadataProbe === probe) {
+          metadataProbe = null
+          configuring = false
+          notify()
+        }
+      }
     },
     async configure(id: string, value: string) {
       if (disposed || configuring || view.status === "running" || view.status === "connecting") return
@@ -709,7 +750,10 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       notify()
       try {await perform("execution-configure", {configuration: {scope: "session", selection}})} finally {pendingConfiguration = null; configuring = false; notify()}
     },
-    cancel: () => perform("cancel", {}),
+    cancel: () => {
+      metadataProbe?.controller.abort()
+      return perform("cancel", {})
+    },
     stop: () => perform("stop", {}),
     async permission(id: string, optionId: string) {
       const requestHash = session?.permissions.find(item => item.id === id)?.requestHash
@@ -729,6 +773,9 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       connectionEpoch++
       connectionAbort?.abort()
       lifetime.abort()
+      metadataProbe?.controller.abort()
+      metadataProbe = null
+      configuring = false
       finishRetry?.()
       activeSocket?.close()
       listeners.clear()

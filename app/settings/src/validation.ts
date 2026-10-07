@@ -18,17 +18,45 @@ export function object(input: unknown, allowed: readonly string[]): Record<strin
 export function selection(input: unknown): Selection {
   const value = object(input, fields)
   for (const key of fields) if (Object.hasOwn(value, key) && (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 256)) throw new TypeError(`Настройка ${key} должна быть непустой строкой`)
-  if (value.connectionId !== undefined && value.connectionId !== "codex") throw new TypeError("Подключение не поддерживается: доступен Codex")
   if (value.approvalMode !== undefined && value.approvalMode !== "ask" && value.approvalMode !== "scoped-autonomous") throw new TypeError("Режим подтверждений не поддерживается")
   return structuredClone(value) as Selection
 }
-export function document(input: unknown): Document {
+export function document(input: unknown, allowMissingConnections = false): Document {
   const value = object(input, ["schemaVersion", "revision", "connections", "general", "types"])
   if (value.schemaVersion !== 1 || !Number.isSafeInteger(value.revision) || Number(value.revision) < 0) throw new TypeError("Повреждена версия настроек исполнения")
-  if (!Array.isArray(value.connections) || value.connections.length !== 1) throw new TypeError("Каталог должен содержать установленное подключение Codex")
-  const connection = object(value.connections[0], ["id", "provider", "label", "enabled"])
-  if (connection.id !== "codex" || connection.provider !== "codex" || typeof connection.label !== "string" || !connection.label.trim() || connection.label.length > 128 || typeof connection.enabled !== "boolean") throw new TypeError("Неизвестное подключение исполнения")
+  if (!Array.isArray(value.connections) || value.connections.length < 1 || value.connections.length > 128) throw new TypeError("Нужен непустой каталог подключений")
+  const connections = value.connections.map(validateConnection)
+  if (new Set(connections.map(connection => connection.id)).size !== connections.length) throw new TypeError("Identity подключений должны быть уникальными")
   const types = {...object(value.types, entityTypes)}
   for (const key of Object.keys(types)) types[key] = selection(types[key])
-  return {schemaVersion: 1, revision: Number(value.revision), connections: [connection as Execution["connections"][number]], general: selection(value.general), types}
+  const general = selection(value.general)
+  if (!allowMissingConnections) for (const layer of [general, ...Object.values(types) as Selection[]]) validateSelectionConnection(layer, connections)
+  return {schemaVersion: 1, revision: Number(value.revision), connections, general, types}
+}
+
+export function validateSelectionConnection(layer: Selection, connections: Execution["connections"]): void {
+  if (layer.connectionId !== undefined && !connections.some(connection => connection.id === layer.connectionId)) throw new TypeError("Неизвестное подключение исполнения")
+}
+
+export function validateConnection(input: unknown): Execution["connections"][number] {
+  const value = object(input, ["id", "provider", "label", "enabled", "endpoint"])
+  if (typeof value.id !== "string" || !value.id.trim() || value.id.length > 256 || typeof value.label !== "string" || !value.label.trim() || value.label.length > 128 || typeof value.enabled !== "boolean") throw new TypeError("Неизвестное подключение исполнения")
+  if (value.provider === "codex") {
+    if (value.endpoint !== undefined) throw new TypeError("Codex не принимает endpoint подключения")
+    return structuredClone(value) as Execution["connections"][number]
+  }
+  if (value.provider !== "ollama") throw new TypeError("Провайдер не поддерживается")
+  const endpoint = object(value.endpoint, ["url", "ssh"])
+  if (typeof endpoint.url !== "string" || endpoint.url.length > 2048 || endpoint.url !== endpoint.url.trim()) throw new TypeError("Нужен HTTP-адрес Ollama")
+  let url: URL
+  try {url = new URL(endpoint.url)} catch {throw new TypeError("Нужен HTTP-адрес Ollama")}
+  if (!["http:", "https:"].includes(url.protocol) || !url.hostname || url.username || url.password || url.search || url.hash || endpoint.url.includes("?") || endpoint.url.includes("#")) throw new TypeError("Адрес Ollama не должен содержать credentials, query или fragment")
+  if (endpoint.ssh !== undefined) {
+    if (url.protocol !== "http:") throw new TypeError("SSH-туннель принимает только HTTP адрес сервиса")
+    const ssh = object(endpoint.ssh, ["host", "user", "port"])
+    if (typeof ssh.host !== "string" || ssh.host.length > 253 || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(ssh.host)) throw new TypeError("Недопустимый SSH host")
+    if (ssh.user !== undefined && (typeof ssh.user !== "string" || ssh.user.length > 128 || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(ssh.user))) throw new TypeError("Недопустимый SSH user")
+    if (ssh.port !== undefined && (typeof ssh.port !== "number" || !Number.isInteger(ssh.port) || ssh.port < 1 || ssh.port > 65535)) throw new TypeError("Недопустимый SSH port")
+  }
+  return structuredClone(value) as Execution["connections"][number]
 }
