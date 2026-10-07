@@ -3,7 +3,8 @@
 SQLite содержит только восстанавливаемую адресацию и проекции. Управляющее
 состояние не удерживает записи, payload или полный индекс истории в памяти.
 Replay собственного bootstrap с точным canonical user content раскрывается как
-context; provider identity и evidence остаются на диске, а бинарные байты
+context. При повторении одинакового ввода requestId остаётся неопределённым;
+provider identity и evidence остаются на диске, а бинарные байты
 вынесены в неизменяемые объекты meta/chat/media. SQLite восстанавливает отдельную
 проекцию сообщений и служебных групп, не загружая оригиналы вложений.
 */
@@ -153,10 +154,16 @@ function database(file: string): Database {
     CREATE INDEX IF NOT EXISTS supplied_context_request ON entry(json_extract(data,'$.requestId')) WHERE kind='context' AND origin='local';
     CREATE TABLE IF NOT EXISTS replay_input (entry_id TEXT NOT NULL, bootstrap_hash TEXT NOT NULL, input_hash TEXT NOT NULL, PRIMARY KEY(entry_id,bootstrap_hash));
     CREATE INDEX IF NOT EXISTS replay_input_content ON replay_input(bootstrap_hash,input_hash);
-    CREATE TABLE IF NOT EXISTS replay_projection (entry_id TEXT PRIMARY KEY, context_id TEXT NOT NULL, request_id TEXT NOT NULL, body_bytes INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS replay_projection (entry_id TEXT PRIMARY KEY, context_id TEXT NOT NULL, request_id TEXT, body_bytes INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS replay_projection_context ON replay_projection(context_id);
     CREATE INDEX IF NOT EXISTS replay_projection_request ON replay_projection(request_id);`
   db.exec(replayIndexSchema)
+  const replayColumns = db.query("PRAGMA table_info(replay_projection)").all() as {name: string; notnull: number}[]
+  if (replayColumns.some(column => column.name === "request_id" && column.notnull === 1)) {
+    // Меняется только восстанавливаемый cache; journal и metadata остаются источником.
+    db.exec("DROP TABLE replay_projection; DELETE FROM stamp;")
+    db.exec(replayIndexSchema)
+  }
   const keys = db.query("PRAGMA table_info(supplied_input)").all() as {pk: number}[]
   if (keys.filter(column => column.pk > 0).length === 1) {
     db.exec("DROP TABLE supplied_input; DROP TABLE replay_input; DELETE FROM replay_projection; DELETE FROM stamp;")
@@ -416,12 +423,13 @@ export class Archive {
     const fingerprints = db.query("SELECT bootstrap_hash,input_hash FROM replay_input WHERE entry_id=? LIMIT 2").all(id) as {bootstrap_hash: string; input_hash: string}[]
     if (!fingerprints.length) return
     const previous = db.query("SELECT context_id FROM replay_projection WHERE entry_id=?").get(id) as {context_id: string} | null
-    const matches: {context_id: string; request_id: string}[] = []
+    const matches: {context_id: string; request_id: string | null}[] = []
     let ambiguous = false
     for (const fingerprint of fingerprints) {
       const candidates = db.query("SELECT context_id,request_id FROM supplied_input WHERE bootstrap_hash=? AND input_hash=? LIMIT 2")
         .all(fingerprint.bootstrap_hash, fingerprint.input_hash) as {context_id: string; request_id: string}[]
-      if (candidates.length > 1) { ambiguous = true; continue }
+      const exactBootstrap = fingerprint.bootstrap_hash !== CODEX_TEXT_ECHO && fingerprint.bootstrap_hash !== CODEX_IMAGE_ECHO
+      if (candidates.length > 1 && !exactBootstrap) { ambiguous = true; continue }
       const candidate = candidates[0]
       if (candidate === undefined) continue
       const replay = this.blocks(db, id)
@@ -432,7 +440,10 @@ export class Archive {
         : fingerprint.bootstrap_hash === CODEX_IMAGE_ECHO
         ? replay.every(block => block.type === "text") && replay.map(block => block.type === "text" ? echoText(block.text) : "").join("") === codexImageEcho(content)
         : contentEncoding(replay) === contentEncoding(content)
-      if (confirmed) matches.push(candidate)
+      // Наличие точного собственного envelope доказано независимо от identity попытки.
+      // Повтор одинакового вопроса не превращает bootstrap в пользовательский Markdown.
+      // Ссылка context_id выбирает идентичные bytes; requestId при этом не приписывается.
+      if (confirmed) matches.push({...candidate, request_id: candidates.length > 1 ? null : candidate.request_id})
     }
     const match = !ambiguous && matches.length === 1 ? matches[0] : undefined
     if (match === undefined) {
@@ -477,8 +488,8 @@ export class Archive {
     }
     this.materializeReplay(db, id, revision)
   }
-  private replayContext(row: Row): {context_id: string; request_id: string; body_bytes: number} | null {
-    return this.db().query("SELECT context_id,request_id,body_bytes FROM replay_projection WHERE entry_id=?").get(row.id) as {context_id: string; request_id: string; body_bytes: number} | null
+  private replayContext(row: Row): {context_id: string; request_id: string | null; body_bytes: number} | null {
+    return this.db().query("SELECT context_id,request_id,body_bytes FROM replay_projection WHERE entry_id=?").get(row.id) as {context_id: string; request_id: string | null; body_bytes: number} | null
   }
   private projectedHeader(row: Row): HistoryEntry {
     const context = this.replayContext(row)
@@ -896,7 +907,8 @@ export class Archive {
     const context = this.replayContext(row)
     if (context !== null) {
       const entry: Item = {id: row.id, sequence: row.sequence, origin: row.origin,
-        ...(data.batchId === undefined ? {} : {batchId: data.batchId}), kind: "context", requestId: context.request_id, content: this.content(context.context_id)}
+        ...(data.batchId === undefined ? {} : {batchId: data.batchId}), kind: "context",
+        ...(context.request_id === null ? {} : {requestId: context.request_id}), content: this.content(context.context_id)}
       return {chatId: this.header.metadata.id, revision: row.revision, id,
         bytes: context.body_bytes, entry, evidenceCount: row.evidence_count}
     }

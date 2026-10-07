@@ -54,6 +54,8 @@ export type HistoryPage = Readonly<{
 Replay собственного bootstrap с единственным точным соответствием supplied context
 и canonical user content раскрывается как context того же requestId. Вопрос остаётся
 в локальном сообщении; исходные replay blocks доступны через evidence.
+При нескольких идентичных supplied inputs bootstrap остаётся context без requestId:
+совпадение содержимого не устанавливает identity конкретной попытки.
 Текстовое image echo Codex сопоставляется только с точным начатым локальным input,
 содержащим image. Проекция context возвращает его исходные typed blocks, а не data URL как текст.
 */

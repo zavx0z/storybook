@@ -193,7 +193,7 @@ test.each([
   }
 })
 
-test("неоднозначный собственный bootstrap replay не угадывает requestId одинаковых вопросов", async () => {
+test("неоднозначный собственный bootstrap replay сворачивает точный контекст без угадывания requestId", async () => {
   const f = await fixture()
   const archive = await f.open()
   const bootstrap = {type: "text" as const, text: JSON.stringify({environment: {executorId: f.metadata.executorId,
@@ -204,10 +204,23 @@ test("неоднозначный собственный bootstrap replay не у
   for (const content of [bootstrap, {type: "text" as const, text: "Вопрос"}]) {
     await archive.receive({sessionUpdate: "user_message_chunk", messageId: "native-user", content}, "replay", cursor)
   }
-  expect(archive.body(archive.findProvider("user", "native-user")!.id).entry).toMatchObject({kind: "message", role: "user"})
+  const id = archive.findProvider("user", "native-user")!.id
+  const entry = archive.body(id).entry
+  expect(entry).toMatchObject({kind: "context", content: [bootstrap]})
+  expect(entry).not.toHaveProperty("requestId")
+  expect(archive.content(id)).toEqual([bootstrap, {type: "text", text: "Вопрос"}])
+  expect(archive.evidence(id).items).toHaveLength(2)
+  for (const requestId of ["one", "two"]) expect(archive.body(`user:${requestId}`).entry).toMatchObject({kind: "message", role: "user"})
+  const source = await readFile(f.file, "utf8")
+  await archive.dispose()
+  await rm(archive.cacheFile)
+  const restored = await f.open()
+  expect(restored.body(id).entry).toMatchObject({kind: "context", content: [bootstrap]})
+  expect(restored.body(id).entry).not.toHaveProperty("requestId")
+  expect(await readFile(f.file, "utf8")).toBe(source)
 })
 
-test("собственный bootstrap replay получает projection при позднем canonical input и снимает её при неоднозначности", async () => {
+test("собственный bootstrap replay получает projection при позднем input и снимает только requestId при неоднозначности", async () => {
   const f = await fixture()
   const archive = await f.open()
   const bootstrap = {type: "text" as const, text: JSON.stringify({environment: {executorId: f.metadata.executorId,
@@ -226,8 +239,40 @@ test("собственный bootstrap replay получает projection при
   expect(archive.body(id).entry).toMatchObject({kind: "context", requestId: "one"})
   const revision = archive.body(id).revision
   await archive.commit(undefined, input("two"))
-  expect(archive.body(id).entry).toMatchObject({kind: "message", role: "user"})
+  expect(archive.body(id).entry).toMatchObject({kind: "context", content: [bootstrap]})
+  expect(archive.body(id).entry).not.toHaveProperty("requestId")
   expect(archive.body(id).revision).toBeGreaterThan(revision)
+})
+
+test("прежний cache с обязательным requestId пересобирается без изменения journal", async () => {
+  const f = await fixture()
+  const archive = await f.open()
+  const bootstrap = {type: "text" as const, text: JSON.stringify({environment: {
+    executorId: f.metadata.executorId, subject: {address: f.metadata.address},
+  }})}
+  for (const requestId of ["one", "two", "three"]) await archive.commit(undefined, [
+    message(`user:${requestId}`, "Вопрос"),
+    {type: "append", item: {id: `context:${requestId}`, kind: "context", origin: "local", requestId, content: [bootstrap]}},
+  ])
+  const cursor = {}
+  for (const content of [bootstrap, {type: "text" as const, text: "Вопрос"}]) {
+    await archive.receive({sessionUpdate: "user_message_chunk", messageId: "native-user", content}, "replay", cursor)
+  }
+  const id = archive.findProvider("user", "native-user")!.id
+  const header = await readFile(f.file, "utf8")
+  const journal = join(f.root, "meta/chat", JSON.parse(header).journal)
+  const source = await readFile(journal, "utf8")
+  await archive.dispose()
+  const db = new Database(archive.cacheFile)
+  db.exec(`DROP TABLE replay_projection;
+    CREATE TABLE replay_projection (entry_id TEXT PRIMARY KEY, context_id TEXT NOT NULL, request_id TEXT NOT NULL, body_bytes INTEGER NOT NULL);`)
+  db.close()
+  const restored = await f.open()
+  expect(restored.body(id).entry).toMatchObject({kind: "context", content: [bootstrap]})
+  expect(restored.body(id).entry).not.toHaveProperty("requestId")
+  expect(restored.content(id)).toEqual([bootstrap, {type: "text", text: "Вопрос"}])
+  expect(await readFile(f.file, "utf8")).toBe(header)
+  expect(await readFile(journal, "utf8")).toBe(source)
 })
 
 test.each([
