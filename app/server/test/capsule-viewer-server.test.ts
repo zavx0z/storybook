@@ -8,8 +8,8 @@ import {createProjectFixture} from "./project.fixture"
 import {seedPublishedSharedAssets} from "./shared-assets.fixture"
 
 test("HTTP viewer требует registry grant, Origin и сохранённый id; WS ticket одноразовый, signaling не попадает в event bus", async () => {
-  const root = mkdtempSync(join(tmpdir(), "storybook-capsule-viewer-"))
-  const stateRoot = mkdtempSync(join(tmpdir(), "storybook-capsule-viewer-state-"))
+  const root = mkdtempSync(join(tmpdir(), "storybook-browser-viewer-"))
+  const stateRoot = mkdtempSync(join(tmpdir(), "storybook-browser-viewer-state-"))
   const artifactRoot = join(stateRoot, "artifacts")
   seedPublishedSharedAssets(artifactRoot)
   let upstreamClosed = 0
@@ -40,11 +40,11 @@ test("HTTP viewer требует registry grant, Origin и сохранённы�
       general: {connectionId: "qwen"}}})
     expect(await savedResponse.text()).not.toContain("error")
     expect(savedResponse.ok).toBeTrue()
-    expect((await command("capsule-viewer-open", {connectionId: "qwen"}, {...headers, "x-storybook-session": ""})).status).toBe(401)
-    expect((await command("capsule-viewer-open", {connectionId: "qwen"}, {...headers, Origin: "http://elsewhere"})).status).toBe(403)
-    expect((await command("capsule-viewer-open", {connectionId: "qwen", url: "http://untrusted"})).ok).toBeFalse()
+    expect((await command("browser-viewer-open", {connectionId: "qwen"}, {...headers, "x-storybook-session": ""})).status).toBe(401)
+    expect((await command("browser-viewer-open", {connectionId: "qwen"}, {...headers, Origin: "http://elsewhere"})).status).toBe(403)
+    expect((await command("browser-viewer-open", {connectionId: "qwen", url: "http://untrusted"})).ok).toBeFalse()
     expect(observed).toHaveLength(0)
-    const descriptor = await (await command("capsule-viewer-open", {connectionId: "qwen"})).json()
+    const descriptor = await (await command("browser-viewer-open", {connectionId: "qwen"})).json()
     expect(descriptor).toMatchObject({instanceId: "already-running", profile: "work"})
     const endpoint = new URL(descriptor.socketPath, server.origin)
     endpoint.protocol = "ws:"
@@ -67,7 +67,7 @@ test("HTTP viewer требует registry grant, Origin и сохранённы�
     socket.close()
     await waitFor(() => upstreamClosed === 1)
     running = false
-    expect((await command("capsule-viewer-open", {connectionId: "qwen"})).ok).toBeFalse()
+    expect((await command("browser-viewer-open", {connectionId: "qwen"})).ok).toBeFalse()
     expect(observed.every(value => value.startsWith("/api/studio/lifecycle/state") || value.startsWith("/rtc/signaling?"))).toBeTrue()
   } finally {
     for (const socket of sockets) socket.close()

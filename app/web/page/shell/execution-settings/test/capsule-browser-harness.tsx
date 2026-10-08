@@ -1,13 +1,14 @@
 import {useState} from "@zavx0z/immersive-component"
-import {CapsuleBrowser} from "../src/capsule-browser"
+import {BrowserPreview} from "../src/browser-preview"
 import type {createSettingsClient} from "../src/client"
-import type {createCapsuleBrowserSession} from "../src/capsule-browser-session"
+import type {createBrowserPreviewSession} from "../src/browser-preview-session"
 
-export function Harness(props: Readonly<{client: ReturnType<typeof createSettingsClient>, sessionFactory: typeof createCapsuleBrowserSession}>) {
+export function Harness(props: Readonly<{provider?: "capsule" | "chrome-studio", client: ReturnType<typeof createSettingsClient>, sessionFactory: typeof createBrowserPreviewSession}>) {
   const [available, setAvailable] = useState(true)
   return <section>
     <button onClick={() => setAvailable(false)}>Изменить подключение</button>
-    <CapsuleBrowser
+    <BrowserPreview
+      provider={props.provider ?? "capsule"}
       connectionId="qwen"
       available={available}
       client={props.client}

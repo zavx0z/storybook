@@ -3,12 +3,12 @@ import Panel from "@zavx0z/immersive-ui-component-surface-panel"
 import Button from "@zavx0z/immersive-ui-component-button-basic"
 import Notification from "@zavx0z/immersive-ui-component-feedback-notification"
 import {createSettingsClient} from "./client"
-import {createCapsuleBrowserSession, idleCapsuleBrowser} from "./capsule-browser-session"
+import {createBrowserPreviewSession, idleBrowserPreview} from "./browser-preview-session"
 
-type Props = Readonly<{connectionId: string, available: boolean, client: ReturnType<typeof createSettingsClient>, sessionFactory?: typeof createCapsuleBrowserSession | undefined}>
+type Props = Readonly<{provider: "capsule" | "chrome-studio", connectionId: string, available: boolean, client: ReturnType<typeof createSettingsClient>, sessionFactory?: typeof createBrowserPreviewSession | undefined}>
 
 /** Свёрнутый раздел не подключается; изменённое или отключённое подключение освобождает viewer. */
-export function CapsuleBrowser(props: Props) {
+export function BrowserPreview(props: Props) {
   const [open, setOpen] = useState(false)
   const [attempt, setAttempt] = useState(0)
   return <Panel
@@ -23,8 +23,9 @@ export function CapsuleBrowser(props: Props) {
       --panel-radius: 0px;
     `}
   >
-    {open && props.available ? <CapsuleBrowserView
+    {open && props.available ? <BrowserPreviewView
       key={attempt}
+      provider={props.provider}
       connectionId={props.connectionId}
       client={props.client}
       sessionFactory={props.sessionFactory}
@@ -42,14 +43,15 @@ function UnavailableBrowser() {
   `}>Сохраните и включите подключение, чтобы открыть браузер.</p>
 }
 
-function CapsuleBrowserView(props: Omit<Props, "available"> & Readonly<{onReconnect(): void}>) {
+function BrowserPreviewView(props: Omit<Props, "available"> & Readonly<{onReconnect(): void}>) {
   const surface = useRef<HTMLElement | null>(null)
   const video = useRef<HTMLVideoElement | null>(null)
   const keyboard = useRef<HTMLTextAreaElement | null>(null)
-  const session = useRef<ReturnType<typeof createCapsuleBrowserSession> | null>(null)
+  const session = useRef<ReturnType<typeof createBrowserPreviewSession> | null>(null)
   const pointers = useRef(new Set<number>())
-  const [control, setControl] = useState(true)
-  const [state, setState] = useState(idleCapsuleBrowser)
+  const providerName = props.provider === "capsule" ? "Capsule" : "Chrome Studio"
+  const [control, setControl] = useState(props.provider === "capsule")
+  const [state, setState] = useState(idleBrowserPreview)
   const [dismissedNotification, setDismissedNotification] = useState<string | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [fullscreenError, setFullscreenError] = useState("")
@@ -87,8 +89,8 @@ function CapsuleBrowserView(props: Omit<Props, "available"> & Readonly<{onReconn
     const element = video.current
     if (!element) return
     let alive = true
-    const value = (props.sessionFactory ?? createCapsuleBrowserSession)({origin: globalThis.location?.origin ?? "http://localhost", video: element,
-      open: signal => props.client.openCapsuleViewer(props.connectionId, signal),
+    const value = (props.sessionFactory ?? createBrowserPreviewSession)({origin: globalThis.location?.origin ?? "http://localhost", video: element,
+      open: signal => props.client.openBrowserViewer(props.connectionId, signal),
       onState: value => {if (alive) setState(value)},
       onBoundary: release,
     })
@@ -122,8 +124,8 @@ function CapsuleBrowserView(props: Omit<Props, "available"> & Readonly<{onReconn
   const notification = fullscreenError || state.error || status
   return <section
     ref={element => {surface.current = element}}
-    data-capsule-browser=""
-    aria-label="Браузер Capsule"
+    data-browser-preview=""
+    aria-label={`Браузер ${providerName}`}
     style={css`
       display: flex;
       flex-direction: column;
@@ -134,31 +136,31 @@ function CapsuleBrowserView(props: Omit<Props, "available"> & Readonly<{onReconn
         background: #202020;
       }
 
-      &:fullscreen [data-capsule-video-surface] {
+      &:fullscreen [data-browser-video-surface] {
         flex-grow: 1;
         min-height: 0;
       }
 
-      &:fullscreen [data-capsule-video] {
+      &:fullscreen [data-browser-video] {
         height: 100%;
         aspect-ratio: auto;
       }
     `}
   >
     <div
-      data-capsule-video-surface=""
+      data-browser-video-surface=""
       style={css`
         position: relative;
         width: 100%;
       `}
     >
       <video
-        data-capsule-video=""
+        data-browser-video=""
         ref={element => {video.current = element}}
         autoplay={true}
         muted={true}
         playsInline={true}
-        aria-label="Видео профиля Capsule"
+        aria-label={`Видео профиля ${providerName}`}
         tabIndex={0}
         onFocus={() => {
           if (control && state.controlStatus === "open") keyboard.current?.focus({preventScroll: true})
@@ -192,7 +194,7 @@ function CapsuleBrowserView(props: Omit<Props, "available"> & Readonly<{onReconn
 
       `}>
         {dismissedNotification !== notification ? <Notification
-          heading={fullscreenError ? "Полноэкранный режим" : state.error ? "Ошибка подключения" : "Браузер Capsule"}
+          heading={fullscreenError ? "Полноэкранный режим" : state.error ? "Ошибка подключения" : `Браузер ${providerName}`}
           message={notification}
           tone={fullscreenError || state.error ? "error" : state.status === "connected" ? "success" : "info"}
           dismissible={true}
@@ -246,7 +248,7 @@ function CapsuleBrowserView(props: Omit<Props, "available"> & Readonly<{onReconn
       padding: 8px 12px 8px 28px;
       flex-wrap: wrap;
     `}>
-      <Button
+      {props.provider === "capsule" ? <Button
         label="Управление"
         title={control ? "Выключить управление мышью и клавиатурой" : "Включить управление мышью и клавиатурой"}
         disabled={state.controlStatus !== "open"}
@@ -255,7 +257,7 @@ function CapsuleBrowserView(props: Omit<Props, "available"> & Readonly<{onReconn
         size="small"
         variant="text"
         onClick={() => setControl(value => !value)}
-      />
+      /> : null}
       <Button
         label="Переподключить"
         size="small"

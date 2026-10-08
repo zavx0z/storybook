@@ -4,9 +4,9 @@ import {createHeadless} from "@zavx0z/immersive-headless"
 import {SettingsContent} from "../src/content"
 import {Harness} from "./capsule-browser-harness"
 import {createSettingsClient} from "../src/client"
-import {createCapsuleBrowserSession} from "../src/capsule-browser-session"
+import {createBrowserPreviewSession} from "../src/browser-preview-session"
 
-test("панель lazy; retry заменяет video в том же Document; dirty/collapse освобождают media без имитации видео", async () => {
+test.each(["capsule", "chrome-studio"] as const)("%s: панель lazy; retry заменяет video в том же Document; dirty/collapse освобождают media без имитации видео", async provider => {
   const headless = createHeadless({width: 700, height: 700})
   let opens = 0
   const mediaByVideo = new Map<object, number>()
@@ -17,14 +17,14 @@ test("панель lazy; retry заменяет video в том же Document; d
     opens++
     return Response.json({error: "Тестовый профиль остановлен"}, {status: 400})
   }, {preconnect() {}}), new AbortController().signal)
-  const sessionFactory: typeof createCapsuleBrowserSession = options => createCapsuleBrowserSession({...options,
+  const sessionFactory: typeof createBrowserPreviewSession = options => createBrowserPreviewSession({...options,
     mediaFactory: video => {
       mediaByVideo.set(video, (mediaByVideo.get(video) ?? 0) + 1)
       return {async attach() {throw new Error("Headless не подменяет remote video")}, setMuted() {}, clear() {mediaCleared.push(video)}}
     },
   })
   try {
-    const element = await headless.render(<Harness client={client} sessionFactory={sessionFactory} />)
+    const element = await headless.render(<Harness provider={provider} client={client} sessionFactory={sessionFactory} />)
     releaseFullscreen = bindDocumentFullscreenHost(element.ownerDocument!, {enabled: () => true, async request() {}, async exit() {}})
     const button = (label: string) => [...element.querySelectorAll("button")].find(value => value.textContent === label) as HTMLButtonElement
     expect(element.querySelector("video")).toBeNull()
@@ -35,9 +35,10 @@ test("панель lazy; retry заменяет video в том же Document; d
     await headless.capture(element)
     const first = element.querySelector("video")!
     expect(first).not.toBeNull()
+    expect([...element.querySelectorAll("button")].some(item => item.textContent === "Управление")).toBe(provider === "capsule")
     expect(opens).toBe(1)
     expect(element.textContent).toContain("Тестовый профиль остановлен")
-    const surface = element.querySelector('[data-capsule-video-surface]')!
+    const surface = element.querySelector('[data-browser-video-surface]')!
     const notification = surface.querySelector('aside[role="alert"]')!
     expect(notification.textContent).toContain("Тестовый профиль остановлен")
     const videoBounds = first.getBoundingClientRect()
@@ -53,12 +54,12 @@ test("панель lazy; retry заменяет video в том же Document; d
     const clearedBeforeFullscreen = mediaCleared.length
     button("На весь экран").click()
     await Bun.sleep(0)
-    const fullscreenSurface = element.querySelector('[data-capsule-browser]')!
+    const fullscreenSurface = element.querySelector('[data-browser-preview]')!
     await headless.capture(fullscreenSurface)
     if (process.env.STORYBOOK_CAPSULE_FULLSCREEN_CAPTURE) {
       await Bun.write(process.env.STORYBOOK_CAPSULE_FULLSCREEN_CAPTURE, await headless.screenshot(fullscreenSurface))
     }
-    expect(element.ownerDocument!.fullscreenElement).toBe(element.querySelector('[data-capsule-browser]'))
+    expect(element.ownerDocument!.fullscreenElement).toBe(element.querySelector('[data-browser-preview]'))
     expect(element.querySelector("video")).toBe(first)
     expect(opens).toBe(1)
     expect(mediaCleared).toHaveLength(clearedBeforeFullscreen)
@@ -78,7 +79,7 @@ test("панель lazy; retry заменяет video в том же Document; d
     expect(mediaByVideo.size).toBe(2)
     expect([...mediaByVideo.values()]).toEqual([1, 1])
     expect(mediaCleared).toContain(first)
-    expect(element.querySelector('[data-capsule-video-surface] aside[role="alert"]')).not.toBeNull()
+    expect(element.querySelector('[data-browser-video-surface] aside[role="alert"]')).not.toBeNull()
     button("Изменить подключение").click()
     await headless.capture(element)
     expect(element.querySelector("video")).toBeNull()
@@ -99,7 +100,7 @@ test("браузер расположен в saved Capsule ConnectionFields пе
     const url = String(input)
     if (url.endsWith("registry-session")) return Response.json({readerToken: "fixture"})
     if (url.endsWith("execution-options")) return Response.json([])
-    if (url.endsWith("capsule-viewer-open")) {opens++; return Response.json({error: "Тестовый профиль остановлен"}, {status: 400})}
+    if (url.endsWith("browser-viewer-open")) {opens++; return Response.json({error: "Тестовый профиль остановлен"}, {status: 400})}
     return Response.json(settings)
   }, {preconnect() {}})
   try {

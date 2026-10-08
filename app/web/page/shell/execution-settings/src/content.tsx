@@ -8,7 +8,7 @@ import SelectField from "@zavx0z/immersive-ui-component-field-select"
 import Preferences from "@zavx0z/storybook-chat-preferences"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import {createSettingsClient} from "./client"
-import {CapsuleBrowser} from "./capsule-browser"
+import {BrowserPreview} from "./browser-preview"
 
 type SettingsDocument = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>
 type Connection = SettingsDocument["connections"][number]
@@ -332,7 +332,8 @@ function ConnectionFields(props: Readonly<{
       padding: 0;
     `}
   >
-    {connection.provider === "capsule" ? <CapsuleBrowser
+    {(connection.provider === "capsule" || connection.provider === "chrome-studio") ? <BrowserPreview
+      provider={connection.provider}
       connectionId={connection.id}
       available={!props.dirty && connection.enabled}
       client={props.client}

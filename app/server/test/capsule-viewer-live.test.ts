@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import createSettings from "@zavx0z/storybook-app-settings"
-import {createCapsuleViewerAccess} from "../src/capsule-viewer"
+import {createBrowserViewerAccess} from "../src/browser-viewer"
 
 /** Явный opt-in: читает готовый saved profile и signaling hello, никогда не отправляет offer или input. */
 test.if(process.env.STORYBOOK_CAPSULE_VIEWER_SMOKE === "1")("saved qwen-cdp: owned SSH tunnel, exact active instance и signaling hello без изменения Chrome", async () => {
@@ -9,7 +9,7 @@ test.if(process.env.STORYBOOK_CAPSULE_VIEWER_SMOKE === "1")("saved qwen-cdp: own
   const saved = connections.find(value => value.provider === "capsule" && value.endpoint.profile === "qwen-cdp")
   expect(saved?.provider).toBe("capsule")
   if (!saved || saved.provider !== "capsule" || saved.ssh?.host !== "mesh-production1") throw new Error("Smoke разрешён только для сохранённого qwen-cdp на mesh-production1")
-  const access = createCapsuleViewerAccess({connections: async () => (await settings.read()).connections})
+  const access = createBrowserViewerAccess({connections: async () => (await settings.read()).connections})
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 25_000)
   let close!: () => Promise<void>

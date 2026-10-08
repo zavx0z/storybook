@@ -1,6 +1,6 @@
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 
-export type CapsuleViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string}>
+export type BrowserViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean}>
 
 type SettingsDocument = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
@@ -23,7 +23,7 @@ export function createSettingsClient(fetcher: typeof fetch, signal: AbortSignal)
     return result as T
   }
   return {
-    openCapsuleViewer: (connectionId: string, viewerSignal: AbortSignal) => post<CapsuleViewerDescriptor>("capsule-viewer-open", {connectionId}, AbortSignal.any([signal, viewerSignal])),
+    openBrowserViewer: (connectionId: string, viewerSignal: AbortSignal) => post<BrowserViewerDescriptor>("browser-viewer-open", {connectionId}, AbortSignal.any([signal, viewerSignal])),
     read: () => post<SettingsDocument>("execution-settings", {}),
     async save(settings: SettingsDocument) {
       const saved = await post<SettingsDocument>("execution-settings-save", {settings})

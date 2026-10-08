@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import {createCapsuleBrowserSession} from "../src/capsule-browser-session"
+import {createBrowserPreviewSession} from "../src/browser-preview-session"
 import type {CapsuleRtcViewerOptions} from "@capsule/webrtc/viewer"
 import {parseInputCommand, type InputCommand} from "@capsule/input/protocol"
 
@@ -18,7 +18,7 @@ class Video extends EventTarget {
   pause() {this.paused = true}
   getBoundingClientRect() {return {left: 0, top: 0, width: 200, height: 200, x: 0, y: 0, right: 200, bottom: 200, toJSON() {return {}}}}
 }
-function fixture(open = async (_signal: AbortSignal) => ({instanceId: "instance-1", profile: "work", socketPath: "/api/browser/capsule-viewer?ticket=private"})) {
+function fixture(open = async (_signal: AbortSignal) => ({instanceId: "instance-1", profile: "work", socketPath: "/api/browser/browser-viewer?ticket=private", controlEnabled: true})) {
   const video = new Video()
   let callbacks!: CapsuleRtcViewerOptions
   let started = 0
@@ -26,7 +26,7 @@ function fixture(open = async (_signal: AbortSignal) => ({instanceId: "instance-
   let created = 0
   const states: object[] = []
   const commands: InputCommand[] = []
-  const session = createCapsuleBrowserSession({video, origin: "http://storybook", open, onState: state => states.push(state),
+  const session = createBrowserPreviewSession({video, origin: "http://storybook", open, onState: state => states.push(state),
     viewerFactory: options => {callbacks = options; created++; return {
       connect() {started++}, close() {closed++}, sendControl(value) {commands.push(value as InputCommand); return true},
     }},
@@ -38,14 +38,14 @@ const pointer = (x = 100, y = 100) => ({clientX: x, clientY: y, button: 0, butto
 const key = (value: string) => ({key: value, code: `Key${value.toUpperCase()}`, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, repeat: false})
 
 test("viewer lazy, late descriptor после закрытия не создаёт viewer; отмена передаётся HTTP", async () => {
-  const pending = Promise.withResolvers<{instanceId: string, profile: string, socketPath: string}>()
+  const pending = Promise.withResolvers<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean}>()
   let requestSignal!: AbortSignal
   const f = fixture(async signal => {requestSignal = signal; return pending.promise})
   expect(f.counts().created).toBe(0)
   const opening = f.session.start()
   f.session.close()
   expect(requestSignal.aborted).toBeTrue()
-  pending.resolve({instanceId: "late", profile: "work", socketPath: "/api/browser/capsule-viewer?ticket=private"})
+  pending.resolve({instanceId: "late", profile: "work", socketPath: "/api/browser/browser-viewer?ticket=private", controlEnabled: true})
   await opening
   expect(f.counts()).toEqual({started: 0, closed: 0, created: 0})
   expect(f.video.srcObject).toBeNull()
@@ -165,8 +165,8 @@ test("native window blur/pagehide/visibility освобождают клавиш
   let callbacks!: CapsuleRtcViewerOptions
   const commands: InputCommand[] = []
   let boundaries = 0
-  const session = createCapsuleBrowserSession({origin: "http://storybook", video: new Video(), lifecycle: host, onBoundary() {boundaries++}, onState() {},
-    open: async () => ({instanceId: "instance-1", profile: "work", socketPath: "/api/browser/capsule-viewer?ticket=private"}),
+  const session = createBrowserPreviewSession({origin: "http://storybook", video: new Video(), lifecycle: host, onBoundary() {boundaries++}, onState() {},
+    open: async () => ({instanceId: "instance-1", profile: "work", socketPath: "/api/browser/browser-viewer?ticket=private", controlEnabled: true}),
     viewerFactory: options => {callbacks = options; return {connect() {}, close() {}, sendControl(value) {commands.push(value as InputCommand); return true}}},
   })
   await session.start()
@@ -183,4 +183,15 @@ test("native window blur/pagehide/visibility освобождают клавиш
   document.dispatchEvent(new Event("visibilitychange"))
   expect(boundaries).toBe(3)
   expect(commands).toHaveLength(count)
+})
+
+
+test("Chrome Studio video keeps the control DataChannel disabled", async () => {
+  const f = fixture(async () => ({instanceId: "studio-instance", profile: "work", socketPath: "/api/browser/browser-viewer?ticket=private", controlEnabled: false}))
+  await f.session.start()
+  expect(f.callbacks().controlEnabled).toBe(false)
+  f.callbacks().onState?.({status: "connected", controlStatus: "disabled", instanceId: "studio-instance", viewerPeerId: "viewer", signalingUrl: "unused"})
+  expect(f.session.pointer("pointerDown", pointer())).toBe(false)
+  expect(f.session.key("keyDown", key("a"))).toBe(false)
+  f.session.close()
 })

@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import {createCapsuleViewerAccess} from "../src/capsule-viewer"
+import {createBrowserViewerAccess} from "../src/browser-viewer"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 
 type Connection = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>["connections"][number]
@@ -15,7 +15,7 @@ function fixture() {
   const requests: string[] = []
   const upstreams: FakeSocket[] = []
   const urls: string[] = []
-  const access = createCapsuleViewerAccess({connections: async () => connections,
+  const access = createBrowserViewerAccess({connections: async () => connections,
     fetch: (async (url, init) => {
       requests.push(String(url))
       expect(init?.redirect).toBe("error")
@@ -88,7 +88,7 @@ test("ticket не разрешает изменённое подключение
     expect(f.upstreams).toHaveLength(0)
   } finally {await f.access.dispose()}
   let now = 0
-  const access = createCapsuleViewerAccess({connections: async () => [saved], now: () => now,
+  const access = createBrowserViewerAccess({connections: async () => [saved], now: () => now,
     fetch: (async () => Response.json({ok: true, sessions: [running]}))})
   try {
     const value = await access.open("qwen", signal())
@@ -151,7 +151,7 @@ test("отмена во время SSH preparation освобождает поз
   const waiting = new Promise<void>(done => {started = done})
   let disposed = 0
   let reads = 0
-  const access = createCapsuleViewerAccess({connections: async () => [{...saved, ssh: {host: "machine", providerRoot: "/provider", storageRoot: "/storage"}}],
+  const access = createBrowserViewerAccess({connections: async () => [{...saved, ssh: {host: "machine", providerRoot: "/provider", storageRoot: "/storage"}}],
     tunnel: async input => {
       expect(input).toEqual({host: "machine", destination: {host: "127.0.0.1", port: 17777}})
       started()
@@ -173,7 +173,7 @@ test("pending TTL, failed upgrade close, settings invalidation и dispose осв
     let disposed = 0
     let connections: readonly Connection[] = [{...saved, ssh: {host: "machine", user: "admin", port: 2222, providerRoot: "/provider", storageRoot: "/storage"}}]
     const requests: string[] = []
-    const access = createCapsuleViewerAccess({connections: async () => connections, ticketTtlMs: 15,
+    const access = createBrowserViewerAccess({connections: async () => connections, ticketTtlMs: 15,
       tunnel: async input => {
         expect(input).toEqual({host: "machine", user: "admin", port: 2222, destination: {host: "127.0.0.1", port: 17777}})
         return {port: 20000, async dispose() {disposed++}}
@@ -194,10 +194,10 @@ test("предел учитывает pending билеты; oversized HTTP state
     for (let i = 0; i < 4; i++) await f.access.open("qwen", signal())
     await expect(f.access.open("qwen", signal())).rejects.toThrow("число")
   } finally {await f.access.dispose()}
-  const access = createCapsuleViewerAccess({connections: async () => [saved], fetch: (async () => new Response("x".repeat(262_145)))})
+  const access = createBrowserViewerAccess({connections: async () => [saved], fetch: (async () => new Response("x".repeat(262_145)))})
   await expect(access.open("qwen", signal())).rejects.toThrow("большой")
   await access.dispose()
-  const unsafe = createCapsuleViewerAccess({connections: async () => [{...saved, endpoint: {...saved.endpoint, url: "http://remote:17777"}}]})
+  const unsafe = createBrowserViewerAccess({connections: async () => [{...saved, endpoint: {...saved.endpoint, url: "http://remote:17777"}}]})
   await expect(unsafe.open("qwen", signal())).rejects.toThrow("loopback")
   await unsafe.dispose()
 })
@@ -208,7 +208,7 @@ test("отменённые SSH preparations занимают слоты до о�
   const firstDisposal = Promise.withResolvers<void>()
   let disposalStarted = 0
   let disposed = 0
-  const access = createCapsuleViewerAccess({maximum: 2,
+  const access = createBrowserViewerAccess({maximum: 2,
     connections: async () => [{...saved, ssh: {host: "machine", providerRoot: "/provider", storageRoot: "/storage"}}],
     tunnel: async () => {
       const pending = Promise.withResolvers<Tunnel>()
@@ -249,7 +249,7 @@ test("отменённые SSH preparations занимают слоты до о�
 test("closing viewer удерживает слот до завершения owned tunnel dispose", async () => {
   const disposal = Promise.withResolvers<void>()
   let started = 0
-  const access = createCapsuleViewerAccess({maximum: 1,
+  const access = createBrowserViewerAccess({maximum: 1,
     connections: async () => [{...saved, ssh: {host: "machine", providerRoot: "/provider", storageRoot: "/storage"}}],
     tunnel: async () => {started++; return {port: 20000, async dispose() {await disposal.promise}}},
     fetch: async () => Response.json({ok: true, sessions: [running]}),
@@ -264,4 +264,36 @@ test("closing viewer удерживает слот до завершения own
   await access.open("qwen", signal())
   expect(started).toBe(2)
   await access.dispose()
+})
+
+test("Chrome Studio viewer uses the saved profile room and rejects a changed browser instance", async () => {
+  const studio = {...saved, provider: "chrome-studio" as const, ssh: {host: "second-mac", providerRoot: "/provider", storageRoot: "/data"}}
+  let generation = "first"
+  let releases = 0
+  const urls: string[] = []
+  const access = createBrowserViewerAccess({connections: async () => [studio],
+    async tunnel(input) {
+      expect(input.destination).toEqual({host: "127.0.0.1", port: 17777})
+      return {port: 34123, async dispose() {releases++}}
+    },
+    fetch: async (url, init) => {
+      expect(String(url)).toBe("http://127.0.0.1:34123/api/profiles/browser-control?name=work")
+      expect(init?.method).toBeUndefined()
+      return Response.json({ok: true, connection: {profileName: "work", webSocketDebuggerUrl: `ws://127.0.0.1:21946/devtools/browser/${generation}`}})
+    },
+    socket: url => {urls.push(url); return new FakeSocket() as unknown as WebSocket},
+  })
+  try {
+    const descriptor = await access.open(studio.id, signal())
+    expect(descriptor.controlEnabled).toBe(false)
+    const relay = await access.consume(ticket(descriptor.socketPath), "studio-viewer", signal())
+    relay.attach(client())
+    expect(urls).toEqual(["ws://127.0.0.1:34123/rtc/signaling?profile=work&role=viewer&peer=studio-viewer"])
+    await relay.close()
+    expect(releases).toBe(1)
+    const stale = await access.open(studio.id, signal())
+    generation = "second"
+    await expect(access.consume(ticket(stale.socketPath), "next-viewer", signal())).rejects.toThrow("изменился")
+    expect(releases).toBe(2)
+  } finally {await access.dispose()}
 })

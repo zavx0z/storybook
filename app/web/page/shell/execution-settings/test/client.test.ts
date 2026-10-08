@@ -62,13 +62,13 @@ test("viewer отправляет только сохранённый connection
   const client = createSettingsClient(Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
     requests.push({url: String(input), body: String(init?.body), signal: init?.signal})
     return Response.json(String(input).endsWith("registry-session") ? {readerToken: "test"}
-      : {instanceId: "active", profile: "work", socketPath: "/api/browser/capsule-viewer?ticket=private"})
+      : {instanceId: "active", profile: "work", socketPath: "/api/browser/browser-viewer?ticket=private", controlEnabled: true})
   }, {preconnect() {}}), new AbortController().signal)
   const controller = new AbortController()
-  expect(await client.openCapsuleViewer("qwen", controller.signal)).toMatchObject({instanceId: "active", profile: "work"})
-  expect(requests[1]).toMatchObject({url: "/api/browser/chat/capsule-viewer-open", body: '{"connectionId":"qwen"}'})
+  expect(await client.openBrowserViewer("qwen", controller.signal)).toMatchObject({instanceId: "active", profile: "work"})
+  expect(requests[1]).toMatchObject({url: "/api/browser/chat/browser-viewer-open", body: '{"connectionId":"qwen"}'})
   controller.abort()
   expect(requests[1]!.signal?.aborted).toBeTrue()
-  await expect(client.openCapsuleViewer("qwen", controller.signal)).rejects.toThrow()
+  await expect(client.openBrowserViewer("qwen", controller.signal)).rejects.toThrow()
   expect(requests).toHaveLength(2)
 })

@@ -1,15 +1,15 @@
-import {randomBytes} from "node:crypto"
+import {createHash, randomBytes} from "node:crypto"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import state from "@zavx0z/storybook-app-server-state"
 import type {ProviderTechSsh} from "@zavx0z/provider-tech-ssh"
 
 type Connection = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>["connections"][number]
-type CapsuleConnection = Extract<Connection, {provider: "capsule"}>
-export type CapsuleViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string}>
+type BrowserConnection = Extract<Connection, {provider: "capsule" | "chrome-studio"}>
+export type BrowserViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean}>
 type Client = Readonly<{send(value: string): unknown, close(code?: number, reason?: string): void, getBufferedAmount(): number}>
 type Socket = Pick<WebSocket, "readyState" | "bufferedAmount" | "send" | "close" | "addEventListener">
-/** Приватный relay передаёт только signaling; media и управление принадлежат Capsule. */
-export type CapsuleViewerRelay = Readonly<{attach(client: Client): void, message(value: string | Uint8Array): void, close(): Promise<void>}>
+/** Приватный relay передаёт signaling выбранного владельца; медиа остаётся прямым WebRTC. */
+export type BrowserViewerRelay = Readonly<{attach(client: Client): void, message(value: string | Uint8Array): void, close(): Promise<void>}>
 const FRAME_BYTES = 65_536
 const BUFFER_BYTES = 262_144
 const STATE_BYTES = 262_144
@@ -17,7 +17,7 @@ const object = (value: unknown): value is Record<string, unknown> => value !== n
 const token = (value: unknown, maximum: number): value is string => typeof value === "string" && value.length > 0 && value.length <= maximum && /^[A-Za-z0-9_.:-]+$/u.test(value)
 
 type Entry = {
-  connection: CapsuleConnection
+  connection: BrowserConnection
   fingerprint: string
   instanceId?: string
   origin?: string
@@ -28,14 +28,14 @@ type Entry = {
   closed: boolean
   preparing: boolean
   cleanupFinished: boolean
-  relay?: CapsuleViewerRelay
+  relay?: BrowserViewerRelay
   abort?: () => void
   controller: AbortController
   cleanup?: Promise<void>
 }
 
 /** Билеты относятся только к сохранённому подключению и существующему active instance. */
-export function createCapsuleViewerAccess(options: Readonly<{
+export function createBrowserViewerAccess(options: Readonly<{
   connections(): Promise<readonly Connection[]>
   fetch?: (input: string | URL, init?: RequestInit) => Promise<Response>
   tunnel?: (input: ProviderTechSsh.Input) => Promise<ProviderTechSsh.Output>
@@ -75,18 +75,20 @@ export function createCapsuleViewerAccess(options: Readonly<{
     }))
     return entry.cleanup
   }
-  async function connection(id: unknown): Promise<CapsuleConnection> {
-    if (typeof id !== "string" || !id || id.length > 200) throw new TypeError("Нужно сохранённое подключение Capsule")
+  async function connection(id: unknown): Promise<BrowserConnection> {
+    if (typeof id !== "string" || !id || id.length > 200) throw new TypeError("Нужно сохранённое подключение браузера")
     const matches = (await options.connections()).filter(item => item.id === id)
     const selected = matches.length === 1 ? matches[0] : undefined
-    if (!selected || selected.provider !== "capsule" || !selected.enabled) throw new Error("Подключение Capsule недоступно или отключено")
+    if (!selected || (selected.provider !== "capsule" && selected.provider !== "chrome-studio") || !selected.enabled) throw new Error("Подключение браузера недоступно или отключено")
     const url = new URL(selected.endpoint.url)
-    if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new TypeError("Для Capsule нужен сохранённый loopback origin")
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u.test(selected.endpoint.profile) || !["qwen", "deepseek"].includes(selected.endpoint.service)) throw new TypeError("Некорректный профиль Capsule")
+    if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new TypeError("Для браузера нужен сохранённый loopback origin")
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u.test(selected.endpoint.profile) || !["qwen", "deepseek"].includes(selected.endpoint.service)) throw new TypeError("Некорректный профиль браузера")
     return selected
   }
   async function active(entry: Entry, signal: AbortSignal): Promise<string> {
-    const response = await (options.fetch ?? fetch)(new URL("/api/studio/lifecycle/state", entry.origin), {signal, redirect: "error"})
+    const path = entry.connection.provider === "capsule" ? "/api/studio/lifecycle/state"
+      : `/api/profiles/browser-control?name=${encodeURIComponent(entry.connection.endpoint.profile)}`
+    const response = await (options.fetch ?? fetch)(new URL(path, entry.origin), {signal, redirect: "error"})
     if (!response.ok || !response.body) throw new Error("Не удалось прочитать состояние Capsule")
     const reader = response.body.getReader()
     const chunks: Uint8Array[] = []
@@ -108,12 +110,22 @@ export function createCapsuleViewerAccess(options: Readonly<{
     let offset = 0
     for (const chunk of chunks) {source.set(chunk, offset); offset += chunk.byteLength}
     const value: unknown = JSON.parse(new TextDecoder().decode(source))
+    if (entry.connection.provider === "chrome-studio") {
+      if (!object(value) || value.ok !== true || !object(value.connection)
+        || value.connection.profileName !== entry.connection.endpoint.profile
+        || typeof value.connection.webSocketDebuggerUrl !== "string") throw new Error("Studio не подтвердила запущенный профиль")
+      const endpoint = new URL(value.connection.webSocketDebuggerUrl)
+      if (endpoint.protocol !== "ws:" || !["127.0.0.1", "localhost", "[::1]"].includes(endpoint.hostname)
+        || endpoint.username || endpoint.password || endpoint.search || endpoint.hash
+        || !/^\/devtools\/browser\/[A-Za-z0-9-]+$/u.test(endpoint.pathname)) throw new Error("Некорректный экземпляр Chrome Studio")
+      return createHash("sha256").update(endpoint.href).digest("hex")
+    }
     if (!object(value) || value.ok !== true || !Array.isArray(value.sessions) || !value.sessions.every(object)) throw new Error("Некорректное состояние Capsule")
     const matches = value.sessions.filter(session => session.profileName === entry.connection.endpoint.profile && session.active === true)
     if (matches.length !== 1 || matches[0]!.containerState !== "running" || !token(matches[0]!.instanceId, 128)) throw new Error("Нужен единственный запущенный экземпляр выбранного профиля Capsule")
     return matches[0]!.instanceId
   }
-  async function open(id: unknown, signal: AbortSignal): Promise<CapsuleViewerDescriptor> {
+  async function open(id: unknown, signal: AbortSignal): Promise<BrowserViewerDescriptor> {
     signal.throwIfAborted()
     if (disposed) throw new Error("Viewer недоступен")
     const selected = await connection(id)
@@ -143,13 +155,13 @@ export function createCapsuleViewerAccess(options: Readonly<{
         entry.instanceId = await active(entry, AbortSignal.any([signal, entry.controller.signal, AbortSignal.timeout(20_000)]))
         signal.throwIfAborted()
         if (entry.closed || disposed) throw new Error("Подключение viewer отменено")
-        if (fingerprint(await connection(id)) !== entry.fingerprint) throw new Error("Подключение Capsule изменилось")
+        if (fingerprint(await connection(id)) !== entry.fingerprint) throw new Error("Подключение браузера изменилось")
         signal.throwIfAborted()
         if (entry.closed || disposed) throw new Error("Подключение viewer отменено")
         entry.expiresAt = now() + ttl
         entry.timer = setTimeout(cancel, ttl)
         entry.timer.unref()
-        return {instanceId: entry.instanceId, profile: selected.endpoint.profile, socketPath: `/api/browser/capsule-viewer?ticket=${ticket}`}
+        return {instanceId: entry.instanceId, profile: selected.endpoint.profile, controlEnabled: selected.provider === "capsule", socketPath: `/api/browser/browser-viewer?ticket=${ticket}`}
       } catch (error) {await close(ticket, entry); throw error}
     })()
     preparing.add(preparation)
@@ -159,7 +171,7 @@ export function createCapsuleViewerAccess(options: Readonly<{
       releaseOwned(entry)
     }
   }
-  async function consume(ticket: string, peer: string, signal: AbortSignal): Promise<CapsuleViewerRelay> {
+  async function consume(ticket: string, peer: string, signal: AbortSignal): Promise<BrowserViewerRelay> {
     if (!/^[A-Za-z0-9_-]{43}$/u.test(ticket) || !token(peer, 192)) throw new state.ExternalStorybookSecurityError("invalid-browser-session", 401, "Некорректный билет или peer viewer")
     const entry = entries.get(ticket)
     if (!entry || entry.used || !entry.instanceId || entry.closed || entry.expiresAt <= now() || disposed) {
@@ -173,14 +185,14 @@ export function createCapsuleViewerAccess(options: Readonly<{
     entry.abort = () => {previousAbort?.(); signal.removeEventListener("abort", cancel)}
     try {
       signal.throwIfAborted()
-      if (fingerprint(await connection(entry.connection.id)) !== entry.fingerprint) throw new Error("Подключение Capsule изменилось")
+      if (fingerprint(await connection(entry.connection.id)) !== entry.fingerprint) throw new Error("Подключение браузера изменилось")
       const current = await active(entry, AbortSignal.any([signal, entry.controller.signal, AbortSignal.timeout(10_000)]))
       if (current !== entry.instanceId) throw new Error("Экземпляр Capsule изменился")
       signal.throwIfAborted()
       if (entry.closed) throw new Error("Подключение viewer отменено")
       const url = new URL("/rtc/signaling", entry.origin)
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
-      url.searchParams.set("profile", entry.instanceId)
+      url.searchParams.set("profile", entry.connection.provider === "capsule" ? entry.instanceId : entry.connection.endpoint.profile)
       url.searchParams.set("role", "viewer")
       url.searchParams.set("peer", peer)
       const relay = signalingRelay(url.toString(), options.socket ?? (url => new WebSocket(url)), cancel,
@@ -205,10 +217,10 @@ export function createCapsuleViewerAccess(options: Readonly<{
 }
 
 function fingerprint(connection: Connection): string {
-  return JSON.stringify(connection.provider === "capsule" ? [connection.id, connection.enabled, connection.endpoint, connection.ssh] : [connection.id, connection.provider])
+  return JSON.stringify((connection.provider === "capsule" || connection.provider === "chrome-studio") ? [connection.id, connection.provider, connection.enabled, connection.endpoint, connection.ssh] : [connection.id, connection.provider])
 }
 
-function signalingRelay(url: string, factory: (url: string) => Socket, release: () => void, connected: () => void): CapsuleViewerRelay {
+function signalingRelay(url: string, factory: (url: string) => Socket, release: () => void, connected: () => void): BrowserViewerRelay {
   let client: Client | undefined
   let upstream: Socket | undefined
   let closed = false

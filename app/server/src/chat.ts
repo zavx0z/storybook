@@ -9,7 +9,7 @@ import createTeamTools from "./team"
 import createSettings from "@zavx0z/storybook-app-settings"
 import {createExecutionOptions} from "./execution-options"
 import {providerTransport} from "./provider-routing"
-import {createCapsuleViewerAccess} from "./capsule-viewer"
+import {createBrowserViewerAccess} from "./browser-viewer"
 import type {StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
 
 type Graph = StorybookPackageGraphRead.Input
@@ -56,7 +56,7 @@ export function createChatServer(options: Readonly<{
     ],
   })
   const settings = createSettings({project: options.project, ...(options.authorityDirectory === undefined ? {} : {authorityDirectory: options.authorityDirectory})})
-  const capsuleViewer = createCapsuleViewerAccess({connections: async () => (await settings.read()).connections})
+  const browserViewer = createBrowserViewerAccess({connections: async () => (await settings.read()).connections})
   const executionOptions = createExecutionOptions({...options, connect: options.connect ?? createAcp})
   const subscriptions = new Set<() => void>()
   const chats = createChatSessions({
@@ -131,7 +131,7 @@ export function createChatServer(options: Readonly<{
   return {
     chats,
     environment,
-    capsuleViewer,
+    browserViewer,
     subscribe,
     async request(request: Request): Promise<Response> {
       const path = new URL(request.url).pathname
@@ -147,13 +147,13 @@ export function createChatServer(options: Readonly<{
       const body = JSON.parse(text) as Record<string, unknown>
       if (body === null || typeof body !== "object" || Array.isArray(body)) return Response.json({error: "Ожидается объект запроса чата"}, {status: 400})
       if (path.endsWith("/execution-settings")) return Response.json(await settings.read(), {headers: {"cache-control": "no-store"}})
-      if (path === "/api/browser/chat/capsule-viewer-open") {
+      if (path === "/api/browser/chat/browser-viewer-open") {
         if (Object.keys(body).some(key => key !== "connectionId")) throw new TypeError("Viewer принимает только сохранённое connectionId")
-        return Response.json(await capsuleViewer.open(body.connectionId, request.signal), {headers: {"cache-control": "no-store"}})
+        return Response.json(await browserViewer.open(body.connectionId, request.signal), {headers: {"cache-control": "no-store"}})
       }
       if (path.endsWith("/execution-settings-save")) {
         const saved = await settings.update(body.settings as Parameters<typeof settings.update>[0])
-        await capsuleViewer.invalidate()
+        await browserViewer.invalidate()
         return Response.json(saved, {headers: {"cache-control": "no-store"}})
       }
       if (path.endsWith("/execution-options")) {
@@ -232,7 +232,7 @@ export function createChatServer(options: Readonly<{
     },
     async dispose() {
       for (const close of subscriptions) close()
-      await capsuleViewer.dispose()
+      await browserViewer.dispose()
       await executionOptions.dispose()
       environment.dispose()
       await chats.dispose()

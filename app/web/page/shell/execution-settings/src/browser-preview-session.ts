@@ -3,7 +3,7 @@ import {CapsuleRtcMediaController, type CapsuleRtcVideoElementLike, type Capsule
 import {remotePoint} from "@capsule/webrtc/input"
 import {mapCapturedPointerCommand, type CapsuleRemoteInputScreen} from "@capsule/webrtc/preview"
 import type {InputCommand, InputButton, InputModifier} from "@capsule/input/protocol"
-import type {CapsuleViewerDescriptor} from "./client"
+import type {BrowserViewerDescriptor} from "./client"
 
 type Video = CapsuleRtcVideoElementLike & Pick<HTMLVideoElement, "getBoundingClientRect">
 type Viewer = Pick<CapsuleRtcViewer, "connect" | "close" | "sendControl">
@@ -17,23 +17,23 @@ type Lifecycle = Readonly<{
   }>
 }>
 type Media = Pick<CapsuleRtcMediaController, "attach" | "clear" | "setMuted">
-export type CapsuleBrowserState = Readonly<{status: string, controlStatus: string, mediaStatus: string, width: number, height: number, error: string}>
-export const idleCapsuleBrowser: CapsuleBrowserState = {status: "idle", controlStatus: "closed", mediaStatus: "idle", width: 0, height: 0, error: ""}
+export type BrowserPreviewState = Readonly<{status: string, controlStatus: string, mediaStatus: string, width: number, height: number, error: string}>
+export const idleBrowserPreview: BrowserPreviewState = {status: "idle", controlStatus: "closed", mediaStatus: "idle", width: 0, height: 0, error: ""}
 
 /** Только semantic события, нормализованные штатными helper Capsule; lifecycle остаётся у viewer/media. */
-export function createCapsuleBrowserSession(options: Readonly<{
+export function createBrowserPreviewSession(options: Readonly<{
   origin: string
   video: Video
-  open(signal: AbortSignal): Promise<CapsuleViewerDescriptor>
-  onState(state: CapsuleBrowserState): void
+  open(signal: AbortSignal): Promise<BrowserViewerDescriptor>
+  onState(state: BrowserPreviewState): void
   lifecycle?: Lifecycle | undefined
   onBoundary?: (() => void) | undefined
   viewerFactory?: (options: CapsuleRtcViewerOptions) => Viewer
-  mediaFactory?: (video: Video, onState: (state: CapsuleBrowserState) => void) => Media
+  mediaFactory?: (video: Video, onState: (state: BrowserPreviewState) => void) => Media
 }>) {
   const controller = new AbortController()
   let viewer: Viewer | undefined
-  let state = idleCapsuleBrowser
+  let state = idleBrowserPreview
   let mediaError = ""
   let viewerError = ""
   let closed = false
@@ -44,7 +44,7 @@ export function createCapsuleBrowserSession(options: Readonly<{
   let move: InputCommand | undefined
   let moveTimer: ReturnType<typeof setTimeout> | undefined
   const keys = new Map<string, Extract<InputCommand, {type: "keyDown" | "keyUp"}>>()
-  const emit = (next: CapsuleBrowserState) => {
+  const emit = (next: BrowserPreviewState) => {
     if (closed || JSON.stringify(next) === JSON.stringify(state)) return
     state = next
     options.onState(state)
@@ -94,11 +94,11 @@ export function createCapsuleBrowserSession(options: Readonly<{
         const descriptor = await options.open(controller.signal)
         if (closed || controller.signal.aborted) return
         viewer = (options.viewerFactory ?? (options => new CapsuleRtcViewer(options)))({
-          serverOrigin: options.origin, instanceId: descriptor.instanceId, controlEnabled: true,
+          serverOrigin: options.origin, instanceId: descriptor.instanceId, controlEnabled: descriptor.controlEnabled,
           socketFactory: generated => {
             const peer = new URL(generated).searchParams.get("peer")
             const url = new URL(descriptor.socketPath, options.origin)
-            if (url.origin !== new URL(options.origin).origin || url.pathname !== "/api/browser/capsule-viewer" || !peer) throw new Error("Некорректный адрес viewer")
+            if (url.origin !== new URL(options.origin).origin || url.pathname !== "/api/browser/browser-viewer" || !peer) throw new Error("Некорректный адрес viewer")
             url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
             url.searchParams.set("peer", peer)
             return new WebSocket(url)
