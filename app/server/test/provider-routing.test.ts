@@ -140,3 +140,15 @@ test("probe маршрутизируется к выбранному подкл�
     expect(prompts).toBe(0)
   } finally {await options.dispose(); await f.dispose()}
 })
+
+test("Chrome Studio через SSH использует собственный ACP entry без Docker", () => {
+  const ssh = {host: "second-mac", providerRoot: "/remote/provider", storageRoot: "/remote/data"}
+  const studio = {...capsule, provider: "chrome-studio" as const, ssh}
+  const route = providerTransport({project: "/workspace/project", toolRoot: "/unused"}, studio)
+  expect(route.command).toBe("ssh")
+  const command = route.args!.at(-1)!
+  expect(command).toContain("PROVIDER_CHROME_STUDIO_CONFIG=")
+  expect(command).toContain("/remote/provider/app/chrome-studio/index.ts")
+  expect(command).toContain("/remote/data/chrome-studio/")
+  expect(command).not.toContain("DOCKER_CONTEXT")
+})

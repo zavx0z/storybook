@@ -149,7 +149,9 @@
     "@zavx0z/provider-app-capsule": "link:@zavx0z/provider-app-capsule",
     "@zavx0z/immersive-ui-theme-icon-plus": "link:@zavx0z/immersive-ui-theme-icon-plus",
     "@zavx0z/immersive-ui-theme-icon-apply": "link:@zavx0z/immersive-ui-theme-icon-apply",
-    "@zavx0z/provider-tech-ssh": "link:@zavx0z/provider-tech-ssh"
+    "@zavx0z/provider-tech-ssh": "link:@zavx0z/provider-tech-ssh",
+    "@zavx0z/provider-app-chrome-studio": "link:@zavx0z/provider-app-chrome-studio",
+    "@zavx0z/provider-connection-chrome-studio": "link:@zavx0z/provider-connection-chrome-studio"
   },
   "bin": {
     "zavx0z": "./app/bin/zavx0z.ts"

@@ -204,6 +204,7 @@
         "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
         "@zavx0z/immersive-markdown": "^0.0.0",
         "@zavx0z/provider-app-capsule": "0.0.0",
+        "@zavx0z/provider-app-chrome-studio": "0.0.0",
         "@zavx0z/provider-app-codex": "0.0.0",
         "@zavx0z/provider-app-ollama": "0.0.0",
         "@zavx0z/provider-tech-ssh": "0.0.0",
@@ -829,6 +830,7 @@
       "dependencies": {
         "@zavx0z/provider-connection": "0.0.0",
         "@zavx0z/provider-connection-capsule": "0.0.0",
+        "@zavx0z/provider-connection-chrome-studio": "0.0.0",
         "@zavx0z/storybook-chat-history": "workspace:*",
         "@zavx0z/storybook-tech-acp": "workspace:*",
       },
@@ -1596,10 +1598,12 @@
     "@zavx0z/immersive-ui-theme-icon-set": "link:@zavx0z/immersive-ui-theme-icon-set",
     "@zavx0z/immersive-webgpu": "link:@zavx0z/immersive-webgpu",
     "@zavx0z/provider-app-capsule": "link:@zavx0z/provider-app-capsule",
+    "@zavx0z/provider-app-chrome-studio": "link:@zavx0z/provider-app-chrome-studio",
     "@zavx0z/provider-app-codex": "link:@zavx0z/provider-app-codex",
     "@zavx0z/provider-app-ollama": "link:@zavx0z/provider-app-ollama",
     "@zavx0z/provider-connection": "link:@zavx0z/provider-connection",
     "@zavx0z/provider-connection-capsule": "link:@zavx0z/provider-connection-capsule",
+    "@zavx0z/provider-connection-chrome-studio": "link:@zavx0z/provider-connection-chrome-studio",
     "@zavx0z/provider-tech-ssh": "link:@zavx0z/provider-tech-ssh",
   },
   "packages": {
@@ -1809,6 +1813,8 @@
 
     "@zavx0z/provider-app-capsule": ["@zavx0z/provider-app-capsule@link:@zavx0z/provider-app-capsule", {}],
 
+    "@zavx0z/provider-app-chrome-studio": ["@zavx0z/provider-app-chrome-studio@link:@zavx0z/provider-app-chrome-studio", {}],
+
     "@zavx0z/provider-app-codex": ["@zavx0z/provider-app-codex@link:@zavx0z/provider-app-codex", {}],
 
     "@zavx0z/provider-app-ollama": ["@zavx0z/provider-app-ollama@link:@zavx0z/provider-app-ollama", {}],
@@ -1816,6 +1822,8 @@
     "@zavx0z/provider-connection": ["@zavx0z/provider-connection@link:@zavx0z/provider-connection", {}],
 
     "@zavx0z/provider-connection-capsule": ["@zavx0z/provider-connection-capsule@link:@zavx0z/provider-connection-capsule", {}],
+
+    "@zavx0z/provider-connection-chrome-studio": ["@zavx0z/provider-connection-chrome-studio@link:@zavx0z/provider-connection-chrome-studio", {}],
 
     "@zavx0z/provider-tech-ssh": ["@zavx0z/provider-tech-ssh@link:@zavx0z/provider-tech-ssh", {}],
 

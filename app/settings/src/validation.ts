@@ -43,20 +43,20 @@ export function validateConnection(input: unknown): Execution["connections"][num
   const value = object(input, ["id", "provider", "label", "enabled", "endpoint", "ssh"])
   if (typeof value.id !== "string" || !value.id.trim() || value.id.length > 256 || typeof value.label !== "string" || !value.label.trim() || value.label.length > 128 || typeof value.enabled !== "boolean") throw new TypeError("Неизвестное подключение исполнения")
   if (value.provider === "codex") {
-    if (value.ssh !== undefined) throw new TypeError("Удалённое исполнение поддерживается только для Capsule")
+    if (value.ssh !== undefined) throw new TypeError("Удалённое исполнение поддерживается для браузерных провайдеров")
     if (value.endpoint !== undefined) throw new TypeError("Codex не принимает endpoint подключения")
     return structuredClone(value) as Execution["connections"][number]
   }
-  if (value.provider === "capsule") {
+  if (value.provider === "capsule" || value.provider === "chrome-studio") {
     const endpoint = object(value.endpoint, ["url", "profile", "service"])
-    if (typeof endpoint.url !== "string" || endpoint.url.length > 2048 || endpoint.url !== endpoint.url.trim()) throw new TypeError("Нужен HTTP-адрес Capsule Studio на машине исполнения")
+    if (typeof endpoint.url !== "string" || endpoint.url.length > 2048 || endpoint.url !== endpoint.url.trim()) throw new TypeError("Нужен HTTP-адрес браузерной Studio на машине исполнения")
     let url: URL
-    try {url = new URL(endpoint.url)} catch {throw new TypeError("Нужен HTTP-адрес Capsule Studio на машине исполнения")}
-    if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash || endpoint.url.includes("?") || endpoint.url.includes("#")) throw new TypeError("Capsule Studio подключается только по локальному origin без пути, credentials, query или fragment")
-    if (typeof endpoint.profile !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/.test(endpoint.profile)) throw new TypeError("Укажите имя уже запущенного профиля Capsule")
-    if (endpoint.service !== "qwen" && endpoint.service !== "deepseek") throw new TypeError("Сервис Capsule не поддерживается")
+    try {url = new URL(endpoint.url)} catch {throw new TypeError("Нужен HTTP-адрес браузерной Studio на машине исполнения")}
+    if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash || endpoint.url.includes("?") || endpoint.url.includes("#")) throw new TypeError("браузерной Studio подключается только по локальному origin без пути, credentials, query или fragment")
+    if (typeof endpoint.profile !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/.test(endpoint.profile)) throw new TypeError("Укажите имя уже запущенного профиля браузера")
+    if (endpoint.service !== "qwen" && endpoint.service !== "deepseek") throw new TypeError("Браузерный сервис не поддерживается")
     if (value.ssh !== undefined) {
-      const ssh = object(value.ssh, ["host", "user", "port", "providerRoot", "storageRoot", "dockerContext"])
+      const ssh = object(value.ssh, ["host", "user", "port", "providerRoot", "storageRoot", ...(value.provider === "capsule" ? ["dockerContext"] : [])])
       validateSsh(ssh)
       for (const field of ["providerRoot", "storageRoot"]) {
         const path = ssh[field]
@@ -66,7 +66,7 @@ export function validateConnection(input: unknown): Execution["connections"][num
     }
     return structuredClone(value) as Execution["connections"][number]
   }
-  if (value.ssh !== undefined) throw new TypeError("Удалённое исполнение поддерживается только для Capsule")
+  if (value.ssh !== undefined) throw new TypeError("Удалённое исполнение поддерживается для браузерных провайдеров")
   if (value.provider !== "ollama") throw new TypeError("Провайдер не поддерживается")
   const endpoint = object(value.endpoint, ["url", "ssh"])
   if (typeof endpoint.url !== "string" || endpoint.url.length > 2048 || endpoint.url !== endpoint.url.trim()) throw new TypeError("Нужен HTTP-адрес Ollama")

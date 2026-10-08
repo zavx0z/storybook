@@ -1,4 +1,5 @@
 import type {ProviderConnection} from "@zavx0z/provider-connection"
+import type {ProviderConnectionChromeStudio} from "@zavx0z/provider-connection-chrome-studio"
 import type {ProviderConnectionCapsule} from "@zavx0z/provider-connection-capsule"
 
 /** Явный выбор; отсутствие поля возвращает наследование соответствующего значения. */
@@ -31,7 +32,8 @@ export type CapsuleSsh = Readonly<{
 /** Реальное подключение среды; credentials и команды запуска в каталог не входят. */
 export type ExecutionConnection = Readonly<{id: string, label: string, enabled: boolean}> & (
   Readonly<{provider: "codex"}> | Readonly<{provider: "ollama", endpoint: OllamaEndpoint}> |
-  Readonly<{provider: "capsule", endpoint: CapsuleEndpoint, ssh?: CapsuleSsh}>
+  Readonly<{provider: "capsule", endpoint: CapsuleEndpoint, ssh?: CapsuleSsh}> |
+  Readonly<{provider: "chrome-studio", endpoint: ProviderConnectionChromeStudio.Input, ssh?: Omit<CapsuleSsh, "dockerContext">}>
 )
 
 /** Выбранные настройки беседы и результат разрешения до обращения к исполнителю. */

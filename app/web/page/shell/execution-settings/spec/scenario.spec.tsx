@@ -194,4 +194,37 @@ describe.each([{name: "Настройки среды", props: {
     expect(card.querySelector('[aria-label="Удалённое исполнение Capsule"]')).toBeNull()
   })
 
+  test("Chrome Studio использует существующий профиль и SSH без Docker", async () => {
+    ;(element.querySelector('button[aria-label="Добавить Chrome Studio"]') as HTMLButtonElement).click()
+    await headless.capture(element)
+    const card = element.querySelector('[data-provider-connection="chrome-studio"]')!
+    const fields = card.querySelector('[aria-label="Подключение Chrome Studio"]')!
+    expect((fields.querySelector("select") as HTMLSelectElement).value, "Новый Studio provider предлагает DeepSeek").toBe("deepseek")
+    const profile = fields.querySelectorAll("input")[1] as HTMLInputElement
+    profile.value = "deepseek-profile"
+    profile.dispatchEvent(new InputEvent("input", {bubbles: true}))
+    await headless.capture(element)
+    ;(fields.querySelector('input[type="checkbox"]') as HTMLInputElement).click()
+    ;([...fields.querySelectorAll("button")].find(item => item.textContent === "SSH") as HTMLButtonElement).click()
+    await headless.capture(element)
+    const remote = card.querySelector('[aria-label="Удалённое исполнение Chrome Studio"]')!
+    const inputs = remote.querySelectorAll("input")
+    expect(inputs.length, "Studio не требует Docker context").toBe(5)
+    for (const [index, value] of ["second-mac", "admin", "22", "/repos/provider", "/data/provider"].entries()) {
+      const input = inputs[index] as HTMLInputElement
+      input.value = value
+      input.dispatchEvent(new InputEvent("input", {bubbles: true}))
+      await headless.capture(element)
+    }
+    ;([...element.querySelectorAll("button")].find(item => item.textContent === "Сохранить") as HTMLButtonElement).click()
+    await headless.capture(element)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await headless.capture(element)
+    expect(props.fetcher, "Сохраняется самостоятельное подключение Chrome Studio").toHaveBeenCalledWith(
+      "/api/browser/chat/execution-settings-save",
+      expect.objectContaining({body: expect.stringContaining('"provider":"chrome-studio"')}),
+    )
+    expect(card.querySelector("video"), "Studio ACP не открывает Capsule viewer").toBeNull()
+  })
+
 })

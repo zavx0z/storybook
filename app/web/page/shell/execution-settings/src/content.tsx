@@ -144,13 +144,13 @@ function Connections(props: ConnectionsProps) {
     ...props.document,
     connections: props.document.connections.map(item => item.id === connection.id ? connection : item),
   })
-  const add = (provider: "ollama" | "capsule") => {
+  const add = (provider: "ollama" | "capsule" | "chrome-studio") => {
     let suffix = 1
     let id: string = provider
     while (props.document.connections.some(item => item.id === id)) id = `${provider}-${++suffix}`
-    const connection: Connection = provider === "capsule" ? {
-      id, provider, label: "Capsule", enabled: true,
-      endpoint: {url: "http://127.0.0.1:17777", profile: "", service: "qwen"},
+    const connection: Connection = provider !== "ollama" ? {
+      id, provider, label: provider === "capsule" ? "Capsule" : "Chrome Studio", enabled: true,
+      endpoint: {url: provider === "capsule" ? "http://127.0.0.1:17777" : "http://127.0.0.1:17778", profile: "", service: provider === "capsule" ? "qwen" : "deepseek"},
     } : {
       id, provider, label: "Ollama", enabled: true,
       endpoint: {url: "http://localhost:11434"},
@@ -168,7 +168,7 @@ function Connections(props: ConnectionsProps) {
       gap: 4px;
     `}
   >
-    {(["codex", "ollama", "capsule"] as const).map(provider => (
+    {(["codex", "ollama", "capsule", "chrome-studio"] as const).map(provider => (
       <ProviderGroup
         key={provider}
         provider={provider}
@@ -189,10 +189,10 @@ function ProviderGroup(props: Readonly<{
   busy: boolean
   client: ReturnType<typeof createSettingsClient>
   onChange(value: Connection): void
-  onAdd(provider: "ollama" | "capsule"): void
+  onAdd(provider: "ollama" | "capsule" | "chrome-studio"): void
 }>) {
   const [open, setOpen] = useState(false)
-  const label = {codex: "Codex", ollama: "Ollama", capsule: "Capsule"}[props.provider]
+  const label = {codex: "Codex", ollama: "Ollama", capsule: "Capsule", "chrome-studio": "Chrome Studio"}[props.provider]
   return <Panel
     style={css`
       --panel-content-padding: 0px;
@@ -225,7 +225,7 @@ function ProviderGroup(props: Readonly<{
 }
 
 function ProviderConnections(props: Parameters<typeof ProviderGroup>[0]) {
-  const label = {codex: "Codex", ollama: "Ollama", capsule: "Capsule"}[props.provider]
+  const label = {codex: "Codex", ollama: "Ollama", capsule: "Capsule", "chrome-studio": "Chrome Studio"}[props.provider]
   return <div style={css`
       display: flex;
       flex-direction: column;
@@ -353,7 +353,7 @@ function ConnectionFields(props: Readonly<{
         busy={props.busy || props.probing}
         onChange={props.onChange}
       /> : null}
-      {connection.provider === "capsule" ? <CapsuleFields
+      {(connection.provider === "capsule" || connection.provider === "chrome-studio") ? <BrowserProfileFields
         connection={connection}
         busy={props.busy || props.probing}
         onChange={props.onChange}
@@ -364,15 +364,15 @@ function ConnectionFields(props: Readonly<{
       {props.error ? <SettingsError text={props.error} /> : null}
     </section>
 }
-function CapsuleFields(props: Readonly<{
-  connection: Extract<Connection, {provider: "capsule"}>
+function BrowserProfileFields(props: Readonly<{
+  connection: Extract<Connection, {provider: "capsule" | "chrome-studio"}>
   busy: boolean
   onChange(value: Connection): void
 }>) {
   const [remoteOpen, setRemoteOpen] = useState(false)
   const endpoint = props.connection.endpoint
   return <section
-    aria-label="Подключение Capsule"
+    aria-label={props.connection.provider === "capsule" ? "Подключение Capsule" : "Подключение Chrome Studio"}
     style={css`
       display: flex;
       flex-direction: column;
@@ -433,7 +433,7 @@ function CapsuleFields(props: Readonly<{
       expanded={remoteOpen}
       onToggle={setRemoteOpen}
     >
-      <CapsuleSshFields
+      <BrowserSshFields
       connection={props.connection}
       busy={props.busy}
       onChange={props.onChange}
@@ -441,7 +441,7 @@ function CapsuleFields(props: Readonly<{
     </Panel>
   </section>
 }
-function CapsuleSshFields(props: Parameters<typeof CapsuleFields>[0]) {
+function BrowserSshFields(props: Parameters<typeof BrowserProfileFields>[0]) {
   return <div style={css`
       background: #333333;
       border-radius: 0;
@@ -452,19 +452,21 @@ function CapsuleSshFields(props: Parameters<typeof CapsuleFields>[0]) {
         padding: 0;
       `}>
 
-        {props.connection.ssh ? <CapsuleRemoteFields
+        {props.connection.ssh ? <BrowserRemoteFields
+          docker={props.connection.provider === "capsule"}
           ssh={props.connection.ssh}
           busy={props.busy}
           onChange={ssh => props.onChange({...props.connection, ssh})}
         /> : null}
       </div>
 }
-function CapsuleRemoteFields(props: Readonly<{
+function BrowserRemoteFields(props: Readonly<{
+  docker?: boolean
   ssh: NonNullable<Extract<Connection, {provider: "capsule"}>["ssh"]>
   busy: boolean
   onChange(value: NonNullable<Extract<Connection, {provider: "capsule"}>["ssh"]>): void
 }>) {
-  return <section aria-label="Удалённое исполнение Capsule">
+  return <section aria-label={props.docker ? "Удалённое исполнение Capsule" : "Удалённое исполнение Chrome Studio"}>
     <SSHFields
       ssh={props.ssh}
       busy={props.busy}
@@ -473,14 +475,15 @@ function CapsuleRemoteFields(props: Readonly<{
         props.onChange({...paths, ...value})
       }}
     />
-      <CapsulePaths
+      <BrowserPaths
+      docker={props.docker ?? false}
       ssh={props.ssh}
       busy={props.busy}
       onChange={props.onChange}
     />
   </section>
 }
-function CapsulePaths(props: Parameters<typeof CapsuleRemoteFields>[0]) {
+function BrowserPaths(props: Parameters<typeof BrowserRemoteFields>[0]) {
   return <section
         aria-label="Размещение Provider на удалённой машине"
         style={css`
@@ -514,7 +517,7 @@ function CapsulePaths(props: Parameters<typeof CapsuleRemoteFields>[0]) {
           disabled={props.busy}
           onInput={storageRoot => props.onChange({...props.ssh, storageRoot})}
         />
-        <TextField
+        {props.docker ? <TextField
         style={css`
           --field-label-height: var(--control-height-medium);
           padding: 0 12px 0 28px;
@@ -526,7 +529,7 @@ function CapsulePaths(props: Parameters<typeof CapsuleRemoteFields>[0]) {
             const {dockerContext, ...ssh} = props.ssh
             props.onChange(value ? {...ssh, dockerContext: value} : ssh)
           }}
-        />
+        /> : null}
       </section>
 }
 function OllamaFields(props: Readonly<{

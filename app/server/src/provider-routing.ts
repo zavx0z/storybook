@@ -28,11 +28,13 @@ export function providerTransport(options: {project: string, toolRoot: string}, 
   }
   const provider = connection.provider
   const identity = createHash("sha256").update(JSON.stringify([resolve(options.project), connection.id])).digest("hex")
-  if (connection.provider === "capsule" && connection.ssh) {
+  if ((connection.provider === "capsule" || connection.provider === "chrome-studio") && connection.ssh) {
     const ssh = connection.ssh
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
-    const config = JSON.stringify({endpoint: connection.endpoint, directory: join(ssh.storageRoot, "capsule", identity)})
-    const remote = `exec env ${quote(`PROVIDER_CAPSULE_CONFIG=${config}`)}${ssh.dockerContext === undefined ? "" : ` ${quote(`DOCKER_CONTEXT=${ssh.dockerContext}`)}`} bun ${quote(join(ssh.providerRoot, "app/capsule/index.ts"))}`
+    const config = JSON.stringify({endpoint: connection.endpoint, directory: join(ssh.storageRoot, provider, identity)})
+    const configVariable = provider === "capsule" ? "PROVIDER_CAPSULE_CONFIG" : "PROVIDER_CHROME_STUDIO_CONFIG"
+    const dockerContext = connection.provider === "capsule" ? connection.ssh?.dockerContext : undefined
+    const remote = `exec env ${quote(`${configVariable}=${config}`)}${dockerContext === undefined ? "" : ` ${quote(`DOCKER_CONTEXT=${dockerContext}`)}`} bun ${quote(join(ssh.providerRoot, `app/${provider}/index.ts`))}`
     return {
       command: "ssh",
       args: ["-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=10",
@@ -45,7 +47,7 @@ export function providerTransport(options: {project: string, toolRoot: string}, 
   return {
     command: process.execPath,
     args: [entry],
-    env: {[provider === "capsule" ? "PROVIDER_CAPSULE_CONFIG" : "PROVIDER_OLLAMA_CONFIG"]: JSON.stringify({endpoint: connection.endpoint,
+    env: {[provider === "capsule" ? "PROVIDER_CAPSULE_CONFIG" : provider === "chrome-studio" ? "PROVIDER_CHROME_STUDIO_CONFIG" : "PROVIDER_OLLAMA_CONFIG"]: JSON.stringify({endpoint: connection.endpoint,
       directory: join(homedir(), ".local/share/zavx0z/provider", provider, identity)})},
   }
 }
