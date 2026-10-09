@@ -22,6 +22,12 @@ test("Session корзина переживает restart, восстанавл�
     const chat = await sessions.createSession(target, "Сохранить беседу")
     const selected = {...target, sessionId: chat.sessionId}
     await sessions.prepare(selected)
+    await sessions.prompt(selected, "Сохранённый вопрос", "before-trash")
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const state = await sessions.read(selected)
+      if (state.status === "idle" && !state.pending.length) break
+      await Bun.sleep(5)
+    }
     const history = await sessions.history(selected)
     await sessions.deleteSession(selected)
     expect((await sessions.listSessions(target)).some(item => item.id === chat.id)).toBe(false)
@@ -34,7 +40,7 @@ test("Session корзина переживает restart, восстанавл�
     expect((await sessions.restoreSession(selected)).id).toBe(chat.id)
     expect((await sessions.history(selected)).total).toBe(history.total)
     expect((await sessions.listDeletedSessions(target))).toEqual([])
-    expect(prompts).toBe(0)
+    expect(prompts).toBe(1)
     await sessions.prepare(selected)
     expect(previous).toEqual([undefined, "original-provider"])
     await expect(sessions.purgeSession(selected)).rejects.toThrow("не найдена")
@@ -45,6 +51,6 @@ test("Session корзина переживает restart, восстанавл�
     expect((await sessions.listDeletedSessions(target))).toEqual([])
     await expect(sessions.restoreSession(selected)).rejects.toThrow("без возможности восстановления")
     expect((await readdir(directory)).some(name => name.endsWith(`.${chat.id}.json`))).toBe(false)
-    expect(prompts).toBe(0)
+    expect(prompts).toBe(1)
   } finally {await sessions.dispose(); await rm(directory, {recursive: true, force: true})}
 })

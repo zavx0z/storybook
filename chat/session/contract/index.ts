@@ -50,6 +50,7 @@ export declare namespace StorybookChatSession {
       /** Имя исполнителя внутри предмета, независимое от имени самого предмета. */
       executorLabel: string
       execution: ExecutionResolution
+      /** Только ранее начатая native беседа; временная подготовка настроек не создаёт durable reference. */
       previousSessionId?: string
       preferResume?: boolean
       signal: AbortSignal

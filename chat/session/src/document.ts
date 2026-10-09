@@ -22,6 +22,7 @@ export type Document = {
   /** Первое пользовательское сообщение уже определило auto имя. */
   sessionLabelAssigned?: boolean
   address: string
+  /** Native identity закрепляется вместе с durable start до первого prompt; подготовка настроек её не сохраняет. */
   sessionId?: string
   /** Подключение, которому принадлежит native session; старый sessionId принадлежит Codex. */
   connectionId?: string

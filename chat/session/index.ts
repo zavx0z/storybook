@@ -2,7 +2,8 @@
 Ведёт независимые беседы исполнителей одного Project. Полная история хранится на диске,
 управляющие снимки содержат только состояние и счётчики. Заголовки, тела и исходные
 свидетельства читаются отдельными ограниченными запросами без подключения ACP.
-Отписка сохраняет работу; неактивные подключения освобождаются с сохранением sessionId.
+Отписка сохраняет работу. Подготовка настроек не закрепляет временный native handle;
+связь с беседой сохраняется перед первым выполнением и переживает освобождение подключения.
 
 @packageDocumentation
 */
@@ -57,6 +58,7 @@ type State = {
   releaseSlot?: () => void
   version: number
   connection?: StorybookTechAcp.Output
+  connectionId?: string
   environment?: Environment
   connecting?: Promise<StorybookTechAcp.Output>
   settings?: readonly Setting[]
@@ -139,6 +141,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     delete state.idleTimer
     const connection = state.connection
     delete state.connection
+    delete state.connectionId
     try { await connection?.dispose() } finally {
       if (releaseEnvironment) {
         state.environment?.dispose()
@@ -329,6 +332,17 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       mutations: Promise.resolve(), retryBlocked: false, moveBlocked: false, subject, id: document.id, file, document,
       archive, accessed: Date.now(), leases: 0, version: document.controlVersion ?? 0, cancelled: false, cursor: {}, lifetime: new AbortController(),
       listeners: new Set(), permissions: new Map(), write: Promise.resolve(),
+    }
+    // Старые preparation-only документы не доказывают существование native беседы.
+    // Любая неполная история, задача или иной вид записи сохраняет исходную связь.
+    if (document.sessionId !== undefined && document.connectionId !== undefined
+      && document.executionBaseline !== undefined && document.historyComplete && document.status === "idle"
+      && document.activeRequest === undefined && document.environmentContext === undefined && !document.preserveNativeSettings
+      && document.pending.length === 0 && !document.pendingPermissions?.length && archive.preparationOnly()) {
+      delete document.sessionId
+      delete document.connectionId
+      delete document.provider
+      await save(state)
     }
     await refreshExecution(state)
     for (const id of document.pendingPermissions ?? []) {
@@ -652,6 +666,12 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     const execution = await refreshExecution(state)
     if (state.document.sessionId !== undefined && (state.document.connectionId ?? "codex") !== execution.effective.connectionId) throw new Error("Подключение существующей native сессии отличается: несовместимое восстановление запрещено")
     if (!execution.connections.some(connection => connection.id === execution.effective.connectionId && connection.enabled)) throw new Error("Выбранное подключение отключено: включите его перед продолжением беседы")
+    if (state.connection !== undefined && state.connectionId !== execution.effective.connectionId) {
+      await releaseConnection(state)
+      delete state.settings
+      delete state.document.executionBaseline
+      delete state.document.usage
+    }
     if (state.connection !== undefined) {
       await applyExecution(state, state.connection, execution)
       return state.connection
@@ -724,12 +744,15 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         onPermission(request, signal) { return askPermission(state, request, "provider", signal) },
       })
       state.connection = connection
+      state.connectionId = execution.effective.connectionId
       state.settings = readSettings(connection.configOptions ?? [])
       state.document.executionBaseline ??= Object.fromEntries(state.settings.filter(option => option.category !== "mode").map(option => [option.category === "model" ? "model" : "thoughtLevel", option.value]))
       if (state.document.sessionId !== undefined && state.document.connectionId === undefined) state.document.preserveNativeSettings = true
-      state.document.sessionId = connection.sessionId
-      state.document.connectionId = execution.effective.connectionId
-      state.document.provider = execution.connections.find(connection => connection.id === execution.effective.connectionId)!.provider
+      if (state.document.sessionId !== undefined) {
+        state.document.sessionId = connection.sessionId
+        state.document.connectionId = execution.effective.connectionId
+        state.document.provider = execution.connections.find(connection => connection.id === execution.effective.connectionId)!.provider
+      }
       state.document.cwd = "."
       await save(state)
       await applyExecution(state, connection, execution)
@@ -784,8 +807,13 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         const index = state.document.pending.indexOf(messageId)
         if (index === -1) throw new Error("Входящая задача уже начата или отсутствует")
         const markerId = randomUUID()
+        const previousNative = {sessionId: state.document.sessionId, connectionId: state.document.connectionId, provider: state.document.provider}
         state.document.pending.splice(index, 1)
         state.document.activeRequest = requestId
+        // Identity и durable start подтверждаются до единственного вызова provider.prompt.
+        state.document.sessionId = connection.sessionId
+        state.document.connectionId = state.execution!.effective.connectionId
+        state.document.provider = state.execution!.connections.find(value => value.id === state.document.connectionId)!.provider
         try {
           const {schemaVersion, ...metadata} = state.document
           await state.archive.commit(metadata, [{type: "append", item: {id: markerId, origin: "local", kind: "turn", requestId, state: "started"}}])
@@ -793,6 +821,12 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         } catch (error) {
           state.document.pending.splice(index, 0, messageId)
           delete state.document.activeRequest
+          for (const field of ["sessionId", "connectionId", "provider"] as const) {
+            if (previousNative[field] === undefined) delete state.document[field]
+          }
+          if (previousNative.sessionId !== undefined) state.document.sessionId = previousNative.sessionId
+          if (previousNative.connectionId !== undefined) state.document.connectionId = previousNative.connectionId
+          if (previousNative.provider !== undefined) state.document.provider = previousNative.provider
           await state.archive.commit(undefined, [{type: "remove", id: markerId}])
           throw error
         }
@@ -833,6 +867,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       state.document.error = interrupted ? null : error instanceof Error ? error.message : String(error)
       const connection = state.connection
       delete state.connection
+      delete state.connectionId
       await connection?.dispose().catch(() => {})
       state.releaseSlot?.()
     } finally {
@@ -1308,7 +1343,12 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
           ...(change.scope === "session" ? {executionSelection: structuredClone(selected)} : {})}
         const candidateExecutor = change.scope === "executor" ? selected : undefined
         const candidate = await refreshExecution({document: candidateDocument, subject: state.subject, settings: state.settings ?? []}, candidateExecutor)
-        if (state.connection !== undefined) await applyExecution(state, state.connection, candidate, candidateDocument)
+        if (state.connection !== undefined && state.connectionId !== candidate.effective.connectionId) {
+          await releaseConnection(state)
+          delete state.settings
+          delete state.document.executionBaseline
+          delete state.document.usage
+        } else if (state.connection !== undefined) await applyExecution(state, state.connection, candidate, candidateDocument)
         if (change.scope === "executor") {
           if (input.saveExecutorSelection === undefined) throw new Error("Хранилище выбора исполнителя не подключено")
           await input.saveExecutorSelection({subject: state.subject, executorId: state.document.executorId, selection: structuredClone(selected)})

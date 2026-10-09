@@ -299,6 +299,13 @@ export class Archive {
     const row = cachedQuery(this.db(), `SELECT ${SMALL_COLUMNS} FROM entry WHERE kind='message' AND sequence>=? AND json_extract(preview,'$.role')='assistant' ORDER BY sequence DESC LIMIT 1`).get(afterSequence) as Row | null
     return row === null ? null : headerEntry(row)
   }
+  /** Полный индекс подтверждает только подготовку настроек; неизвестные события сохраняют native связь. */
+  preparationOnly(): boolean {
+    if (!this.initialized) return this.header.history.total === 0
+    return cachedQuery(this.db(), `SELECT 1 FROM entry WHERE kind!='event' OR origin!='live'
+      OR COALESCE(json_extract(preview,'$.eventType'),'') NOT IN ('available_commands_update','config_option_update','current_mode_update')
+      OR json_extract(data,'$.requestId') IS NOT NULL LIMIT 1`).get() === null
+  }
   unfinishedRequest(): string | undefined {
     if (!this.initialized) return undefined
     const started = cachedQuery(this.db(), "SELECT json_extract(data,'$.requestId') AS request FROM entry WHERE kind='turn' AND json_extract(preview,'$.state')='started' ORDER BY ordinal DESC LIMIT 1").get() as {request: string} | null

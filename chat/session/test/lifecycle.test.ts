@@ -35,6 +35,8 @@ test("idle ACP освобождается, history и list не запускаю
   })
   try {
     await sessions.prepare("/")
+    await sessions.prompt("/", "Первый вопрос", "first")
+    for (let index = 0; index < 100 && (await sessions.read("/")).status !== "idle"; index++) await pause(5)
     await pause(30)
     expect(released).toBe(1)
     const disposal = spyOn(Archive.prototype, "dispose")

@@ -34,7 +34,7 @@ Schema3 хранит атомарный компактный header и текс�
 освобождаются через 30 секунд. Наблюдатели и accepted pending защищают работу от
 вытеснения; отписка не отменяет turn. Read/list idle беседы не запускают provider.
 Accepted pending после restart восстанавливаются через единственный canonical
-State. Durable start и dequeue фиксируются вместе до первого provider attempt;
+State. Native identity, durable start и dequeue фиксируются вместе до первого provider attempt;
 уже начатая неопределённая операция автоматически не повторяется.
 
 Общие frontend и media-возможности находятся в [Repo Chat](../../../chat/README.md).
