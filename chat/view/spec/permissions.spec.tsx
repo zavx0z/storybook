@@ -7,7 +7,7 @@ import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import StorybookChatView from "./fixture/history"
 import {ChatPermission, ChatStatus} from "../src/feedback"
 
-describe.each([{name: "Решение пользователя", error: undefined}, {name: "Ошибка исполнителя", error: "Соединение потеряно"}])("$name", async ({error}) => {
+describe.each([{name: "Решение пользователя", error: undefined}, {name: "Ошибка исполнителя", error: "Соединение потеряно"}])("$name", async ({name, error}) => {
   const onPermission = mock((id: string, optionId: string) => {})
   const headless = createHeadless({width: 400, height: 600})
   afterAll(() => headless.dispose())
@@ -33,7 +33,7 @@ describe.each([{name: "Решение пользователя", error: undefine
   })
 
   /** @remarks Решение запрашивается только пока исполнитель передал ожидающий запрос. */
-  describe.skipIf(error !== undefined)("Разрешение действия", () => {
+  describe.skipIf(name !== "Решение пользователя")("Разрешение действия", () => {
     test("Выбранный вариант", () => {
       const button = element.querySelector("[data-chat-permission] button") as HTMLButtonElement
       button.click()

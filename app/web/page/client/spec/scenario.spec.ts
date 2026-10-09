@@ -30,7 +30,7 @@ describe.each([
       documentation: null,
     },
   },
-])("$name", async ({props}) => {
+])("$name", async ({name, props}) => {
   const fetcher = controlledFetcher(async (_input, _init) => Response.json(props.snapshot))
   const actual = await Client.fetchExternalStorybookClientSnapshot(fetcher, props.url)
 
@@ -45,7 +45,7 @@ describe.each([
   })
 
   /** @remarks Пустой каталог не содержит узла для выбора и чтения документации. */
-  describe.skipIf(props.snapshot.nodes.length === 0)("Узел каталога", () => {
+  describe.skipIf(!["Опубликованная документация", "Документация отсутствует"].includes(name))("Узел каталога", () => {
     test("Сохранение identity", () => {
       const node = actual.nodes[0]!
       expect(Client.externalStorybookClientNode(actual, node.id), "Поиск возвращает тот же узел подтверждённого снимка")

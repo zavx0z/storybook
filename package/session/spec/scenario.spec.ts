@@ -11,7 +11,7 @@ describe.each([
   {name: "Новая сессия", props: {subscriber: false, resolutionError: null}},
   {name: "Подписчик новой сессии", props: {subscriber: true, resolutionError: null}},
   {name: "Неразрешённая декларация", props: {subscriber: false, resolutionError: "Вход пакета не найден"}},
-])("$name", async ({props}) => {
+])("$name", async ({name, props}) => {
   const root = mkdtempSync(join(tmpdir(), "storybook-session-scenario-"))
   const packageId = "@example/session"
   const sourcePath = join(root, "package.json")
@@ -56,7 +56,7 @@ describe.each([
   })
 
   /** @remarks Наблюдение проверяется у варианта с подключённым подписчиком. */
-  describe.skipIf(!props.subscriber)("Подписка", () => {
+  describe.skipIf(name !== "Подписчик новой сессии")("Подписка", () => {
     test("Наблюдение без сборки", () => {
       expect(result.buildState, "Подписчик может наблюдать пакет до первой компиляции").toBe("idle")
       expect(result.diagnostics, "Подписка сама по себе не создаёт ошибку пакета").toEqual([])
@@ -64,7 +64,7 @@ describe.each([
   })
 
   /** @remarks Диагностика отказа применима к варианту неразрешённой декларации. */
-  describe.skipIf(props.resolutionError === null)("Ошибка декларации", () => {
+  describe.skipIf(name !== "Неразрешённая декларация")("Ошибка декларации", () => {
     test("Отказ до компиляции", () => {
       expect(result.buildState, "Ошибка разрешения видна без запуска компилятора").toBe("failed")
       expect(result.diagnostics, "Снимок указывает причину и фазу отказа")

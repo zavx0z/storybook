@@ -5,14 +5,14 @@ import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 describe.each([
   {name: "Корневая страница", props: {packageId: null, label: undefined, title: "Storybook"}},
   {name: "Страница пакета", props: {packageId: "@fixture/engine", label: "Engine", title: "Engine"}},
-])("$name", ({props}) => {
+])("$name", ({name, props}) => {
   const title = WebProtocol.pageTitle(props.packageId, props.label)
 
   test("Заголовок", () => {
     expect(title, "Browser title соответствует выбранной странице и её точной метке").toBe(props.title)
   })
 
-  describe.skipIf(props.packageId === null)("Путь пакета", () => {
+  describe.skipIf(name !== "Страница пакета")("Путь пакета", () => {
     test("Обратимое кодирование", () => {
       const encoded = WebProtocol.encodePackagePath(props.packageId!)
       expect(WebProtocol.decodePackagePath(encoded, [props.packageId!]),

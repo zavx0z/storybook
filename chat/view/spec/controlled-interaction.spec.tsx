@@ -170,7 +170,8 @@ describe.each([
     sendEnabled: false,
     cancelEnabled: false,
   },
-])("$name", async ({props, statusLabel, sendEnabled, cancelEnabled, messageText}: {
+])("$name", async ({name, props, statusLabel, sendEnabled, cancelEnabled, messageText}: {
+  name: string
   props: Omit<Contract.Input, "onDraftChange" | "onSend" | "onCancel"> & {sending: boolean}
   statusLabel: string
   sendEnabled: boolean
@@ -245,7 +246,7 @@ describe.each([
     expect(onCancel.mock.calls, "Доступная отмена передаёт действие владельцу исполнения").toEqual(cancelEnabled ? [[]] : [])
   })
 
-  describe.skipIf(props.timeline === undefined)("История исполнения", () => {
+  describe.skipIf(name !== "События и медиа")("История исполнения", () => {
     test("Изображение сообщения", async () => {
       await headless.capture(element)
       const src = element.querySelector('[data-chat-image]')?.getAttribute("src")
@@ -280,7 +281,7 @@ describe.each([
   })
 
   /** @remarks Начальный пустой черновик даёт однозначную позицию вставки без изменения selection. */
-  describe.skipIf(props.draft !== "")("Ввод сообщения", () => {
+  describe.skipIf(!["События и медиа", "Настройки и код", "Новая беседа"].includes(name))("Ввод сообщения", () => {
     test("Изменение управляемого черновика", () => {
       const editor = element.querySelector("textarea") as HTMLTextAreaElement
       editor.value = "Новый вопрос\nПродолжение"
@@ -295,7 +296,7 @@ describe.each([
   })
 
   /** @remarks Только вариант с настройками предоставляет модели, контекст и блок кода. */
-  describe.skipIf(props.settings === undefined)("Параметры и код", () => {
+  describe.skipIf(name !== "Настройки и код")("Параметры и код", () => {
     test("Заполнение контекста", () => {
       const title = element.querySelector("[data-chat-context]")?.getAttribute("title")
       expect(title, "Подсказка вычислена из переданных used и size").toContain("52%")

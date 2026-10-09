@@ -12,7 +12,7 @@ describe.each([
   {name: "Repo и независимый пакет", props: {roots: [fixtureRoot, join(fixtureRoot, "standalone")], expected: ["package:fixture-workspace", "package:@fixture/standalone"]}},
   {name: "Workspace через директорию с src", props: {roots: [], marker: "src", expected: ["package:fixture-workspace"]}},
   {name: "Workspace через директорию с index.tsx", props: {roots: [], marker: "index.tsx", expected: ["package:fixture-workspace"]}},
-])("$name", async ({props}) => {
+])("$name", async ({name, props}) => {
   let roots = props.roots
   if (props.marker) {
     const root = await mkdtemp(join(tmpdir(), "storybook-metadata-scenario-"))
@@ -37,7 +37,7 @@ describe.each([
   })
 
   /** @remarks Модульный маркер задан только в вариантах вложенной workspace-ветки. */
-  describe.skipIf(!props.marker)("Физическая вложенность", () => {
+  describe.skipIf(!["Workspace через директорию с src", "Workspace через директорию с index.tsx"].includes(name))("Физическая вложенность", () => {
     test("Промежуточные директории", () => {
       expect(catalog.scopes[0]?.directories?.map(directory => directory.relativePath),
         "src и index.tsx не убирают физические директории между Repo и объявленным workspace-пакетом")

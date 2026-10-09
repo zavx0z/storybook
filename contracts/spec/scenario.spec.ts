@@ -43,7 +43,7 @@ describe.each([
     jsx: true,
     partName: "@contract-fixture/part",
   },
-])("$name", async ({props, packageName, namespaceName, jsx, partName}) => {
+])("$name", async ({name, props, packageName, namespaceName, jsx, partName}) => {
   const result = await readContract(props)
   const entry = result.entries[0]!
   const namespace = entry.namespaces[0]!
@@ -121,7 +121,7 @@ describe.each([
   })
 
   /** @remarks JSX связывает слоты с типом результата; у обычного Component или Container этой формы нет. */
-  describe.skipIf(!jsx)("JSX и точки вставки", () => {
+  describe.skipIf(!["JSX Component", "JSX Container"].includes(name))("JSX и точки вставки", () => {
     test("Роли JSX", () => {
       expect(namespace.roles.map(role => role.name).sort(), "JSX контракт связывает props, слоты и результат")
         .toEqual(["Input", "Output", "Slots"])
@@ -139,7 +139,7 @@ describe.each([
   })
 
   /** @remarks Обычный Component и Container не объявляют JSX-слоты. */
-  describe.skipIf(jsx)("Обычный результат", () => {
+  describe.skipIf(!["Component", "Container"].includes(name))("Обычный результат", () => {
     test("Применимые направления", () => {
       expect(namespace.roles.map(role => role.name).sort(), "Обычный контракт раскрывает вход и выход без фиктивных слотов")
         .toEqual(["Input", "Output"])
@@ -147,7 +147,7 @@ describe.each([
   })
 
   /** @remarks Числовой Component раскрывает primitive Output; формы объектов ему не навязываются. */
-  describe.skipIf(namespaceName !== "StorybookContractsSpecFixtureComponent")("Примитив и форма входа", () => {
+  describe.skipIf(name !== "Component")("Примитив и форма входа", () => {
     test("Примитивный выход", () => {
       expect(namespace.roles.find(role => role.name === "Output"), "Число сохраняется как тип без выдуманных полей объекта")
         .toMatchObject({name: "Output", type: "number", fields: []})
@@ -164,7 +164,7 @@ describe.each([
   })
 
   /** @remarks Container имеет принадлежащую часть; обычный Component не получает этот состав искусственно. */
-  describe.skipIf(!partName)("Контракт целого и части", () => {
+  describe.skipIf(!["Container", "JSX Container"].includes(name))("Контракт целого и части", () => {
     test("Самостоятельный владелец части", () => {
       expect(namespace.roles.find(role => role.name === "Input")?.dependencies,
         "Контракт целого использует вход либо выход части, сохраняя её пакет и исходное объявление")

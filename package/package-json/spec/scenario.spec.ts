@@ -15,7 +15,7 @@ describe.each([
     props: {path: resolve(import.meta.dir, "../../../package.json")},
     engines: {bun: "1.4.x"},
   },
-])("$name", async ({props, engines}) => {
+])("$name", async ({name, props, engines}) => {
   const result = await readPackageJson(props)
 
   const fields = [
@@ -38,7 +38,7 @@ describe.each([
   })
 
   /** @remarks Объявление среды применимо к примеру корневого манифеста Repo. */
-  describe.skipIf(engines === undefined)("Среда Repo", () => {
+  describe.skipIf(name !== "Среда разработки Repo")("Среда Repo", () => {
     test("Объявленный диапазон", () => {
       expect(result.engines, "Читатель сохраняет выбранную Repo линию Bun без фиксации патча")
         .toEqual({bun: "1.4.x"})

@@ -111,7 +111,7 @@ describe.each([
       expandedRows: ["group:components", "button", "tab"],
     },
   },
-] satisfies readonly Scenario[])("$name", async ({props: input, expected}: Scenario) => {
+] satisfies readonly Scenario[])("$name", async ({name, props: input, expected}: Scenario) => {
   const headless = createHeadless({width: 360, height: 480})
   afterAll(() => headless.dispose())
   const props = {
@@ -209,7 +209,7 @@ describe.each([
   })
 
   /** @remarks В закрытой ветви дочерняя строка недоступна до раскрытия. */
-  describe.skipIf(!expected.expanded)("Строка раскрытой ветки", () => {
+  describe.skipIf(!["Ветка", "Поиск по каталогу", "Сохранённое раскрытие важнее начального состояния"].includes(name))("Строка раскрытой ветки", () => {
     test("Клик и Enter", async () => {
       const before = [...element.querySelectorAll("[data-tree-id]")]
       const row = element.querySelector('[data-tree-id="button"]')!
@@ -222,7 +222,11 @@ describe.each([
   })
 
   /** @remarks В вариантах без поля поиска ввод не предлагается пользователю. */
-  describe.skipIf(!input.showSearch)("Поиск", () => {
+  describe.skipIf(![
+    "Поиск по каталогу",
+    "Свёрнуто без сохранённого состояния",
+    "Сохранённое раскрытие важнее начального состояния",
+  ].includes(name))("Поиск", () => {
     test("Изменение запроса", () => {
       props.onSearch.mockClear()
       const field = element.querySelector('input[type="search"]') as HTMLInputElement

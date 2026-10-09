@@ -9,7 +9,7 @@ import {createWebArtifacts} from "./fixture/web-artifacts"
 describe.each([
   {name: "Предварительная проверка", props: {apply: false}},
   {name: "Публикация среды", props: {apply: true}},
-])("$name", async ({props}) => {
+])("$name", async ({name, props}) => {
   const fixture = createWebArtifacts()
   const candidate = fixture.assets("platform-a", "web-a")
   const build = mock(async () => candidate)
@@ -50,7 +50,7 @@ describe.each([
   })
 
   /** @remarks Доступно только при проверке без apply: опубликованного host ещё нет. */
-  describe.skipIf(props.apply)("Кандидат без применения", () => {
+  describe.skipIf(name !== "Предварительная проверка")("Кандидат без применения", () => {
     test("Изоляция текущего host", () => {
       expect(() => web.host(), "Предварительная проверка не меняет host открытой страницы")
         .toThrow()
@@ -60,7 +60,7 @@ describe.each([
   })
 
   /** @remarks Доступно только после apply: текущая оболочка уже опубликована. */
-  describe.skipIf(!props.apply)("Опубликованный host", () => {
+  describe.skipIf(name !== "Публикация среды")("Опубликованный host", () => {
     test("Чтение версии", () => {
       expect(web.host().pageEntryUrl, "Страница получает вход опубликованной оболочки")
         .toBe(candidate.browserIdentity!.packageEntryUrl)

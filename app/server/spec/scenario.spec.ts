@@ -12,7 +12,7 @@ describe.each([
   {name: "Проверка доступности", props: {path: "/api/health"}, environment: false},
   {name: "Состояние каталога", props: {path: "/api/status"}, environment: false},
   {name: "Окружение разработчика Project", props: {path: "/api/environment"}, environment: true},
-])("$name", async ({props, environment}) => {
+])("$name", async ({name, props, environment}) => {
   const root = mkdtempSync(join(tmpdir(), "storybook-server-scenario-"))
   const chrome = {targets: async () => []} as unknown as NonNullable<StorybookAppServerBrowser.Input["chrome"]>
   const browserLifecycle = createStorybookBrowserLifecycle({
@@ -39,7 +39,7 @@ describe.each([
     expect(response.status, "Доступный экземпляр возвращает успешный HTTP ответ").toBe(200)
   })
   /** @remarks Диагностические ответы публикуют identity процесса и версию каталога. */
-  describe.skipIf(environment)("Диагностика сервера", () => {
+  describe.skipIf(!["Проверка доступности", "Состояние каталога"].includes(name))("Диагностика сервера", () => {
     test("Идентичность", () => {
       expect(body, "Публичная диагностика относится к созданному instance и пустому каталогу").toMatchObject({
         ok: true,
@@ -51,7 +51,7 @@ describe.each([
   })
 
   /** @remarks Общий вход окружения раскрывает предмет и команды авторизованного разработчика. */
-  describe.skipIf(!environment)("Окружение Project", () => {
+  describe.skipIf(name !== "Окружение разработчика Project")("Окружение Project", () => {
     test("Стартовый предмет", () => {
       expect(body.result, "Штатный controlToken предоставляет общий контекст Project до подключения модели")
         .toMatchObject({executorId: "developer:project", subject: {address: "/", type: "Project"}})

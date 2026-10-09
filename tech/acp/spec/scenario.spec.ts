@@ -7,7 +7,7 @@ import connect, {type StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 describe.each([
   {name: "Новая сессия", props: {previousSessionId: null}},
   {name: "Восстановленная сессия", props: {previousSessionId: "saved-session"}},
-])("$name", async ({props}) => {
+])("$name", async ({name, props}) => {
   const updates: Parameters<StorybookTechAcp.Input["onUpdate"]>[0][] = []
   const connection = await connect({
     cwd: resolve(import.meta.dir, "../../.."),
@@ -51,7 +51,7 @@ describe.each([
       ? [JSON.parse(update.content.text).text] : [])
     expect(messages, "Исходные обновления доставляются в порядке исполнения").toEqual(["Первый turn", "Второй turn"])
   })
-  describe.skipIf(props.previousSessionId === null)("Отказ восстановления", () => {
+  describe.skipIf(name !== "Восстановленная сессия")("Отказ восстановления", () => {
     test("Понятная причина", async () => {
       const error = await connect({
         cwd: resolve(import.meta.dir, "../../.."),

@@ -10,7 +10,7 @@ describe.each([
   {name: "Project", props: {address: "/", label: "Проект", environment: false}},
   {name: "Компонент", props: {address: "/example/button", label: "Button", environment: false}},
   {name: "Компонент с окружением", props: {address: "/example/button", label: "Button", environment: true}},
-])("$name", async ({props}) => {
+])("$name", async ({name, props}) => {
   const directory = await mkdtemp(join(tmpdir(), "chat-scenario-"))
   const deliveries: unknown[] = []
   const commands: unknown[] = []
@@ -117,7 +117,7 @@ describe.each([
       .toMatchObject({id: actual.id, address: movedAddress, messages: actual.messages, status: "idle"})
   })
   /** @remarks Полные сообщения-команды исполняются только при назначенном окружении. */
-  describe.skipIf(!props.environment)("Цикл окружения", () => {
+  describe.skipIf(name !== "Компонент с окружением")("Цикл окружения", () => {
     test("Начальный контекст", () => {
       expect(deliveries[0], "Bootstrap окружения передаётся перед первым пользовательским содержимым")
         .toEqual([...bootstrap, {type: "text", text: "Начать беседу"}])

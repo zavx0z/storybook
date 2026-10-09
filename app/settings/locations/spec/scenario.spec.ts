@@ -10,7 +10,7 @@ describe.each([
   {name: "Существующий конфиг", directoryExists: true, existingConfig: true, concurrent: false, update: false},
   {name: "Одновременный первый запуск", directoryExists: false, existingConfig: false, concurrent: true, update: false},
   {name: "Сохранение выбранных каталогов", directoryExists: false, existingConfig: false, concurrent: false, update: true},
-])("$name", async ({directoryExists, existingConfig, concurrent, update}) => {
+])("$name", async ({name, directoryExists, existingConfig, concurrent, update}) => {
   const home = await realpath(await mkdtemp(join(tmpdir(), "zavx0z-locations-")))
   afterAll(() => rm(home, {recursive: true, force: true}))
   await mkdir(join(home, "repos"))
@@ -53,14 +53,14 @@ describe.each([
   })
 
   /** @remarks Побайтная сохранность чужих полей раскрывается только для уже существующего файла. */
-  describe.skipIf(!existingConfig)("Существующие данные", () => {
+  describe.skipIf(name !== "Существующий конфиг")("Существующие данные", () => {
     test("Исходный документ", () => {
       expect(saved, "Чтение сохраняет дополнительные поля и форматирование существующего конфига").toBe(content)
     })
   })
 
   /** @remarks Права создания применимы только к каталогу, созданному этим запуском. */
-  describe.skipIf(directoryExists)("Доступ пользователя", () => {
+  describe.skipIf(!["Первый запуск", "Одновременный первый запуск", "Сохранение выбранных каталогов"].includes(name))("Доступ пользователя", () => {
     test("Каталог настроек", async () => {
       expect((await lstat(directory)).mode & 0o777, "Новый каталог настроек доступен только пользователю").toBe(0o700)
     })

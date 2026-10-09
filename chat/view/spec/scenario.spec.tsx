@@ -209,7 +209,7 @@ describe.each([
     } satisfies ScenarioData,
     sendEnabled: false, cancelEnabled: false, statusLabel: "Готов",
   },
-])("$name", async ({props, statusLabel, sendEnabled, cancelEnabled}) => {
+])("$name", async ({name, props, statusLabel, sendEnabled, cancelEnabled}) => {
   const headless = createHeadless({width: 420, height: 640})
   afterAll(() => headless.dispose())
   const onDraftChange = mock((value: string) => {})
@@ -277,7 +277,7 @@ describe.each([
   })
 
   /** @remarks Только вариант с timeline содержит отдельный инструмент и исходный typed image. */
-  describe.skipIf(!("timeline" in props))("События и изображения", () => {
+  describe.skipIf(!["События и медиа", "Markdown и изображения"].includes(name))("События и изображения", () => {
     test("Исходный PNG", async () => {
       const file = await readFile(new URL("./fixture/circle.png", import.meta.url))
       expect(Buffer.from(scenarioImageData, "base64"), "Переносимые данные сохраняют byte-identical PNG asset сценария").toEqual(file)
@@ -291,7 +291,7 @@ describe.each([
     })
   })
   /** @remarks Только timeline варианта событий содержит свернутый tool с действием раскрытия. */
-  describe.skipIf(!("timeline" in props) || !props.timeline?.some(item => item.kind === "tool"))("Действия исполнения", () => {
+  describe.skipIf(name !== "События и медиа")("Действия исполнения", () => {
     test("Раскрытие инструмента", () => {
       const entry = element.querySelector('[data-chat-entry="tool"]')!
       const button = entry.querySelector("button") as HTMLButtonElement
@@ -300,7 +300,7 @@ describe.each([
     })
   })
   /** @remarks Раскрытое media является отдельным состоянием владельца, а не внутренним состоянием ChatView. */
-  describe.skipIf(!("media" in props))("Развёрнутое изображение", () => {
+  describe.skipIf(name !== "Развёрнутое изображение")("Развёрнутое изображение", () => {
     test("Предпросмотр", async () => {
       await headless.capture(element)
       expect(element.querySelector('[role="dialog"]')?.getAttribute("aria-label"), "Диалог относится к выбранному изображению владельца").toBe("Проверка Markdown")
@@ -313,7 +313,7 @@ describe.each([
     })
   })
   /** @remarks Только вариант с assistant Markdown image предоставляет действие открытия именно этого source. */
-  describe.skipIf(!props.messages.some(message => message.text.includes("![Проверка Markdown]")))("Markdown изображения", () => {
+  describe.skipIf(!["Markdown и изображения", "Изображение и длинная история"].includes(name))("Markdown изображения", () => {
     test("Содержимое и действие", async () => {
       await headless.capture(element)
       const button = element.querySelector('button[aria-label="Открыть: Проверка Markdown"]') as HTMLButtonElement | null

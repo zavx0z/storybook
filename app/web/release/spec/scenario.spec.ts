@@ -14,7 +14,7 @@ describe.each([
   {name: "Подготовка не отменяет запрошенное применение", props: {candidate: "web-b"}, apply: true, join: "request", joinApply: false, disconnect: false, phase: "published"},
   {name: "Применение из уведомления о подготовке", props: {candidate: "web-b"}, apply: false, join: "observer", joinApply: true, disconnect: false, phase: "published"},
   {name: "Отключение наблюдателя", props: {candidate: "web-b"}, apply: true, join: "none", joinApply: false, disconnect: true, phase: "published"},
-])("$name", async ({props, apply, join, joinApply, disconnect, phase}) => {
+])("$name", async ({name, props, apply, join, joinApply, disconnect, phase}) => {
   const prepared = Promise.withResolvers<string>()
   let published = "web-a"
   const input = {
@@ -68,7 +68,11 @@ describe.each([
   })
 
   /** @remarks Только варианты с дополнительным запросом сравнивают общий Promise. */
-  describe.skipIf(join === "none")("Общая операция", () => {
+  describe.skipIf(![
+    "Применение по конкурентному запросу",
+    "Подготовка не отменяет запрошенное применение",
+    "Применение из уведомления о подготовке",
+  ].includes(name))("Общая операция", () => {
     test("Присоединение", () => {
       expect(joined, "Конкурентный запрос, включая запрос из наблюдателя, получает тот же Promise").toBe(operation)
     })

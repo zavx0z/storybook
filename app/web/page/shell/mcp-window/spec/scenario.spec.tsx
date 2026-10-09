@@ -15,7 +15,7 @@ describe.each([
   {name: "Восстановление открытого окна", props: {open: true, entries: [], initialState: {open: true, mode: "address" as const, geometry: {x: 64, y: 54, width: 690, height: 480}}}},
   {name: "Восстановление закрытого окна", props: {open: false, entries: [], initialState: {open: false, mode: "address" as const, geometry: {x: 64, y: 54, width: 690, height: 480}}}},
   {name: "Контекст и вызовы", props: {open: true, entries: [command("agent")], address: "/storybook/archetypes?view=scenarios&variant=Пример"}},
-])("$name", async ({props: input}) => {
+])("$name", async ({name, props: input}) => {
   const headless = createHeadless({width: 1000, height: 800})
   afterAll(() => headless.dispose())
   const props = {
@@ -66,7 +66,16 @@ describe.each([
   })
 
   /** @remarks Геометрия и действия применимы к открытому окну; скрытое окно не участвует в раскладке. */
-  describe.skipIf(!input.open)("Открытое окно", () => {
+  describe.skipIf(![
+    "Пустой журнал",
+    "Выполнение команды",
+    "Готовый ответ",
+    "Многострочный ответ",
+    "Ошибка команды",
+    "История команд",
+    "Восстановление открытого окна",
+    "Контекст и вызовы",
+  ].includes(name))("Открытое окно", () => {
     test("Положение и размер", () => {
       expect(shell.getBoundingClientRect().toJSON(), "Окно использует сохранённую геометрию либо начальные размеры").toMatchObject(input.initialState?.geometry ?? {x: 24, y: 24, width: 620, height: 400})
     })
@@ -78,7 +87,15 @@ describe.each([
   })
 
   /** @remarks Журнал и его записи доступны в режиме вызовов агента. */
-  describe.skipIf(!input.open || mode !== "agent")("Журнал", () => {
+  describe.skipIf(![
+    "Пустой журнал",
+    "Выполнение команды",
+    "Готовый ответ",
+    "Многострочный ответ",
+    "Ошибка команды",
+    "История команд",
+    "Контекст и вызовы",
+  ].includes(name))("Журнал", () => {
     test("Количество", () => {
       expect(element.querySelectorAll("article").length, "Отображается одна выбранная команда независимо от размера истории").toBe(first ? 1 : 0)
     })
@@ -91,7 +108,14 @@ describe.each([
   })
 
   /** @remarks Состояние команды существует, когда открытый журнал содержит запись. */
-  describe.skipIf(!first)("Выбранная команда", () => {
+  describe.skipIf(![
+    "Выполнение команды",
+    "Готовый ответ",
+    "Многострочный ответ",
+    "Ошибка команды",
+    "История команд",
+    "Контекст и вызовы",
+  ].includes(name))("Выбранная команда", () => {
     test("Состояние", () => {
       expect(element.querySelector("article")?.textContent, "Статус выполнения выбранной команды").toContain(` · ${first!.status} · `)
     })
@@ -99,7 +123,7 @@ describe.each([
   })
 
   /** @remarks Навигация по истории имеет смысл при нескольких командах. */
-  describe.skipIf(!input.open || input.entries.length < 2)("История", () => {
+  describe.skipIf(name !== "История команд")("История", () => {
     test("Выбор команды", async () => {
       await click("Предыдущий вызов")
       expect(element.querySelectorAll("code")[1]?.textContent, "Полный ответ предыдущей записи").toBe(input.entries[1]!.result)
@@ -111,7 +135,7 @@ describe.each([
   })
 
   /** @remarks Смена режима показана в варианте с явным адресом страницы. */
-  describe.skipIf(!input.address)("Текущий адрес", () => {
+  describe.skipIf(name !== "Контекст и вызовы")("Текущий адрес", () => {
     test("Запрос и ответ", async () => {
       expect(element.querySelector("article")?.textContent, "Первоначально виден вызов агента").toContain("storybook-agent")
       await click("Контекст")

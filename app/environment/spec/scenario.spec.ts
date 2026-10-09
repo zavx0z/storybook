@@ -8,7 +8,7 @@ import readKnowledge from "@zavx0z/storybook-app-knowledge"
 describe.each([
   {name: "Исполнитель Component", props: {executorId: "component-worker", address: "/sample"}, type: "Component" as const},
   {name: "Разработчик Project", props: {executorId: "project-developer", address: "/", inspectExecutors: true}, type: "Project" as const},
-])("$name", async ({props, type}) => {
+])("$name", async ({name, props, type}) => {
   const directory = await mkdtemp(join(tmpdir(), "environment-example-"))
   afterAll(() => rm(directory, {recursive: true, force: true}))
   await writeFile(join(directory, "example.txt"), "Назначенная область")
@@ -64,7 +64,7 @@ describe.each([
   })
 
   /** @remarks Инспекция других исполнителей назначается только разработчику Project. */
-  describe.skipIf(type !== "Project")("Инспекция исполнителей", () => {
+  describe.skipIf(name !== "Разработчик Project")("Инспекция исполнителей", () => {
     test("Доступная команда", () => {
       expect(bootstrap.tools.map((tool: {name: string}) => tool.name),
         "Разработчик Project получает объявленное хостом право читать контекст активного исполнителя")

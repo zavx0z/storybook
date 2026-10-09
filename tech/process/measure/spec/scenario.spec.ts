@@ -42,7 +42,7 @@ describe.each([
     props: {binding: {pid: 100}, rows: []},
     expected: null,
   },
-])("$name", ({props, expected}) => {
+])("$name", ({name, props, expected}) => {
   const result = measureProcessResources(props)
 
   test("Результат измерения", () => {
@@ -50,7 +50,7 @@ describe.each([
   })
 
   /** @remarks Поля измерения существуют только при найденном корне с подходящей меткой старта. */
-  describe.skipIf(expected === null)("Доступное дерево", () => {
+  describe.skipIf(!["Корень с двумя поколениями потомков", "Одиночный процесс", "Неизвестные ресурсы потомка"].includes(name))("Доступное дерево", () => {
     test("Состав итоговых данных", () => {
       if (expected === null) throw new Error("Проверка состава применима только к доступному дереву")
       expect(result, "Ресурсный итог не раскрывает PID, команду и пути процесса").toEqual({

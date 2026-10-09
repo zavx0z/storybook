@@ -9,7 +9,7 @@ import createWorkspace from "@zavx0z/ai-workspace"
 describe.each([
   {name: "Общая файловая область", extended: false},
   {name: "Предметное расширение", extended: true},
-])("$name", async ({extended}) => {
+])("$name", async ({name, extended}) => {
   const directory = await mkdtemp(join(tmpdir(), "package-tools-example-"))
   afterAll(() => rm(directory, {recursive: true, force: true}))
   const workspace = createWorkspace({directory})
@@ -27,7 +27,7 @@ describe.each([
   test("Состав", () => {
     expect(tools.length, "Сущность дополняет десять файловых инструментов, сохраняя их реализации").toBe(extended ? 11 : 10)
   })
-  describe.skipIf(!extended)("Расширение сущности", () => {
+  describe.skipIf(name !== "Предметное расширение")("Расширение сущности", () => {
     test("Предметный результат", async () => {
       expect(await tools.find(tool => tool.name === "example.summary")!.execute({}),
         "Дополнительная возможность возвращает собственный результат").toEqual({description: "Пример"})
