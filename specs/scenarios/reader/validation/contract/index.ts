@@ -29,6 +29,8 @@ export declare namespace StorybookSpecsScenariosReaderValidation {
         readonly label: string
         readonly location: ScenarioValidationLocation
         readonly remarks: string | null
+        /** Явные имена из skipIf, связанного с name строки each; отсутствие означает иной способ выбора. */
+        readonly variantNames?: readonly string[] | undefined
       }[]
       readonly assertions: readonly {
         readonly inline: boolean

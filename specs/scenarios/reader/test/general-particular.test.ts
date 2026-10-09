@@ -9,8 +9,8 @@ import {readScenarioSource} from "../src/read-source"
 const root = mkdtempSync(resolve(tmpdir(), "storybook-particular-"))
 afterAll(() => rmSync(root, {recursive: true, force: true}))
 const common = 'point("Общее", () => { expect(1, "Общее свойство").toBe(1) })'
-const particular = `/** @remarks Возможность применяется при enabled. */
-suite.skipIf(!props.enabled)("Возможность", () => {
+const particular = `/** @remarks Возможность относится к именованному варианту. */
+suite.skipIf(name !== "Вариант")("Возможность", () => {
   point("Свойство", () => { expect(1, "Частное свойство").toBe(1) })
 })`
 
@@ -19,6 +19,17 @@ test.each([
   {name: "общее перед частным", code: `${common}\n${particular}`, valid: true},
   {name: "общая вложенная тема", code: `suite("Общая тема", () => { ${common} })\n${particular}`, valid: true},
   {name: "частное без оценки архитектуры", code: particular, valid: true},
+  {name: "явный список имён", code: particular.replace('name !== "Вариант"', '!["Вариант", "Другой"].includes(name)'), valid: true},
+  {name: "несколько сравнений", code: particular.replace('name !== "Вариант"', 'name !== "Вариант" && name !== "Другой"'), valid: true},
+  {name: "переименованное поле name", parameters: "{name: variantName, props}", code: particular.replace('name !==', 'variantName !=='), valid: true},
+  {name: "имя через строку each", parameters: "row", code: particular.replace('name !==', 'row.name !=='), valid: true},
+  {name: "переключатель props.variant", code: particular.replace('name !== "Вариант"', 'props.variant !== "update"'), valid: false},
+  {name: "выбор по входным данным", code: particular.replace('name !== "Вариант"', '!props.enabled'), valid: false},
+  {name: "выбор по результату", code: particular.replace('name !== "Вариант"', 'result === null'), valid: false},
+  {name: "посторонняя переменная name", parameters: "{props}", code: 'const name = "Вариант";\n' + particular, valid: false},
+  {name: "name из props", parameters: "{props: {name}}", code: particular, valid: false},
+  {name: "нестрогое сравнение", code: particular.replace('!==', '!='), valid: false},
+  {name: "пустой список имён", code: particular.replace('name !== "Вариант"', '!([]).includes(name)'), valid: false},
   {name: "общее после частного", code: `${particular}\n${common}`, valid: false},
   {name: "условный пункт вместо темы", code: 'point.skipIf(!props.enabled)("Свойство", () => { expect(1).toBe(1) })', valid: false},
   {name: "частная тема на третьем уровне", code: `suite("Тема", () => { ${particular} })`, valid: false},
@@ -26,10 +37,10 @@ test.each([
   {name: "пустая частная группа", code: 'suite.skipIf(!props.enabled)("Тема", () => {})', valid: false},
   {name: "регистрация через if", code: `if (props.enabled) { ${common} }`, valid: false},
   {name: "регистрация через выражение", code: `props.enabled && ${common}`, valid: false},
-])("Общее и частное: $name", async ({name, code, valid}) => {
+])("Общее и частное: $name", async ({name, code, valid, parameters = "{name, props}"}) => {
   const path = resolve(root, `${name}.spec.ts`)
   writeFileSync(path, `import {describe as suite, test as point, expect} from "bun:test"
-suite.each([{props: {enabled: true}}])("Вариант", ({props}) => {
+suite.each([{name: "Вариант", props: {enabled: true}}])("$name", (${parameters}) => {
 ${code}
 })
 `)

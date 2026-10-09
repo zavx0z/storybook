@@ -4,7 +4,7 @@ import {summarizeNumbers} from "@fixture/scenario-function"
 describe.each([
   {name: "Несколько чисел", props: {values: [2, 3]}, expected: {count: 2, sum: 5}},
   {name: "Пустой набор", props: {values: []}, expected: {count: 0, sum: 0}},
-])("$name", ({props, expected}) => {
+])("$name", ({name, props, expected}) => {
   const result = summarizeNumbers(props)
 
   test("Состав результата", () => {
@@ -37,7 +37,7 @@ describe.each([
   })
 
   /** @remarks Пустой набор не содержит первого числа. */
-  describe.skipIf(props.values.length === 0)("Непустой набор", () => {
+  describe.skipIf(name !== "Несколько чисел")("Непустой набор", () => {
     test("Первое число", () => {
       expect(result.values[0], "Первое число сохраняет исходное положение в наборе").toBe(props.values[0])
     })

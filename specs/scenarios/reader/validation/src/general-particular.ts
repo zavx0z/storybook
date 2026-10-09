@@ -22,6 +22,7 @@ export function generalParticular(source: StorybookSpecsScenariosReaderValidatio
       else if (!conditions.length && particularStarted.has(parent!)) add(`Общая проверка ${item.label} располагается перед частными группами describe.skipIf`)
     }
     if (particular) {
+      if (!item.variantNames?.length) add(`Частная тема ${item.label} выбирается по name строки внешнего describe.each: name !== "Имя варианта"; props, результат и дополнительные переключатели не выбирают сценарий`)
       let hasTests = false
       for (const child of registrations.slice(index + 1)) {
         if (child.depth <= item.depth) break

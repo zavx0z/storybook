@@ -16,7 +16,7 @@ describe.each([
   {name: "Отчёт компонента", props: {path: resolve(import.meta.dir, "fixture/component/spec/scenario.spec.tsx")}},
   {name: "Компонент со своим состоянием", props: {path: resolve(import.meta.dir, "fixture/component/spec/stateful.test.tsx")}},
   {name: "Компонент с преобразованием входных данных", props: {path: resolve(import.meta.dir, "fixture/component/spec/derived-input.test.tsx")}},
-])("$name", async ({props}) => {
+])("$name", async ({name, props}) => {
   const report = await readScenario(props)
 
   test("Исходник", () => {
@@ -38,7 +38,7 @@ describe.each([
     expect(report.validation.checks.length, "Приложение сохраняет полный результат правил Archetypes").toBeGreaterThan(0)
   })
   /** @remarks Конкретный пример JSX принадлежит варианту отчёта компонента. */
-  describe.skipIf(props.path !== resolve(import.meta.dir, "fixture/component/spec/scenario.spec.tsx"))("Параметры компонента", () => {
+  describe.skipIf(name !== "Отчёт компонента")("Параметры компонента", () => {
     test("Значения в JSX", () => {
       expect(report.preview?.variants[0]?.source,
         "Выбранные значения и callback видны в своих атрибутах компонента; пример раскрывает подготовленные props в месте использования",

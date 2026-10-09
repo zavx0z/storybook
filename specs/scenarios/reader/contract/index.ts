@@ -393,6 +393,8 @@ interface ScenarioSource {
     readonly depth: number
     readonly scope: "module" | "native" | "helper" | "indirect"
     readonly remarks: string | null
+    /** Явные имена из skipIf, связанного с name строки each; отсутствие означает иной способ выбора. */
+    readonly variantNames?: readonly string[] | undefined
     readonly location: TraceLocation
   }[]
 }

@@ -11,6 +11,7 @@ import {SyntaxKind} from "typescript/unstable/ast"
 import type {ScenarioSource} from "./types"
 import {readComponentOrigins} from "./component-origins"
 import {defaultExportInvocation} from "./public-callable"
+import {selectedVariantNames} from "./variant-selection"
 
 /**
 Читает объявления как данные; не регистрирует и не исполняет тесты исходника.
@@ -102,6 +103,7 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
     const registrations: ScenarioSource["registrations"][number][] = []
     const ancestors: Node[] = []
     const nativeBodies = new Set<Node>([file])
+    const variantCallbacks = new Map<string, Node>()
     const locationOf = (node: Node) => {
       const prefix = text.slice(0, node.getStart(file))
       return {path, line: prefix.split("\n").length, column: prefix.length - prefix.lastIndexOf("\n")}
@@ -160,7 +162,10 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
           registrations.push({kind: owner.name === "describe" ? "describe" : "test", label: node.arguments[0] ? textOf(node.arguments[0]) : "",
             modifiers: owner.modifiers, depth,
             scope: scope === "helper" || (ancestors.at(-1) && isExpressionStatement(ancestors.at(-1)!) && nativeBodies.has(ancestors.at(-2)!)) ? scope : "indirect",
-            remarks, location: locationOf(node)})
+            remarks, location: locationOf(node),
+            ...(owner.modifiers.includes("skipIf") ? {
+              variantNames: selectedVariantNames(node.expression, variant ? variantCallbacks.get(`${variant.line}:${variant.column}`) : undefined),
+            } : {})})
         }
         if (owner && ["describe", "test", "it"].includes(owner.name) && callback && (isArrowFunction(callback) || isFunctionExpression(callback))) {
           callbackNode = callback
@@ -171,7 +176,10 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
             tests.push(selectedTest)
           } else {
             groupCallback = callback
-            if (owner.modifiers.includes("each")) eachCallback = callback
+            if (owner.modifiers.includes("each")) {
+              eachCallback = callback
+              variantCallbacks.set(`${locationOf(node).line}:${locationOf(node).column}`, callback)
+            }
             const statements = isBlock(callback.body) ? [...callback.body.statements] : []
             const first = statements.findIndex(statement => isExpressionStatement(statement) && isCallExpression(statement.expression)
               && ["describe", "test", "it"].includes(chain(statement.expression.expression)?.name ?? ""))
