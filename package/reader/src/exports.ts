@@ -7,7 +7,7 @@ import {
   isModuleBlock, isModuleDeclaration, isNamedExports, isNamedImports,
   isStringLiteral, isTypeAliasDeclaration, isVariableStatement, isImportTypeNode,
 } from "typescript/unstable/ast/is"
-import {dirname, resolve} from "node:path"
+import {dirname, extname, resolve} from "node:path"
 import {lstat, realpath, readFile} from "node:fs/promises"
 import readPackageIndex from "@zavx0z/storybook-package-index"
 import Compiler from "@zavx0z/storybook-tech-build-compiler"
@@ -31,18 +31,27 @@ async function sourceFilePath(root: string, path: string): Promise<string | null
 
 /** Читает ближайшую идентичность владельца объявления; исходник не исполняется. */
 async function sourceOwner(path: string): Promise<Owner | null> {
-  for (let directory = dirname(path); ; directory = dirname(directory)) {
-    const metadata = resolve(directory, "package.json")
-    const info = await lstat(metadata).catch(error => {
-      if (error.code !== "ENOENT") throw error
-      return null
-    })
-    if (info?.isFile() && !info.isSymbolicLink()) {
-      const value = JSON.parse(await readFile(metadata, "utf8"))
-      return typeof value.name === "string" ? {path: directory, name: value.name} : null
-    }
-    if (dirname(directory) === directory) return null
-  }
+  const owner = Compiler.readStorybookPackageOwner(path)
+  return owner ? {path: owner.root, name: owner.name} : null
+}
+
+/**
+Различает физический ресурс и ambient-описание его типа. TypeScript может связать
+*.html с bun-types, но файлом зависимости остаётся сам HTML владельца.
+
+@param file - Исходник с импортом ресурса.
+
+@param specifier - Литеральный адрес импортируемого модуля.
+
+@param root - Корень проверяемого владельца для канонизации.
+
+@returns Путь существующего ресурса, null для отсутствующего либо undefined для кодового/пакетного импорта.
+*/
+async function resourceModule(file: SourceFile, specifier: string, root: string): Promise<string | null | undefined> {
+  if (!specifier.startsWith(".")) return undefined
+  const extension = extname(specifier)
+  if (!extension || /\.(?:[cm]?[jt]sx?)$/u.test(extension)) return undefined
+  return await sourceFilePath(root, resolve(dirname(file.fileName), specifier))
 }
 
 /** Выделяет исполняемые объявления и эффекты; импорты значений сами не являются реализацией фасада. */
@@ -127,7 +136,8 @@ async function moduleReferences(file: SourceFile, project: Project, root: string
   for (const reference of nodes) {
     const symbol = await project.checker.getSymbolAtLocation(reference.node)
     const declaration = symbol?.declarations[0]
-    const path = declaration ? await sourceFilePath(root, declaration.path) : null
+    const resource = await resourceModule(file, reference.module, root)
+    const path = resource !== undefined ? resource : declaration ? await sourceFilePath(root, declaration.path) : null
     const owner = path && !isBuiltin(reference.module) ? await sourceOwner(path) : null
     result.push({from: file.fileName, module: reference.module, names: reference.names, typeOnly: reference.typeOnly,
       exported: reference.exported, path, owner, public: isBuiltin(reference.module) ? true : path ? await publicModule(path, owner, root, reference.module) : null})
@@ -182,7 +192,7 @@ export async function readSourceExports(root: string, paths: readonly string[]):
       }
       const references = [...await moduleReferences(file, project, root)]
       for (const reference of references) {
-        if (reference.owner?.path === root && reference.path) pending.add(reference.path)
+        if (reference.owner?.path === root && reference.path && /\.[cm]?[jt]sx?$/u.test(reference.path)) pending.add(reference.path)
       }
       for (const contract of contracts) {
         const source = await project.program.getSourceFile(contract)
@@ -190,7 +200,7 @@ export async function readSourceExports(root: string, paths: readonly string[]):
           const dependencies = await moduleReferences(source, project, root)
           references.push(...dependencies)
           for (const reference of dependencies) {
-            if (reference.owner?.path === root && reference.path && reference.path !== path) contracts.add(reference.path)
+            if (reference.owner?.path === root && reference.path && reference.path !== path && /\.[cm]?[jt]sx?$/u.test(reference.path)) contracts.add(reference.path)
           }
         }
       }

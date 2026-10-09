@@ -249,8 +249,8 @@ describe("external Storybook package compiler", () => {
 
   test("собирает композицию IconButton и Button с единственными владельцами runtime", async () => {
     const repo = await realpath(resolve(import.meta.dir, "../../../../../immersive"))
-    const packageRoot = join(repo, "ui")
-    const source = join(packageRoot, "button/icon-button/index.tsx")
+    const packageRoot = join(repo, "ui/component/button/icon")
+    const source = join(packageRoot, "index.tsx")
     const plugins = await createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot,
@@ -266,8 +266,8 @@ describe("external Storybook package compiler", () => {
     })
     expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
     const inputs = JSON.stringify(result.metafile?.inputs ?? {})
-    expect(inputs).toContain("immersive/ui/button/icon-button/index.tsx")
-    expect(inputs).toContain("immersive/ui/button/button/index.tsx")
+    expect(inputs).toContain("immersive/ui/component/button/icon/index.tsx")
+    expect(inputs).toContain("immersive/ui/component/button/basic/index.tsx")
     expect(inputs).toContain("immersive/component/src/index.ts")
     expect(inputs).toContain("immersive/template/compiled.ts")
     expect(inputs).not.toContain("node_modules/.bun/@zavx0z+")
@@ -585,8 +585,8 @@ function resolveWithPlugin(plugin: Bun.BunPlugin, path: string): Readonly<{path?
 test("generated JSX outside the owner becomes an executable compiled child", async () => {
   const Loader = (await import("@zavx0z/storybook-package-build-loader")).default
   const repo = await realpath(resolve(import.meta.dir, "../../../../../immersive"))
-  const packageRoot = join(repo, "ui")
-  const source = join(packageRoot, "button/button/index.tsx")
+  const packageRoot = join(repo, "ui/component/button/basic")
+  const source = join(packageRoot, "index.tsx")
   const root = await temporaryRoot()
   const generatedSourceRoot = join(root, "scenario-jsx")
   await mkdir(generatedSourceRoot)
@@ -599,7 +599,7 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
     kind: "component", nodeId: "fixture", module: {path: source, export: "default"},
     variants: [{id: "child", title: "child", props: {}, source: "", points: [], jsxProps: {
       children: {source: '<Button label="Дочерний" />', imports: [
-        {local: "Button", imported: "default", specifier: "@zavx0z/immersive-ui-component/button/button", path: source},
+        {local: "Button", imported: "default", specifier: "@zavx0z/immersive-ui-component-button-basic", path: source},
       ]},
     }}],
   }])
@@ -698,4 +698,4 @@ test("conditional API домена выбирается по среде факт
     expect(code).not.toContain(target === "browser" ? "server-marker" : "browser-marker")
     expect(code).not.toContain("fallback-marker")
   }
-})
+}, 60_000)

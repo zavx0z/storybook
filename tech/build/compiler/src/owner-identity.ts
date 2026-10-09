@@ -8,12 +8,30 @@ import {basename, dirname, isAbsolute, join, relative, resolve, sep} from "node:
 
 import type {StorybookPackageOwner} from "../contract/owner"
 
-/** Reads the nearest exact package owner of one resolved source file. */
+/**
+Находит ближайшего именованного владельца исходника. Вложенный package.json без
+name задаёт область настроек модуля (например, ESM/CJS в npm-зависимости), но не
+объявляет отдельную идентичность. Явно выбранный корень проверяется строго через
+readStorybookPackageRoot.
+
+@param path - Разрешённый путь исходного файла.
+
+@returns Ближайший именованный владелец либо null до границы node_modules или файловой системы. Установленная зависимость не присваивается проекту-потребителю.
+
+@throws Ошибка чтения/JSON либо некорректное явно заданное имя; эти отказы не скрываются поиском родителя.
+*/
 export function readStorybookPackageOwner(path: string): StorybookPackageOwner | null {
   let directory = dirname(resolve(path))
   while (true) {
     const manifestPath = join(directory, "package.json")
-    if (existsSync(manifestPath)) return readStorybookPackageRoot(directory)
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"))
+      if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
+        throw new TypeError(`Storybook owner manifest must be an object: ${manifestPath}`)
+      }
+      if (Object.hasOwn(manifest, "name")) return readStorybookPackageRoot(directory)
+    }
+    if (basename(directory) === "node_modules") return null
     const parent = dirname(directory)
     if (parent === directory) return null
     directory = parent

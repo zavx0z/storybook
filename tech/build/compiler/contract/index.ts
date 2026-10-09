@@ -31,7 +31,7 @@ export declare namespace StorybookTechBuildCompiler {
   @property createStorybookPackageCompilerPlugins - Создаёт resolver и свежий JSX compiler plugin для входов Input.
   @property resolveStorybookJsxImportSource - Читает pragma и effective tsconfig одного исходника без загрузки compiler plugins.
   @property conditionalExportTarget - Выбирает цель exports по упорядоченным условиям среды.
-  @property readStorybookPackageOwner - Находит ближайшего физического владельца файла или возвращает null.
+  @property readStorybookPackageOwner - Находит ближайшего именованного физического владельца файла или возвращает null. Вложенные manifest без name сохраняют область модуля, не создавая новую идентичность; некорректное заданное имя и ошибки JSON отклоняются.
   @property readStorybookPackageRoot - Подтверждает имя и inode манифеста заданного корня.
   @property sameStorybookPackageOwner - Сравнивает physical identity двух корней.
   @property preferredStorybookPackageRoot - Выбирает checkout среди подтверждённых spelling одного владельца.
