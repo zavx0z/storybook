@@ -82,7 +82,7 @@ export function createBrowserViewerAccess(options: Readonly<{
     if (!selected || (selected.provider !== "capsule" && selected.provider !== "chrome-studio") || !selected.enabled) throw new Error("Подключение браузера недоступно или отключено")
     const url = new URL(selected.endpoint.url)
     if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new TypeError("Для браузера нужен сохранённый loopback origin")
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u.test(selected.endpoint.profile) || !["qwen", "deepseek"].includes(selected.endpoint.service)) throw new TypeError("Некорректный профиль браузера")
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u.test(selected.endpoint.profile) || !["qwen", "deepseek", "chatgpt"].includes(selected.endpoint.service)) throw new TypeError("Некорректный профиль браузера")
     return selected
   }
   async function active(entry: Entry, signal: AbortSignal): Promise<string> {

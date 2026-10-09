@@ -297,3 +297,34 @@ test("Chrome Studio viewer uses the saved profile room and rejects a changed bro
     expect(releases).toBe(2)
   } finally {await access.dispose()}
 })
+
+test.each(["capsule", "chrome-studio"] as const)("ChatGPT viewer: %s использует сохранённый профиль и штатный SSH signaling", async provider => {
+  const connection = {...saved, id: "chatgpt", provider, endpoint: {...saved.endpoint, profile: "chatgpt-profile", service: "chatgpt" as const},
+    ssh: {host: "capsule-codespace", providerRoot: "/workspaces/provider", storageRoot: "/workspaces/provider-state"}}
+  const urls: string[] = []
+  const requests: string[] = []
+  let releases = 0
+  const access = createBrowserViewerAccess({connections: async () => [connection],
+    async tunnel(input) {
+      expect(input).toEqual({host: "capsule-codespace", destination: {host: "127.0.0.1", port: 17777}})
+      return {port: 34123, async dispose() {releases++}}
+    },
+    async fetch(url) {
+      requests.push(String(url))
+      return Response.json(provider === "capsule" ? {ok: true, sessions: [{...running, profileName: connection.endpoint.profile}]}
+        : {ok: true, connection: {profileName: connection.endpoint.profile, webSocketDebuggerUrl: "ws://127.0.0.1:21946/devtools/browser/chatgpt"}})
+    },
+    socket(url) {urls.push(url); return new FakeSocket() as unknown as WebSocket},
+  })
+  try {
+    const descriptor = await access.open(connection.id, signal())
+    expect(descriptor.profile).toBe("chatgpt-profile")
+    expect(descriptor.controlEnabled).toBe(provider === "capsule")
+    const relay = await access.consume(ticket(descriptor.socketPath), "chatgpt-viewer", signal())
+    relay.attach(client())
+    expect(urls).toEqual([`ws://127.0.0.1:34123/rtc/signaling?profile=${provider === "capsule" ? "existing-1" : "chatgpt-profile"}&role=viewer&peer=chatgpt-viewer`])
+    expect(requests.every(url => url === `http://127.0.0.1:34123${provider === "capsule" ? "/api/studio/lifecycle/state" : "/api/profiles/browser-control?name=chatgpt-profile"}`)).toBeTrue()
+    await relay.close()
+    expect(releases).toBe(1)
+  } finally {await access.dispose()}
+})
