@@ -139,8 +139,8 @@ describe.each([{name: "Настройки среды", props: {
     profile.dispatchEvent(new InputEvent("input", {bubbles: true}))
     await headless.capture(element)
     const service = fields.querySelector("select") as HTMLSelectElement
-    expect([...service.querySelectorAll("option")].filter(option => !option.hasAttribute("disabled")).map(option => option.getAttribute("value")), "Подключение поддерживает Qwen и DeepSeek").toEqual(["qwen", "deepseek"])
-    service.value = "deepseek"
+    expect([...service.querySelectorAll("option")].filter(option => !option.hasAttribute("disabled")).map(option => option.getAttribute("value")), "Подключение поддерживает Qwen, DeepSeek и ChatGPT").toEqual(["qwen", "deepseek", "chatgpt"])
+    service.value = "chatgpt"
     service.dispatchEvent(new Event("change", {bubbles: true}))
     await headless.capture(element)
     const probe = card.closest('[data-panel]')!.querySelector('button[aria-label="Проверить подключение"]') as HTMLButtonElement
@@ -152,7 +152,7 @@ describe.each([{name: "Настройки среды", props: {
     await headless.capture(element)
     expect(props.fetcher, "Сохраняются адрес Studio, готовый профиль и выбранный сервис").toHaveBeenCalledWith(
       "/api/browser/chat/execution-settings-save",
-      expect.objectContaining({body: expect.stringContaining('"provider":"capsule","label":"Capsule","enabled":true,"endpoint":{"url":"http://127.0.0.1:17777","profile":"work","service":"deepseek"}')}),
+      expect.objectContaining({body: expect.stringContaining('"provider":"capsule","label":"Capsule","enabled":true,"endpoint":{"url":"http://127.0.0.1:17777","profile":"work","service":"chatgpt"}')}),
     )
     expect(probe.disabled, "Сохранённое подключение готово к проверке").toBe(false)
     probe.click()
@@ -200,6 +200,10 @@ describe.each([{name: "Настройки среды", props: {
     const card = element.querySelector('[data-provider-connection="chrome-studio"]')!
     const fields = card.querySelector('[aria-label="Подключение Chrome Studio"]')!
     expect((fields.querySelector("select") as HTMLSelectElement).value, "Новый Studio provider предлагает DeepSeek").toBe("deepseek")
+    const service = fields.querySelector("select") as HTMLSelectElement
+    service.value = "chatgpt"
+    service.dispatchEvent(new Event("change", {bubbles: true}))
+    await headless.capture(element)
     const profile = fields.querySelectorAll("input")[1] as HTMLInputElement
     profile.value = "deepseek-profile"
     profile.dispatchEvent(new InputEvent("input", {bubbles: true}))
@@ -222,7 +226,7 @@ describe.each([{name: "Настройки среды", props: {
     await headless.capture(element)
     expect(props.fetcher, "Сохраняется самостоятельное подключение Chrome Studio").toHaveBeenCalledWith(
       "/api/browser/chat/execution-settings-save",
-      expect.objectContaining({body: expect.stringContaining('"provider":"chrome-studio"')}),
+      expect.objectContaining({body: expect.stringContaining('"provider":"chrome-studio","label":"Chrome Studio","enabled":true,"endpoint":{"url":"http://127.0.0.1:17778","profile":"deepseek-profile","service":"chatgpt"}')}),
     )
     expect(card.querySelector("video"), "Studio ACP не открывает Capsule viewer").toBeNull()
   })

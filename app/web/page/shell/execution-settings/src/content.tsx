@@ -410,10 +410,11 @@ function BrowserProfileFields(props: Readonly<{
       options={[
         {key: "qwen", value: "qwen", label: "Qwen"},
         {key: "deepseek", value: "deepseek", label: "DeepSeek"},
+        {key: "chatgpt", value: "chatgpt", label: "ChatGPT"},
       ]}
       disabled={props.busy}
       onChange={service => {
-        if (service === "qwen" || service === "deepseek") props.onChange({...props.connection, endpoint: {...endpoint, service}})
+        if (service === "qwen" || service === "deepseek" || service === "chatgpt") props.onChange({...props.connection, endpoint: {...endpoint, service}})
       }}
     />
     <Panel
