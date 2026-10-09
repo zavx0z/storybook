@@ -2,7 +2,7 @@ import {expect, setDefaultTimeout, test} from "bun:test"
 import {resolve} from "node:path"
 import conformance from "../index"
 
-setDefaultTimeout(20000)
+setDefaultTimeout(90000)
 
 test.each([
   {name: "выводимый контракт", path: resolve(import.meta.dir, "../spec/fixture/component")},
@@ -11,6 +11,15 @@ test.each([
   const report = await conformance.check(path, new AbortController().signal)
   expect(conformance.verify(report), "Простая выводимая форма и корректный авторский контракт не имеют нормативных ошибок")
     .toEqual({status: "passed", diagnostics: []})
+  expect(report.validation.checks.find(check => check.rule === "general-particular")?.status,
+    "Исходный нормативный сценарий соблюдает правило общих и частных тем")
+    .toBe("passed")
+  expect(conformance.identify(report, path), "Подтверждение типа использует actual классификации и все применимые проверки")
+    .toEqual({status: "confirmed", type: "Component"})
+  expect(report.assertions.find(assertion => assertion.test === "Самостоятельная реализация")?.actual)
+    .toMatchObject({applicable: true})
+  expect(report.assertions.find(assertion => assertion.test === "Корневой API домена")?.actual)
+    .toMatchObject({applicable: false})
 })
 
 test("лишняя публичная роль namespace отвергается исходным сценарием Package", async () => {

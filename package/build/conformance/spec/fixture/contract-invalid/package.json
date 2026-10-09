@@ -1,1 +1,1 @@
-{"name":"@fixture/conformance-contract-invalid","type":"module","description":"Authored contract with an extra public namespace role.","exports":{".":"./index.ts"}}
+{"name":"@zavx0z/storybook-package-build-conformance-spec-fixture-contract-invalid","type":"module","description":"Authored contract with an extra public namespace role.","exports":{".":"./index.ts"}}

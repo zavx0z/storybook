@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import label from "@fixture/conforming-component"
+import label from "@zavx0z/storybook-package-build-conformance-spec-fixture-component"
 
 describe.each([
   {name: "Подпись кнопки", props: {name: "Button"}, expected: "Label: Button"},

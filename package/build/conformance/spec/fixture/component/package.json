@@ -1,1 +1,1 @@
-{"name":"@fixture/conforming-component","type":"module","description":"Returns an authored label for a component example.","exports":{".":"./index.ts"}}
+{"name":"@zavx0z/storybook-package-build-conformance-spec-fixture-component","type":"module","description":"Returns an authored label for a component example.","exports":{".":"./index.ts"}}

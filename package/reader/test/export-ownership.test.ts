@@ -183,7 +183,8 @@ test("каталог реэкспортов не получает Domain без 
   const f = await fixture()
   const report = await readScenario({path: scenario, props: {path: f.domain}})
   expect(report.tests.find(point => point.label === "Структурная роль")?.status).toBe("failed")
-  expect(report.tests.find(point => point.label === "Корневой API домена")?.status).toBe("skipped")
+  expect(report.tests.find(point => point.label === "Корневой API домена")?.status).toBe("passed")
+  expect(report.assertions.find(point => point.test === "Корневой API домена")?.actual).toMatchObject({applicable: false})
 }, 30_000)
 
 test.each(["relative", "absolute", "file"])("публичный вход другого пакета не разрешает файловый адрес %s", async kind => {

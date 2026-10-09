@@ -157,8 +157,29 @@ describe("Чтение состава пакета", () => {
     const result = await readScenario({path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), props: {path}})
     expect(result.exitCode).toBe(0)
     expect(result.tests.find(point => point.label === "Полнота раскрытия exports")?.status).toBe("todo")
-    expect(result.tests.find(point => point.label === "Полнота файловой проверки")?.status).toBe("skipped")
+    expect(result.tests.find(point => point.label === "Полнота файловой проверки")?.status).toBe("passed")
+    expect(result.assertions.find(point => point.test === "Полнота файловой проверки")?.actual)
+      .toMatchObject({applicable: false})
+    expect(result.assertions.find(point => point.test === "Структурная роль")?.actual)
+      .toMatchObject({complete: false})
     expect(result.validation.checks.find(check => check.rule === "general-particular")?.status).toBe("passed")
     expect(result.preview?.kind, "Незавершённая проверка шаблона exports не блокирует представление функции").toBe("function")
   }, 30_000)
+
+  test("неизвестная Git-граница не запускает именование с вымышленными предками", async () => {
+    const path = await fixture("unknown-naming")
+    const report = await readScenario({
+      path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), props: {path},
+      testNamePattern: "Имя директории|Имя пакета|Путь родителей в npm-имени|Контекст до Repo",
+    })
+    expect(report.exitCode, report.stderr).toBe(0)
+    expect(report.assertions.filter(assertion => ["Имя директории", "Имя пакета"].includes(assertion.test ?? ""))
+      .map(assertion => assertion.actual)).toEqual(Array.from({length: 6}, () => ({applicable: false, value: null})))
+    expect(report.assertions.find(assertion => assertion.test === "Путь родителей в npm-имени")?.actual)
+      .toEqual({applicable: false, name: "@fixture/unknown-naming", inheritedName: null})
+    expect(report.calls.some(call => call.module.endsWith("/specs/scenarios/reader/index.ts")))
+      .toBeFalse()
+    expect(report.tests.find(point => point.label === "Контекст до Repo")?.status).toBe("todo")
+    expect(report.validation.checks.find(check => check.rule === "general-particular")?.status).toBe("passed")
+  }, 90_000)
 })

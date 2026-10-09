@@ -48,8 +48,7 @@ test.each([
     expect(report.tests.find(point => point.label === "Путь родителей в npm-имени")?.status)
       .toBe(passed ? "passed" : "failed")
     const assertion = report.assertions.find(point => point.test === "Путь родителей в npm-имени")
-    expect(assertion?.actual).toBe(names[variant])
-    expect(assertion?.expected).toEqual([expected])
+    expect(assertion?.actual).toEqual({applicable: true, name: names[variant]!, inheritedName: expected})
   } finally {
     await rm(root, {recursive: true, force: true})
   }

@@ -1,1 +1,1 @@
-{"name":"@fixture/conformance-contract-valid","type":"module","description":"Valid authored contract with a private implementation helper.","exports":{".":"./index.ts"}}
+{"name":"@zavx0z/storybook-package-build-conformance-spec-fixture-contract-valid","type":"module","description":"Valid authored contract with a private implementation helper.","exports":{".":"./index.ts"}}

@@ -32,14 +32,18 @@ async function fixture(type: typeof types[number] = "Component") {
   const sessions = {session: () => session}
   const groups = [
     {id: 0, parentId: null, label: "Архетип пакета", mode: "run", parameters: {props: {path: directory}}},
-    ...types.map((label, index) => ({id: index + 1, parentId: 0, label, mode: label === type ? "run" : "skip"})),
-    {id: 6, parentId: 0, label: "Общие требования", mode: "run"},
+    ...types.map((label, index) => ({id: index + 1, parentId: 0, label, mode: "run"})),
+    {id: 6, parentId: 0, label: "Классификация", mode: "run"},
+    {id: 7, parentId: 0, label: "Общие требования", mode: "run"},
   ]
   const report = {
     path: scenario, source: {text: await readFile(scenario, "utf8")}, exitCode: 0, stderr: "", groups,
-    tests: groups.slice(1).map(group => ({id: group.id, groupId: group.id, status: group.mode === "run" ? "passed" : "skipped",
-      skipReason: group.mode === "skip" ? "Другой архетип" : null, location: {path: scenario}})),
-    assertions: [], validation: {checks: []},
+    tests: groups.slice(1).map(group => ({id: group.id, groupId: group.id, label: group.id === 6 ? "Структурная роль" : "Проверка", status: "passed",
+      skipReason: null, location: {path: scenario}})),
+    assertions: [
+      ...types.map((label, index) => ({id: index + 1, testId: index + 1, status: "passed", actual: {applicable: label === type, value: []}})),
+      {id: 6, testId: 6, status: "passed", actual: {complete: true, roles: Object.fromEntries(types.map(label => [label, label === type]))}},
+    ], validation: {checks: []},
   }
   await Bun.write(join(directory, "verification.json"), JSON.stringify(report))
   return {directory, graph, descriptor, snapshot, state, sessions, session, report, released: () => released}
@@ -113,11 +117,11 @@ test("отсутствующий и повреждённый отчёт не п�
 
 test("TODO сохраняется в отчёте и не блокирует выбранный предметный MCP", async () => {
   const f = await fixture()
-  f.report.tests[5]!.status = "todo"
+  f.report.tests[6]!.status = "todo"
   await Bun.write(join(f.directory, "verification.json"), JSON.stringify(f.report))
   expect(await readMcpEntityType("@fixture/owner", f.sessions))
     .toEqual({status: "confirmed", type: "Component", revision: "verified"})
-  expect((await Bun.file(join(f.directory, "verification.json")).json()).tests[5].status).toBe("todo")
+  expect((await Bun.file(join(f.directory, "verification.json")).json()).tests[6].status).toBe("todo")
 })
 
 test("директория и средовой вход не наследуют тип пакета", async () => {
