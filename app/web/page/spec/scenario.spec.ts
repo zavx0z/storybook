@@ -97,6 +97,8 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
   let nextSocket = Promise.withResolvers<FakeSocket>()
   const confirmation = Promise.withResolvers<void>()
   const hostReaders: string[] = []
+  const invalidReaders = new Set<string>()
+  const invalidHostReaders: string[] = []
   const hostRequests: Readonly<{epoch: string | undefined; token: string; preview: boolean}>[] = []
   const previewGrants = new Map<string, string>()
   const candidateGrants = new Map<string, string>()
@@ -129,6 +131,10 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     readSharedHost: async (epoch, token, _signal, preview = false) => {
       hostReaders.push(token)
       hostRequests.push({epoch, token, preview})
+      if (invalidReaders.has(token)) {
+        invalidHostReaders.push(token)
+        throw new Error("Shared host reader is invalid: 401")
+      }
       await hostPreparation?.("read")
       if (strictHostGrants && preview && previewGrants.get(token) !== epoch && candidateGrants.get(token) !== epoch) {
         throw new Error("Shared host preview is not authorized: 403")
@@ -193,7 +199,7 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
       return payload(revision, ownerId)
     },
   })
-  return {page, state, location, history, snapshot, sockets, hostReaders, hostRequests, payloadLoads, controllers, packageStarts, navigationTargets, requests,
+  return {page, state, location, history, snapshot, sockets, hostReaders, hostRequests, invalidReaders, invalidHostReaders, payloadLoads, controllers, packageStarts, navigationTargets, requests,
     confirmation: confirmation.promise,
     nextSocket: async () => {
       const socket = await nextSocket.promise
@@ -1115,6 +1121,65 @@ describe("Переходы и обновления одной страницы",
       await second.page.dispose()
       await landing.page.dispose()
     }
+  })
+
+  test.each([
+    {name: "пакет", landing: false, changed: true},
+    {name: "корневой обзор", landing: true, changed: true},
+    {name: "неизменённая оболочка", landing: false, changed: false},
+  ])("сохранённый scope восстанавливается первым: $name обновляет reader до чтения host", async ({landing, changed}) => {
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    let blocked = false
+    const fixture = await pageFixture(false, false, undefined, "@fixture/standalone", true, false, false, async phase => {
+      if (blocked && phase === "read") {entered.resolve(); await release.promise}
+    })
+    try {
+      const retained = fixture.sockets[0]!
+      if (landing) await fixture.page.navigateLanding("/")
+      else await fixture.page.navigatePackage({packageId, route: "dir-docs"})
+      const shell = fixture.page.shell
+      const address = fixture.location.href
+      const selected = fixture.page.packageId
+      const route = fixture.page.route
+      shell.workbench.controller.update("catalog.search", "Сохранённый поиск")
+      const selectedSocket = fixture.sockets.at(-1)!
+      const expiredReader = new URL(selectedSocket.url).searchParams.get("session")!
+      const beforeReads = fixture.hostReaders.length
+      fixture.invalidReaders.add(expiredReader)
+      selectedSocket.close()
+      retained.close()
+      const reconnecting = fixture.nextSocket()
+      retained.emit("close", {})
+      const socket = await reconnecting
+      socket.emit("open", {})
+      if (changed) fixture.updateHost(false)
+      blocked = true
+      fixture.replayHost(socket)
+      await entered.promise
+      for (let index = 0; index < 100; index++) fixture.replayHost(socket)
+      expect(fixture.invalidHostReaders, "Истёкший reader выбранного scope не попадает в shared запрос").toEqual([])
+      const freshReader = fixture.hostReaders.at(-1)!
+      expect(freshReader, "Host не использует истёкший grant выбранного scope").not.toBe(expiredReader)
+      expect(freshReader, "Grant сохранённого scope не переносится выбранному").not.toBe(new URL(socket.url).searchParams.get("session"))
+      release.resolve()
+      await fixture.page.whenSettled()
+      expect(fixture.hostReaders.slice(beforeReads), "События во время чтения уточняют host одним повтором с тем же grant").toEqual([freshReader, freshReader])
+      if (changed) {
+        expect(fixture.sockets.at(-1)!.url, "Подготовленный grant использует новый scope без повторного renewal").toContain(`session=${freshReader}`)
+        expect(fixture.page.shell, "Новая оболочка применяется к выбранному предмету").not.toBe(shell)
+      } else {
+        expect(fixture.page.shell, "Неизменённая оболочка не перемонтируется").toBe(shell)
+        expect(fixture.sockets.at(-1), "Неизменённая оболочка не создаёт новый scope").toBe(socket)
+      }
+      expect(fixture.page.packageId, "Обновление сохраняет выбранный предмет").toBe(selected)
+      expect(fixture.page.route, "Обновление сохраняет внутренний маршрут").toBe(route)
+      expect(fixture.location.href, "Обновление сохраняет адрес").toBe(address)
+      expect(fixture.page.shell.document, "Обновление сохраняет semantic Document").toBe(shell.document)
+      expect(fixture.page.shell.canvas, "Обновление сохраняет Canvas").toBe(shell.canvas)
+      expect(fixture.page.shell.workbench.controller.read("catalog.search"), "Обновление сохраняет поиск пользователя").toBe("Сохранённый поиск")
+      expect(fixture.location.reloads, "Reader восстанавливается без reload страницы").toBe(0)
+    } finally {release.resolve(); await fixture.page.dispose()}
   })
 
   test.each([

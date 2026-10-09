@@ -130,6 +130,8 @@ async function startExternalStorybookPage(
   let replacement: ExternalStorybookPageController | null = null
   let transitionTail: Promise<void> = Promise.resolve()
   let transitionResult = transitionTail
+  let sharedHostRefresh: Promise<void> | null = null
+  let sharedHostRequestGeneration = 0
   let selectionGeneration = 0
   /** Следующий переход лишает ещё не зарегистрированный scope права записывать состояние страницы. */
   const invalidatePendingScope = () => { selectionGeneration++ }
@@ -276,7 +278,7 @@ async function startExternalStorybookPage(
       navigateLanding: (path?: string) => owns() ? navigateLanding(path) : Promise.resolve(),
       applyRevision: (revision: string) => owns() ? applyPageRevision(target.packageId, revision, key)
         : Promise.reject(new DOMException("Storybook scope no longer owns this Frame", "AbortError")),
-      refreshSharedHost: () => owns() ? refreshSharedHost() : Promise.resolve(),
+      refreshSharedHost: () => owns() ? refreshSharedHost(ownership.scope() ?? undefined) : Promise.resolve(),
       catalogChanged(value: typeof catalog) {if (owns()) updateSpatialCatalog(value)},
       readerRenewed(readerToken: string) {
         const bound = ownership.scope()
@@ -377,7 +379,7 @@ async function startExternalStorybookPage(
       fetcher,
       createSocket: () => eventSocket(target),
       readerToken: target.readerToken,
-      pageScope: {environmentActivity: following.receive, shell: shell.createSubjectView({id: subjectKey(target), title: catalog.projectName, ...(savedSubjects.has(subjectKey(target)) ? {userState: savedSubjects.get(subjectKey(target))!} : {})}), initialPathname: target.pathname, navigatePackage, refreshSharedHost, catalogChanged: updateSpatialCatalog,
+      pageScope: {environmentActivity: following.receive, shell: shell.createSubjectView({id: subjectKey(target), title: catalog.projectName, ...(savedSubjects.has(subjectKey(target)) ? {userState: savedSubjects.get(subjectKey(target))!} : {})}), initialPathname: target.pathname, navigatePackage, refreshSharedHost: () => refreshSharedHost(subjects.get(subjectKey(target))), catalogChanged: updateSpatialCatalog,
         isSelected: () => execution.current !== null && subjectKey(execution.current.target) === subjectKey(target),
         async reconnectSocket() {
           const next = await prepareTarget({packageId: null, route: target.pathname, intent: "navigation"}, pageLifetime.signal)
@@ -708,28 +710,42 @@ async function startExternalStorybookPage(
 
   /**
   Применяет текущую общую оболочку без изменения package revision или адреса вкладки.
-  Событие выпуска читает опубликованный host по обычному reader grant после reconnect.
-  Передача управления выдаёт новый reader grant: одноразовый токен прежнего
-  WebSocket не переносится в соединение нового scope. Неудача сохраняет рабочую страницу.
+  Событие выбранного scope подтверждает его действующий reader grant. Событие
+  другого сохранённого scope сначала обновляет reader выбранного: после restart
+  его прежний WebSocket может ещё не восстановиться. Одновременные события
+  разделяют одну подготовку; событие во время чтения уточняет host тем же grant.
+  Передача управления получает неиспользованный grant;
+  токен прежнего WebSocket не переносится в новый scope. Отказ сохраняет страницу.
   */
-  function refreshSharedHost(): Promise<void> {
+  function refreshSharedHost(source?: ActivePageScope): Promise<void> {
+    sharedHostRequestGeneration++
+    if (sharedHostRefresh !== null) return sharedHostRefresh
     invalidatePendingScope()
     const operation = transitionTail.catch(() => {}).then(async () => {
       if (disposed || pageLifetime.signal.aborted || replacement !== null || execution.current === null) return
       const current = execution.current
       const payload = current.kind === "package" ? current.payload : null
-      const nextHost = await readHost(payload?.sharedModuleEpoch, current.target.readerToken, pageLifetime.signal)
-      if (nextHost.hostModuleEpoch === host.hostModuleEpoch && nextHost.sharedModuleEpoch === host.sharedModuleEpoch) return
-      const target = current.kind === "package" ? await renewPackageTarget({
+      const renewTarget = () => current.kind === "package" ? renewPackageTarget({
         ...current.target,
         route: current.controller.currentRoute,
         urlPath: current.controller.currentModel.urlPath,
-      }) : await prepareTarget({packageId: null, route: current.target.pathname, intent: "navigation"}, pageLifetime.signal)
+      }) : prepareTarget({packageId: null, route: current.target.pathname, intent: "navigation"}, pageLifetime.signal)
+      let target = source === current ? current.target : await renewTarget()
+      let readGeneration: number
+      let nextHost: StorybookSharedHost
+      do {
+        readGeneration = sharedHostRequestGeneration
+        nextHost = await readHost(payload?.sharedModuleEpoch, target.readerToken, pageLifetime.signal)
+      } while (readGeneration !== sharedHostRequestGeneration)
+      if (nextHost.hostModuleEpoch === host.hostModuleEpoch && nextHost.sharedModuleEpoch === host.sharedModuleEpoch) return
+      if (source === current) target = await renewTarget()
       await replacePage(target, payload, null, nextHost)
     })
-    transitionResult = operation
-    transitionTail = operation.catch(() => {})
-    return operation
+    const settled = operation.finally(() => {if (sharedHostRefresh === settled) sharedHostRefresh = null})
+    sharedHostRefresh = settled
+    transitionResult = settled
+    transitionTail = settled.catch(() => {})
+    return settled
   }
 
   /** Выполняет подготовку внутри уже выбранной общей очереди переходов. */
