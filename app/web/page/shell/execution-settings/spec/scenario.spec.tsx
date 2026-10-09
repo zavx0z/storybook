@@ -22,7 +22,7 @@ describe.each([{name: "Настройки среды", props: {
     expect(element.querySelector("[data-provider-settings]"), "Закрытое окно освобождает форму и каталоги").toBeNull()
   })
   test("Подключения", async () => {
-    ;(element.querySelector('button[aria-label="Провайдеры и модели"]') as HTMLButtonElement).click()
+    ;(element.querySelector('button[aria-label="Настройки"]') as HTMLButtonElement).click()
     await headless.capture(element)
     await new Promise(resolve => setTimeout(resolve, 0))
     await headless.capture(element)
@@ -185,13 +185,13 @@ describe.each([{name: "Настройки среды", props: {
     await headless.capture(element)
     await new Promise(resolve => setTimeout(resolve, 0))
     await headless.capture(element)
-    expect(props.fetcher).toHaveBeenCalledWith("/api/browser/chat/execution-settings-save", expect.objectContaining({
+    expect(props.fetcher, "Удалённое подключение сохраняет SSH и пути исполнения").toHaveBeenCalledWith("/api/browser/chat/execution-settings-save", expect.objectContaining({
       body: expect.stringContaining('"ssh":{"providerRoot":"/Users/admin/repozitarium/provider","storageRoot":"/Users/admin/.local/share/zavx0z/provider","host":"mesh-production1","user":"admin","port":22,"dockerContext":"capsule-qwen"}'),
     }))
-    expect((card.querySelector('[aria-label="Подключение Capsule"] input') as HTMLInputElement).value).toBe("http://127.0.0.1:17777")
+    expect((card.querySelector('[aria-label="Подключение Capsule"] input') as HTMLInputElement).value, "SSH сохраняет адрес Studio на машине исполнения").toBe("http://127.0.0.1:17777")
     toggle.click()
     await headless.capture(element)
-    expect(card.querySelector('[aria-label="Удалённое исполнение Capsule"]')).toBeNull()
+    expect(card.querySelector('[aria-label="Удалённое исполнение Capsule"]'), "Отключение SSH скрывает удалённые параметры").toBeNull()
   })
 
   test("Chrome Studio использует существующий профиль и SSH без Docker", async () => {

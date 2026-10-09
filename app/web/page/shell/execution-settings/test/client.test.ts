@@ -37,7 +37,7 @@ test("ошибка каталога допускает повтор, закры�
 test("положение окна восстанавливается без переноса провайдерских данных", () => {
   const saved = {open: true, geometry: {x: 320, y: 60, width: 900, height: 700}, tab: {edge: "right" as const, offset: .3}}
   expect(windowState(saved)).toEqual(saved)
-  expect(windowState({geometry: {x: NaN, y: -9, width: 2, height: Infinity}}).geometry).toEqual({x: 80, y: 0, width: 340, height: 580})
+  expect(windowState({geometry: {x: NaN, y: -9, width: 2, height: Infinity}}).geometry).toEqual({x: 80, y: 0, width: 520, height: 540})
 })
 
 

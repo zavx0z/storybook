@@ -632,6 +632,8 @@
         "@zavx0z/immersive-ui-component-surface-tab": "^0.0.0",
         "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
         "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0",
+        "@zavx0z/immersive-ui-component-typography": "^0.0.0",
+        "@zavx0z/immersive-ui-component-widget-settings": "^0.0.0",
         "@zavx0z/immersive-ui-theme-icon-apply": "^0.0.0",
         "@zavx0z/immersive-ui-theme-icon-plus": "^0.0.0",
         "@zavx0z/storybook-app-settings": "workspace:*",
@@ -820,6 +822,7 @@
       "dependencies": {
         "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
         "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
+        "@zavx0z/immersive-ui-component-typography": "^0.0.0",
         "@zavx0z/storybook-chat-session": "workspace:*",
       },
       "devDependencies": {
@@ -1593,8 +1596,10 @@
     "@zavx0z/immersive-ui-component-surface-tab": "link:@zavx0z/immersive-ui-component-surface-tab",
     "@zavx0z/immersive-ui-component-surface-window": "link:@zavx0z/immersive-ui-component-surface-window",
     "@zavx0z/immersive-ui-component-surface-window-control": "link:@zavx0z/immersive-ui-component-surface-window-control",
+    "@zavx0z/immersive-ui-component-typography": "link:@zavx0z/immersive-ui-component-typography",
     "@zavx0z/immersive-ui-component-view-code-editor": "link:@zavx0z/immersive-ui-component-view-code-editor",
     "@zavx0z/immersive-ui-component-widget-inspector": "link:@zavx0z/immersive-ui-component-widget-inspector",
+    "@zavx0z/immersive-ui-component-widget-settings": "link:@zavx0z/immersive-ui-component-widget-settings",
     "@zavx0z/immersive-ui-theme-icon": "link:@zavx0z/immersive-ui-theme-icon",
     "@zavx0z/immersive-ui-theme-icon-apply": "link:@zavx0z/immersive-ui-theme-icon-apply",
     "@zavx0z/immersive-ui-theme-icon-plus": "link:@zavx0z/immersive-ui-theme-icon-plus",
@@ -1800,9 +1805,13 @@
 
     "@zavx0z/immersive-ui-component-surface-window-control": ["@zavx0z/immersive-ui-component-surface-window-control@link:@zavx0z/immersive-ui-component-surface-window-control", {}],
 
+    "@zavx0z/immersive-ui-component-typography": ["@zavx0z/immersive-ui-component-typography@link:@zavx0z/immersive-ui-component-typography", {}],
+
     "@zavx0z/immersive-ui-component-view-code-editor": ["@zavx0z/immersive-ui-component-view-code-editor@link:@zavx0z/immersive-ui-component-view-code-editor", {}],
 
     "@zavx0z/immersive-ui-component-widget-inspector": ["@zavx0z/immersive-ui-component-widget-inspector@link:@zavx0z/immersive-ui-component-widget-inspector", {}],
+
+    "@zavx0z/immersive-ui-component-widget-settings": ["@zavx0z/immersive-ui-component-widget-settings@link:@zavx0z/immersive-ui-component-widget-settings", {}],
 
     "@zavx0z/immersive-ui-theme-icon": ["@zavx0z/immersive-ui-theme-icon@link:@zavx0z/immersive-ui-theme-icon", {}],
 

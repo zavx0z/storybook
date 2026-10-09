@@ -9,18 +9,27 @@ describe.each([
     sources: {connectionId: "general", model: "session", thoughtLevel: "type"},
     connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}],
     settings: [{id: "model", category: "model", name: "Model", value: "fast", options: [{value: "fast", name: "Fast"}]}],
-    onChange: mock((value: unknown) => {}),
-  } satisfies StorybookChatPreferences.Input},
+  } satisfies Omit<StorybookChatPreferences.Input, "onChange">},
   {name: "Варианты ещё не загружены", props: {
     selection: {model: "saved-model"}, effective: {connectionId: "codex", model: "saved-model"},
     sources: {connectionId: "general", model: "session"},
     connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}],
-    settings: [], onChange: mock((value: unknown) => {}),
-  } satisfies StorybookChatPreferences.Input},
-])("$name", async ({props}) => {
+    settings: [],
+  } satisfies Omit<StorybookChatPreferences.Input, "onChange">},
+])("$name", async ({props: input}) => {
+  const props = {...input, onChange: mock((value: unknown) => {})}
   const headless = createHeadless({width: 400, height: 400})
   afterAll(() => headless.dispose())
-  const element = await headless.render(<Preferences {...props} />)
+  const element = await headless.render(
+    <Preferences
+      selection={props.selection}
+      effective={props.effective}
+      sources={props.sources}
+      connections={props.connections}
+      settings={props.settings}
+      onChange={props.onChange}
+    />
+  )
   test("Выбор провайдера", () => {
     expect(element.querySelectorAll("select").length,
       "Провайдер остаётся видимым при одном подключении вместе с моделью, мышлением и подтверждениями").toBe(4)

@@ -1,13 +1,10 @@
-/** Каталоги среды читаются и сохраняются сервером; клиент не выполняет файловых операций. */
-export type DirectorySettings = Readonly<{
-  repositoriesDirectory: string | null
-  projectsDirectory: string | null
-}>
+import type {StorybookAppWebPageShellExecutionSettings} from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 
-export type DirectorySettingsDraft = Readonly<{
-  repositoriesDirectory: string
-  projectsDirectory: string
-}>
+type Client = NonNullable<StorybookAppWebPageShellExecutionSettings.Input["directories"]>
+
+/** Каталоги среды читаются и сохраняются сервером; клиент не выполняет файловых операций. */
+export type DirectorySettings = Awaited<ReturnType<Client["read"]>>
+export type DirectorySettingsDraft = Parameters<Client["save"]>[0]
 
 /** Browser grant остаётся в запросах и не входит в сохраняемый документ. */
 export function createDirectorySettingsClient(fetcher: typeof fetch, readSession: () => string | undefined) {

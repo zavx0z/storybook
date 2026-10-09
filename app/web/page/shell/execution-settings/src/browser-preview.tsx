@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "@zavx0z/immersive-component"
 import Panel from "@zavx0z/immersive-ui-component-surface-panel"
 import Button from "@zavx0z/immersive-ui-component-button-basic"
+import Typography from "@zavx0z/immersive-ui-component-typography"
 import Notification from "@zavx0z/immersive-ui-component-feedback-notification"
 import {createSettingsClient} from "./client"
 import {createBrowserPreviewSession, idleBrowserPreview} from "./browser-preview-session"
@@ -15,13 +16,6 @@ export function BrowserPreview(props: Props) {
     label="Браузер"
     expanded={open}
     onToggle={setOpen}
-    style={css`
-      --panel-content-padding: 0px;
-      --panel-content-background: #333333;
-      --panel-header-background: #3d3d3d;
-      --panel-header-inset: 24px;
-      --panel-radius: 0px;
-    `}
   >
     {open && props.available ? <BrowserPreviewView
       key={attempt}
@@ -36,11 +30,7 @@ export function BrowserPreview(props: Props) {
 }
 
 function UnavailableBrowser() {
-  return <p style={css`
-    margin: 8px 12px 8px 28px;
-    font-size: 13px;
-    color: var(--widget-list-content);
-  `}>Сохраните и включите подключение, чтобы открыть браузер.</p>
+  return <Typography text="Сохраните и включите подключение, чтобы открыть браузер." />
 }
 
 function BrowserPreviewView(props: Omit<Props, "available"> & Readonly<{onReconnect(): void}>) {
@@ -133,7 +123,7 @@ function BrowserPreviewView(props: Omit<Props, "available"> & Readonly<{onReconn
       position: relative;
 
       &:fullscreen {
-        background: #202020;
+        background: var(--widget-text-background);
       }
 
       &:fullscreen [data-browser-video-surface] {
@@ -181,7 +171,7 @@ function BrowserPreviewView(props: Omit<Props, "available"> & Readonly<{onReconn
           width: 100%;
           aspect-ratio: 16 / 9;
           object-fit: contain;
-          background: #202020;
+          background: var(--widget-text-background);
           touch-action: none;
         `}
       />
@@ -245,7 +235,7 @@ function BrowserPreviewView(props: Omit<Props, "available"> & Readonly<{onReconn
       align-items: center;
       justify-content: flex-end;
       gap: 8px;
-      padding: 8px 12px 8px 28px;
+      padding: var(--widget-content-padding);
       flex-wrap: wrap;
     `}>
       {props.provider === "capsule" ? <Button

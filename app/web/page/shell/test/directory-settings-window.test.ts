@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {InputEvent, type HTMLInputElement} from "@zavx0z/immersive-dom"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import {DirectorySettingsWindow} from "../src/directory-settings-window"
+import ExecutionSettings from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 import type {createDirectorySettingsClient, DirectorySettingsDraft} from "../src/directory-settings-client"
 import {createWindowHost} from "./fixture/mcp-window-host"
 
@@ -10,8 +10,14 @@ type Client = ReturnType<typeof createDirectorySettingsClient>
 const configured = {projectsDirectory: "/projects", repositoriesDirectory: "/repos"}
 async function mount(client: Client) {
   const host = createWindowHost()
-  const props = {client}
-  host.component.render(DirectorySettingsWindow as unknown as CompiledTemplate<typeof props>, props)
+  const props = {
+    directories: client,
+    fetcher: Object.assign(async (input: RequestInfo | URL) => Response.json(
+      String(input).endsWith("registry-session") ? {readerToken: "fixture"}
+        : {schemaVersion: 1, revision: 0, connections: [], general: {}, types: {}},
+    ), {preconnect() {}}),
+  }
+  host.component.render(ExecutionSettings as unknown as CompiledTemplate<typeof props>, props)
   await host.settle()
   return host
 }
@@ -108,4 +114,22 @@ test("ошибку чтения можно повторить, удаление 
     expect(host.container.querySelector('[role="alert"]')).toBeNull()
   } finally {host.dispose()}
   expect(signal?.aborted).toBeTrue()
+})
+
+test("единое окно сохраняет черновик каталогов при смене раздела", async () => {
+  let saves = 0
+  const host = await mount({read: async () => configured, save: async () => {saves++
+    return configured}})
+  try {
+    await host.click("Настройки")
+    await edit(host, 0, "/draft/projects")
+    const field = fields(host)[0]!
+    await host.click("Провайдеры")
+    expect(host.container.querySelectorAll("[data-window]")).toHaveLength(1)
+    expect(host.container.querySelector('[role="tabpanel"]')?.getAttribute("aria-label")).toBe("Провайдеры")
+    await host.click("Каталоги")
+    expect(fields(host)[0]).toBe(field)
+    expect(field.value).toBe("/draft/projects")
+    expect(saves).toBe(0)
+  } finally {host.dispose()}
 })

@@ -1,24 +1,26 @@
 import {useEffect, useRef, useState} from "@zavx0z/immersive-component"
 import Button from "@zavx0z/immersive-ui-component-button-basic"
 import TextField from "@zavx0z/immersive-ui-component-field-text"
-import Tab from "@zavx0z/immersive-ui-component-surface-tab"
-import Window from "@zavx0z/immersive-ui-component-surface-window"
-import WindowControl from "@zavx0z/immersive-ui-component-surface-window-control"
-import type {createDirectorySettingsClient, DirectorySettings, DirectorySettingsDraft} from "./directory-settings-client"
+import Panel from "@zavx0z/immersive-ui-component-surface-panel"
+import Typography from "@zavx0z/immersive-ui-component-typography"
+import type {StorybookAppWebPageShellExecutionSettings as Contract} from "../contract"
 
-type Client = ReturnType<typeof createDirectorySettingsClient>
-type TabPosition = NonNullable<Parameters<typeof Tab>[0]["position"]>
+type Client = NonNullable<Contract.Input["directories"]>
+type DirectorySettings = Awaited<ReturnType<Client["read"]>>
+type DirectorySettingsDraft = Parameters<Client["save"]>[0]
 
-/** Окно каталогов и его Tab принадлежат HUD существующего Browser Root. */
-export function DirectorySettingsWindow(props: Readonly<{client: Client}>) {
-  const [open, setOpen] = useState(false)
-  const [geometry, setGeometry] = useState({x: 80, y: 80, width: 600, height: 380})
-  const [tab, setTab] = useState<TabPosition>({edge: "top", offset: .55})
+/** Черновик каталогов сохраняется при выборе другого раздела окна. */
+export function Directories(props: Readonly<{
+  client: Client
+  onSetup(): void
+  onError(message: string): void
+  onClose(): void
+}>) {
   const [saved, setSaved] = useState<DirectorySettings | null>(null)
   const [draft, setDraft] = useState<DirectorySettingsDraft>({projectsDirectory: "", repositoriesDirectory: ""})
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const setError = props.onError
   const [notice, setNotice] = useState("")
   const lifetime = useRef<AbortController | null>(null)
   const reading = useRef(false)
@@ -34,11 +36,11 @@ export function DirectorySettingsWindow(props: Readonly<{client: Client}>) {
       if (controller.signal.aborted) return
       setSaved(value)
       setDraft({projectsDirectory: value.projectsDirectory ?? "", repositoriesDirectory: value.repositoriesDirectory ?? ""})
-      if (value.projectsDirectory === null || value.repositoriesDirectory === null) setOpen(true)
+      if (value.projectsDirectory === null || value.repositoriesDirectory === null) props.onSetup()
     } catch (cause) {
       if (!controller.signal.aborted) {
         setError(errorText(cause))
-        setOpen(true)
+        props.onSetup()
       }
     } finally {
       reading.current = false
@@ -80,60 +82,21 @@ export function DirectorySettingsWindow(props: Readonly<{client: Client}>) {
     }
   }
 
-  return <div
-    data-directory-settings=""
-    style={css`
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    `}
-  >
-    <Window
-      id="storybook-directory-settings"
-      title="Настройки"
-      message={error ? {message: error, tone: "error"} : undefined}
-      onMessageDismiss={() => setError("")}
-      open={open}
-      onOpenChange={setOpen}
-      geometry={geometry}
-      onGeometryChange={(next, phase) => {if (phase !== "change") setGeometry(next)}}
-      movable={true}
-      resizable={true}
-      minWidth={340}
-      minHeight={280}
-    >
-      <DirectorySettingsContent
-        draft={draft}
-        loaded={saved !== null}
-        loading={loading}
-        busy={busy}
-        canSave={valid && dirty}
-        notice={notice}
-        onChange={change}
-        onRetry={() => {if (lifetime.current !== null) void read(lifetime.current)}}
-        onClose={() => setOpen(false)}
-        onSave={() => {void save()}}
-      />
-    </Window>
-    {open ? null : <Tab
-      label="Настройки"
-      position={tab}
-      onPositionChange={(next, phase) => {if (phase === "end") setTab(next)}}
-    >
-      <WindowControl
-        windowId="storybook-directory-settings"
-        label="Настройки"
-        open={open}
-        onOpenChange={setOpen}
-      />
-    </Tab>}
-  </div>
+  return <DirectorySettingsContent
+    draft={draft}
+    loaded={saved !== null}
+    loading={loading}
+    busy={busy}
+    canSave={valid && dirty}
+    notice={notice}
+    onChange={change}
+    onRetry={() => {if (lifetime.current !== null) void read(lifetime.current)}}
+    onClose={props.onClose}
+    onSave={() => {void save()}}
+  />
 }
 
-/** Содержимое передаётся Window как компонент через его штатный безымянный слот. */
+/** Панели и поля используют оформление библиотеки UI. */
 function DirectorySettingsContent(props: Readonly<{
   draft: DirectorySettingsDraft
   loaded: boolean
@@ -146,6 +109,7 @@ function DirectorySettingsContent(props: Readonly<{
   onClose(): void
   onSave(): void
 }>) {
+  const [expanded, setExpanded] = useState(true)
   return <section
     aria-label="Каталоги среды"
     style={css`
@@ -154,30 +118,31 @@ function DirectorySettingsContent(props: Readonly<{
       box-sizing: border-box;
       height: 100%;
       min-height: 0;
-      padding: 20px;
-      gap: 16px;
+      gap: var(--widget-content-gap);
       overflow-y: auto;
     `}
   >
-    <TextField
-      label="Каталог проектов"
-      value={props.draft.projectsDirectory}
-      disabled={props.loading || props.busy || !props.loaded}
-      onInput={value => props.onChange({projectsDirectory: value})}
-    />
-    <TextField
-      label="Каталог репозиториев"
-      value={props.draft.repositoriesDirectory}
-      disabled={props.loading || props.busy || !props.loaded}
-      onInput={value => props.onChange({repositoriesDirectory: value})}
-    />
+    <Panel
+      label="Расположение файлов"
+      expanded={expanded}
+      onToggle={setExpanded}
+    >
+      <DirectoryFields
+        draft={props.draft}
+        disabled={props.loading || props.busy || !props.loaded}
+        onChange={props.onChange}
+      />
+    </Panel>
     {props.loading ? <DirectorySettingsMessage role="status" text="Загрузка настроек…" /> : null}
     {props.notice ? <DirectorySettingsMessage role="status" text={props.notice} /> : null}
     <div style={css`
       display: flex;
       justify-content: flex-end;
       flex-shrink: 0;
-      gap: 8px;
+      gap: var(--widget-content-gap);
+      margin-top: auto;
+      padding-top: var(--widget-content-padding);
+      border-top: var(--border-width-control) solid var(--widget-regular-outline);
     `}>
       {!props.loaded && !props.loading ? <Button
         label="Повторить загрузку"
@@ -200,8 +165,35 @@ function DirectorySettingsContent(props: Readonly<{
   </section>
 }
 
+function DirectoryFields(props: Readonly<{
+  draft: DirectorySettingsDraft
+  disabled: boolean
+  onChange(patch: Partial<DirectorySettingsDraft>): void
+}>) {
+  return <div style={css`
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  `}>
+    <TextField
+      label="Каталог проектов"
+      value={props.draft.projectsDirectory}
+      disabled={props.disabled}
+      onInput={value => props.onChange({projectsDirectory: value})}
+    />
+    <TextField
+      label="Каталог репозиториев"
+      value={props.draft.repositoriesDirectory}
+      disabled={props.disabled}
+      onInput={value => props.onChange({repositoriesDirectory: value})}
+    />
+  </div>
+}
+
 function DirectorySettingsMessage(props: Readonly<{role: "status" | "alert", text: string}>) {
-  return <p role={props.role}>{props.text}</p>
+  return <div role={props.role}>
+    <Typography text={props.text} />
+  </div>
 }
 
 function errorText(cause: unknown): string {

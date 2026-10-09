@@ -1,11 +1,13 @@
 /**
 Показывает выбор исполнителя и происхождение параметров работы.
-Одна форма используется для общих значений, назначения агента и беседы.
+Одна компактная форма со стандартными полями используется для общих значений,
+назначения агента и беседы.
 Решение о наследовании, проверке возможностей и сохранении принимает владелец
 настроек; представление передаёт только явный выбор пользователя.
 
 @packageDocumentation
 */
+import Typography from "@zavx0z/immersive-ui-component-typography"
 import SelectField from "@zavx0z/immersive-ui-component-field-select"
 import {PreferenceField} from "./src/field"
 import type {StorybookChatPreferences} from "./contract"
@@ -80,14 +82,8 @@ export default function ChatPreferences(props: StorybookChatPreferences.Input) {
         props.onChange(next)
       }}
     />
-    <p style={css`
-      margin: 0;
-      font-size: 12px;
-      white-space: normal;
-      overflow-wrap: anywhere;
-      color: var(--widget-list-content);
-    `}>
-      Область назначения сохраняется. Отдельные запросы исполнителя за её пределами подтверждаются вручную. Автоматическая проверка действий среды пока недоступна.
-    </p>
+    <Typography
+      text="Область назначения сохраняется. Отдельные запросы исполнителя за её пределами подтверждаются вручную. Автоматическая проверка действий среды пока недоступна."
+    />
   </section>
 }

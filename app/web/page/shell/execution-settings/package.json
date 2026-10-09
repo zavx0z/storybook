@@ -1,10 +1,10 @@
 {
   "name": "@zavx0z/storybook-app-web-page-shell-execution-settings",
-  "label": "Подключения",
+  "label": "Настройки",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Настройки подключений среды и значений по типам сущностей в HUD",
+  "description": "Единое окно каталогов, моделей и подключений среды",
   "exports": {
     ".": "./index.tsx"
   },
@@ -25,7 +25,9 @@
     "@zavx0z/immersive-ui-theme-icon-plus": "^0.0.0",
     "@zavx0z/immersive-ui-theme-icon-apply": "^0.0.0",
     "@capsule/webrtc": "link:@capsule/webrtc",
-    "@capsule/input": "link:@capsule/input"
+    "@capsule/input": "link:@capsule/input",
+    "@zavx0z/immersive-ui-component-widget-settings": "^0.0.0",
+    "@zavx0z/immersive-ui-component-typography": "^0.0.0"
   },
   "devDependencies": {
     "@zavx0z/immersive-headless": "^0.0.0",

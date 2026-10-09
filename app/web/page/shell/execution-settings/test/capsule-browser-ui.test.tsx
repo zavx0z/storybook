@@ -104,12 +104,10 @@ test("браузер расположен в saved Capsule ConnectionFields пе
     return Response.json(settings)
   }, {preconnect() {}})
   try {
-    const element = await headless.render(<SettingsContent open={true} fetcher={fetcher} />)
+    const element = await headless.render(<SettingsContent open={true} section="connections" fetcher={fetcher} />)
     await Bun.sleep(0)
     await headless.capture(element)
     const button = (label: string) => [...element.querySelectorAll("button")].find(value => value.textContent === label) as HTMLButtonElement
-    button("Провайдеры").click()
-    await headless.capture(element)
     button("Capsule").click()
     await headless.capture(element)
     button("Сохранённый Qwen").click()

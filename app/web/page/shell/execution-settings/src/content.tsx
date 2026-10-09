@@ -5,6 +5,8 @@ import Button from "@zavx0z/immersive-ui-component-button-basic"
 import Panel from "@zavx0z/immersive-ui-component-surface-panel"
 import TextField from "@zavx0z/immersive-ui-component-field-text"
 import SelectField from "@zavx0z/immersive-ui-component-field-select"
+import Typography from "@zavx0z/immersive-ui-component-typography"
+import Notification from "@zavx0z/immersive-ui-component-feedback-notification"
 import Preferences from "@zavx0z/storybook-chat-preferences"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import {createSettingsClient} from "./client"
@@ -20,14 +22,19 @@ const scopes: readonly {value: Scope, label: string}[] = [
 ]
 
 /** Закрытое окно не держит черновик и отменяет запросы возможностей. */
-export function SettingsContent(props: Readonly<{open: boolean, fetcher: typeof fetch}>) {
+export function SettingsContent(props: Readonly<{open: boolean, section: "defaults" | "connections", fetcher: typeof fetch}>) {
   return <div style={css`
     height: 100%;
     min-height: 0;
-  `}>{props.open ? <SettingsLoader fetcher={props.fetcher} /> : null}</div>
+  `}>
+    {props.open ? <SettingsLoader
+      fetcher={props.fetcher}
+      section={props.section}
+    /> : null}
+  </div>
 }
 
-function SettingsLoader(props: Readonly<{fetcher: typeof fetch}>) {
+function SettingsLoader(props: Readonly<{fetcher: typeof fetch, section: "defaults" | "connections"}>) {
   const [state] = useState(() => {
     const controller = new AbortController()
     return {controller, client: createSettingsClient(props.fetcher, controller.signal)}
@@ -45,15 +52,18 @@ function SettingsLoader(props: Readonly<{fetcher: typeof fetch}>) {
     height: 100%;
     min-height: 0;
   `}>
-    {value ? <SettingsForm initial={value} client={state.client} /> : <LoadState error={error} onRetry={read} />}
+    {value ? <SettingsForm
+      initial={value}
+      client={state.client}
+      section={props.section}
+    /> : <LoadState error={error} onRetry={read} />}
   </div>
 }
 
 /** Подключения и defaults редактируются отдельно, сохраняются одним проверяемым снимком. */
-function SettingsForm(props: Readonly<{initial: SettingsDocument, client: ReturnType<typeof createSettingsClient>}>) {
+function SettingsForm(props: Readonly<{initial: SettingsDocument, client: ReturnType<typeof createSettingsClient>, section: "defaults" | "connections"}>) {
   const [saved, setSaved] = useState(props.initial)
   const [draft, setDraft] = useState(props.initial)
-  const [tab, setTab] = useState("defaults")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
@@ -72,45 +82,16 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
     finally {if (alive.current) setBusy(false)}
   }
   return <section data-provider-settings="" style={css`
-    background: #303030;
-
     display: flex;
     flex-direction: column;
     height: 100%;
     min-height: 0;
     box-sizing: border-box;
     width: 100%;
-    max-width: 600px;
-    margin-inline: auto;
-    padding: 8px;
-    gap: 8px;
+    gap: var(--widget-content-gap);
   `}>
-    <div role="tablist" aria-label="Раздел настроек" style={css`
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-    `}>
-      <Button
-        label="Модели по умолчанию"
-        role="tab"
-        selected={tab === "defaults"}
-        aria-selected={tab === "defaults"}
-        variant="text"
-        size="small"
-        onClick={() => setTab("defaults")}
-      />
-      <Button
-        label="Провайдеры"
-        role="tab"
-        selected={tab === "connections"}
-        aria-selected={tab === "connections"}
-        variant="text"
-        size="small"
-        onClick={() => setTab("connections")}
-      />
-    </div>
     <div style={css`
-      flex: 1;
+      flex-grow: 1;
       min-height: 0;
       overflow-y: auto;
     `}>
@@ -118,16 +99,33 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
         display: flex;
         flex-direction: column;
         width: 100%;
-        max-width: 600px;
-        gap: 8px;
+        max-width: 720px;
+        gap: var(--widget-content-gap);
       `}>
-        {tab === "connections" ? <Connections document={draft} saved={saved} busy={busy} client={props.client} onChange={change} />
-          : <Defaults document={draft} saved={saved} busy={busy} client={props.client} onChange={change} />}
+        {props.section === "connections" ? <Connections
+          document={draft}
+          saved={saved}
+          busy={busy}
+          client={props.client}
+          onChange={change}
+        /> : <Defaults
+          document={draft}
+          saved={saved}
+          busy={busy}
+          client={props.client}
+          onChange={change}
+        />}
         {error ? <SettingsError text={error} /> : null}
       </div>
     </div>
-    {dirty ? <SaveActions busy={busy} onSave={() => {void save()}} onCancel={() => {setDraft(saved); setError("")}} />
-      : null}
+    {dirty ? <SaveActions
+      busy={busy}
+      onSave={() => {void save()}}
+      onCancel={() => {
+        setDraft(saved)
+        setError("")
+      }}
+    /> : null}
     {!dirty && notice ? <SettingsNotice text={notice} /> : null}
   </section>
 }
@@ -194,13 +192,6 @@ function ProviderGroup(props: Readonly<{
   const [open, setOpen] = useState(false)
   const label = {codex: "Codex", ollama: "Ollama", capsule: "Capsule", "chrome-studio": "Chrome Studio"}[props.provider]
   return <Panel
-    style={css`
-      --panel-content-padding: 0px;
-      --panel-content-background: #333333;
-      --panel-header-background: #3d3d3d;
-      --panel-header-inset: 0px;
-      --panel-radius: 4px;
-    `}
     actions={props.provider === "codex" ? [] : [{
       id: "add", label: `Добавить ${label}`, title: `Добавить ${label}`, iconSrc: plusIcon,
       disabled: props.busy,
@@ -229,7 +220,7 @@ function ProviderConnections(props: Parameters<typeof ProviderGroup>[0]) {
   return <div style={css`
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: var(--spacing-4);
       padding: 0;
     `}>
       {props.document.connections.filter(connection => connection.provider === props.provider).map(connection => (
@@ -275,13 +266,6 @@ function ConnectionCard(props: Readonly<{
     } finally {if (alive.current) setProbing(false)}
   }
   return <Panel
-    style={css`
-      --panel-content-padding: 0px;
-      --panel-content-background: #333333;
-      --panel-header-background: #3d3d3d;
-      --panel-header-inset: 12px;
-      --panel-radius: 0px;
-    `}
     label={connection.label}
     checked={connection.enabled}
     checkDisabled={props.busy || probing}
@@ -323,12 +307,9 @@ function ConnectionFields(props: Readonly<{
   return <section
     data-provider-connection={connection.id}
     style={css`
-      background: #333333;
-      border-radius: 0;
-
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: var(--spacing-4);
       padding: 0;
     `}
   >
@@ -340,10 +321,6 @@ function ConnectionFields(props: Readonly<{
     /> : null}
 
       <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
         label="Название"
         value={connection.label}
         disabled={props.busy || props.probing}
@@ -377,14 +354,10 @@ function BrowserProfileFields(props: Readonly<{
     style={css`
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: var(--spacing-4);
     `}
   >
     <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
       label="Адрес Studio"
       type="url"
       value={endpoint.url}
@@ -392,19 +365,12 @@ function BrowserProfileFields(props: Readonly<{
       onInput={url => props.onChange({...props.connection, endpoint: {...endpoint, url}})}
     />
     <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
       label="Профиль"
       value={endpoint.profile}
       disabled={props.busy}
       onInput={profile => props.onChange({...props.connection, endpoint: {...endpoint, profile}})}
     />
     <SelectField
-        style={css`
-          padding: 0 12px 0 28px;
-        `}
       label="Сервис"
       value={endpoint.service}
       options={[
@@ -418,13 +384,6 @@ function BrowserProfileFields(props: Readonly<{
       }}
     />
     <Panel
-    style={css`
-      --panel-content-padding: 0px;
-      --panel-content-background: #333333;
-      --panel-header-background: #3d3d3d;
-      --panel-header-inset: 24px;
-      --panel-radius: 0px;
-    `}
       label="SSH"
       checked={!!props.connection.ssh}
       checkDisabled={props.busy}
@@ -445,12 +404,9 @@ function BrowserProfileFields(props: Readonly<{
 }
 function BrowserSshFields(props: Parameters<typeof BrowserProfileFields>[0]) {
   return <div style={css`
-      background: #333333;
-      border-radius: 0;
-
         display: flex;
         flex-direction: column;
-        gap: 0;
+        gap: var(--spacing-4);
         padding: 0;
       `}>
 
@@ -489,41 +445,26 @@ function BrowserPaths(props: Parameters<typeof BrowserRemoteFields>[0]) {
   return <section
         aria-label="Размещение Provider на удалённой машине"
         style={css`
-      background: #333333;
-      border-radius: 0;
-
           display: flex;
           flex-direction: column;
-          gap: 0;
+          gap: var(--spacing-4);
           padding: 0;
         `}
       >
 
         <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
           label="Provider"
           value={props.ssh.providerRoot}
           disabled={props.busy}
           onInput={providerRoot => props.onChange({...props.ssh, providerRoot})}
         />
         <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
           label="Данные"
           value={props.ssh.storageRoot}
           disabled={props.busy}
           onInput={storageRoot => props.onChange({...props.ssh, storageRoot})}
         />
         {props.docker ? <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
           label="Docker context"
           value={props.ssh.dockerContext ?? ""}
           disabled={props.busy}
@@ -550,14 +491,10 @@ function OllamaFields(props: Readonly<{
     style={css`
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: var(--spacing-4);
     `}
   >
     <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
       label="URL API Ollama"
       type="url"
       value={endpoint.url}
@@ -565,13 +502,6 @@ function OllamaFields(props: Readonly<{
       onInput={url => props.onChange({...props.connection, endpoint: {...endpoint, url}})}
     />
     <Panel
-    style={css`
-      --panel-content-padding: 0px;
-      --panel-content-background: #333333;
-      --panel-header-background: #3d3d3d;
-      --panel-header-inset: 24px;
-      --panel-radius: 0px;
-    `}
       label="SSH"
       checked={!!endpoint.ssh}
       checkDisabled={props.busy}
@@ -595,12 +525,9 @@ function OllamaSshFields(props: Parameters<typeof OllamaFields>[0]) {
   const endpoint = props.connection.endpoint
   const updateSSH = (value: NonNullable<typeof endpoint.ssh>) => props.onChange({...props.connection, endpoint: {...endpoint, ssh: value}})
   return <div style={css`
-      background: #333333;
-      border-radius: 0;
-
         display: flex;
         flex-direction: column;
-        gap: 0;
+        gap: var(--spacing-4);
         padding: 0;
       `}>
 
@@ -621,25 +548,17 @@ function SSHFields(props: Readonly<{
     style={css`
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: var(--spacing-4);
     `}
   >
 
       <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
         label="Хост"
         value={props.ssh.host}
         disabled={props.busy}
         onInput={host => props.onChange({...props.ssh, host})}
       />
       <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
         label="Пользователь"
         value={props.ssh.user ?? ""}
         disabled={props.busy}
@@ -649,10 +568,6 @@ function SSHFields(props: Readonly<{
         }}
       />
       <TextField
-        style={css`
-          --field-label-height: var(--control-height-medium);
-          padding: 0 12px 0 28px;
-        `}
         label="Порт"
         value={props.ssh.port?.toString() ?? ""}
         disabled={props.busy}
@@ -743,8 +658,7 @@ function LevelFields(props: DefaultsProps & Readonly<{level: Scope}>) {
   return <section aria-label="Параметры уровня" style={css`
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 8px;
+    gap: var(--widget-content-gap);
   `}>
     <Preferences
       selection={selected}
@@ -760,7 +674,7 @@ function LevelFields(props: DefaultsProps & Readonly<{level: Scope}>) {
     />
     {connectionDirty ? <SettingsNotice text="Сохраните изменения провайдера, чтобы получить его модели." /> : null}
     {loading ? <SettingsNotice text="Получаем модели…" /> : null}
-    {!enabled ? <SettingsNotice text="Включите подключение на вкладке «Провайдеры»." /> : null}
+    {!enabled ? <SettingsNotice text="Включите подключение в разделе «Провайдеры»." /> : null}
     {error ? <LoadState error={error} onRetry={() => setAttempt(value => value + 1)} /> : null}
   </section>
 }
@@ -771,11 +685,21 @@ function SaveActions(props: Readonly<{busy: boolean, onSave(): void, onCancel():
     justify-content: flex-end;
     flex-shrink: 0;
     gap: 8px;
-    padding-top: 12px;
+    padding-top: var(--widget-content-padding);
     border-top: 1px solid var(--widget-regular-outline);
   `}>
-    <Button label="Отменить" variant="text" size="large" disabled={props.busy} onClick={props.onCancel} />
-    <Button label={props.busy ? "Сохраняем…" : "Сохранить"} tone="primary" size="large" disabled={props.busy} onClick={props.onSave} />
+    <Button
+      label="Отменить"
+      variant="text"
+      disabled={props.busy}
+      onClick={props.onCancel}
+    />
+    <Button
+      label={props.busy ? "Сохраняем…" : "Сохранить"}
+      tone="primary"
+      disabled={props.busy}
+      onClick={props.onSave}
+    />
   </div>
 }
 function LoadState(props: Readonly<{error: string, onRetry(): void}>) {
@@ -790,10 +714,9 @@ function LoadState(props: Readonly<{error: string, onRetry(): void}>) {
   </div>
 }
 function SettingsNotice(props: Readonly<{text: string}>) {
-  return <p style={css`
-    margin: 0;
-    font-size: 13px;
-    color: var(--widget-regular-content);
-  `}>{props.text}</p>
+  return <Typography text={props.text} />
 }
-function SettingsError(props: Readonly<{text: string}>) {return <p role="alert">{props.text}</p>}
+
+function SettingsError(props: Readonly<{text: string}>) {
+  return <Notification message={props.text} tone="error" />
+}

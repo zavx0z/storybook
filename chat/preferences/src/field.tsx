@@ -1,3 +1,4 @@
+import Typography from "@zavx0z/immersive-ui-component-typography"
 import SelectField from "@zavx0z/immersive-ui-component-field-select"
 import type {StorybookChatPreferences} from "../contract"
 
@@ -31,7 +32,6 @@ export function PreferenceField(props: StorybookChatPreferences.Input & Readonly
     gap: 4px;
   `}>
     {props.field === "connectionId" ? null : <SelectField
-      density="regular"
       label={props.field === "model" ? "Модель" : "Мышление"}
       value={selected ?? ""}
       options={[{key: "inherit", value: "", label: selected === undefined && actual !== undefined ? `${label(actual)} · ${props.inheritLabel ?? "Наследовать"}` : props.inheritLabel ?? "Наследовать"}, ...options]}
@@ -45,10 +45,11 @@ export function PreferenceField(props: StorybookChatPreferences.Input & Readonly
   </div>
 }
 function PreferenceSource(props: Readonly<{text: string}>) {
-  return <p style={css`
-    margin: 0;
-    align-self: flex-end;
-    font-size: 12px;
-    color: var(--widget-regular-content);
-  `}>{props.text}</p>
+  return <Typography
+    text={props.text}
+    variant="caption"
+    style={css`
+      align-self: flex-end;
+    `}
+  />
 }

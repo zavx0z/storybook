@@ -10,7 +10,6 @@ import {useState} from "@zavx0z/immersive-component"
 import {StatusNotifications} from "./status-notifications-view"
 import {GlobalMcpWindow} from "./global-mcp-window"
 import ExecutionSettings from "@zavx0z/storybook-app-web-page-shell-execution-settings"
-import {DirectorySettingsWindow} from "./directory-settings-window"
 
 import type {StorybookAppProps} from "./application-props"
 
@@ -58,10 +57,11 @@ export function StorybookApp(props: StorybookAppProps) {
         controls={props.viewPointControls}
         followEnvironment={props.followEnvironment}
       />
-      {props.directorySettingsClient === undefined ? null : <DirectorySettingsWindow
-        client={props.directorySettingsClient}
-      />}
-      <ExecutionSettings initialState={props.executionWindowState} onStateChange={props.saveExecutionWindowState} />
+      <ExecutionSettings
+        directories={props.directorySettingsClient}
+        initialState={props.executionWindowState}
+        onStateChange={props.saveExecutionWindowState}
+      />
       <GlobalMcpWindow
         loadMcpRequests={props.loadMcpRequests}
         mcpWindowState={props.mcpWindowState}
