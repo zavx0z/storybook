@@ -55,7 +55,7 @@ export const storybookOpenSchema = z.strictObject({
   schemaVersion,
   packageId,
   route: route.optional(),
-  recover: z.boolean().optional().describe("Явное восстановление зависшей попытки открытия, если вкладки пакета отсутствуют"),
+  recover: z.boolean().optional().describe("Явное восстановление открытия без вкладки либо bridge timeout записанной owned вкладки: native markers проверяются независимо, тот же target и route загружаются один раз. После отказа применения без готового кандидата повторяет подготовку пакета через его session, сохраняя рабочую ревизию; ошибка подготовки остаётся отказом"),
 })
 
 export const storybookWaitSchema = z.strictObject({

@@ -6,9 +6,14 @@ export type Target = Readonly<{
 }>
 
 export type Request = Readonly<{
+  schemaVersion?: 1
   protocol: "external-storybook-agent-bridge/1"
-  expectedPackageId?: string
-  operation: "state" | "inspect" | "interact" | "capture" | "applyRevision"
+  expectedPackageId?: string | null
+  operation: "state" | "inspect" | "interact" | "capture" | "applyRevision" | "navigate"
+  packageId?: string | null
+  route?: string
+  url?: string
+  followEnvironment?: true
   revision?: string
   include?: readonly string[]
   maxDepth?: number

@@ -1,6 +1,7 @@
 /**
-Один владелец Chrome-представлений внешнего Storybook: открытие, инспекция,
-ввод, захват и закрытие точных вкладок одного server origin.
+Общее пространство внешнего Storybook: выбранный предмет, инспекция, ввод
+и снимки в одной браузерной странице. Смена адреса сохраняет пространство
+и проверяет принадлежность каждого последующего действия.
 
 @packageDocumentation
 */
@@ -25,16 +26,16 @@ import type {
 import type {StorybookAppServerBrowser} from "./contract"
 import {StorybookCaptureStore} from "./src/capture-store.ts"
 import {StorybookCdpClient} from "./src/chrome-client.ts"
-import {StorybookBrowserState, type StorybookBrowserTargetRecord} from "./src/browser-state.ts"
+import {StorybookBrowserState} from "./src/browser-state.ts"
 import {withStorybookBrowserLock} from "./src/target-operation-lock.ts"
-import {StorybookViewRegistry, type StorybookIdentifiedTarget} from "./src/view-registry.ts"
+import {StorybookViewRegistry} from "./src/view-registry.ts"
 
 export type {StorybookAppServerBrowser} from "./contract"
 
 const {validViewQuery: validStorybookViewQuery, storybookPackageRouteFromPathname} = routeUrl
 
 /**
-Создаёт изолированный lifecycle вкладок и хранилище снимков.
+Создаёт жизненный цикл общего пространства и хранилище снимков.
 
 @param options - Корни приватного состояния и необязательный Chrome client
 согласно {@link StorybookAppServerBrowser.Input}.
@@ -62,7 +63,7 @@ type DefaultStorybookBrowserLifecycleOptions = Readonly<{
   processStart?: StorybookProcessStart
 }>
 
-/** Sole package-target lifecycle owner composed by the canonical Storybook server. */
+/** Единственный владелец браузерного пространства канонического сервера Storybook. */
 class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Output {
   readonly #chrome: StorybookChromeClient
   readonly #views: StorybookViewRegistry
@@ -84,16 +85,16 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     reused: boolean
   }>> {
     const origin = loopbackOrigin(input.origin)
-    const packageId = exactPackageId(input.packageId)
+    const packageId = input.packageId === null ? null : exactPackageId(input.packageId)
     const route = exactRoute(input.route)
     const url = exactPackageUrl(input.url, origin, packageId, route)
     const timeoutMs = boundedTimeout(input.timeoutMs ?? 30_000)
     const timeout = AbortSignal.timeout(timeoutMs)
     const operationSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
-    let phase = "package lock"
+    let phase = "workspace lock"
     return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
-      scope: `package:${packageId}`,
+      scope: "workspace",
       timeoutMs,
       signal: operationSignal,
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
@@ -112,232 +113,235 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
   }
 
   async #openLocked(
-    input: StorybookBrowserOpenInput & Readonly<{
-      origin: string
-      packageId: string
-      route: string
-      url: string
-      timeoutMs: number
-    }>,
-    operationSignal: AbortSignal,
+    input: StorybookBrowserOpenInput & Readonly<{origin: string; route: string; url: string; timeoutMs: number}>,
+    signal: AbortSignal,
     reportPhase: (phase: string) => void,
-  ): Promise<Readonly<{
-    view: StorybookPublicView
-    identity: StorybookBridgeIdentity
-    reused: boolean
-  }>> {
+  ): Promise<Readonly<{view: StorybookPublicView; identity: StorybookBridgeIdentity; reused: boolean}>> {
     const {origin, packageId, route, url, timeoutMs} = input
-    const requiredView = input.existingViewId === undefined ? null : this.#views.internal(input.existingViewId)
-    if (requiredView !== null && (requiredView.packageId !== packageId || requiredView.origin !== origin)) {
-      throw new Error(`Storybook existing view does not match the requested package: ${packageId}`)
-    }
     reportPhase("Chrome connection")
-    await this.#chrome.ensure(operationSignal)
-    reportPhase("target inventory")
-    let targets = await this.#chrome.targets(operationSignal)
-    const cdpOrigin = await this.#chrome.cdpOrigin(operationSignal)
-    const browserIdentity = await this.#chrome.browserIdentity(operationSignal)
-    const recorded = this.#state.readTarget(packageId)
-    let reserved: ChromeTargetSummary | null = null
-    let unresolved: Extract<StorybookBrowserTargetRecord, {phase: "reserved"}> | null = null
-    if (recorded?.phase === "reserved" && recorded.cdpOrigin === cdpOrigin &&
-      recorded.browserIdentity === browserIdentity && recorded.url !== null) {
-      const baseline = new Set(recorded.baselineTargetIds)
-      const candidates = targets.filter((target) =>
-        !baseline.has(target.targetId) && target.url === recorded.url)
-      if (candidates.length > 1) {
-        throw new Error(`Ambiguous Storybook reserved package target: ${packageId}`)
-      }
-      reserved = candidates[0] ?? null
-      if (reserved === null && recorded.createSent) {
-        unresolved = recorded
-      }
-    }
-    reportPhase("target attestation")
-    const owned: ChromeTargetSummary[] = []
-    for (const target of targets) {
-      if (target.type !== "page" || !targetInPackageScope(target.url, packageId, input.knownPackages)) continue
-      // Baseline peer после navigation не может ошибочно стать новым receipt исходной create-команды.
-      if (unresolved !== null && !unresolved.baselineTargetIds.includes(target.targetId)) continue
-      if (recorded?.phase === "owned" && recorded.cdpOrigin === cdpOrigin &&
-        recorded.browserIdentity === browserIdentity &&
-        recorded.targetId === target.targetId) {
-        const candidate = mayAttestPackageTarget(target.url, packageId)
-        if (candidate && await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) {
-          owned.push(target)
-        } else {
-          this.#state.clearTarget(packageId, target.targetId)
-          this.#views.forgetTarget(target.targetId)
-        }
-        continue
-      }
-      const candidate = mayAttestPackageTarget(target.url, packageId)
-      if (candidate && new URL(target.url).origin === origin &&
-        await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) owned.push(target)
-    }
-    let requiredTarget = requiredView === null
-      ? null
-      : targets.find(target => target.targetId === requiredView.targetId) ?? null
-    if (requiredView !== null && (requiredTarget === null || requiredTarget.type !== "page" ||
-      !targetInPackageScope(requiredTarget.url, packageId, input.knownPackages) ||
-      !await this.#attestsPackage(requiredTarget, packageId, operationSignal, input.packageLabel))) {
-      this.#state.clearTarget(packageId, requiredView.targetId)
-      this.#views.forgetTarget(requiredView.targetId)
-      throw new Error(`Storybook existing package view is no longer available: ${packageId}`)
-    }
-    let selected = requiredTarget ?? reserved ?? owned.find(({targetId}) => recorded?.targetId === targetId) ??
-      owned.find((target) => new URL(target.url).origin === origin) ?? owned[0] ?? null
+    await this.#chrome.ensure(signal)
+    reportPhase("workspace inventory")
+    const targets = await this.#chrome.targets(signal)
+    const cdpOrigin = await this.#chrome.cdpOrigin(signal)
+    const browserIdentity = await this.#chrome.browserIdentity(signal)
+    let record = this.#state.readWorkspace()
+    const sameBrowser = record?.cdpOrigin === cdpOrigin && record.browserIdentity === browserIdentity
+    const pending = sameBrowser && record?.phase === "reserved" ? record : null
+    const receipts = pending?.url === null || pending === null ? [] : targets.filter(target =>
+      target.type === "page" && !pending.baselineTargetIds.includes(target.targetId) && target.url === pending.url)
+    if (receipts.length > 1) throw new Error("Ambiguous Storybook reserved workspace target")
+    let selected = receipts[0] ?? null
+    let unresolved = pending?.createSent === true && selected === null ? pending : null
+    reportPhase("workspace attestation")
+    const workspace = selected === null ? await this.#observeWorkspace(origin, signal, input.knownPackages, {
+      targets,
+      ...(unresolved === null ? {} : {baseline: new Set(unresolved.baselineTargetIds)}),
+      recover: input.recover === true,
+      timeoutMs,
+      ...(sameBrowser && record?.phase === "owned" ? {preferred: record.targetId} : {}),
+    }) : null
+    selected ??= workspace?.target ?? null
+    if (input.followEnvironment === true && workspace?.identity?.followEnvironment !== true) throw new Error("Storybook environment following was disabled before navigation")
     const reused = selected !== null
     if (selected === null) {
       if (unresolved !== null) {
-        const evidence = await this.#reservationEvidence(unresolved, targets, origin, url, operationSignal)
-        const packagePagePresent = targets.some(target => {
-          if (target.type !== "page") return false
-          try {
-            const observed = new URL(target.url)
-            const reservedAddress = new URL(unresolved!.url!)
-            // Неподтверждённый query не разрешает повторить уже отправленное создание.
-            return storybookPackageRouteFromPathname(observed.pathname, packageId) !== null ||
-              observed.origin === reservedAddress.origin && observed.pathname === reservedAddress.pathname
-          } catch {
-            return false
-          }
-        })
-        if (input.recover !== true || packagePagePresent) {
-          throw new Error(`Storybook package target creation is indeterminate: ${packageId}; evidence=${JSON.stringify(evidence)}`)
+        const present = targets.some(target => target.type === "page" && workspaceCandidateUrl(target.url, origin))
+        if (input.recover !== true || present) {
+          const evidence = await this.#reservationEvidence(unresolved, targets, origin, signal)
+          throw new Error(`Storybook workspace target creation is indeterminate; evidence=${JSON.stringify(evidence)}`)
         }
-        operationSignal.throwIfAborted()
-        this.#state.clearTarget(packageId)
+        signal.throwIfAborted()
+        this.#state.clearWorkspace()
+        unresolved = null
+        record = null
       }
-      if (unresolved !== null || recorded?.phase !== "reserved" || recorded.cdpOrigin !== cdpOrigin ||
-        recorded.browserIdentity !== browserIdentity || recorded.url !== url) {
-        this.#state.reserveTarget({
-          packageId,
-          cdpOrigin,
-          browserIdentity,
-          url,
-          baselineTargetIds: targets.map(({targetId}) => targetId),
-        })
+      if (pending === null || record === null || record.url !== url) {
+        this.#state.reserveWorkspace({packageId, cdpOrigin, browserIdentity, url,
+          baselineTargetIds: targets.map(({targetId}) => targetId)})
       }
-      reportPhase("target creation")
-      const beforeSend = () => { this.#state.markCreateSent(packageId) }
+      reportPhase("workspace creation")
+      const beforeSend = () => { this.#state.markCreateSent() }
       try {
         if (this.#chrome.createTargetWithDispatch !== undefined) {
-          selected = await this.#chrome.createTargetWithDispatch(url, beforeSend, operationSignal)
+          selected = await this.#chrome.createTargetWithDispatch(url, beforeSend, signal)
         } else {
-          // Старый клиент не сообщает точку отправки: его ошибку нельзя считать доказанно безопасной для retry.
           beforeSend()
-          selected = await this.#chrome.createTarget(url, operationSignal)
+          selected = await this.#chrome.createTarget(url, signal)
         }
       } catch (error) {
-        this.#state.clearUnsentReservation(packageId)
+        this.#state.clearUnsentReservation()
         throw error
       }
     }
-    // Existing peer даёт доступ к пакету, но не доказывает receipt неизвестной create-команды.
     const navigationUrl = preserveStorybookInspector(url, selected.url)
     const sameDestination = sameStorybookViewUrl(selected.url, navigationUrl)
-    if (unresolved === null) this.#state.writeTarget({packageId, cdpOrigin, browserIdentity, targetId: selected.targetId})
-    reportPhase("page navigation")
-    if (!sameDestination) await this.#chrome.navigate(selected.targetId, navigationUrl, operationSignal)
-    reportPhase("page readiness")
-    await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
-    if (reused && sameDestination) {
-      try {
-        await this.#chrome.callBridge(selected.targetId, "identity", Object.freeze({schemaVersion: 1}), operationSignal)
-      } catch (error) {
-        if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") throw error
-        // A failed bootstrap can leave the correct URL without a bridge. Reopen
-        // that same owned target once so a repaired revision can initialize.
-        await this.#chrome.navigate(selected.targetId, navigationUrl, operationSignal)
-        await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
+    // Запись receipt создаётся до ожидания bridge; timeout не разрешает новый create.
+    if (unresolved === null) this.#state.writeWorkspace({packageId: workspace !== null ? workspace.packageId : reused && pending !== null ? pending.packageId : packageId,
+      cdpOrigin, browserIdentity, targetId: selected.targetId, url: selected.url,
+      viewName: typeof workspace?.raw?.viewName === "string" ? workspace.raw.viewName : undefined})
+    reportPhase("workspace readiness")
+    let before = workspace?.identity ?? null
+    const legacy = workspace !== null && (workspace.raw?.capabilities as {inPageNavigation?: unknown} | undefined)?.inPageNavigation !== true
+    const nativeNavigation = workspace?.stalled === true || new URL(selected.url).origin !== origin ||
+      legacy && (!sameDestination || input.expectedRevision !== undefined && before?.revision !== input.expectedRevision)
+    if (nativeNavigation) {
+      // Только bootstrap legacy, перенос записанного origin или явный recover могут заменить realm.
+      const current = (await this.#chrome.targets(signal)).find(target => target.targetId === selected!.targetId)
+      if (current?.url !== selected.url) throw new Error("Storybook recovery target changed before navigation")
+      if (workspace?.stalled === true) {
+        const previous = new URL(selected.url)
+        const requested = new URL(navigationUrl)
+        previous.searchParams.delete("preview")
+        requested.searchParams.delete("preview")
+        if (!sameStorybookViewUrl(previous.href, requested.href) ||
+          !sameDestination && input.expectedRevision === undefined) throw new Error("Storybook recovery route change is not authorised")
+      }
+      await this.#chrome.navigate(selected.targetId, navigationUrl, signal)
+      before = null
+    }
+    await this.#chrome.waitReady(selected.targetId, timeoutMs, signal)
+    reportPhase("agent bridge")
+    let identity = before ?? await this.#waitBridgeIdentity(selected.targetId, timeoutMs, signal)
+    if (reused && !nativeNavigation && (!sameDestination || identity.packageId !== packageId ||
+      identity.route !== route || input.expectedRevision !== undefined && identity.revision !== input.expectedRevision)) {
+      const navigationIdentity = workspace?.raw ?? objectResult(await this.#chrome.callBridge(selected.targetId, "identity", {schemaVersion: 1}, signal), "Storybook workspace identity")
+      if ((navigationIdentity.capabilities as {inPageNavigation?: unknown} | undefined)?.inPageNavigation !== true) {
+        throw new Error("Storybook workspace requires a legacy navigation upgrade")
+      }
+      if (input.followEnvironment === true && navigationIdentity.followEnvironment !== true) throw new Error("Storybook environment following was disabled before navigation")
+      const previous = identity
+      const result = bridgeIdentity(await this.#chrome.callBridge(selected.targetId, "navigate", {
+        schemaVersion: 1, expectedPackageId: previous.packageId, packageId, route,
+        url: new URL(navigationUrl).pathname + new URL(navigationUrl).search,
+        ...(input.expectedRevision === undefined ? {} : {revision: input.expectedRevision}),
+        ...(input.followEnvironment === true ? {followEnvironment: true} : {}),
+      }, signal))
+      identity = await this.#waitBridgeIdentity(selected.targetId, timeoutMs, signal)
+      if (identity.timeOrigin !== previous.timeOrigin || result.timeOrigin !== previous.timeOrigin) {
+        throw new Error("Storybook in-page navigation replaced its realm")
       }
     }
-    reportPhase("agent bridge")
-    let identity = await this.#waitBridgeIdentity(selected.targetId, timeoutMs, operationSignal)
     if (identity.packageId !== packageId || identity.route !== route) {
       throw new Error(`Storybook bridge identity mismatch: expected ${packageId}:${route}`)
     }
     if (input.expectedRevision !== undefined && identity.revision !== input.expectedRevision) {
-      await this.#chrome.navigate(selected.targetId, navigationUrl, operationSignal)
-      await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
-      identity = await this.#waitBridgeIdentity(selected.targetId, timeoutMs, operationSignal)
-    }
-    if (input.expectedRevision !== undefined && identity.revision !== input.expectedRevision) {
       throw new Error(`Storybook view revision mismatch: expected ${input.expectedRevision}`)
     }
-    if (!identity.ready) {
-      await this.#chrome.navigate(selected.targetId, navigationUrl, operationSignal)
-      await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
-      identity = await this.#waitBridgeIdentity(selected.targetId, timeoutMs, operationSignal)
+    if (!identity.ready) throw new Error("Storybook workspace did not become ready")
+    const current = (await this.#chrome.targets(signal)).find(target => target.targetId === selected!.targetId)
+    if (current === undefined || !workspaceUrl(current.url, origin) || !mayAttestPackageTarget(current.url, packageId)) {
+      throw new Error("Storybook target did not become the exact workspace address")
     }
-    const current = (await this.#chrome.targets(operationSignal))
-      .find(({targetId}) => targetId === selected.targetId)
-    if (current === undefined || new URL(current.url).origin !== origin) {
-      throw new Error(`Storybook target did not become the exact package view for ${packageId}`)
-    }
+    if (unresolved === null) this.#state.writeWorkspace({packageId, cdpOrigin, browserIdentity,
+      targetId: selected.targetId, url: current.url, viewName: identity.viewName})
     const view = this.#views.register({...current, packageId, route: identity.route}, origin)
-    return Object.freeze({
-      view,
-      identity,
-      reused,
-    })
+    return Object.freeze({view, identity, reused})
   }
 
-  async listViews(
+  async #observeWorkspace(
     origin: string,
     signal?: AbortSignal,
     packages?: readonly StorybookBrowserPackage[],
-    packageId?: string,
-  ): Promise<readonly StorybookPublicView[]> {
-    const canonicalOrigin = loopbackOrigin(origin)
-    const scope = packageId === undefined ? undefined : exactPackageId(packageId)
-    const labels = packages === undefined ? null : new Map(packages.map(({packageId, label}) => [
-      exactPackageId(packageId),
-      exactPackageLabel(label),
-    ] as const))
-    const candidates = (await this.#chrome.targets(signal)).filter(target =>
-      target.type === "page" && packageTargetPath(target.url) !== null && new URL(target.url).origin === canonicalOrigin &&
-      (scope === undefined || targetInPackageScope(target.url, scope, packages)))
-    const retained: StorybookIdentifiedTarget[] = []
+    options: Readonly<{
+      targets?: readonly ChromeTargetSummary[]
+      baseline?: ReadonlySet<string>
+      preferred?: string
+      recover?: boolean
+      timeoutMs?: number
+    }> = {},
+  ): Promise<Readonly<{
+    target: ChromeTargetSummary
+    packageId: string | null
+    identity: StorybookBridgeIdentity | null
+    raw: Record<string, unknown> | null
+    stalled: boolean
+  }> | null> {
+    const record = this.#state.readWorkspace()
+    const targets = options.targets ?? await this.#chrome.targets(signal)
+    const preferred = options.preferred ?? (record?.phase === "owned" ? record.targetId : undefined)
+    const candidates = targets.filter(target => target.type === "page" &&
+      (workspaceUrl(target.url, origin) || target.targetId === options.preferred && workspaceUrl(target.url, new URL(target.url).origin)) &&
+      (options.baseline === undefined || options.baseline.has(target.targetId)))
+    candidates.sort((left, right) => Number(right.targetId === preferred) - Number(left.targetId === preferred))
+    const observed = []
+    let indeterminate: unknown = null
     for (const target of candidates) {
       signal?.throwIfAborted()
-      let packageId: string | null = null
-      let observedRoute: string | undefined
+      const observationSignal = signal === undefined ? AbortSignal.timeout(1_000) :
+        AbortSignal.any([signal, AbortSignal.timeout(Math.max(50, Math.min(1_000, Math.floor((options.timeoutMs ?? 3_000) / 3))))])
       try {
-        const identity = bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, signal))
-        packageId = identity.packageId
-        observedRoute = identity.route
-      } catch {
+        const raw = objectResult(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, observationSignal), "Storybook workspace identity")
+        const identity = bridgeIdentity(raw)
+        if (!mayAttestPackageTarget(target.url, identity.packageId) || identity.packageId !== null &&
+          packages !== undefined && !packages.some(item => item.packageId === identity.packageId)) continue
+        const result = {target, packageId: identity.packageId, identity, raw, stalled: false}
+        // После миграции записанное пространство остаётся единственным физическим owner.
+        if (target.targetId === preferred && this.#state.hasWorkspace()) return result
+        if ((raw.nativePage as {hasFocus?: unknown} | undefined)?.hasFocus === true) return result
+        observed.push(result)
+      } catch (error) {
         signal?.throwIfAborted()
-        try {
-          const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
-          const markers = objectResult(diagnostic.markers, "Storybook target markers")
-          packageId = typeof markers.packageId === "string" ? markers.packageId :
-            typeof diagnostic.viewName === "string" && diagnostic.viewName.startsWith("storybook:")
-              ? diagnostic.viewName.slice("storybook:".length) : null
-          observedRoute = typeof markers.route === "string" ? markers.route : undefined
-          if (packageId === null && labels !== null) {
-            const matches = [...labels.keys()].filter(id => storybookPackageRouteFromPathname(new URL(target.url).pathname, id) !== null)
-            packageId = matches.length === 1 ? matches[0]! : null
+        if (target.targetId === preferred && record?.phase === "owned") {
+          const diagnosticSignal = signal === undefined ? AbortSignal.timeout(1_000) :
+            AbortSignal.any([signal, AbortSignal.timeout(1_000)])
+          const diagnostics = await this.#chrome.bridgeDiagnostics(target.targetId, diagnosticSignal)
+          const markers = diagnostics.markers === undefined ? {} : objectResult(diagnostics.markers, "Storybook workspace markers")
+          if (mayAttestPackageTarget(target.url, record.packageId) && markers.packageId === record.packageId &&
+            matchesWorkspaceName(diagnostics.viewName, record.packageId, record.viewName !== "storybook:workspace")) {
+            if (options.recover !== true) throw error
+            if (new URL(target.url).origin !== origin || record.url !== null && !sameStorybookViewUrl(record.url, target.url)) throw new Error("Storybook recovery target address does not match its record")
+            return {target, packageId: record.packageId, identity: null, raw: null, stalled: true}
           }
-        } catch (error) {
+          if (options.recover !== true) throw error
+          throw new Error("Storybook recovery recorded workspace ownership is indeterminate", {cause: error})
+        }
+        try {
+          await this.#chrome.bridgeDiagnostics(target.targetId, AbortSignal.timeout(500))
+        } catch (diagnosticError) {
           signal?.throwIfAborted()
-          throw new Error("Storybook browser inventory observation is indeterminate", {cause: error})
+          indeterminate = diagnosticError
         }
       }
-      if (packageId !== null && (scope !== undefined && scope !== packageId || labels !== null && !labels.has(packageId))) continue
-      if (packageId === null || !mayAttestPackageTarget(target.url, packageId)) continue
-      if (await this.#attestsPackage(target, packageId, signal ?? AbortSignal.timeout(5_000), labels?.get(packageId), true)) {
-        retained.push({...target, packageId, ...(observedRoute === undefined ? {} : {route: observedRoute})})
-      }
     }
-    const preferred = new Set(retained.flatMap(target =>
-      this.#state.readTarget(target.packageId)?.targetId === target.targetId ? [target.targetId] : []))
-    retained.sort((left, right) => Number(preferred.has(right.targetId)) - Number(preferred.has(left.targetId)))
-    // Только завершённое наблюдение заменяет registry; чужие пакеты не перепроверялись.
-    signal?.throwIfAborted()
-    return this.#views.synchronize(retained, canonicalOrigin, scope)
+    if (observed.length === 0 && indeterminate !== null) throw new Error("Storybook browser inventory observation is indeterminate", {cause: indeterminate})
+    observed.sort((left, right) => Number((right.raw.nativePage as {hasFocus?: unknown} | undefined)?.hasFocus === true) - Number((left.raw.nativePage as {hasFocus?: unknown} | undefined)?.hasFocus === true) ||
+      Number((right.raw.nativePage as {visibilityState?: unknown} | undefined)?.visibilityState === "visible") - Number((left.raw.nativePage as {visibilityState?: unknown} | undefined)?.visibilityState === "visible") ||
+      Number(right.target.targetId === preferred) - Number(left.target.targetId === preferred))
+    return observed[0] ?? null
+  }
+
+  async currentWorkspace(origin: string, signal?: AbortSignal, packages?: readonly StorybookBrowserPackage[]): Promise<Readonly<{
+    view: StorybookPublicView
+    identity: StorybookBridgeIdentity
+  }> | null> {
+    return withStorybookBrowserLock({
+      root: this.#state.lockRoot(), scope: "workspace",
+      ...(signal === undefined ? {} : {signal}),
+      ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
+    }, async () => {
+      const canonicalOrigin = loopbackOrigin(origin)
+      const workspace = await this.#observeWorkspace(canonicalOrigin, signal, packages)
+      signal?.throwIfAborted()
+      if (workspace?.identity === null || workspace === null) {
+        this.#views.synchronize([], canonicalOrigin)
+        return null
+      }
+      const record = this.#state.readWorkspace()
+      if (record?.phase !== "reserved" || !record.createSent) {
+        const cdpOrigin = await this.#chrome.cdpOrigin(signal)
+        const browserIdentity = await this.#chrome.browserIdentity(signal)
+        this.#state.writeWorkspace({packageId: workspace.packageId, cdpOrigin, browserIdentity,
+          targetId: workspace.target.targetId, url: workspace.target.url, viewName: workspace.identity.viewName})
+      }
+      const view = this.#views.register({...workspace.target, packageId: workspace.packageId, route: workspace.identity.route}, canonicalOrigin)
+      return Object.freeze({view, identity: workspace.identity})
+    })
+  }
+
+  async listViews(origin: string, signal?: AbortSignal, packages?: readonly StorybookBrowserPackage[], packageId?: string): Promise<readonly StorybookPublicView[]> {
+    const workspace = await this.currentWorkspace(origin, signal, packages)
+    const scope = packageId === undefined ? undefined : exactPackageId(packageId)
+    return Object.freeze(workspace === null || scope !== undefined && workspace.view.packageId !== scope ? [] : [workspace.view])
   }
 
   async applyRevision(
@@ -349,7 +353,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     const view = this.#views.internal(viewId)
     return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
-      scope: `package:${view.packageId}`,
+      scope: "workspace",
       ...(signal === undefined ? {} : {signal}),
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
@@ -361,29 +365,55 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
         throw new Error("Storybook page restart is required to install in-page updates")
       }
       const before = bridgeIdentity(initial)
+      // Только применение ревизии может заменить уже существующий preview pin.
+      // Обычный адрес и все остальные части выбранного адреса сохраняются.
+      const attest = async (appliedRevision: string, applied: Readonly<Record<string, unknown>>) => {
+        const expected = new URL(view.url)
+        if (expected.searchParams.has("preview")) expected.searchParams.set("preview", appliedRevision)
+        const after = bridgeIdentity(await this.#chrome.callBridge(
+          view.targetId, "identity", {schemaVersion: 1}, signal,
+        ))
+        const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
+        if (target === undefined || target.type !== "page" || !validStorybookViewQuery(new URL(target.url)) ||
+          !sameStorybookViewUrl(target.url, expected.href) || new URL(target.url).origin !== view.origin ||
+          !mayAttestPackageTarget(target.url, view.packageId)) {
+          throw new Error("Storybook view navigated away during revision application")
+        }
+        if (after.timeOrigin !== before.timeOrigin || after.packageId !== view.packageId ||
+          after.route !== view.route || after.revision !== appliedRevision || applied.revision !== appliedRevision) {
+          throw new Error("Storybook in-page application replaced its realm or returned another revision")
+        }
+        return {target, identity: after}
+      }
+      const commit = ({target, identity}: Awaited<ReturnType<typeof attest>>) => {
+        const record = this.#state.readWorkspace()
+        if (record?.phase === "owned" && record.targetId === view.targetId && record.browserIdentity !== null) {
+          this.#state.writeWorkspace({packageId: view.packageId, cdpOrigin: record.cdpOrigin,
+            browserIdentity: record.browserIdentity, targetId: view.targetId, url: target.url, viewName: identity.viewName})
+        }
+        this.#views.register({...target, packageId: view.packageId, route: view.route}, view.origin)
+      }
       const priorConsole = await this.#chrome.consoleEntries(view.targetId, 0, signal)
+      const current = await this.#assertCurrentPackage(viewId, signal)
+      if (current.timeOrigin !== before.timeOrigin) throw new Error("Storybook revision source replaced its realm")
       const result = objectResult(await this.#chrome.callBridge(view.targetId, "applyRevision", {
         schemaVersion: 1, expectedPackageId: view.packageId, revision,
       }, signal), "Storybook in-page application")
-      await this.#assertCurrentPackage(viewId, signal)
-      const after = bridgeIdentity(await this.#chrome.callBridge(
-        view.targetId, "identity", {schemaVersion: 1}, signal,
-      ))
-      if (after.timeOrigin !== before.timeOrigin || after.packageId !== before.packageId ||
-        after.revision !== revision || result.revision !== revision) {
-        throw new Error("Storybook in-page application replaced its realm or returned another revision")
-      }
+      await attest(revision, result)
       const currentConsole = await this.#chrome.consoleEntries(view.targetId, 250, signal)
       const seen = new Set(priorConsole.filter(entry => typeof entry.timestamp === "number").map(entry => JSON.stringify(entry)))
       const errors = consoleErrors(currentConsole.filter(entry => !seen.has(JSON.stringify(entry))))
+      const applied = await attest(revision, result)
       if (errors.length > 0) {
-        if (before.revision !== "unavailable" && before.revision !== revision) {
-          await this.#chrome.callBridge(view.targetId, "applyRevision", {
+        if (before.revision !== null && before.revision !== "unavailable" && before.revision !== revision) {
+          const rollback = objectResult(await this.#chrome.callBridge(view.targetId, "applyRevision", {
             schemaVersion: 1, expectedPackageId: view.packageId, revision: before.revision,
-          }, signal)
-        }
+          }, signal), "Storybook revision rollback")
+          commit(await attest(before.revision, rollback))
+        } else commit(applied)
         throw new Error("Storybook new revision reported console errors; previous revision retained")
       }
+      commit(applied)
       return Object.freeze({...result, viewId, inPageApplied: true, consoleErrors: errors})
     })
   }
@@ -419,10 +449,11 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     }
     return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
-      scope: `package:${view.packageId}`,
+      scope: "workspace",
       ...(signal === undefined ? {} : {signal}),
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
+      if (bridgeAvailable) await this.#assertCurrentPackage(viewId, signal)
       const projection = bridgeAvailable ? objectResult(await this.#chrome.callBridge(view.targetId, "inspect", Object.freeze({
         schemaVersion: 1,
         expectedPackageId: view.packageId,
@@ -459,11 +490,12 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     const operationSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
     return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
-      scope: `package:${view.packageId}`,
+      scope: "workspace",
       timeoutMs: input.timeoutMs ?? 8_000,
       signal: operationSignal,
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
+      await this.#assertCurrentPackage(input.viewId, operationSignal)
       const result = objectResult(await this.#chrome.callBridge(view.targetId, "interact", Object.freeze({
         ...input,
         schemaVersion: 1,
@@ -482,19 +514,21 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     await this.#assertCurrentPackage(input.viewId, signal)
     return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
-      scope: `package:${view.packageId}`,
+      scope: "workspace",
       timeoutMs: input.timeoutMs ?? 30_000,
       signal: operationSignal,
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
+      await this.#assertCurrentPackage(input.viewId!, operationSignal)
       const identity = bridgeIdentity(await this.#chrome.callBridge(
         view.targetId,
         "identity",
         Object.freeze({schemaVersion: 1}),
         operationSignal,
       ))
-      if (identity.packageId !== view.packageId) throw new Error("Storybook view navigated to another package")
-      if (!identity.ready || !identity.presented || identity.revision === null || identity.graphDigest === null) {
+      if (identity.packageId !== view.packageId || identity.route !== view.route) throw new Error("Storybook view navigated to another package or route")
+      if (!identity.ready || !identity.presented || identity.graphDigest === null ||
+        (identity.packageId === null ? identity.route !== "" || identity.revision !== null : identity.revision === null)) {
         throw new Error(`Storybook view is not ready and presented: ${input.viewId}`)
       }
       const entries = await this.#chrome.consoleEntries(view.targetId, 250, operationSignal)
@@ -513,11 +547,15 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
         }), operationSignal), "Storybook capture bridge result")
         clip = bridgeClip(region.clip)
       }
+      await this.#assertCurrentPackage(input.viewId!, operationSignal)
       const png = await this.#chrome.screenshot(view.targetId, {
-        caption: `Ожидаю готовый ${input.area} Storybook ${identity.packageId} на exact route ${identity.route}`,
+        caption: `Ожидаю готовый ${input.area} Storybook ${identity.packageId ?? "Project"} на exact route ${identity.route}`,
         ...(clip === undefined ? {} : {clip}),
         ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
       }, operationSignal)
+      const capturedIdentity = await this.#assertCurrentPackage(input.viewId!, operationSignal)
+      if (capturedIdentity.revision !== identity.revision || capturedIdentity.graphDigest !== identity.graphDigest ||
+        capturedIdentity.timeOrigin !== identity.timeOrigin) throw new Error("Storybook capture identity changed during screenshot")
       const stored = this.#captures.put(png, {
         packageId: identity.packageId,
         route: identity.route,
@@ -542,12 +580,12 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     const view = this.#views.internal(viewId)
     return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
-      scope: `package:${view.packageId}`,
+      scope: "workspace",
       ...(signal === undefined ? {} : {signal}),
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
       const current = (await this.#chrome.targets(signal)).find(({targetId}) => targetId === view.targetId)
-      if (current !== undefined && mayAttestPackageTarget(current.url, view.packageId)) {
+      if (current !== undefined && sameStorybookViewUrl(current.url, view.url) && mayAttestPackageTarget(current.url, view.packageId)) {
         const attested = await this.#attestsPackage(
           current,
           view.packageId,
@@ -556,12 +594,13 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
         if (!attested) {
           throw new Error(`Storybook exact package target attestation is indeterminate: ${view.packageId}`)
         }
+        await this.#assertCurrentPackage(viewId, signal)
         await this.#chrome.closeTarget(view.targetId, signal)
-        this.#state.clearTarget(view.packageId, view.targetId)
+        this.#state.clearWorkspace(view.targetId)
         this.#views.forget(viewId)
         return Object.freeze({closed: true, viewId})
       }
-      this.#state.clearTarget(view.packageId, view.targetId)
+      this.#state.clearWorkspace(view.targetId)
       this.#views.forget(viewId)
       return Object.freeze({
         closed: false,
@@ -575,138 +614,66 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     return this.#captures.read(captureId)
   }
 
-  async #assertCurrentPackage(viewId: string, signal?: AbortSignal): Promise<void> {
+  async #assertCurrentPackage(viewId: string, signal?: AbortSignal): Promise<StorybookBridgeIdentity> {
     const view = this.#views.internal(viewId)
     const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
-    if (target === undefined || new URL(target.url).origin !== view.origin || !mayAttestPackageTarget(target.url, view.packageId)) {
+    if (target === undefined || !sameStorybookViewUrl(target.url, view.url) || new URL(target.url).origin !== view.origin || !mayAttestPackageTarget(target.url, view.packageId)) {
       throw new Error("Storybook view navigated away from the requested package")
     }
     const identity = bridgeIdentity(await this.#chrome.callBridge(view.targetId, "identity", {schemaVersion: 1}, signal))
-    if (identity.packageId !== view.packageId) throw new Error("Storybook view navigated to another package")
+    if (identity.packageId !== view.packageId || identity.route !== view.route) throw new Error("Storybook view navigated to another package or route")
+    return identity
   }
 
-  /** Факты уже полученного inventory и до трёх read-only проверок своего пакета, без изменения reservation. */
   async #reservationEvidence(
-    record: Extract<StorybookBrowserTargetRecord, {phase: "reserved"}>,
+    record: Extract<ReturnType<StorybookBrowserState["readWorkspace"]>, {phase: "reserved"}>,
     targets: readonly ChromeTargetSummary[],
     origin: string,
-    requestedUrl: string,
-    operationSignal: AbortSignal,
+    signal: AbortSignal,
   ) {
-    const expected = new URL(record.url!)
-    const baseline = new Set(record.baselineTargetIds)
-    const matching = targets.filter(target => target.type === "page" &&
-      mayAttestPackageTarget(target.url, record.packageId))
-      .sort((left, right) => Number(baseline.has(left.targetId)) - Number(baseline.has(right.targetId)))
+    const candidates = targets.filter(target => target.type === "page" && workspaceCandidateUrl(target.url, origin))
     const observations = []
-    for (const target of matching.slice(0, 3)) {
-      operationSignal.throwIfAborted()
-      const signal = AbortSignal.any([operationSignal, AbortSignal.timeout(1_000)])
-      const actual = new URL(target.url)
-      let attestation: "verified" | "not-ready" | "different-package" | "bootstrap-owned" | "not-attested" | "indeterminate" = "indeterminate"
+    for (const target of candidates.slice(0, 3)) {
+      signal.throwIfAborted()
+      const observationSignal = AbortSignal.any([signal, AbortSignal.timeout(1_000)])
+      let attestation = "indeterminate"
       let ready: boolean | null = null
       let presented: boolean | null = null
-      let runtimeErrorPresent: boolean | null = null
       try {
-        const identity = bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, signal))
-        attestation = identity.packageId !== record.packageId ? "different-package" : identity.ready ? "verified" : "not-ready"
+        const identity = bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, observationSignal))
+        attestation = identity.ready ? "verified" : "not-ready"
         ready = identity.ready
         presented = identity.presented
       } catch {
-        operationSignal.throwIfAborted()
-        if (!signal.aborted) {
+        signal.throwIfAborted()
+        if (!observationSignal.aborted) {
           try {
-            const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
-            const markers = objectResult(diagnostic.markers, "Storybook reservation bootstrap markers")
-            attestation = typeof markers.packageId === "string" && markers.packageId !== record.packageId
-              ? "different-package"
-              : markers.packageId === record.packageId || diagnostic.viewName === `storybook:${record.packageId}`
-                ? "bootstrap-owned" : "not-attested"
-            runtimeErrorPresent = typeof markers.error === "string" && markers.error.length > 0
-          } catch {
-            operationSignal.throwIfAborted()
-          }
+            const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, observationSignal)
+            const markers = objectResult(diagnostic.markers, "Storybook target markers")
+            attestation = markers.packageId === record.packageId
+              ? "bootstrap-owned" : "not-attested"
+          } catch {signal.throwIfAborted()}
         }
       }
-      observations.push(Object.freeze({
-        index: observations.length,
-        path: actual.pathname.slice(0, 256),
-        inBaseline: baseline.has(target.targetId),
-        sameReservationUrl: target.url === record.url,
-        sameRequestedUrl: target.url === requestedUrl,
-        sameRequestedOrigin: actual.origin === origin,
-        attestation,
-        ready,
-        presented,
-        runtimeErrorPresent,
-      }))
+      observations.push({path: new URL(target.url).pathname, inBaseline: record.baselineTargetIds.includes(target.targetId),
+        sameReservationUrl: target.url === record.url, attestation, ready, presented})
     }
-    return Object.freeze({
-      schemaVersion: 1,
-      packageId: record.packageId,
-      reservation: Object.freeze({
-        protocol: record.protocol,
-        phase: record.phase,
-        createSent: record.createSent,
-        recordedReceipt: false,
-        sendHistoryAvailable: false,
-        recordedAt: record.recordedAt,
-        expectedPath: expected.pathname.slice(0, 256),
-        sameRequestedOrigin: expected.origin === origin,
-        sameRequestedUrl: record.url === requestedUrl,
-        baselineCount: baseline.size,
-      }),
-      observation: Object.freeze({
-        inventoryCompleted: true,
-        sameBrowserSession: true,
-        observedAt: new Date().toISOString(),
-        matchingPackageCount: matching.length,
-        exactNewReservationUrlCount: targets.filter(target => !baseline.has(target.targetId) && target.url === record.url).length,
-        omittedCount: Math.max(0, matching.length - observations.length),
-        targets: Object.freeze(observations),
-      }),
-    })
+    return {reservation: {protocol: record.protocol, phase: record.phase, createSent: record.createSent,
+      recordedReceipt: false, sendHistoryAvailable: false, expectedPath: new URL(record.url!).pathname},
+      observation: {inventoryCompleted: true, sameBrowserSession: true,
+        exactNewReservationUrlCount: candidates.filter(target => !record.baselineTargetIds.includes(target.targetId) && target.url === record.url).length,
+        matchingWorkspaceCount: candidates.length, omittedCount: Math.max(0, candidates.length - observations.length), targets: observations}}
   }
 
-  async #attestsPackage(
-    target: ChromeTargetSummary,
-    packageId: string,
-    signal: AbortSignal,
-    packageLabel?: string,
-    requireComplete = false,
-  ): Promise<boolean> {
+  async #attestsPackage(target: ChromeTargetSummary, packageId: string | null, signal: AbortSignal): Promise<boolean> {
     try {
-      return bridgeIdentity(await this.#chrome.callBridge(
-        target.targetId,
-        "identity",
-        Object.freeze({schemaVersion: 1}),
-        signal,
-      )).packageId === packageId
+      return bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, signal)).packageId === packageId
     } catch {
       signal.throwIfAborted()
-      try {
-        const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
-        const markers = objectResult(diagnostic.markers, "Storybook target markers")
-        const markerPackageId = markers.packageId
-        if (!mayAttestPackageTarget(target.url, packageId) ||
-          typeof markerPackageId === "string" && markerPackageId !== packageId) return false
-        const revisionPrefix = `/__storybook/revisions/${encodeURIComponent(packageId)}/`
-        const ownsRevisionScript = Array.isArray(diagnostic.scripts) &&
-          diagnostic.scripts.some((value) => typeof value === "string" && value.startsWith(revisionPrefix))
-        return markerPackageId === packageId ||
-          diagnostic.viewName === `storybook:${packageId}` &&
-            (markerPackageId === null || markerPackageId === undefined) ||
-          ownsRevisionScript ||
-          packageLabel !== undefined && legacyEncodedPackageTarget(target.url, packageId) && target.title === packageLabel
-      } catch (error) {
-        signal.throwIfAborted()
-        const legacy = mayAttestPackageTarget(target.url, packageId) &&
-          packageLabel !== undefined && legacyEncodedPackageTarget(target.url, packageId) && target.title === packageLabel
-        if (requireComplete) {
-          throw new Error(`Storybook package inventory observation is indeterminate: ${packageId}`, {cause: error})
-        }
-        return legacy
-      }
+      const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
+      const markers = objectResult(diagnostic.markers, "Storybook target markers")
+      return mayAttestPackageTarget(target.url, packageId) && markers.packageId === packageId &&
+        matchesWorkspaceName(diagnostic.viewName, packageId, this.#state.readWorkspace()?.viewName !== "storybook:workspace")
     }
   }
 
@@ -764,11 +731,11 @@ function bridgeIdentity(value: unknown): StorybookBridgeIdentity {
   if (record.protocol !== "external-storybook-agent-bridge/1") {
     throw new Error(`Unsupported Storybook bridge protocol: ${String(record.protocol)}`)
   }
-  const packageId = exactPackageId(record.packageId)
+  const packageId = record.packageId === null ? null : exactPackageId(record.packageId)
   const route = exactRoute(record.route)
   const revision = optionalText(record.revision, "bridge revision", 256)
-  if (record.viewName !== `storybook:${packageId}`) {
-    throw new Error("Storybook bridge window.name does not match its package identity")
+  if (!matchesWorkspaceName(record.viewName, packageId, (record.capabilities as {inPageNavigation?: unknown} | undefined)?.inPageNavigation !== true)) {
+    throw new Error("Storybook bridge window.name does not match its workspace identity")
   }
   const markers = objectResult(record.markers, "Storybook bridge markers")
   if (markers.packageId !== packageId || markers.route !== route || markers.revision !== revision) {
@@ -779,6 +746,7 @@ function bridgeIdentity(value: unknown): StorybookBridgeIdentity {
   }
   return Object.freeze({
     protocol: "external-storybook-agent-bridge/1",
+    viewName: String(record.viewName),
     packageId,
     route,
     revision,
@@ -787,6 +755,7 @@ function bridgeIdentity(value: unknown): StorybookBridgeIdentity {
     presented: record.presented === true,
     timeOrigin: finiteNumber(record.timeOrigin, "bridge timeOrigin"),
     frameSequence: Number.isSafeInteger(record.frameSequence) ? Number(record.frameSequence) : 0,
+    followEnvironment: record.followEnvironment === true,
   })
 }
 
@@ -805,10 +774,14 @@ function consoleErrors(entries: readonly StorybookChromeConsoleEntry[]): readonl
   return Object.freeze(entries.filter((entry) => entry.level === "error" || entry.type === "error"))
 }
 
-function exactPackageUrl(value: string, origin: string, packageId: string, route: string): string {
+function exactPackageUrl(value: string, origin: string, packageId: string | null, route: string): string {
   const url = new URL(value)
   if (url.origin !== origin || !validStorybookViewQuery(url) || url.hash.length > 0) {
     throw new Error(`Storybook package URL must belong to the exact server origin: ${value}`)
+  }
+  if (packageId === null) {
+    if (url.pathname !== "/" || route !== "") throw new Error("Storybook landing address must be root")
+    return url.href
   }
   const decodedRoute = storybookPackageRouteFromPathname(url.pathname, packageId)
   if ((url.pathname.startsWith("/pkg-") || url.pathname.startsWith("/packages/")) && decodedRoute !== route) throw new Error(`Storybook package URL route mismatch: ${decodedRoute}; expected ${route}`)
@@ -838,7 +811,10 @@ function packageTargetPath(value: string): Readonly<{segment: string; pathname: 
 }
 
 /** Структурный адрес разрешает проверку bridge, но сам не доказывает принадлежность пакету. */
-function mayAttestPackageTarget(value: string, packageId: string): boolean {
+function mayAttestPackageTarget(value: string, packageId: string | null): boolean {
+  if (packageId === null) {
+    try {return new URL(value).pathname === "/"} catch {return false}
+  }
   const parsed = packageTargetPath(value)
   if (parsed === null) return false
   if (parsed.pathname.startsWith("/pkg-") || parsed.pathname.startsWith("/packages/")) {
@@ -847,28 +823,26 @@ function mayAttestPackageTarget(value: string, packageId: string): boolean {
   return true
 }
 
-/** Выбирает ближайшего владельца адреса до обращения к JS вкладки. */
-function targetInPackageScope(value: string, packageId: string, packages?: readonly StorybookBrowserPackage[]): boolean {
-  if (!mayAttestPackageTarget(value, packageId)) return false
-  if (!packages?.some(item => item.packageId === packageId && item.urlPath !== undefined)) return true
-  const target = new URL(value)
-  if (target.pathname.startsWith("/pkg-") || target.pathname.startsWith("/packages/")) return true
-  let owner: string | null = null
-  let length = -1
-  for (const item of packages) {
-    if (item.urlPath === undefined) continue
-    const path = new URL(item.urlPath, target.origin).pathname.replace(/\/$/u, "")
-    if (path.length > length && (target.pathname === path || target.pathname.startsWith(`${path}/`))) {
-      owner = item.packageId
-      length = path.length
-    }
-  }
-  return owner === packageId
+function matchesWorkspaceName(value: unknown, packageId: string | null, allowLegacy: boolean): boolean {
+  return value === "storybook:workspace" || allowLegacy && packageId !== null && value === `storybook:${packageId}`
 }
 
-function legacyEncodedPackageTarget(value: string, packageId: string): boolean {
-  const parsed = packageTargetPath(value)
-  return packageId.startsWith("@") && parsed?.pathname.startsWith("/packages/") === true && parsed.segment === encodeURIComponent(packageId)
+function workspaceCandidateUrl(value: string, origin: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.origin === origin && url.pathname.startsWith("/") && !url.pathname.startsWith("/__storybook/")
+  } catch {return false}
+}
+
+function workspaceUrl(value: string, origin: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname) &&
+      url.origin === origin && validStorybookViewQuery(url) && url.hash.length === 0 &&
+      (url.pathname === "/" || packageTargetPath(value) !== null)
+  } catch {
+    return false
+  }
 }
 
 function exactPackageId(value: unknown): string {

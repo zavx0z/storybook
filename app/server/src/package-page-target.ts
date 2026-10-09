@@ -44,7 +44,8 @@ Revision variant несёт только URL внутри exact package revision
 Payload остаётся в page realm и сверяется browser entry до применения.
 
 @property initialAppliedRevision - Последняя server-confirmed working revision на момент HTML response.
-Она служит fallback только при неудаче candidate application.
+Она служит fallback только при неудаче candidate application и совпадении платформы.
+Ревизия другой платформы сохраняется в session, но не загружается в общий workspace.
 */
 export type StorybookPackagePageTarget = Readonly<{
   kind: "revision"
@@ -76,7 +77,8 @@ export type StorybookPackagePageTarget = Readonly<{
 
 Обычный переход предпочитает только current-generation built candidate. Явный
 preview сохраняет requested revision и никогда не получает право autoapply.
-Ревизия прежнего формата без точной платформы открывает текущую оболочку
+Ревизия прежнего формата без точной платформы, а также несовместимая с
+опубликованной платформой обычного перехода, открывает текущую оболочку
 без executable payload; сохранённые active и lastWorking остаются у сессии.
 
 @param input - Согласованный session snapshot, маршрут текущей страницы и resolver
@@ -104,6 +106,8 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
   packageId: string
   routePath: string
   previewRevision: string | null
+  /** Опубликованная платформа обычной навигации; exact preview выбирает собственную. */
+  platformEpoch?: string
   currentRoute: Pick<StorybookPackageRevisionRoute, "nodeId" | "kind"> | null
   snapshot: StorybookPackageSessionSnapshot
   readRevision(revision: string): StorybookPackagePageRevision | null
@@ -126,7 +130,7 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
   if (input.previewRevision !== null && selected.status === "failed") {
     return Object.freeze({kind: "redirect-preview", packageId: input.packageId})
   }
-  if (selected.sharedModuleEpoch === undefined) {
+  if (selected.sharedModuleEpoch === undefined || input.previewRevision === null && input.platformEpoch !== undefined && selected.sharedModuleEpoch !== input.platformEpoch) {
     return Object.freeze({
       kind: "fallback",
       packageId: input.packageId,
@@ -151,10 +155,12 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
     : revision === builtRevision && revision !== input.snapshot.activeRevision
       ? "navigation-candidate"
       : "reader"
-  const fallback = revision === builtRevision
-    ? input.snapshot.activeRevision ?? input.snapshot.lastWorkingRevision ?? input.snapshot.lastGoodRevision
+  const compatible = (candidate: string | null | undefined): candidate is string => candidate != null &&
+    input.readRevision(candidate)?.sharedModuleEpoch === selected.sharedModuleEpoch
+  const fallbackRevision = revision === builtRevision
+    ? [input.snapshot.activeRevision, input.snapshot.lastWorkingRevision, input.snapshot.lastGoodRevision].find(compatible) ?? null
     : null
-  const fallbackRevision = fallback != null && input.readRevision(fallback)?.sharedModuleEpoch !== undefined ? fallback : null
+  const initialAppliedRevision = compatible(input.snapshot.activeRevision) ? input.snapshot.activeRevision : null
   const revisionUrl = `/__storybook/revisions/${encodeURIComponent(input.packageId)}/${revision}/`
   return Object.freeze({
     kind: "revision",
@@ -166,15 +172,16 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
     route,
     intent,
     preview,
-    initialAppliedRevision: input.snapshot.activeRevision,
+    initialAppliedRevision,
     fallbackRevision,
     graphSnapshot: selected.graphSnapshot,
   })
 }
 
 /**
-Подготавливает обычный переход только при отсутствии доступной ревизии.
-Существующий payload используется без проверки редактируемых исходников.
+Подготавливает обычный переход при отсутствии ревизии или несовпадении её
+платформы с опубликованной. Та же платформа переиспользует payload без проверки
+редактируемых исходников. Строится только выбранный пакет через его session.
 Preview читает точную запрошенную ревизию и никогда не создаёт новую сборку.
 Общая session объединяет одновременные запросы; отмена одного ожидания не
 отменяет её полезную работу. Ошибка подготовки сохраняет прежние artifacts.
@@ -186,15 +193,18 @@ export async function prepareStorybookPackagePageTarget(input: Readonly<{
   session: StorybookPackageSession
   routePath: string
   previewRevision: string | null
+  /** Опубликованная платформа обычной навигации; exact preview выбирает собственную. */
+  platformEpoch?: string
   currentRoute: Pick<StorybookPackageRevisionRoute, "nodeId" | "kind"> | null
   signal: AbortSignal
 }>): Promise<StorybookPackagePageTarget> {
-  const read = (): StorybookPackagePageTarget => {
+  const read = (alignPlatform = true): StorybookPackagePageTarget => {
     const snapshot = input.session.snapshot()
     return resolveStorybookPackagePageTarget({
       packageId: input.session.packageId,
       routePath: input.routePath,
       previewRevision: input.previewRevision,
+      ...(alignPlatform && input.platformEpoch !== undefined ? {platformEpoch: input.platformEpoch} : {}),
       currentRoute: input.currentRoute,
       snapshot,
       readRevision(revision) {
@@ -206,9 +216,17 @@ export async function prepareStorybookPackagePageTarget(input: Readonly<{
     })
   }
   input.signal.throwIfAborted()
-  const available = read()
-  if (input.previewRevision !== null || available.kind !== "fallback") return available
-  await input.session.ensureBuilt({owner: "open"})
+  const available = read(false)
+  if (input.previewRevision !== null) return available
+  const snapshot = input.session.snapshot()
+  const existing = available.kind === "revision" ? available.revision
+    : snapshot.builtRevision ?? snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? null
+  const epoch = existing === null ? undefined : snapshot.revisions?.find(record => record.revision === existing)?.sharedModuleEpoch
+  if (existing !== null && input.platformEpoch !== undefined && epoch !== input.platformEpoch) {
+    await input.session.build({owner: "open", reason: "toolchain-changed"})
+  } else if (available.kind === "fallback") {
+    await input.session.ensureBuilt({owner: "open"})
+  } else return read()
   input.signal.throwIfAborted()
   return read()
 }

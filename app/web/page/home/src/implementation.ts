@@ -41,6 +41,7 @@ export function parseLandingEvent(value: unknown): any | null {
   }
   if (parsed === null || typeof parsed !== "object" || !("type" in parsed)) return null
   const record = parsed as Record<string, unknown>
+  if (record.type === "environment.activity") return record
   if (record.type === "shared.updated") {
     try {
       WebProtocol.validateSharedHost(record.host)

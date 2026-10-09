@@ -25,5 +25,8 @@ test("пространство содержит только пакеты и с�
     ["child", "repo"], ["repo", null], ["sibling", "repo"], ["other", null],
   ])
   expect(nodes[0]!.parentId).toBe("nested")
+  expect(spatialPackages({nodes}).map(({node, rootId}) => [node.id, rootId])).toEqual([
+    ["child", "repo"], ["repo", "repo"], ["sibling", "repo"], ["other", "other"],
+  ])
   expect(spatialPackages({nodes: []})).toEqual([])
 })

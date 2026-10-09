@@ -25,7 +25,7 @@ describe.each([{
 
   test("Управляющий интерфейс", () => {
     const operations = ["ensure", "status", "attach", "detach", "search", "open", "wait", "inspect", "interact", "capture", "check", "close", "stop", "readResource"] as const
-    expect(operations.map(name => typeof app[name]), "Один API соединяет запуск, пакетные операции, browser views и ресурсы")
+    expect(operations.map(name => typeof app[name]), "Один API соединяет запуск, пакетные операции, рабочее пространство и ресурсы")
       .toEqual(operations.map(() => "function"))
   })
 
@@ -34,6 +34,6 @@ describe.each([{
   })
 
   test.todo("Применение готовой ревизии", () => {
-    expect(undefined, "Явная операция проверяет кандидата и отдельно подтверждает применение в открытых вкладках").toBeDefined()
+    expect(undefined, "Явная операция проверяет кандидата и отдельно подтверждает применение в рабочем представлении").toBeDefined()
   })
 })

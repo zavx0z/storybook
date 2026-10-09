@@ -281,6 +281,7 @@ async function startExternalStorybookLanding(
     }
     const update = parseLandingEvent(event.data)
     if (update === null) return
+    if (update.type === "environment.activity") {embeddedPageScope?.environmentActivity?.(update); return}
     if (update.type === "registry.updated") {
       void refreshRegistry().catch(error => updateManagement({error: errorText(error)}))
     } else if (update.type === "shared.updated") {
@@ -306,6 +307,7 @@ async function startExternalStorybookLanding(
     onOpen(socket, reconnected) {
       shell.updateStatus(storybookConnectionStatus(reconnected ? "reconnected" : "connected"))
       socket.send(JSON.stringify({type: "subscribe", topic: "registry"}))
+      socket.send(JSON.stringify({type: "subscribe", topic: "environment"}))
     },
     onMessage: onSocketMessage,
     onClose() { shell.updateStatus(storybookConnectionStatus("disconnected")) },

@@ -24,8 +24,22 @@ export function spatialPackages(snapshot: Pick<ExternalStorybookClientSnapshot, 
     for (const skipped of trail) ancestors.set(skipped, parent)
     return parent
   }
-  return snapshot.nodes.filter(node => node.kind === "package").map(node => ({
+  const packages = snapshot.nodes.filter(node => node.kind === "package").map(node => ({
     node,
     parentId: parentPackage(node.parentId),
   }))
+  const parents = new Map(packages.map(item => [item.node.id, item.parentId]))
+  const roots = new Map<string, string>()
+  return packages.map(item => {
+    const trail: string[] = []
+    let root = item.node.id
+    while (parents.get(root) !== null && parents.has(root) && !roots.has(root)) {
+      trail.push(root)
+      root = parents.get(root)!
+    }
+    root = roots.get(root) ?? root
+    roots.set(item.node.id, root)
+    for (const id of trail) roots.set(id, root)
+    return {...item, rootId: root}
+  })
 }

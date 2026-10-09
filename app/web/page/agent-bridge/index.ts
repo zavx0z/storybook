@@ -77,8 +77,25 @@ function createStorybookAgentBridge(
         throw new Error("Storybook view navigated to another package")
       }
       if (request.operation === "state") return state()
+      if (request.operation === "navigate") {
+        if (request.schemaVersion !== 1) throw new Error("Storybook workspace navigation requires schemaVersion 1")
+        if (request.expectedPackageId === undefined || request.packageId === undefined || options.navigateWorkspace === undefined) {
+          throw new Error("Storybook workspace navigation requires source and destination identities")
+        }
+        const destination = request.packageId === null ? null : boundedText(request.packageId, 256, "destination package")
+        const route = typeof request.route === "string" && request.route.length <= 2048 ? request.route : null
+        if (route === null) throw new Error("Storybook workspace navigation requires a bounded route")
+        if (request.followEnvironment !== undefined && request.followEnvironment !== true) throw new Error("Invalid follow environment guard")
+        await options.navigateWorkspace({expectedPackageId: request.expectedPackageId, packageId: destination, route,
+          ...(request.revision === undefined ? {} : {revision: boundedText(request.revision, 256, "revision")}),
+          ...(request.url === undefined ? {} : {url: boundedText(request.url, 2048, "navigation URL")}),
+          ...(request.followEnvironment === undefined ? {} : {followEnvironment: true}),
+        })
+        const navigated = await options.waitForStableScope?.()
+        return navigated === undefined ? state() : navigated.call("identity")
+      }
       if (request.operation === "applyRevision") {
-        if (request.expectedPackageId === undefined) {
+        if (request.expectedPackageId === undefined || request.expectedPackageId === null) {
           throw new Error("Storybook applied revision requires an expected package identity")
         }
         const requestedRevision = boundedText(request.revision, 256, "revision")
@@ -101,8 +118,8 @@ function createStorybookAgentBridge(
     },
     updateIdentity(nextPackageId, nextRevision, nextGraphDigest) {
       assertActive()
-      packageId = boundedText(nextPackageId, 256, "package identity")
-      revision = boundedText(nextRevision, 256, "revision")
+      packageId = nextPackageId === null ? null : boundedText(nextPackageId, 256, "package identity")
+      revision = nextRevision === null ? null : boundedText(nextRevision, 256, "revision")
       graphDigest = boundedText(nextGraphDigest, 256, "graph digest")
     },
     dispose() {
@@ -122,7 +139,9 @@ function createStorybookAgentBridge(
     const model = options.getModel()
     return Object.freeze({
       protocol: STORYBOOK_AGENT_BRIDGE_PROTOCOL,
-      capabilities: Object.freeze({inPageUpdates: options.canApplyRevision?.() ?? false}),
+      capabilities: Object.freeze({inPageUpdates: options.canApplyRevision?.() ?? false, inPageNavigation: options.navigateWorkspace !== undefined}),
+      followEnvironment: options.shell.followEnvironment ?? false,
+      focused: typeof options.shell.browserDocument.hasFocus === "function" && options.shell.browserDocument.hasFocus(),
       packageId,
       revision,
       graphDigest,
@@ -138,7 +157,8 @@ function createStorybookAgentBridge(
         route: options.shell.browserDocument.documentElement.dataset.externalStorybookRoute ?? null,
         revision: options.shell.browserDocument.documentElement.dataset.externalStorybookRevision ?? null,
       }),
-      ready: options.shell.browserDocument.documentElement.dataset.externalStorybookPackage === "ready",
+      ready: options.shell.browserDocument.documentElement.dataset.externalStorybookPackage === "ready" ||
+        packageId === null && options.shell.browserDocument.documentElement.dataset.externalStorybookLanding === "ready",
       presented: options.shell.presentedFrameSequence > 0,
       error: options.shell.browserDocument.documentElement.dataset.externalStorybookNavigationError ??
         options.shell.browserDocument.documentElement.dataset.externalStorybookUpdateError ??
@@ -151,7 +171,7 @@ function createStorybookAgentBridge(
           ? options.shell.browserDocument.hasFocus()
           : null,
       }),
-      selected: Object.freeze({
+      selected: model === null ? null : Object.freeze({
         nodeId: model.selectedNode.id,
         directoryId: model.selectedNode.kind === "directory" ? model.selectedNode.id : null,
         tabId: model.tabActiveId,

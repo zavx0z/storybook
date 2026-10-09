@@ -1,3 +1,4 @@
+import {createHash} from "node:crypto"
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, readdirSync, rmSync, statSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
@@ -21,20 +22,43 @@ describe("Storybook browser state", () => {
       url: "http://127.0.0.1:43123/pkg-fixture-a/",
       baselineTargetIds: [],
     }
-    state.reserveTarget(input)
-    expect(state.clearUnsentReservation(input.packageId)).toBeTrue()
-    expect(state.readTarget(input.packageId)).toBeNull()
-    state.reserveTarget(input)
-    state.markCreateSent(input.packageId)
-    expect(state.clearUnsentReservation(input.packageId)).toBeFalse()
-    const legacy: Record<string, unknown> = {...state.readTarget(input.packageId)}
+    state.reserveWorkspace(input)
+    expect(state.clearUnsentReservation()).toBeTrue()
+    expect(state.readWorkspace()).toBeNull()
+    state.reserveWorkspace(input)
+    state.markCreateSent()
+    expect(state.clearUnsentReservation()).toBeFalse()
+    const legacy: Record<string, unknown> = {...state.readWorkspace()}
     delete legacy.createSent
-    const path = join(root, readdirSync(root).find(name => name.startsWith("target-"))!)
+    const path = join(root, readdirSync(root).find(name => name === "workspace.json")!)
     writeFileSync(path, JSON.stringify(legacy))
-    expect(state.readTarget(input.packageId)).toMatchObject({phase: "reserved", createSent: true})
-    expect(state.clearUnsentReservation(input.packageId)).toBeFalse()
-    state.writeTarget({...input, targetId: "OWNED"})
-    expect(state.clearUnsentReservation(input.packageId)).toBeFalse()
+    expect(state.readWorkspace()).toMatchObject({phase: "reserved", createSent: true})
+    expect(state.clearUnsentReservation()).toBeFalse()
+    state.writeWorkspace({...input, targetId: "OWNED"})
+    expect(state.clearUnsentReservation()).toBeFalse()
+  })
+
+  test("мигрирует owned записи в один workspace, неизвестный dispatch сохраняет", () => {
+    const root = temporaryRoot()
+    const state = new StorybookBrowserState(root)
+    const legacy = (packageId: string, phase: "owned" | "reserved") => ({
+      protocol: "external-storybook-browser-target/3", packageId, phase,
+      cdpOrigin: "http://127.0.0.1:9222", browserIdentity: "a".repeat(64),
+      targetId: phase === "owned" ? "OLD_TARGET" : null, createSent: true,
+      url: "http://127.0.0.1:43123/pkg-fixture-a/", baselineTargetIds: ["OLD_TARGET"],
+      recordedAt: new Date().toISOString(),
+    })
+    const ownedName = `target-${createHash("sha256").update("@fixture/a").digest("hex")}.json`
+    const pendingName = `target-${createHash("sha256").update("@fixture/b").digest("hex")}.json`
+    writeFileSync(join(root, ownedName), JSON.stringify(legacy("@fixture/a", "owned")))
+    writeFileSync(join(root, pendingName), JSON.stringify(legacy("@fixture/b", "reserved")))
+    expect(state.readWorkspace()).toMatchObject({phase: "reserved", createSent: true})
+    expect(state.hasWorkspace()).toBeFalse()
+    state.writeWorkspace({packageId: null, cdpOrigin: "http://127.0.0.1:9222", browserIdentity: "a".repeat(64), targetId: "OLD_TARGET"})
+    expect(state.readWorkspace()).toMatchObject({phase: "owned", packageId: null, targetId: "OLD_TARGET"})
+    expect(readdirSync(root)).toContain("workspace.json")
+    expect(readdirSync(root)).not.toContain(ownedName)
+    expect(readdirSync(root)).toContain(pendingName)
   })
 
   test("persists one private view secret across lifecycle instances", () => {
@@ -48,25 +72,25 @@ describe("Storybook browser state", () => {
     expect(statSync(join(root, "view-secret")).mode & 0o777).toBe(0o600)
   })
 
-  test("atomically records and conditionally clears the owned package target", () => {
+  test("atomically records and conditionally clears the owned workspace target", () => {
     const state = new StorybookBrowserState(temporaryRoot())
-    const written = state.writeTarget({
+    const written = state.writeWorkspace({
       packageId: "@fixture/a",
       cdpOrigin: "http://127.0.0.1:9222",
       browserIdentity: "a".repeat(64),
       targetId: "TARGET_A",
     })
 
-    expect(state.readTarget("@fixture/a")).toEqual(written)
-    expect(state.clearTarget("@fixture/a", "OTHER_TARGET")).toBeFalse()
-    expect(state.readTarget("@fixture/a")).toEqual(written)
-    expect(state.clearTarget("@fixture/a", "TARGET_A")).toBeTrue()
-    expect(state.readTarget("@fixture/a")).toBeNull()
+    expect(state.readWorkspace()).toEqual(written)
+    expect(state.clearWorkspace("OTHER_TARGET")).toBeFalse()
+    expect(state.readWorkspace()).toEqual(written)
+    expect(state.clearWorkspace("TARGET_A")).toBeTrue()
+    expect(state.readWorkspace()).toBeNull()
   })
 
   test("persists an atomic reservation before binding its created target", () => {
     const state = new StorybookBrowserState(temporaryRoot())
-    const reserved = state.reserveTarget({
+    const reserved = state.reserveWorkspace({
       packageId: "@fixture/a",
       cdpOrigin: "http://127.0.0.1:9222",
       browserIdentity: "a".repeat(64),
@@ -75,7 +99,7 @@ describe("Storybook browser state", () => {
     })
     expect(reserved).toMatchObject({phase: "reserved", targetId: null})
 
-    const owned = state.writeTarget({
+    const owned = state.writeWorkspace({
       packageId: "@fixture/a",
       cdpOrigin: "http://127.0.0.1:9222",
       browserIdentity: "a".repeat(64),

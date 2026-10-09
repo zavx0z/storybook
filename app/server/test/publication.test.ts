@@ -41,7 +41,15 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   let last: {packageId: string; route: string; revision: string} | null = null
   const viewId = `storybook-view-v1_${"a".repeat(43)}`
   const browser: StorybookBrowserLifecycle = {
+    async currentWorkspace() {
+      return last === null ? null : {view: {viewId, packageId: last.packageId, route: last.route, title: "Applied"}, identity: {
+        protocol: "external-storybook-agent-bridge/1", packageId: last.packageId, route: last.route, revision: last.revision,
+        graphDigest: server.sessions.session(last.packageId).revisionGraphSnapshot(last.revision)!.packageGraphDigest,
+        ready: true, presented: true, timeOrigin: 1, followEnvironment: false,
+      }}
+    },
     async openPackage(input) {
+      if (input.packageId === null) throw new Error("Publication fixture requires a package")
       opened += 1
       const revision = input.expectedRevision!
       last = {packageId: input.packageId, route: input.route, revision}
@@ -49,7 +57,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
         view: {viewId, packageId: input.packageId, route: input.route, title: "Applied"},
         identity: {protocol: "external-storybook-agent-bridge/1", packageId: input.packageId, route: input.route,
           revision, graphDigest: server.sessions.session(input.packageId).revisionGraphSnapshot(revision)!.packageGraphDigest,
-          ready: true, presented: true, timeOrigin: 1, frameSequence: 2},
+          ready: true, presented: true, timeOrigin: 1, frameSequence: 2, followEnvironment: false},
         reused: opened > 1,
       }
     },

@@ -1,3 +1,4 @@
+import {ViewPoint, Vector3} from "@zavx0z/immersive-engine"
 /** Область выбранного пакета.
 @packageDocumentation
 */
@@ -223,6 +224,7 @@ function fakeRootFactory(
     }>>()
     const spaceProjection: RootSpaceProjection = Object.freeze({
       kind: "space",
+      ...fakeWorldProjection(() => viewPoint, options.canvas),
       get owner() { return space },
       orbit() {},
       pan() {},
@@ -235,8 +237,8 @@ function fakeRootFactory(
     ): RootDocumentProjection => {
       const existing = documentProjections.get(owner)
       if (existing !== undefined) return existing.projection
-      if (owner.ownerDocument !== document || owner.parentNode !== space) {
-        throw new Error("Fake Root projection owner must be a direct child of its semantic Space")
+      if (owner.ownerDocument !== document || owner.closest("space") !== space) {
+        throw new Error("Fake Root projection owner must belong to the same semantic Space")
       }
       const subscribers = new Set<(frame: RenderFrame) => void>()
       let frame: RenderFrame | null = null
@@ -244,6 +246,7 @@ function fakeRootFactory(
         kind: owner instanceof DisplayElement ? "display" : "hud",
         owner,
         projectPoint: (point: {x: number; y: number}) => point,
+        unprojectPoint: () => null,
         readFrame: () => frame,
         subscribeFrames(listener) {
           subscribers.add(listener)
@@ -309,6 +312,7 @@ function fakeRootFactory(
       dispatchText: () => true,
       resetViewPoint() {},
       render() {
+        appRoot.flush()
         const nextFrame = state.frames + 1
         if (state.failRenderAt === nextFrame) throw new Error("frame failed")
         state.frames = nextFrame
@@ -356,6 +360,67 @@ function fakeRenderFrame(
 }
 
 describe("Область выбранного пакета", () => {
+  test.each([
+    {intent: "navigation-candidate" as const, retained: false, preview: false},
+    {intent: "preview" as const, retained: true, preview: true},
+  ])("переподключение $intent сохраняет назначение сессии", async ({intent, retained, preview}) => {
+    const graph = await fixtureGraph()
+    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
+    const environment = environmentFixture(snapshot, packagePath)
+    const sockets: FakeSocket[] = []
+    const requests: unknown[] = []
+    const requested = Promise.withResolvers<void>()
+    const controller = await startExternalStorybookPackage({
+      packageId,
+      candidateRevision: "revision-a",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-a/",
+      sharedModuleEpoch: "epoch",
+      graphSnapshot: Revision.create(graph, packageId, "revision-a"),
+      environment: {
+        ...environment,
+        bootstrapIntent: intent,
+        fetcher: Object.assign(async (input: URL | RequestInfo, init?: RequestInit) => {
+          if (String(input) !== "/api/browser/session") return Response.json(snapshot)
+          const body = JSON.parse(String(init?.body))
+          requests.push(body)
+          requested.resolve()
+          // После restart server не восстанавливает неприменённого кандидата.
+          // Только явный preview требует его exact retained revision.
+          return body.preview && !retained
+            ? Response.json({error: "Package preview session requires its exact retained revision"}, {status: 400})
+            : Response.json({token: "renewed-reader"})
+        }, {preconnect: fetch.preconnect}),
+        createSocket() {
+          const socket = new FakeSocket()
+          sockets.push(socket)
+          return socket
+        },
+      },
+    })
+    const document = controller.shell.document
+    try {
+      sockets[0]!.emit("close", {})
+      await requested.promise
+      for (let attempt = 0; attempt < 30 && sockets.length < 2; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      expect(sockets.length, "Связь обновлений восстанавливается после выдачи допустимой сессии").toBe(2)
+      sockets[1]!.emit("open", {})
+      expect(requests, "Навигационный кандидат получает обычную сессию; явный preview сохраняет точную ревизию").toEqual([
+        {packageId: "@fixture/components", revision: "revision-a", preview},
+      ])
+      expect(sockets[1]!.sent.map(value => JSON.parse(value)), "Восстановленная связь подписывается на пакет и обновления оболочки").toEqual([
+        {type: "subscribe", topic: "package:@fixture/components"},
+        {type: "subscribe", topic: "catalog"},
+        {type: "subscribe", topic: "environment"},
+      ])
+      expect(controller.shell.document, "Переподключение сохраняет работающий Document").toBe(document)
+      expect(controller.revision, "Связь не применяет другую ревизию вместо показанной").toBe("revision-a")
+    } finally {
+      await controller.dispose()
+    }
+  })
+
   test("Project rename preserves package navigation and the Browser Root", async () => {
       const graph = await fixtureGraph()
       let snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
@@ -412,6 +477,43 @@ describe("Область выбранного пакета", () => {
         environment: {...environment, shell: {...environment.shell!, createRoot: fakeRootFactory(state)}}}))
         .rejects.toThrow("address is not in the applied package graph")
       expect(state.creations).toBe(0)
+    })
+
+  test("повторная навигация по тому же адресу сохраняет содержимое; смена адреса открывает другой маршрут", async () => {
+      const graph = await fixtureGraph()
+      const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
+      const environment = environmentFixture(snapshot, packagePath)
+      const controller = await startExternalStorybookPackage({packageId, candidateRevision: null,
+        revisionUrl: null, environment})
+      try {
+        const shell = controller.shell
+        const input = shell.document.createElement("input")
+        input.value = "Несохранённый ввод"
+        shell.mountPreview("Текущий адрес", input)
+        const beforeAddress = environment.location!.href
+        await controller.navigate("")
+        expect(input.isConnected).toBe(true)
+        expect(input.value).toBe("Несохранённый ввод")
+        expect(environment.location!.href).toBe(beforeAddress)
+        expect(controller.shell).toBe(shell)
+
+        await controller.navigate("dir-docs")
+        expect(controller.currentRoute).toBe("dir-docs")
+        expect(environment.location!.pathname).toBe(`${packagePath}/docs`)
+        expect(input.isConnected).toBe(false)
+        const other = shell.document.createElement("input")
+        other.value = "Состояние директории"
+        shell.mountPreview("Другой адрес", other)
+        await Promise.all([controller.navigate("dir-docs"), controller.navigate("dir-docs")])
+        expect(other.isConnected).toBe(true)
+        expect(other.value).toBe("Состояние директории")
+
+        // Быстрый возврат не теряется за ещё не исполненным переходом.
+        await Promise.all([controller.navigate(""), controller.navigate("dir-docs")])
+        expect(controller.currentRoute).toBe("dir-docs")
+        expect(environment.location!.pathname).toBe(`${packagePath}/docs`)
+        expect(controller.shell).toBe(shell)
+      } finally { await controller.dispose() }
     })
 
   test("shows an empty package state and preserves route navigation without an applied revision", async () => {
@@ -475,3 +577,54 @@ describe("Область выбранного пакета", () => {
       expect(state.disposals).toBe(1)
     })
 })
+
+/** Реальные числовые camera/ray/frustum в fake того же Root; отрисовка остаётся seam. */
+function fakeWorldProjection(viewPoint: () => ViewPointElement, canvas: HTMLCanvasElement):
+  Pick<RootSpaceProjection, "projectPoint" | "rayForPoint" | "frustumPlanes" | "fly"> {
+  if (typeof canvas.getBoundingClientRect !== "function") Object.defineProperty(canvas, "getBoundingClientRect", {
+    value: () => ({left: 0, top: 0, width: canvas.width || 1024, height: canvas.height || 768}),
+  })
+  const camera = () => {
+    const current = viewPoint()
+    const bounds = canvas.getBoundingClientRect()
+    return new ViewPoint({
+      position: {x: current.x, y: current.y, z: current.z},
+      target: {x: current.targetX, y: current.targetY, z: current.targetZ},
+      fov: current.fov,
+      near: current.near,
+      far: current.far,
+      viewport: {left: bounds.left, top: bounds.top, width: bounds.width || 1024, height: bounds.height || 768},
+    })
+  }
+  return {
+    projectPoint(point) {
+      const projection = camera()
+      const view = new Vector3(point.x, point.y, point.z).applyMatrix4(projection.viewMatrix)
+      if (view.z >= 0 || -view.z < projection.near || -view.z > projection.far) return null
+      const projected = view.applyMatrix4(projection.projectionMatrix)
+      const bounds = canvas.getBoundingClientRect()
+      return {x: bounds.left + (projected.x + 1) * (bounds.width || 1024) / 2,
+        y: bounds.top + (1 - projected.y) * (bounds.height || 768) / 2}
+    },
+    rayForPoint(point) {
+      const ray = camera().rayForClientPoint(point)
+      return ray === null ? null : {
+        origin: {x: ray.origin.x, y: ray.origin.y, z: ray.origin.z},
+        direction: {x: ray.direction.x, y: ray.direction.y, z: ray.direction.z},
+      }
+    },
+    frustumPlanes(overscan) { return camera().frustumPlanes(overscan) },
+    fly(distance, anchor) {
+      const projection = camera()
+      projection.fly(distance, anchor)
+      const current = viewPoint()
+      current.x = projection.position.x
+      current.y = projection.position.y
+      current.z = projection.position.z
+      const target = projection.getTarget()
+      current.targetX = target.x
+      current.targetY = target.y
+      current.targetZ = target.z
+    },
+  }
+}

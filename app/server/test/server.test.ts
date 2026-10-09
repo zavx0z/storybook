@@ -1192,6 +1192,91 @@ describe("one external Storybook server", () => {
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
   })
 
+  test.each([
+    {name: "обычное открытие", recover: false, phase: "activation" as const, built: null, working: null, retry: false, opens: false},
+    {name: "явное восстановление применения", recover: true, phase: "activation" as const, built: null, working: null, retry: true, opens: true},
+    {name: "ошибка компиляции", recover: true, phase: "compile" as const, built: null, working: null, retry: false, opens: false},
+    {name: "ошибка проверки исходников", recover: true, phase: "validate" as const, built: null, working: null, retry: false, opens: false},
+    {name: "готовый кандидат", recover: true, phase: "activation" as const, built: "existing-built", working: null, retry: false, opens: true},
+    {name: "рабочая ревизия после отказа применения", recover: true, phase: "activation" as const, built: null, working: "working", retry: true, opens: true},
+    {name: "сохранённая рабочая ревизия после отказа применения", recover: true, phase: "activation" as const, built: null, working: null, savedWorking: "retained-working", retry: true, opens: true},
+    {name: "обычное открытие рабочей ревизии", recover: false, phase: "activation" as const, built: null, working: "working", retry: false, opens: true},
+    {name: "здоровая рабочая ревизия", recover: true, phase: "activation" as const, built: null, working: "working", healthy: true, retry: false, opens: true},
+    {name: "ошибка исходников с рабочей ревизией", recover: true, phase: "compile" as const, built: null, working: "working", retry: false, opens: true},
+    {name: "отказ повторной компиляции", recover: true, phase: "activation" as const, built: null, working: null, retry: true, opens: false, retryFails: true},
+    {name: "отказ повторной компиляции сохраняет рабочую ревизию", recover: true, phase: "activation" as const, built: null, working: "working", retry: true, opens: false, retryFails: true},
+  ])("recover повторяет только неудавшееся применение без готового кандидата: $name", async options => {
+    const {recover, phase, built, working, retry, opens} = options
+    const savedWorking = ("savedWorking" in options ? options.savedWorking : working) ?? null
+    const retryFails = "retryFails" in options && options.retryFails
+    const healthy = "healthy" in options && options.healthy
+    const fixture = serverFixture()
+    const lifecycle = fakeBrowserLifecycle()
+    const running = await startTestServer({
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      browserLifecycle: lifecycle.service,
+    })
+    servers.push(running)
+    const session = running.sessions.session("@fixture/standalone")
+    const initial = session.snapshot()
+    const record = {
+      revision: built ?? working ?? savedWorking ?? "recovery-built",
+      generation: 1,
+      status: built === null ? "working" as const : "built" as const,
+      declarationDigest: initial.declarationDigest,
+      packageGraphDigest: initial.packageGraphDigest ?? "a".repeat(64),
+      moduleGraphRevision: "module-revision",
+      sharedModuleEpoch: "a".repeat(64),
+      entryRelativePath: "entry.js",
+      dependencyRealpaths: [],
+      diagnostics: [],
+      createdAt: "2026-10-09T00:00:00.000Z",
+      leases: 0,
+    }
+    let state: ReturnType<typeof session.snapshot> = {
+      ...initial,
+      builtRevision: built,
+      activeRevision: working,
+      lastWorkingRevision: savedWorking,
+      lastGoodRevision: savedWorking,
+      failedRevision: healthy ? null : "failed-activation",
+      buildState: healthy ? "active" : "failed",
+      diagnostics: healthy ? [] : [{phase, message: "previous failure", path: null}],
+      revisions: built === null && working === null && savedWorking === null ? [] : [record],
+    }
+    const snapshot = spyOn(session, "snapshot").mockImplementation(() => state)
+    const build = spyOn(session, "build").mockImplementation(async () => {
+      if (retryFails) {
+        state = {...state, diagnostics: [{phase: "compile", message: "retry compilation failed", path: null}]}
+        return state
+      }
+      state = {...state, builtRevision: "recovery-built", failedRevision: null, buildState: "built", diagnostics: [],
+        revisions: [...(state.revisions ?? []), {...record, revision: "recovery-built", status: "built"}]}
+      return state
+    })
+    try {
+      const result = await controlPost(running, "/api/control/open", {packageId: initial.packageId, route: "", recover})
+      expect(result.response.ok, "Восстановление открывает подтверждённый результат, а ошибки исходников остаются отказом").toBe(opens)
+      expect(build.mock.calls, "Только явное восстановление применения без готового кандидата повторяет package session").toEqual(
+        retry ? [[{owner: "open", reason: "explicit-retry"}]] : [],
+      )
+      expect(lifecycle.opened.length, "Браузер вызывается только после появления пригодной ревизии").toBe(opens ? 1 : 0)
+      if (retry && opens) expect(result.body, "Повторная подготовка передаёт сервером выбранного кандидата обычному browser owner").toMatchObject({
+        ok: true, viewId: lifecycle.viewId, revision: "recovery-built", candidateRevision: "recovery-built",
+      })
+      if (retryFails) expect(state.diagnostics, "Ошибка повторной компиляции остаётся диагностикой session и не становится успешным открытием").toEqual([
+        {phase: "compile", message: "retry compilation failed", path: null},
+      ])
+      expect(state.activeRevision, "Повторная подготовка сохраняет последнюю рабочую ревизию до успешного применения кандидата").toBe(working)
+      expect(state.lastWorkingRevision, "Сохранённая рабочая ревизия остаётся доступной после повторной подготовки").toBe(savedWorking)
+    } finally {
+      build.mockRestore()
+      snapshot.mockRestore()
+    }
+  })
+
   test("открытие старой ревизии требует check до обращения к браузеру", async () => {
     const fixture = serverFixture()
     const lifecycle = fakeBrowserLifecycle()
@@ -1369,7 +1454,7 @@ describe("one external Storybook server", () => {
   })
 })
 
-/** Подготавливает данные для HTTP-тестов без имитации публичного check, который теперь всегда применяет результат. */
+/** Подготавливает данные для HTTP-тестов; применение публичного check зависит от выбранного адреса workspace. */
 async function preparePackages(server: StorybookAppServer.Output, scope: string | null) {
   await controlPost(server, "/api/control/refresh", {force: true})
   const ids = scope === null ? server.registry.snapshot().graph.nodes.filter(node => node.kind === "package").map(node => node.packageId!) : [scope]
@@ -1390,7 +1475,15 @@ function fakeBrowserLifecycle(): Readonly<{
   const viewId = `storybook-view-v1_${"a".repeat(43)}`
   const opened: Array<Readonly<{packageId: string; route: string}>> = []
   const service: StorybookBrowserLifecycle = {
+    async currentWorkspace() {
+      const current = opened.at(-1)
+      return current === undefined ? null : {view: {viewId, ...current, title: "Fixture"}, identity: {
+        protocol: "external-storybook-agent-bridge/1", ...current, revision: "fixture-revision", graphDigest: "a".repeat(64),
+        ready: true, presented: true, timeOrigin: 1, followEnvironment: false,
+      }}
+    },
     async openPackage(input) {
+      if (input.packageId === null) throw new Error("Server fixture requires a package")
       opened.push(Object.freeze({
         packageId: input.packageId,
         route: input.route,
@@ -1411,6 +1504,7 @@ function fakeBrowserLifecycle(): Readonly<{
           ready: true,
           presented: true,
           timeOrigin: 1,
+          followEnvironment: false,
         }),
         reused: opened.length > 1,
       })

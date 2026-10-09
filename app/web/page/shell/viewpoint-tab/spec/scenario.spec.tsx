@@ -11,6 +11,7 @@ describe.each([
   const headless = createHeadless({width: 640, height: 240})
   afterAll(() => headless.dispose())
   const props = {
+    followEnvironment: {getSnapshot: () => false, subscribe: () => () => {}, toggle: mock()},
     controls: {
       initialPosition: {edge: "top" as const, offset: .5},
       getSnapshot: () => input,
@@ -27,6 +28,7 @@ describe.each([
   const element = await headless.render(
     <ViewPointTab
       controls={props.controls}
+      followEnvironment={props.followEnvironment}
     />,
   )
   const buttons = [...element.querySelectorAll('[role="toolbar"] button')] as HTMLButtonElement[]
@@ -38,11 +40,13 @@ describe.each([
       {label: "Приблизить ViewPoint", disabled: !input.ready},
       {label: input.frozen ? "Разморозить ViewPoint" : "Заморозить ViewPoint", disabled: !input.ready},
       {label: "Вписать в область просмотра", disabled: !input.ready},
+      {label: "Следовать", disabled: false},
     ])
   })
 
   test("Действия", () => {
     for (const button of buttons) button.click()
+    expect(props.followEnvironment.toggle.mock.calls, "Следование управляется отдельной политикой workspace").toHaveLength(1)
     expect(props.controls.zoom.mock.calls, "Кнопки передают контроллеру множители расстояния").toEqual(input.ready ? [[1.2], [1 / 1.2]] : [])
     expect(props.controls.toggleFrozen.mock.calls, "Кнопка переключения жестов передаёт событие своему обработчику").toEqual(input.ready ? [[expect.objectContaining({type: "click"})]] : [])
     expect(props.controls.fit.mock.calls, "Кнопка вписывания передаёт событие своему обработчику").toEqual(input.ready ? [[expect.objectContaining({type: "click"})]] : [])

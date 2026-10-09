@@ -97,7 +97,7 @@ export type ChromeTargetSummary = Readonly<{
 
 @property protocol - Маркер версии протокола моста.
 
-@property packageId - Идентификатор пакета страницы.
+@property packageId - Идентификатор выбранного пакета либо null у корня Project.
 
 @property route - Текущий маршрут внутри пакета.
 
@@ -115,14 +115,18 @@ export type ChromeTargetSummary = Readonly<{
 */
 export type StorybookBridgeIdentity = Readonly<{
   protocol: "external-storybook-agent-bridge/1"
-  packageId: string
+  packageId: string | null
   route: string
   revision: string | null
   graphDigest: string | null
   ready: boolean
   presented: boolean
   timeOrigin: number
+  /** Общее имя пространства; имя пакета встречается только у legacy bridge. */
+  viewName?: string
   frameSequence?: number
+  /** Следовать адресу среды при проверке другого предмета. */
+  followEnvironment: boolean
 }>
 
 /**
@@ -150,16 +154,16 @@ export type StorybookBridgeClip = Readonly<{
 
 /**
 Методы моста страницы: чтение идентичности, инспекция, взаимодействие,
-подготовка захвата и применение ревизии. Произвольные имена методов не принимаются.
+подготовка захвата, переход адреса и применение ревизии. Произвольные имена методов не принимаются.
 */
-export type StorybookBridgeMethod = "identity" | "inspect" | "interact" | "capture" | "applyRevision"
+export type StorybookBridgeMethod = "identity" | "inspect" | "interact" | "capture" | "applyRevision" | "navigate"
 
 /**
 Публичные сведения о представлении без служебных адресов и идентификаторов CDP.
 
 @property viewId - Непрозрачный идентификатор для последующих операций Storybook.
 
-@property packageId - Идентификатор открытого пакета.
+@property packageId - Идентификатор выбранного пакета либо null у корня Project.
 
 @property route - Маршрут внутри пакета.
 
@@ -167,7 +171,7 @@ export type StorybookBridgeMethod = "identity" | "inspect" | "interact" | "captu
 */
 export type StorybookPublicView = Readonly<{
   viewId: string
-  packageId: string
+  packageId: string | null
   route: string
   title: string
 }>
@@ -330,13 +334,13 @@ export type StorybookCaptureArea = "page" | "workbench" | "preview" | "canvas" |
 /**
 Связь снимка с пакетом, маршрутом и ревизией показанного содержимого.
 
-@property packageId - Идентификатор пакета снимка.
+@property packageId - Идентификатор пакета снимка либо null у корня Project.
 
 @property route - Маршрут показанного содержимого.
 
 @property graphDigest - Контрольный отпечаток графа, к которому относится снимок.
 
-@property revision - Ревизия показанного содержимого.
+@property revision - Ревизия показанного пакета либо null у корня Project.
 
 @property area - Захваченная область {@link StorybookCaptureArea}.
 
@@ -345,10 +349,10 @@ export type StorybookCaptureArea = "page" | "workbench" | "preview" | "canvas" |
 @property consoleErrors - Ошибки консоли, обнаруженные при захвате.
 */
 export type StorybookCaptureMetadata = Readonly<{
-  packageId: string
+  packageId: string | null
   route: string
   graphDigest: string
-  revision: string
+  revision: string | null
   area: StorybookCaptureArea
   nodeId?: string
   consoleErrors: readonly unknown[]
@@ -389,19 +393,24 @@ export type StoredStorybookCapture = StorybookCaptureMetadata & Readonly<{
 export type StorybookBrowserPackage = Readonly<{packageId: string; label: string; urlPath?: string}>
 
 export type StorybookBrowserOpenInput = Readonly<{
-  /** Граф адресов ограничивает проверку контекстов вкладками выбранного пакета. */
+  /** Действующий граф ограничивает принимаемые адреса общего пространства. */
   knownPackages?: readonly StorybookBrowserPackage[]
   origin: string
-  packageId: string
+  packageId: string | null
   route: string
   url: string
   packageLabel?: string
   timeoutMs?: number
   expectedRevision?: string
-  /** Точная обнаруженная вкладка; её исчезновение или переход отклоняются без создания target. */
-  existingViewId?: string
-  /** Явно разрешает новую попытку после завершённого inventory без вкладок пакета. */
+  /**
+  Явное восстановление допускает native загрузку того же аттестованного пространства.
+  Для stalled bridge отдельно проверяются native markers, origin и записанный адрес.
+  Отправленная create без receipt остаётся indeterminate; повторное создание возможно
+  лишь при явном recover после завершённого inventory без страниц этого сервера.
+  */
   recover?: boolean
+  /** Переход проверки требует включённого режима следования до commit. */
+  followEnvironment?: true
 }>
 
 export type StorybookBrowserCaptureResult = StoredStorybookCapture & Readonly<{

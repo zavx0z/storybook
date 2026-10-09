@@ -41,28 +41,34 @@ describe("Storybook view registry", () => {
     ])
   })
 
-  test("keeps multiple views of a package and invalidates a handle when its tab changes package", () => {
+  test("единственное пространство инвалидирует handle при смене пакета и предмета", () => {
     const registry = new StorybookViewRegistry(new Uint8Array(32).fill(9))
     const origin = "http://127.0.0.1:43123"
-    const views = registry.synchronize([
-      {packageId: "@fixture/a", targetId: "A", type: "page", title: "A", url: `${origin}/pkg-fixture-a/`},
-      {packageId: "@fixture/a", targetId: "B", type: "page", title: "B", url: `${origin}/pkg-fixture-a/example?preview=revision-a`},
-    ], origin)
-    expect(views).toHaveLength(2)
-    expect(views[0]!.viewId).not.toBe(views[1]!.viewId)
-    const changed = registry.synchronize([
-      {packageId: "@fixture/b", targetId: "A", type: "page", title: "Other", url: `${origin}/pkg-fixture-b/`},
-    ], origin)
-    expect(changed[0]!.viewId).not.toBe(views[0]!.viewId)
-    expect(() => registry.internal(views[0]!.viewId)).toThrow("Unknown")
+    const target = {packageId: "@fixture/a", targetId: "A", type: "page", title: "A", url: `${origin}/pkg-fixture-a/example`}
+    const first = registry.register(target, origin)
+    const moved = registry.register({...target, url: `${origin}/pkg-fixture-a/other`}, origin)
+    expect(moved.viewId).not.toBe(first.viewId)
+    expect(() => registry.internal(first.viewId)).toThrow("Unknown")
+    const changed = registry.register({...target, packageId: "@fixture/b", url: `${origin}/pkg-fixture-b/`}, origin)
+    expect(changed.viewId).not.toBe(moved.viewId)
+    expect(() => registry.internal(moved.viewId)).toThrow("Unknown")
+    expect(registry.list()).toEqual([changed])
+    expect(() => registry.synchronize([target, {...target, targetId: "B"}], origin)).toThrow("one canonical workspace")
+  })
+
+  test("корень Project является тем же пространством с null packageId", () => {
+    const registry = new StorybookViewRegistry(new Uint8Array(32).fill(9))
+    const origin = "http://127.0.0.1:43123"
+    const view = registry.register({packageId: null, targetId: "A", type: "page", title: "Project", url: `${origin}/`}, origin)
+    expect(view).toMatchObject({packageId: null, route: ""})
   })
 
   test("ignores landing, foreign-origin and non-page targets", () => {
     const registry = new StorybookViewRegistry(new Uint8Array(32).fill(3))
-    expect(registry.synchronize([
+    for (const target of [
       {packageId: "a", targetId: "landing", type: "page", title: "Landing", url: "http://127.0.0.1:43123/"},
       {packageId: "a", targetId: "foreign", type: "page", title: "Foreign", url: "http://127.0.0.1:9999/packages/a/"},
       {packageId: "a", targetId: "worker", type: "worker", title: "Worker", url: "http://127.0.0.1:43123/packages/a/"},
-    ], "http://127.0.0.1:43123")).toEqual([])
+    ]) expect(registry.synchronize([target], "http://127.0.0.1:43123")).toEqual([])
   })
 })

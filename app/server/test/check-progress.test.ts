@@ -41,12 +41,17 @@ test("public App через REST доставляет package/shared progress д
   const sharedStarted = Promise.withResolvers<void>()
   const sharedProgress = Promise.withResolvers<void>()
   const buildOwners: string[] = []
+  let nextSelectedGate: {started: ReturnType<typeof Promise.withResolvers<void>>, finish: ReturnType<typeof Promise.withResolvers<void>>} | undefined
   const builder: StorybookPackageBuildPrepare.Output = async input => {
     buildOwners.push(input.descriptor.packageId)
     input.onPhase?.({phase: "exports", state: "started", at: new Date().toISOString()})
     if (input.descriptor.packageId === selected) {
       started.resolve()
       await gate.promise
+      if (nextSelectedGate !== undefined) {
+        nextSelectedGate.started.resolve()
+        await nextSelectedGate.finish.promise
+      }
     } else if (input.descriptor.packageId === cancelledPackage) {
       cancelStarted.resolve()
       await cancelGate.promise
@@ -84,12 +89,15 @@ test("public App через REST доставляет package/shared progress д
   let neighborBuild: ReturnType<StorybookAppServer.Output["sessions"]["ensure"]> | undefined
   let closeQueueObservation = () => {}
   const progress: Record<string, unknown>[] = []
+  const workspaceOptions = {followEnvironment: false}
+  let disableDuringFollow = false
   let finished = false
   try {
     const {default: startServer} = await import("../index")
     const {default: createApp} = await import("@zavx0z/storybook-app")
     const app = createApp({toolRoot: resolve(import.meta.dir, "../../.."), legacyStatePaths: []})
     const controls = createControl({controller: () => app})
+    const browser = readyBrowser(() => running!, workspaceOptions)
     running = await startServer({
       extensions: input => input.inspectExecutors ? controls.tools : [],
       createWeb,
@@ -109,7 +117,13 @@ test("public App через REST доставляет package/shared progress д
       project: createProjectFixture(root, repositories),
       statePath: join(stateRoot, "server.json"),
       artifactRoot,
-      browserLifecycle: readyBrowser(() => running!),
+      browserLifecycle: {...browser, async openPackage(input, signal) {
+        if (input.followEnvironment === true && disableDuringFollow) {
+          workspaceOptions.followEnvironment = false
+          throw new Error("Storybook environment following was disabled before navigation")
+        }
+        return browser.openPackage(input, signal)
+      }},
     })
     const client = State.client(running.record)
     const baselineSubscriptions = subscriptions
@@ -136,11 +150,28 @@ test("public App через REST доставляет package/shared progress д
     const result = await request
     await neighborBuild
     expect(result).not.toHaveProperty("error")
-    expect(result.result).toMatchObject({status: "success", ok: true, packages: [{packageId: selected, buildState: "active"}]})
-    expect(running.sessions.session(selected).snapshot().activeRevision).toBeString()
+    expect(result.result).toMatchObject({status: "success", ok: true, applied: false, pending: true, packages: [{packageId: selected, buildState: "built"}]})
+    expect(running.sessions.session(selected).snapshot().activeRevision).toBeNull()
     expect(buildOwners).toEqual([selected, neighbor])
     expect(subscriptions, "Завершение stream освобождает все временные подписки").toBe(baselineSubscriptions)
     const count = progress.length
+
+    // Явный выбор адреса применяет подготовленный кандидат в том же workspace.
+    const opened = await client.control("/api/control/open", {packageId: selected, route: ""})
+    const selectedCheck = await client.control("/api/control/check", {scope: selected})
+    expect(selectedCheck).toMatchObject({ok: true, applied: true, pending: false})
+    expect(selectedCheck.views).toMatchObject([{viewId: opened.viewId}])
+    const neighborCheck = await client.control("/api/control/check", {scope: neighbor})
+    expect(neighborCheck).toMatchObject({ok: true, applied: false, pending: true})
+    expect((await client.read("/api/control/views")).views).toMatchObject([{packageId: selected}])
+    workspaceOptions.followEnvironment = true
+    disableDuringFollow = true
+    const deferred = await client.control("/api/control/check", {scope: neighbor})
+    expect(deferred).toMatchObject({ok: true, applied: false, pending: true})
+    expect(running.sessions.session(neighbor).snapshot()).toMatchObject({buildState: "built", failedRevision: null, diagnostics: []})
+    expect((await client.read("/api/control/views")).views).toMatchObject([{packageId: selected}])
+    disableDuringFollow = false
+    workspaceOptions.followEnvironment = true
 
     // Тот же вход без NDJSON отдаёт общий итоговый JSON envelope.
     const response = await fetch(new URL("/api/environment", running.origin), {
@@ -152,6 +183,16 @@ test("public App через REST доставляет package/shared progress д
     expect(await response.json()).toMatchObject({result: {status: "success", ok: true, applied: true, packages: [{packageId: neighbor}]}})
     expect(progress.length, "После финала последующие проверки не продолжают закрытый REST progress").toBe(count)
     expect(subscriptions).toBe(baselineSubscriptions)
+
+    // Поздний результат проверки не меняет адрес после более нового действия среды.
+    nextSelectedGate = {started: Promise.withResolvers<void>(), finish: Promise.withResolvers<void>()}
+    const delayedCheck = client.control("/api/control/check", {scope: selected})
+    await nextSelectedGate.started.promise
+    expect(await client.control("/api/environment", {name: "filesystem.create", arguments: {path: "causality.txt", content: "next activity"}})).toMatchObject({result: {path: "causality.txt"}})
+    nextSelectedGate.finish.resolve()
+    expect(await delayedCheck).toMatchObject({ok: true, applied: false, pending: true})
+    expect((await client.read("/api/control/views")).views).toMatchObject([{packageId: neighbor}])
+    nextSelectedGate = undefined
 
     // Отмена REST-ожидания закрывает оба HTTP-потока, но не работу принадлежащей серверу package session.
     const abort = new AbortController()
@@ -166,7 +207,7 @@ test("public App через REST доставляет package/shared progress д
     cancelGate.resolve()
     await until(() => running!.sessions.session(cancelledPackage).snapshot().builtRevision !== null, "Отключение клиента отменило серверную сборку")
     expect(running.sessions.session(cancelledPackage).snapshot().builtRevision).toBeString()
-    expect(buildOwners).toEqual([selected, neighbor, neighbor, cancelledPackage])
+    expect(buildOwners).toEqual([selected, neighbor, selected, neighbor, neighbor, neighbor, selected, cancelledPackage])
     expect(progress.length, "Отдельная отменённая проверка не продолжает завершённый stream").toBe(count)
 
     const sharedEvents: Record<string, unknown>[] = []

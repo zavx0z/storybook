@@ -28,3 +28,13 @@ test("browser grant отклоняет расхождение preview flag и bo
     preview: false,
   })).toThrow("preview and bootstrap intent must agree")
 })
+
+
+test("environment activity has a dedicated authorized topic in landing and package grants", () => {
+  const registry = new StorybookBrowserSessionRegistry()
+  const landing = registry.issue({kind: "registry", packageId: null, revision: null})
+  const selected = registry.issue({kind: "package", packageId: "@fixture/package", revision: "current"})
+  expect(landing.grant.allowedTopics.has("environment")).toBeTrue()
+  expect(selected.grant.allowedTopics.has("environment")).toBeTrue()
+  expect(selected.grant.allowedTopics.has("registry")).toBeFalse()
+})

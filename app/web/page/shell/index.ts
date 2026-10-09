@@ -15,6 +15,7 @@ Tab «Настройки» открывает каталоги проектов 
 
 @packageDocumentation
 */
+import {createEnvironmentFollowState} from "./src/environment-follow-state"
 import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 import {createViewPointPersistence} from "./src/viewpoint-persistence.ts"
 import createViewPointControls from "@zavx0z/storybook-app-web-page-shell-viewpoint-controls"
@@ -95,6 +96,7 @@ async function createExternalStorybookShell(
     Object.assign(viewPointPersistence.state, structuredClone(options.userState.viewPoint))
   }
   const viewPointControls = createViewPointControls(viewPointPersistence)
+  const followEnvironment = createEnvironmentFollowState(() => browserDocument.defaultView!.localStorage, options.userState?.followEnvironment)
   const statusNotifications = createStatusNotifications()
   const minimap = createMinimapPersistence(() => browserDocument.defaultView!.localStorage)
   const executionWindow = createExecutionWindowPersistence(() => browserDocument.defaultView!.localStorage)
@@ -119,6 +121,7 @@ async function createExternalStorybookShell(
     directorySettingsClient: createDirectorySettingsClient(globalThis.fetch, () => undefined),
     userState: options.userState?.workbench,
     viewPointControls,
+    followEnvironment,
     statusOwner: options.statusOwner ?? options.title,
     displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
     hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
@@ -166,7 +169,7 @@ async function createExternalStorybookShell(
     root,
     source: subjectGraphState,
     baseDisplay: display,
-    preserveCamera: options.userState !== undefined,
+    preserveViewPoint: options.userState?.spatialLayout === "prism-tree/3",
     getViewport: () => latestViewport,
     createView(id, title, mount, subjectDisplay, onRelease, userState) {
       let subjectWorkbench!: Workbench
@@ -180,6 +183,7 @@ async function createExternalStorybookShell(
           displayId: subjectDisplay.id,
           hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
           viewPointControls,
+          followEnvironment,
           navigationExpansion: {
             initialCollapsedIds: subjectCollapsed,
             save(ids) { subjectCollapsed = [...ids]; subjectNavigation.save(ids) },
@@ -192,7 +196,7 @@ async function createExternalStorybookShell(
         return createViewFacade(subjectDisplay, subjectWorkbench, title, false, () => {
           mount(null)
           onRelease()
-        }, () => subjectCollapsed)
+        }, () => subjectCollapsed, id)
       } catch (error) {
         mount(null)
         throw error
@@ -207,17 +211,19 @@ async function createExternalStorybookShell(
     primary: boolean,
     releaseView?: () => void,
     captureNavigation: () => readonly string[] | undefined = () => collapsedNavigation,
+    identity = display.id,
   ): ExternalStorybookShell {
     const hud = sharedHud
+    const statusKey = identity
     let previousStatus = workbench.controller.read("status")
     const publishStatus = () => {
       const status = workbench.controller.read("status")
       if (status.detail === previousStatus.detail && status.owner === previousStatus.owner) return
       previousStatus = status
-      statusNotifications.report(display.id, status.owner, status.detail)
+      statusNotifications.report(statusKey, status.owner, status.detail)
     }
     const stopStatus = workbench.subscribe(publishStatus)
-    if (previousStatus.detail !== "") statusNotifications.report(display.id, previousStatus.owner, previousStatus.detail)
+    if (previousStatus.detail !== "") statusNotifications.report(statusKey, previousStatus.owner, previousStatus.detail)
     const displayProjection = root.getProjection(display)
     const boundsListeners = new Set<(bounds: StorybookPreviewBounds | null) => void>()
     const frameWaiters = new Set<Readonly<{
@@ -283,7 +289,7 @@ async function createExternalStorybookShell(
       if (activeSpacePreview !== null) activeSpacePreview.resetViewPoint()
       else if (latestViewport !== null) fitWorkbench(latestViewport, true)
       root.invalidate()
-    }, () => activeSpacePreview === null && !mountingSpacePreview)
+    }, () => activeSpacePreview === null && !mountingSpacePreview, factor => graph.zoom(factor))
     const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
       if (sameBounds(latestBounds, bounds)) return
       latestBounds = bounds
@@ -659,9 +665,12 @@ async function createExternalStorybookShell(
       },
       dispatchNativeKey,
       dispatchNativeText,
+      get followEnvironment() { return followEnvironment.getSnapshot() },
+      setFollowEnvironment: followEnvironment.set,
+      subscribeFollowEnvironment: followEnvironment.subscribe,
       captureUserState() {
         assertActive(disposed)
-        return structuredClone({workbench: workbench.controller.captureUserState(), minimap: minimapState,
+        return structuredClone({...(graph.configured ? {spatialLayout: "prism-tree/3" as const} : {}), followEnvironment: followEnvironment.getSnapshot(), workbench: workbench.controller.captureUserState(), minimap: minimapState,
           executionWindow: executionWindowState, mcpWindow: mcpWindowState, viewPoint: viewPointPersistence.state, collapsedNavigation: captureNavigation()})
       },
       releaseRoot() {
@@ -677,9 +686,10 @@ async function createExternalStorybookShell(
       if (disposed) return
       disposed = true
       stopStatus()
-      statusNotifications.dismiss(display.id)
+      statusNotifications.dismiss(statusKey)
       if (primary) {
         viewPointControls.dispose()
+        followEnvironment.dispose()
         graph.dispose()
       }
       activeSpacePreview?.dispose()

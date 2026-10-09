@@ -277,7 +277,7 @@ function optionalBooleanAttribute(value: string | undefined): boolean | null {
 export function validateRequest(value: Request): void {
   if (value === null || typeof value !== "object" || Array.isArray(value) ||
     value.protocol !== STORYBOOK_AGENT_BRIDGE_PROTOCOL ||
-    !["state", "inspect", "interact", "capture", "applyRevision"].includes(value.operation)) {
+    !["state", "inspect", "interact", "capture", "applyRevision", "navigate"].includes(value.operation)) {
     throw new Error("Invalid Storybook agent bridge request")
   }
 }

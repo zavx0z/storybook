@@ -9,6 +9,7 @@ import ServerState, {type StorybookAppServerState} from "@zavx0z/storybook-app-s
 const {readExternalStorybookOperationProgress, readExternalStorybookStartupProgress, writeExternalStorybookStartupProgress, acquireExternalStorybookStartLease, clearExternalStorybookMigrationRecord, externalStorybookLegacyStatePaths, externalStorybookServerStatePath, inspectExternalStorybookServer, publishExternalStorybookStartCandidate, readExternalStorybookMigrationRecord, removeReplaceableExternalStorybookState, writeExternalStorybookMigrationRecord} = ServerState
 type ExternalStorybookMigrationRecord = NonNullable<ReturnType<StorybookAppServerState.Output["readExternalStorybookMigrationRecord"]>>
 type ExternalStorybookServerRecord = ReturnType<StorybookAppServerState.Output["readExternalStorybookServerRecord"]>
+import ToolError from "@zavx0z/ai-tech-failure"
 import {createHmac} from "node:crypto"
 import {closeSync, constants, existsSync, fchmodSync, fstatSync, openSync, readSync, realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
@@ -279,22 +280,22 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
           view: Object.freeze(view),
         })
       }
-      const opened = await client.control("/api/control/open", {
-        packageId,
-        route,
-        timeoutMs: Math.max(100, deadline - Date.now()),
+      const observed = await client.control("/api/control/inspect", {
+        viewId: input.viewId,
+        include: ["state"],
       }, signal)
-      const reached = opened.ready === true &&
-        (input.condition === "ready" || opened.presented === true) &&
-        opened.revision !== input.afterRevision
-      const {package: packageSnapshot, ok: _ok, ...publicView} = opened
-      const projectedPackage = publicPackageSnapshot(packageSnapshot)
+      if (observed.packageId !== packageId || observed.route !== route) {
+        throw new ToolError("WORKSPACE_NOT_SELECTED", "Рабочее пространство сменило адрес во время ожидания", 409)
+      }
+      const reached = viewConditionReached(observed, input.condition, input.afterRevision)
+      const {ok: _ok, ...publicView} = observed
+      const projectedPackage = publicPackageSnapshot(waited.package)
       return Object.freeze({
         status: reached ? "success" : "timeout",
         condition: input.condition,
         reached,
         previousRevision: input.afterRevision ?? null,
-        currentRevision: opened.revision,
+        currentRevision: observed.revision,
         ...(projectedPackage === null ? {} : {package: projectedPackage}),
         view: Object.freeze(publicView),
       })
@@ -327,35 +328,24 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
 
     async capture(input: StorybookCaptureInput, context: StorybookControllerContext): Promise<StorybookCaptureResult> {
       const record = await this.#requireRunning()
+      const client = ServerState.client(record)
       let viewId = input.viewId
+      let view: Record<string, unknown> | undefined
       if (viewId === undefined) {
         if (input.packageId === undefined) throw new Error("Storybook capture requires viewId or packageId")
-        const opened = await this.open({
-          schemaVersion: 1,
-          packageId: input.packageId,
-          route: input.route ?? "",
-        }, context)
-        if (typeof opened.viewId !== "string") throw new Error("Storybook capture could not open its package view")
-        viewId = opened.viewId
+        const result = await client.read("/api/control/views", context.signal)
+        view = (Array.isArray(result.views) ? result.views : []).find(candidate =>
+          candidate !== null && typeof candidate === "object" && candidate.packageId === input.packageId)
+        if (view === undefined) throw new ToolError("WORKSPACE_NOT_SELECTED", "Для снимка сначала выберите пакет через storybook_open", 409)
+        viewId = String(view.viewId)
       } else if (input.packageId !== undefined || input.route !== undefined) {
-        const exactView = await ServerState.client(record).read(
-          `/api/control/views/${encodeURIComponent(viewId)}`,
-          context.signal,
-        )
-        const view = exactView.view !== null && typeof exactView.view === "object" && !Array.isArray(exactView.view)
-          ? exactView.view as Record<string, unknown>
-          : undefined
+        const result = await client.read(`/api/control/views/${encodeURIComponent(viewId)}`, context.signal)
+        if (result.view !== null && typeof result.view === "object" && !Array.isArray(result.view)) view = result.view as Record<string, unknown>
         if (view === undefined) throw new Error(`Invalid Storybook view: ${viewId}`)
-        const packageId = String(view.packageId)
-        if (input.packageId !== undefined && input.packageId !== packageId) {
-          throw new Error(`Storybook capture view belongs to ${packageId}, not ${input.packageId}`)
-        }
-        const opened = await this.open({
-          schemaVersion: 1,
-          packageId,
-          route: input.route ?? String(view.route ?? ""),
-        }, context)
-        if (opened.viewId !== viewId) throw new Error(`Storybook capture view identity changed: ${viewId}`)
+      }
+      if (view !== undefined && (input.packageId !== undefined && input.packageId !== view.packageId ||
+        input.route !== undefined && input.route !== view.route)) {
+        throw new ToolError("WORKSPACE_NOT_SELECTED", "Запрошенный адрес не выбран в рабочем пространстве; сначала выполните storybook_open", 409)
       }
       const result = await ServerState.client(record).control("/api/control/capture", {
         viewId,
@@ -402,6 +392,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         ...(result.shared === undefined ? {} : {shared: result.shared, hosts: result.hosts, published: result.published}),
         packages,
         applied: result.applied === true,
+        pending: result.pending === true,
         views: result.views ?? [],
       })
     }

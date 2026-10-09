@@ -33,6 +33,7 @@ async function fixture() {
   const connections: StorybookTechAcp.Input[] = []
   const disposedConnections: string[] = []
   const journal = createJournal()
+  const activities: Record<string, unknown>[] = []
   const controlToken = "c".repeat(43)
   let http!: Bun.Server<unknown>
   const chat = createChatServer({
@@ -42,6 +43,7 @@ async function fixture() {
     graph: () => ({nodes} as unknown as StorybookPackageGraphRead.Input),
     entries: () => entries,
     recordRequest: entry => journal.write(entry),
+    onActivity: event => { activities.push(event) },
     async connect(input) {
       connections.push(input)
       const id = `provider-session-${connections.length}`
@@ -71,7 +73,7 @@ async function fixture() {
     headers: {...headers, ...(token === undefined ? {} : {authorization: `Bearer ${token}`})},
     ...(command === undefined ? {} : {body: JSON.stringify(command)}),
   })
-  return {project, chat, http, call, controlToken, connections, disposedConnections, journal}
+  return {project, chat, http, call, controlToken, connections, disposedConnections, journal, activities}
 }
 
 test("единый HTTP вход даёт глобальный контекст независимо от старта модели и проверяет штатные полномочия сервера", async () => {
@@ -182,4 +184,31 @@ test("единый endpoint описывает и исполняет инстр�
   expect(f.chat.environment.revokeExecutor("worker")).toBeTrue()
   expect((await f.call(worker.token)).status).toBe(401)
   expect((await f.call(worker.token, {name: "filesystem.read", arguments: {path: "new.txt"}})).status).toBe(401)
+})
+
+
+test("activity follows the assigned subject only after an accepted action and carries no command data", async () => {
+  const f = await fixture()
+  const worker = await f.chat.environment.acquireSession({executorId: "worker", address: "/a", executorLabel: "Worker", sessionId: "activity-session"}, () => {}, async () => {})
+  cleanups.push(() => worker.dispose())
+  const call = async (name: string, arguments_: Record<string, unknown>) => {
+    const response = await worker.execute(new Request("http://localhost/api/environment", {
+      method: "POST", headers: {authorization: `Bearer ${worker.token}`},
+      body: JSON.stringify({name, arguments: arguments_}),
+    }))
+    return response
+  }
+  await f.call(f.controlToken, {name: "environment.inspect", arguments: {executorId: "worker"}})
+  expect((await f.call(worker.token, {name: "filesystem.create", arguments: {path: "denied.txt", content: "denied"}})).status).toBe(403)
+  expect(f.activities).toEqual([])
+  expect((await call("filesystem.create", {path: "secret.txt", content: "private-content"})).status).toBe(200)
+  expect(f.activities).toHaveLength(1)
+  expect(f.activities[0]).toEqual({type: "environment.activity", id: expect.any(String), address: "/a", startedAt: expect.any(Number)})
+  expect(JSON.stringify(f.activities)).not.toContain("private-content")
+  expect(JSON.stringify(f.activities)).not.toContain(worker.token)
+  expect(f.activities[0]!.id).toBe(f.journal.read("/a").find(entry => entry.tool === "filesystem.create" && entry.status === "success")!.id)
+  await call("filesystem.read", {path: "secret.txt"})
+  expect(f.activities[1]).toMatchObject({type: "environment.activity", address: "/a"})
+  await call("knowledge.read", {})
+  expect(f.activities[2]).toMatchObject({type: "environment.activity", address: "/a"})
 })

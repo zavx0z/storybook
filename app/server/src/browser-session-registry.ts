@@ -59,8 +59,8 @@ export class StorybookBrowserSessionRegistry {
     }
     const token = randomBytes(32).toString("base64url")
     const allowedTopics = input.kind === "registry"
-      ? new Set<string>(["registry"])
-      : new Set<string>([`package:${input.packageId}`, "catalog"])
+      ? new Set<string>(["registry", "environment"])
+      : new Set<string>([`package:${input.packageId}`, "catalog", "environment"])
     const grant = Object.freeze({
       kind: input.kind,
       packageId: input.packageId,

@@ -3,6 +3,10 @@
 Владеет маршрутами документации, выбором и исполнением сценария, подпиской пакета
 и освобождением его ресурсов при переходе. Новая ревизия сохраняет допустимый
 выбор Inspector и сценария; ошибочная замена оставляет рабочее представление.
+Переподключение навигационного кандидата получает сессию обычной навигации;
+явный preview сохраняет требование точной доступной ревизии.
+Повторный переход на текущий адрес сохраняет подключённое содержимое;
+применение новой ревизии выполняется отдельно от навигации.
 
 @packageDocumentation
 */
@@ -421,7 +425,7 @@ async function startExternalStorybookPackage(
       if (isSelected()) {
         browserDocument.title = WebProtocol.pageTitle(packageId, model.packageNode.label)
         if (browserDocument.defaultView !== null && browserDocument.defaultView !== undefined) {
-          browserDocument.defaultView.name = `storybook:${packageId}`
+          browserDocument.defaultView.name = embeddedPageScope === undefined ? `storybook:${packageId}` : "storybook:workspace"
         }
         delete browserDocument.documentElement.dataset.externalStorybookLanding
         browserDocument.documentElement.dataset.externalStorybookPackageId = packageId
@@ -464,6 +468,13 @@ async function startExternalStorybookPackage(
     return operation
   }
   const navigate = async (route: string): Promise<void> => {
+    assertActive(disposed)
+    const model = deriveExternalStorybookPackageTab(graph, packageId, route)
+    if (sameWorkspaceAddress(location.href, model.urlPath) &&
+      sameWorkspaceAddress(currentModel.urlPath, model.urlPath)) {
+      await operationTail
+      return
+    }
     await scheduleRoute(route)
   }
 
@@ -885,6 +896,7 @@ async function startExternalStorybookPackage(
     latestBuildGeneration = 0
     socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
     socket.send(JSON.stringify({type: "subscribe", topic: "catalog"}))
+    socket.send(JSON.stringify({type: "subscribe", topic: "environment"}))
     if (!reconnecting) {
       shell.updateStatus(storybookConnectionStatus("connected"))
       return
@@ -900,6 +912,7 @@ async function startExternalStorybookPackage(
     if (disposed) return
     let raw: {type?: string; packageId?: string; revision?: string | null} | null = null
     try { raw = JSON.parse(String(event.data)) } catch {}
+    if (raw?.type === "environment.activity") {embeddedPageScope?.environmentActivity?.(raw); return}
     if (raw?.type === "shared.updated") {
       void embeddedPageScope?.refreshSharedHost?.().catch(error => {
         if (disposed) return
@@ -1001,7 +1014,7 @@ async function startExternalStorybookPackage(
         body: JSON.stringify({
           packageId,
           revision: candidateRevision,
-          preview: readerIntent === "preview" || readerIntent === "navigation-candidate",
+          preview: readerIntent === "preview",
         }), signal,
       })
       if (!response.ok) throw new Error("Package event session is unavailable")

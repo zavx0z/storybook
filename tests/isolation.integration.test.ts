@@ -27,6 +27,7 @@ describe("one-server structural package isolation", () => {
       project: createProjectFixture(fixture.root, [fixture.repo]), statePath: join(fixture.root, "state/server.json"),
       artifactRoot: join(fixture.root, "artifacts"),
       browserLifecycle: {
+        async currentWorkspace() { return null },
         async listViews() { return [] },
         openPackage: unexpectedBrowserAction, getView: unexpectedBrowserAction,
         inspect: unexpectedBrowserAction, interact: unexpectedBrowserAction,

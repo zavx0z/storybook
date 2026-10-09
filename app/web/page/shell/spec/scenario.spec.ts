@@ -5,8 +5,8 @@ import {createRoot} from "@zavx0z/immersive-component"
 import {createDocumentClipboardController} from "@zavx0z/immersive-browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {ViewPoint, Vector3} from "@zavx0z/immersive-engine"
-import type {Presentation as Root, RootDocumentProjection, RootLinkedAuthorStyleSheet, RootProjection} from "@zavx0z/immersive-browser/integration"
-import {createDocument, MouseEvent, type Element, type Node} from "@zavx0z/immersive-dom"
+import type {Presentation as Root, RootDocumentProjection, RootLinkedAuthorStyleSheet, RootProjection, RootSpaceProjection} from "@zavx0z/immersive-browser/integration"
+import {createDocument, MouseEvent, PointerEvent, type Element, type Node} from "@zavx0z/immersive-dom"
 import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/immersive-renderer-html"
 import {createSpaceElementFactories} from "@zavx0z/immersive-space"
 import {HUDElement} from "@zavx0z/immersive-dom/hud"
@@ -53,7 +53,7 @@ describe("external Storybook shared Browser Root", () => {
     } finally { shell.dispose() }
   })
 
-  test("полный граф сохраняет один Root и независимое содержимое каждого Display", async () => {
+  test("каждая сущность имеет самостоятельный Display в одном Document, Space и ViewPoint", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)
     try {
@@ -63,9 +63,18 @@ describe("external Storybook shared Browser Root", () => {
       shell.configureSubjects([
         {id: "/", label: "Проект"},
         {id: "/repo", parentId: "/", label: "Репозиторий"},
+        {id: "/repo/child", parentId: "/repo", surfaceId: "/repo", label: "Пакет"},
       ], id => selected.push(id))
       const project = shell.createSubjectView({id: "/", title: "Проект"})
       const repository = shell.createSubjectView({id: "/repo", title: "Репозиторий"})
+      const child = shell.createSubjectView({id: "/repo/child", title: "Пакет"})
+      expect(child.display, "У пакета собственная поверхность").not.toBe(repository.display)
+      expect(child.display.querySelector('[data-frame-id="/repo/child"]'), "Frame принадлежит поверхности пакета").not.toBeNull()
+      expect(child.display.querySelector('[data-spatial-node-body="/repo/child"]'), "Содержимое находится в публичном теле SpatialTree").not.toBeNull()
+      expect(child.workbench, "Содержимое пакета самостоятельно").not.toBe(repository.workbench)
+      expect(shell.document.querySelectorAll("display").length, "Служебная поверхность и три самостоятельные сущности").toBe(4)
+      expect(shell.document.querySelectorAll("space")).toHaveLength(1)
+      expect(shell.document.querySelectorAll("viewpoint")).toHaveLength(1)
       expect(state.creations).toBe(1)
       expect(shell.viewPoint.parentElement).toBe(shell.space)
       expect(shell.hud.parentElement).toBe(shell.space)
@@ -74,6 +83,10 @@ describe("external Storybook shared Browser Root", () => {
       expect(repository.root).toBe(shell.root)
       expect(repository.space).toBe(shell.space)
       expect(repository.viewPoint).toBe(shell.viewPoint)
+      expect(child.document).toBe(shell.document)
+      expect(child.root).toBe(shell.root)
+      expect(child.space).toBe(shell.space)
+      expect(child.viewPoint).toBe(shell.viewPoint)
       expect(project.display).not.toBe(repository.display)
       expect(project.workbench).not.toBe(repository.workbench)
       project.updateStatus("Проект готов")
@@ -86,11 +99,13 @@ describe("external Storybook shared Browser Root", () => {
       await Promise.resolve()
       expect(notifications.textContent, "Статус Display обновляется без дубликата").not.toContain("Репозиторий проверяется")
       expect(notifications.querySelectorAll("aside").length, "По одному сообщению на Display").toBe(2)
-      expect(project.display.parentElement).toBe(shell.space)
-      expect(repository.display.parentElement).toBe(shell.space)
-      expect(repository.workbench.element.parentElement, "Workbench непосредственно в прежней оболочке Display").toBe(repository.display)
-      expect(readDisplayStyle(shell.document, repository.display).viewport, "Пространственный Display сохраняет разрешение обычного Workbench").toEqual(originalViewport)
-      expect(repository.display.width / repository.display.height, "Физическая поверхность не искажает пропорции UI").toBeCloseTo(1024 / 768)
+      expect(project.display.closest("space")).toBe(shell.space)
+      expect(repository.display.closest("space")).toBe(shell.space)
+      expect(child.display.closest("space")).toBe(shell.space)
+      expect(repository.workbench.element.closest("display"), "Workbench находится в своей поверхности").toBe(repository.display)
+      const repoViewport = readDisplayStyle(shell.document, repository.display).viewport
+      expect(repoViewport, "Display сохраняет измеренный viewport").toEqual(originalViewport)
+      expect(repository.display.width / repository.display.height, "Поверхность сохраняет авторский aspect").toBeCloseTo(repoViewport.width / repoViewport.height)
       const first = shell.document.createElement("button")
       const second = shell.document.createElement("button")
       project.mountPreview("Первый", first)
@@ -99,7 +114,16 @@ describe("external Storybook shared Browser Root", () => {
       expect(repository.display.contains(second)).toBe(true)
       expect(repository.projectionFor(second).owner).toBe(repository.display)
       expect(project.projectionFor(second).owner).toBe(repository.display)
-      const graphLabel = shell.document.querySelector('[data-spatial-node-id="/repo"]')!
+      const navigate = shell.document.createElement("button")
+      navigate.addEventListener("click", () => selected.push("destination"))
+      child.mountPreview("Переход", navigate)
+      shell.selectSubject("/repo", false)
+      selected.length = 0
+      navigate.dispatchEvent(new PointerEvent("pointerdown", {bubbles: true, pointerId: 1}))
+      navigate.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      expect(selected, "Сущность выбирается до внутреннего перехода, click сохраняет независимый маршрут")
+        .toEqual(["/repo/child", "destination"])
+      const graphLabel = shell.document.querySelector('[data-frame-id="/repo"]')!
       expect(repository.projectionFor(graphLabel).kind).toBe("display")
       const display = repository.display
       const dimensions = [display.width, display.height, display.getAttribute("style")]
@@ -112,17 +136,26 @@ describe("external Storybook shared Browser Root", () => {
       state.emitFrame(shell.hud, shell.hud,
         {contentX: 0, contentY: 0, contentWidth: 1600, contentHeight: 900}, {width: 1600, height: 900})
       expect(repository.display).toBe(display)
-      expect(repository.workbench.element.parentElement).toBe(display)
+      expect(repository.workbench.element.closest("display")).toBe(display)
       expect(display.contains(second)).toBe(true)
-      expect(readDisplayStyle(shell.document, display).viewport).toEqual({width: 1600, height: 900})
-      expect(display.width / display.height).toBeCloseTo(1600 / 900)
+      expect(readDisplayStyle(shell.document, display).viewport, "Resize окна сохраняет измеренный Display и его content").toEqual(repoViewport)
+      expect(display.width / display.height).toBeCloseTo(repoViewport.width / repoViewport.height)
       shell.releaseSubjectView("/repo")
       await Promise.resolve()
       expect(notifications.textContent, "Освобождение Display убирает его статус").not.toContain("Репозиторий готов")
-      expect(display.parentElement).toBe(shell.space)
+      expect(second.isConnected, "Preview освобождённой сущности больше не материализован").toBe(false)
       expect(project.display.contains(first)).toBe(true)
       const replacement = shell.createSubjectView({id: "/repo", title: "Репозиторий"})
-      expect(replacement.display).toBe(display)
+      expect(replacement.document).toBe(shell.document)
+      expect(replacement.root).toBe(shell.root)
+      expect(replacement.space).toBe(shell.space)
+      expect(replacement.viewPoint).toBe(shell.viewPoint)
+      expect(replacement.display.getAttribute("data-spatial-node-id")).toBe("/repo")
+      expect(replacement.display.closest("space")).toBe(shell.space)
+      expect(replacement.workbench.element.closest("display")).toBe(replacement.display)
+      expect(replacement.display.contains(second), "Повторная загрузка не возвращает освобождённый preview").toBe(false)
+      expect(replacement.display).not.toBe(project.display)
+      expect(replacement.display).not.toBe(child.display)
       expect(replacement.workbench).not.toBe(repository.workbench)
     } finally { shell.dispose() }
   })
@@ -594,6 +627,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
         kind: owner instanceof DisplayElement ? "display" as const : "hud" as const,
         owner,
         projectPoint: (point: {x: number; y: number}) => point,
+        unprojectPoint: () => null,
         readFrame: () => frames.get(owner) ?? fakeFrame(document, owner),
         subscribeFrames(listener: (frame: RenderFrame) => void) {
           let listeners = frameListeners.get(owner)
@@ -618,6 +652,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
     }
     const spaceProjection = Object.freeze({
       kind: "space" as const,
+      ...fakeWorldProjection(() => viewPoint, options.canvas),
       owner: space,
       orbit(deltaX: number, deltaY: number) {
         state.spaceGestures.push({kind: "orbit", deltaX, deltaY})
@@ -671,6 +706,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       },
       resetViewPoint() {},
       render() {
+        appRoot.flush()
         if (state.renderError !== null) throw state.renderError
         sequence += 1
         for (const listener of presented) listener(sequence)
@@ -770,5 +806,56 @@ function viewPointValues(viewPoint: ViewPointElement) {
     fov: viewPoint.fov,
     near: viewPoint.near,
     far: viewPoint.far,
+  }
+}
+
+/** Реальные числовые camera/ray/frustum в fake того же Root; отрисовка остаётся seam. */
+function fakeWorldProjection(viewPoint: () => ViewPointElement, canvas: HTMLCanvasElement):
+  Pick<RootSpaceProjection, "projectPoint" | "rayForPoint" | "frustumPlanes" | "fly"> {
+  if (typeof canvas.getBoundingClientRect !== "function") Object.defineProperty(canvas, "getBoundingClientRect", {
+    value: () => ({left: 0, top: 0, width: canvas.width || 1024, height: canvas.height || 768}),
+  })
+  const camera = () => {
+    const current = viewPoint()
+    const bounds = canvas.getBoundingClientRect()
+    return new ViewPoint({
+      position: {x: current.x, y: current.y, z: current.z},
+      target: {x: current.targetX, y: current.targetY, z: current.targetZ},
+      fov: current.fov,
+      near: current.near,
+      far: current.far,
+      viewport: {left: bounds.left, top: bounds.top, width: bounds.width || 1024, height: bounds.height || 768},
+    })
+  }
+  return {
+    projectPoint(point) {
+      const projection = camera()
+      const view = new Vector3(point.x, point.y, point.z).applyMatrix4(projection.viewMatrix)
+      if (view.z >= 0 || -view.z < projection.near || -view.z > projection.far) return null
+      const projected = view.applyMatrix4(projection.projectionMatrix)
+      const bounds = canvas.getBoundingClientRect()
+      return {x: bounds.left + (projected.x + 1) * (bounds.width || 1024) / 2,
+        y: bounds.top + (1 - projected.y) * (bounds.height || 768) / 2}
+    },
+    rayForPoint(point) {
+      const ray = camera().rayForClientPoint(point)
+      return ray === null ? null : {
+        origin: {x: ray.origin.x, y: ray.origin.y, z: ray.origin.z},
+        direction: {x: ray.direction.x, y: ray.direction.y, z: ray.direction.z},
+      }
+    },
+    frustumPlanes(overscan) { return camera().frustumPlanes(overscan) },
+    fly(distance, anchor) {
+      const projection = camera()
+      projection.fly(distance, anchor)
+      const current = viewPoint()
+      current.x = projection.position.x
+      current.y = projection.position.y
+      current.z = projection.position.z
+      const target = projection.getTarget()
+      current.targetX = target.x
+      current.targetY = target.y
+      current.targetZ = target.z
+    },
   }
 }

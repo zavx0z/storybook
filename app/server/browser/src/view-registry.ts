@@ -26,13 +26,13 @@ type StorybookInternalView = Readonly<{
   viewId: string
   targetId: string
   origin: string
-  packageId: string
+  packageId: string | null
   route: string
   url: string
   title: string
 }>
 
-export type StorybookIdentifiedTarget = ChromeTargetSummary & Readonly<{packageId: string; route?: string}>
+export type StorybookIdentifiedTarget = ChromeTargetSummary & Readonly<{packageId: string | null; route?: string}>
 
 const VIEW_ID_PREFIX = "storybook-view-v1_"
 const {validViewQuery: validStorybookViewQuery, storybookPackageRouteFromPathname} = routeUrl
@@ -51,10 +51,10 @@ export class StorybookViewRegistry {
   }
 
   synchronize(targets: readonly StorybookIdentifiedTarget[], origin: string, packageId?: string): readonly StorybookPublicView[] {
+    if (targets.length > 1) throw new Error("Storybook registry accepts only one canonical workspace")
     const canonicalOrigin = loopbackOrigin(origin)
     const nextViews = new Map<string, StorybookInternalView>()
     for (const target of targets) {
-      if (packageId !== undefined && target.packageId !== packageId) continue
       if (target.type !== "page") continue
       let identity: ReturnType<typeof storybookTargetIdentity>
       try {
@@ -63,7 +63,7 @@ export class StorybookViewRegistry {
         identity = null
       }
       if (identity === null) continue
-      const viewId = this.#idForTarget(target.targetId, identity.packageId)
+      const viewId = this.#idForTarget(target.targetId, identity.packageId, identity.route)
       const previous = this.#viewsById.get(viewId)
       if (previous !== undefined && previous.targetId !== target.targetId) {
         throw new Error("Storybook opaque view identity collision")
@@ -80,7 +80,7 @@ export class StorybookViewRegistry {
       nextViews.set(viewId, view)
     }
     for (const [viewId, view] of this.#viewsById) {
-      if (view.origin !== canonicalOrigin || packageId !== undefined && view.packageId !== packageId) continue
+      if (view.origin !== canonicalOrigin) continue
       this.#viewsById.delete(viewId)
       this.#viewIdByTarget.delete(view.targetId)
     }
@@ -89,12 +89,12 @@ export class StorybookViewRegistry {
       this.#viewIdByTarget.set(view.targetId, viewId)
     }
     return Object.freeze([...this.#viewsById.values()]
-      .filter((view) => view.origin === canonicalOrigin && (packageId === undefined || view.packageId === packageId))
+      .filter((view) => view.origin === canonicalOrigin)
       .map(publicView))
   }
 
   register(target: StorybookIdentifiedTarget, origin: string): StorybookPublicView {
-    this.synchronize([target, ...this.#otherTargets(target.targetId)], origin)
+    this.synchronize([target], origin)
     const viewId = this.#viewIdByTarget.get(target.targetId)
     if (viewId === undefined) throw new Error(`Chrome target is not an exact Storybook package view: ${target.url}`)
     return publicView(this.#viewsById.get(viewId)!)
@@ -103,7 +103,7 @@ export class StorybookViewRegistry {
   internal(viewId: string): StorybookInternalView {
     validateViewId(viewId)
     const view = this.#viewsById.get(viewId)
-    if (view === undefined || !this.#matches(viewId, view.targetId, view.packageId)) {
+    if (view === undefined || !this.#matches(viewId, view.targetId, view.packageId, view.route)) {
       throw new Error(`Unknown Storybook view: ${viewId}`)
     }
     return view
@@ -130,34 +130,30 @@ export class StorybookViewRegistry {
     return Object.freeze([...this.#viewsById.values()].map(publicView))
   }
 
-  #idForTarget(targetId: string, packageId: string): string {
+  #idForTarget(targetId: string, packageId: string | null, route: string): string {
     const current = this.#viewIdByTarget.get(targetId)
-    if (current !== undefined && this.#viewsById.get(current)?.packageId === packageId) return current
+    if (current !== undefined && this.#viewsById.get(current)?.packageId === packageId && this.#viewsById.get(current)?.route === route) return current
     const digest = createHmac("sha256", this.#secret)
       .update("external-storybook-view\0")
-      .update(`${targetId}\0${packageId}`)
+      .update(`${targetId}\0${packageId ?? ""}\0${route}`)
       .digest("base64url")
     return `${VIEW_ID_PREFIX}${digest}`
   }
 
-  #matches(viewId: string, targetId: string, packageId: string): boolean {
-    const expected = this.#idForTarget(targetId, packageId)
+  #matches(viewId: string, targetId: string, packageId: string | null, route: string): boolean {
+    const expected = this.#idForTarget(targetId, packageId, route)
     const left = Buffer.from(viewId)
     const right = Buffer.from(expected)
     return left.length === right.length && timingSafeEqual(left, right)
   }
 
-  #otherTargets(excludedTargetId: string): StorybookIdentifiedTarget[] {
-    return [...this.#viewsById.values()].flatMap((view) => view.targetId === excludedTargetId
-      ? []
-      : [{targetId: view.targetId, packageId: view.packageId, type: "page", title: view.title, url: view.url, route: view.route}])
-  }
+
 }
 
 function storybookTargetIdentity(
   target: StorybookIdentifiedTarget,
   origin: string,
-): Readonly<{packageId: string; route: string}> | null {
+): Readonly<{packageId: string | null; route: string}> | null {
   let url: URL
   try {
     url = new URL(target.url)
@@ -166,6 +162,7 @@ function storybookTargetIdentity(
   }
   if (url.origin !== origin || !validStorybookViewQuery(url) || url.hash.length > 0) return null
   const packageId = target.packageId
+  if (packageId === null) return url.pathname === "/" ? Object.freeze({packageId: null, route: ""}) : null
   if (url.pathname === "/") return null
   const route = target.route ?? storybookPackageRouteFromPathname(url.pathname, packageId)
   return route === null ? null : Object.freeze({packageId, route})

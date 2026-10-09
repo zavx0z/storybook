@@ -86,9 +86,15 @@ export function createStorybookScopeAddress(
   let draft = new URL(pageLocation.href)
   const destination = new URL(target.kind === "landing" ? target.pathname : target.urlPath, draft)
   draft.pathname = destination.pathname
+  draft.hash = destination.hash
   draft.searchParams.delete("view")
   const view = destination.searchParams.get("view")
   if (view !== null) draft.searchParams.set("view", view)
+  draft.searchParams.delete("variant")
+  const variant = destination.searchParams.get("variant")
+  if (variant !== null) draft.searchParams.set("variant", variant)
+  const inspector = destination.searchParams.get("inspector")
+  if (inspector !== null) draft.searchParams.set("inspector", inspector)
   draft.searchParams.delete("preview")
   if (target.kind !== "landing" && target.intent === "preview" && target.revision !== null) {
     draft.searchParams.set("preview", target.revision)

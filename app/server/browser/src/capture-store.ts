@@ -64,10 +64,8 @@ export class StorybookCaptureStore {
       height: dimensions.height,
       bytes: png.byteLength,
       sha256: createHash("sha256").update(png).digest("hex"),
-      packageId: boundedText(metadata.packageId, "capture packageId", 256),
-      route: boundedText(metadata.route, "capture route", 2_048, true),
+      ...captureIdentity(metadata.packageId, metadata.route, metadata.revision),
       graphDigest: digestText(metadata.graphDigest, "graphDigest"),
-      revision: boundedText(metadata.revision, "capture revision", 256),
       area: captureArea(metadata.area),
       ...(metadata.nodeId === undefined ? {} : {nodeId: boundedText(metadata.nodeId, "capture nodeId", 512)}),
       consoleErrors: Object.freeze([...metadata.consoleErrors].slice(0, 100)),
@@ -175,10 +173,8 @@ export class StorybookCaptureStore {
       height,
       bytes,
       sha256: digestText(record.sha256, "capture sha256"),
-      packageId: boundedText(record.packageId, "capture packageId", 256),
-      route: boundedText(record.route, "capture route", 2_048, true),
+      ...captureIdentity(record.packageId, record.route, record.revision),
       graphDigest: digestText(record.graphDigest, "capture graphDigest"),
-      revision: boundedText(record.revision, "capture revision", 256),
       area: captureArea(record.area),
       ...(record.nodeId === undefined ? {} : {nodeId: boundedText(record.nodeId, "capture nodeId", 512)}),
       consoleErrors: Object.freeze(record.consoleErrors.slice(0, 100)),
@@ -257,6 +253,20 @@ function validateCaptureId(value: string): void {
   if (typeof value !== "string" || !/^capture_[A-Za-z0-9_-]{24}$/u.test(value)) {
     throw new Error(`Invalid Storybook capture identity: ${String(value)}`)
   }
+}
+
+function captureIdentity(packageId: unknown, route: unknown, revision: unknown): Readonly<{
+  packageId: string | null
+  route: string
+  revision: string | null
+}> {
+  const exactRoute = boundedText(route, "capture route", 2_048, true)
+  if (packageId === null) {
+    if (exactRoute !== "" || revision !== null) throw new Error("Storybook landing capture requires an empty route and null revision")
+    return Object.freeze({packageId: null, route: exactRoute, revision: null})
+  }
+  return Object.freeze({packageId: boundedText(packageId, "capture packageId", 256), route: exactRoute,
+    revision: boundedText(revision, "capture revision", 256)})
 }
 
 function digestText(value: unknown, label: string): string {

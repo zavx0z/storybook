@@ -1,7 +1,7 @@
 {
   "name": "@zavx0z/storybook-app-server-browser",
-  "label": "Вкладки Storybook",
-  "description": "Управляет единым браузером Chrome и вкладками Storybook: открытием, проверкой готовности и закрытием.",
+  "label": "Пространство Storybook",
+  "description": "Управляет общим пространством Storybook: выбором предмета, готовностью, взаимодействием и снимками.",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -21,6 +21,8 @@
     "@types/bun": "^1.4.0",
     "@types/pngjs": "^6.0.5",
     "typescript": "^7.0.2",
-    "@zavx0z/immersive-nodes-node": "^0.0.0"
+    "@zavx0z/immersive-nodes-node": "^0.0.0",
+    "@zavx0z/immersive-dom": "^0.0.0",
+    "@zavx0z/storybook-app-web-page-agent-bridge": "workspace:*"
   }
 }

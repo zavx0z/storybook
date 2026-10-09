@@ -20,6 +20,7 @@ export declare namespace StorybookAppWebPageHome {
     pageScope?: Readonly<{
       shell: ExternalStorybookShell
       initialPathname: string
+      environmentActivity?(event: unknown): void
       isSelected?(): boolean
       catalogChanged?(snapshot: ExternalStorybookClientSnapshot): void
       refreshSharedHost?(): Promise<void>

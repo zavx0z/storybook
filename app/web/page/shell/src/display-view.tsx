@@ -17,6 +17,7 @@ export function StorybookDisplay(props: Readonly<{
       height={props.surface?.height ?? 540 * 25.4 / 96}
       style={css`
         box-sizing: border-box;
+        background: transparent;
         --workbench-resolution-width: ${props.viewport?.width ?? 960}px;
         --workbench-resolution-height: ${props.viewport?.height ?? 540}px;
         width: var(--workbench-resolution-width, 960px);

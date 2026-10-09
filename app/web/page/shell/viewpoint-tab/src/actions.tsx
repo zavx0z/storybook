@@ -5,6 +5,7 @@ import type {StorybookAppWebPageShellViewpointTab} from "../contract"
 /** Обычные компоненты управления сохраняют клик и перетаскивание родительского Tab. */
 export function ViewPointActions(props: StorybookAppWebPageShellViewpointTab.Input & Readonly<{vertical: boolean}>) {
   const state = useSyncExternalStore(props.controls.subscribe, props.controls.getSnapshot)
+  const following = useSyncExternalStore(props.followEnvironment.subscribe, props.followEnvironment.getSnapshot)
   return <div
     role="toolbar"
     aria-label="Управление ViewPoint"
@@ -47,6 +48,14 @@ export function ViewPointActions(props: StorybookAppWebPageShellViewpointTab.Inp
       aria-label="Вписать в область просмотра"
       disabled={!state.ready}
       onClick={props.controls.fit}
+    />
+    <Button
+      label="Следовать"
+      aria-label="Следовать"
+      title="Следовать за работой окружения"
+      selected={following}
+      aria-pressed={following ? "true" : "false"}
+      onClick={props.followEnvironment.toggle}
     />
   </div>
 }

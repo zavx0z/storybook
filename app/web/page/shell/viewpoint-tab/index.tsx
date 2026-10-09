@@ -2,6 +2,8 @@
 Перетаскиваемый Tab управления общим ViewPoint в HUD Storybook.
 Приближение, заморозка жестов и вписывание используют существующий Browser Root.
 Положение Tab, заморозка и обзор Workbench восстанавливаются между сессиями.
+Кнопка «Следовать» управляет предоставленной политикой workspace рядом с вписыванием;
+адрес и загрузку содержимого определяет Page.
 Workbench остаётся в Display; Tab не создаёт Window, камеру или отдельный Canvas.
 
 @packageDocumentation
@@ -25,6 +27,7 @@ export default function ViewPointTab(props: StorybookAppWebPageShellViewpointTab
   >
     <ViewPointActions
       controls={props.controls}
+      followEnvironment={props.followEnvironment}
       vertical={vertical}
     />
   </Tab>

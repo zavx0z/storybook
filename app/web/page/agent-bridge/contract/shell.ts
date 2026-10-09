@@ -17,6 +17,7 @@ export type Shell = Readonly<{
     }>
   }>
   readonly presentedFrameSequence: number
+  readonly followEnvironment?: boolean
   projectionFor(node: Node): RootProjection
   presentFrame(): number
   dispatchNativeKey(target: HTMLElement, input: Pick<KeyboardEvent, "key" | "altKey" | "ctrlKey" | "metaKey" | "shiftKey">): void

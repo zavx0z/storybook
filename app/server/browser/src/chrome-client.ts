@@ -103,7 +103,7 @@ export class StorybookCdpClient implements StorybookChromeClient {
       const result = await this.#withBrowser((connection) => {
         signal?.throwIfAborted()
         // Once the non-idempotent command is sent, caller cancellation must not
-        // discard the targetId. The package lock keeps this bounded handoff unique.
+        // discard the targetId. The workspace lock keeps this bounded handoff unique.
         return connection.command("Target.createTarget", {
           url: targetUrl,
           background: true,
@@ -611,7 +611,7 @@ function consoleLevel(type: string): string {
 }
 
 function bridgeMethod(value: StorybookBridgeMethod): StorybookBridgeMethod {
-  if (!["identity", "inspect", "interact", "capture", "applyRevision"].includes(value)) {
+  if (!["identity", "inspect", "interact", "capture", "applyRevision", "navigate"].includes(value)) {
     throw new Error(`Unsupported Storybook bridge method: ${String(value)}`)
   }
   return value

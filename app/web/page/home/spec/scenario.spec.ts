@@ -1,3 +1,4 @@
+import {ViewPoint, Vector3} from "@zavx0z/immersive-engine"
 import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
@@ -193,9 +194,10 @@ describe("external Storybook landing frontend", () => {
       expect(document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
       expect(minimap.querySelector('[role="tree"]') === tree).toBeTrue()
       expect(first.shell.captureUserState().minimap).toEqual(beforeState.minimap)
-      expect(workbench.controller.read("inspector.subject")).toEqual({subjectId: "/", workspaceId: "/", widgetIds: ["chat"]})
+      expect(workbench.controller.read("inspector.subject")).toEqual({subjectId: "/", workspaceId: "/", widgetIds: ["chat", "agents"]})
       expect(workbench.controller.read("inspector.values").source).toBeUndefined()
       expect(workbench.controller.read("inspector.values").chat).toMatchObject({address: "/", label: "Renamed Project"})
+      expect(workbench.controller.read("inspector.values").agents).toMatchObject({address: "/", label: "Renamed Project"})
       expect(workbench.controller.read("inspector.registry")).toEqual(registry)
     } finally { second.dispose(); first.dispose() }
   })
@@ -260,6 +262,7 @@ function fakeRootFactory(
     }>>()
     const spaceProjection: RootSpaceProjection = Object.freeze({
       kind: "space",
+      ...fakeWorldProjection(() => viewPoint, options.canvas),
       owner: space,
       orbit() {},
       pan() {},
@@ -272,8 +275,8 @@ function fakeRootFactory(
     ): RootDocumentProjection => {
       const existing = documentProjections.get(owner)
       if (existing !== undefined) return existing.projection
-      if (owner.ownerDocument !== document || owner.parentNode !== space) {
-        throw new Error("Fake Root projection owner must be a direct child of its semantic Space")
+      if (owner.ownerDocument !== document || owner.closest("space") !== space) {
+        throw new Error("Fake Root projection owner must belong to the same semantic Space")
       }
       const subscribers = new Set<(frame: RenderFrame) => void>()
       let frame: RenderFrame | null = null
@@ -281,6 +284,7 @@ function fakeRootFactory(
         kind: owner instanceof DisplayElement ? "display" : "hud",
         owner,
         projectPoint: (point: {x: number; y: number}) => point,
+        unprojectPoint: () => null,
         readFrame: () => frame,
         subscribeFrames(listener) {
           subscribers.add(listener)
@@ -387,5 +391,56 @@ async function waitUntil(predicate: () => boolean): Promise<void> {
   while (!predicate()) {
     if (Date.now() > deadline) throw new Error("Project management did not settle")
     await Bun.sleep(5)
+  }
+}
+
+/** Реальные числовые camera/ray/frustum в fake того же Root; отрисовка остаётся seam. */
+function fakeWorldProjection(viewPoint: () => ViewPointElement, canvas: HTMLCanvasElement):
+  Pick<RootSpaceProjection, "projectPoint" | "rayForPoint" | "frustumPlanes" | "fly"> {
+  if (typeof canvas.getBoundingClientRect !== "function") Object.defineProperty(canvas, "getBoundingClientRect", {
+    value: () => ({left: 0, top: 0, width: canvas.width || 1024, height: canvas.height || 768}),
+  })
+  const camera = () => {
+    const current = viewPoint()
+    const bounds = canvas.getBoundingClientRect()
+    return new ViewPoint({
+      position: {x: current.x, y: current.y, z: current.z},
+      target: {x: current.targetX, y: current.targetY, z: current.targetZ},
+      fov: current.fov,
+      near: current.near,
+      far: current.far,
+      viewport: {left: bounds.left, top: bounds.top, width: bounds.width || 1024, height: bounds.height || 768},
+    })
+  }
+  return {
+    projectPoint(point) {
+      const projection = camera()
+      const view = new Vector3(point.x, point.y, point.z).applyMatrix4(projection.viewMatrix)
+      if (view.z >= 0 || -view.z < projection.near || -view.z > projection.far) return null
+      const projected = view.applyMatrix4(projection.projectionMatrix)
+      const bounds = canvas.getBoundingClientRect()
+      return {x: bounds.left + (projected.x + 1) * (bounds.width || 1024) / 2,
+        y: bounds.top + (1 - projected.y) * (bounds.height || 768) / 2}
+    },
+    rayForPoint(point) {
+      const ray = camera().rayForClientPoint(point)
+      return ray === null ? null : {
+        origin: {x: ray.origin.x, y: ray.origin.y, z: ray.origin.z},
+        direction: {x: ray.direction.x, y: ray.direction.y, z: ray.direction.z},
+      }
+    },
+    frustumPlanes(overscan) { return camera().frustumPlanes(overscan) },
+    fly(distance, anchor) {
+      const projection = camera()
+      projection.fly(distance, anchor)
+      const current = viewPoint()
+      current.x = projection.position.x
+      current.y = projection.position.y
+      current.z = projection.position.z
+      const target = projection.getTarget()
+      current.targetX = target.x
+      current.targetY = target.y
+      current.targetZ = target.z
+    },
   }
 }

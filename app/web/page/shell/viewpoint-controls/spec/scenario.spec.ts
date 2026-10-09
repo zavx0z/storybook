@@ -32,3 +32,34 @@ describe.each([
     expect(camera.controls, "Явные команды не переключают режим жестов").toBe(props.controls)
   })
 })
+
+
+test("configured zoom делегируется viewer, а необработанный factor сохраняет legacy dollyTo", () => {
+  const document = createDocument({elementFactories: createSpaceElementFactories()})
+  const camera = document.createElement("viewpoint")
+  camera.x = 0
+  camera.y = -100
+  camera.z = 0
+  const controls = createViewPointControls()
+  const requests: number[] = []
+  let configured = true
+  controls.bind(camera, () => {}, undefined, factor => {
+    if (!configured) return false
+    requests.push(factor)
+    return true
+  })
+  try {
+    controls.zoom(.5)
+    expect(requests).toEqual([.5])
+    expect(camera.y).toBe(-100)
+    configured = false
+    controls.zoom(.5)
+    expect(camera.y).toBe(-50)
+    controls.bind(camera, () => {})
+    configured = true
+    controls.zoom(.5)
+    expect(camera.y).toBe(-25)
+    expect(requests).toEqual([.5])
+    expect(() => controls.zoom(0)).toThrow(RangeError)
+  } finally { controls.dispose() }
+})

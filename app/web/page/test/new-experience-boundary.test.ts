@@ -43,7 +43,7 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
 
 test("[STORYBOOK-EXPERIENCE-002] Workbench принадлежит Display, Minimap — HUD, контент — Display или Space", async () => {
   const shell = await Bun.file(resolve(sourceRoot, "page/shell/index.ts")).text()
-  const presentation = await Bun.file(resolve(sourceRoot, "workbench/src/presentation.ts")).text()
+  const presentation = await Bun.file(resolve(sourceRoot, "page/shell/workbench/src/presentation.ts")).text()
   const spacePreview = await Bun.file(resolve(sourceRoot, "page/shell/contract/preview.ts")).text()
 
   expect(shell).toContain("root.space")
@@ -56,7 +56,8 @@ test("[STORYBOOK-EXPERIENCE-002] Workbench принадлежит Display, Minim
   expect(app).not.toContain("createWorkbench(")
   expect(app).toContain("<WorkbenchMinimap")
   expect(app).toContain("initialState={props.minimapState}")
-  expect(app).not.toContain("key=")
+  expect(app.match(/<space(?:\s|>)/g), "App объявляет один Space").toHaveLength(1)
+  expect(app.match(/<viewpoint[\s\S]*?\/>/)?.[0], "ViewPoint сохраняет identity при изменении карточек").not.toContain("key=")
   expect(presentation).toContain('projection === "display"')
   expect(presentation).toContain('projection === "hud"')
   expect(presentation).toContain('projection !== "space"')

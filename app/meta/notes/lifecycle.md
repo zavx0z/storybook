@@ -5,7 +5,7 @@
 `bun run serve` создаёт один Bun process/origin и владеет HTTP, WebSocket,
 registry, graph, sessions, revisions и diagnostics. В этот же process
 композируется ровно один logical owner
-`@zavx0z/storybook-app-server-browser`, управляющий всеми Storybook tabs; port
+`@zavx0z/storybook-app-server-browser`, управляющий единым рабочим пространством; port
 выбирает OS и не становится user-facing identity.
 Ensure/open существующего server не создают второй process или browser
 lifecycle owner. Launcher передаёт один явный Project. Daemon использует его точный каталог

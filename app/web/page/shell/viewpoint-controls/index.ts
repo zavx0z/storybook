@@ -13,6 +13,7 @@ export default function createViewPointControls(persistence?: StorybookAppWebPag
   let restored = false
   let camera: ViewPointElement | null = null
   let fit = () => {}
+  let zoomView: ((factor: number) => boolean) | undefined
   let unsubscribe = () => {}
   let disposed = false
   let snapshot: Readonly<{ready: boolean; frozen: boolean}> = Object.freeze({ready: false, frozen: true})
@@ -36,11 +37,12 @@ export default function createViewPointControls(persistence?: StorybookAppWebPag
       listeners.add(listener)
       return () => { listeners.delete(listener) }
     },
-    bind(viewPoint: ViewPointElement, fitView: () => void, canSaveCamera: () => boolean = () => true) {
+    bind(viewPoint: ViewPointElement, fitView: () => void, canSaveCamera: () => boolean = () => true, zoomDelegate?: (factor: number) => boolean) {
       if (disposed) throw new Error("ViewPoint controls are disposed")
       unsubscribe()
       camera = viewPoint
       fit = fitView
+      zoomView = zoomDelegate
       if (persistence?.state.frozen !== undefined) camera.controls = !persistence.state.frozen
       unsubscribe = viewPoint.ownerDocument!.subscribeMutations(batch => {
         if (batch.records.some(record => record.target === viewPoint)) {
@@ -59,6 +61,7 @@ export default function createViewPointControls(persistence?: StorybookAppWebPag
     zoom(factor: number) {
       if (!Number.isFinite(factor) || factor <= 0) throw new RangeError("Zoom factor must be positive")
       if (!camera || disposed) return
+      if (zoomView?.(factor) === true) return
       const distance = Math.hypot(camera.x - camera.targetX, camera.y - camera.targetY, camera.z - camera.targetZ)
       if (distance === 0) return
       camera.dollyTo(Math.max(camera.near * 1.01, Math.min(camera.far * .9, distance * factor)))
@@ -69,6 +72,7 @@ export default function createViewPointControls(persistence?: StorybookAppWebPag
       disposed = true
       unsubscribe()
       camera = null
+      zoomView = undefined
       publish()
       listeners.clear()
     },

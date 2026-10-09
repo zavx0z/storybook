@@ -31,6 +31,26 @@ describe("Storybook capture store", () => {
     expect(statSync(join(root, `${capture.captureId}.png`)).mode & 0o777).toBe(0o600)
   })
 
+  test("landing capture roundtrip сохраняет null packageId и revision", () => {
+    const root = temporaryRoot()
+    const store = new StorybookCaptureStore({root})
+    const capture = store.put(png(3, 2), {...metadata("revision-a"), packageId: null, revision: null, route: "", area: "page"})
+    const next = new StorybookCaptureStore({root})
+    expect(next.list()).toEqual([capture])
+    expect(next.read(capture.captureId).metadata).toMatchObject({packageId: null, revision: null, route: "", graphDigest: "a".repeat(64)})
+    expect(next.read(capture.captureId).png).toEqual(png(3, 2))
+  })
+
+  test.each([
+    {packageId: null, route: "", revision: "fake"},
+    {packageId: null, route: "fake", revision: null},
+    {packageId: "@fixture/a", route: "", revision: null},
+  ])("metadata отклоняет выдуманную landing identity и отсутствующую package revision $packageId $route $revision", identity => {
+    const store = new StorybookCaptureStore({root: temporaryRoot()})
+    expect(() => store.put(png(3, 2), {...metadata("revision-a"), ...identity})).toThrow()
+    expect(store.list()).toEqual([])
+  })
+
   test("collects expired and excess captures", () => {
     const root = temporaryRoot()
     let now = 1_000

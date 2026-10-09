@@ -4,7 +4,7 @@ import createChatSessions, {type StorybookChatSession} from "@zavx0z/storybook-c
 import createAcp from "@zavx0z/storybook-tech-acp"
 import type {StorybookAppKnowledge} from "@zavx0z/storybook-app-knowledge"
 import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
-import createServerEnvironment from "./environment"
+import createServerEnvironment, {type EnvironmentActivity} from "./environment"
 import createTeamTools from "./team"
 import createSettings from "@zavx0z/storybook-app-settings"
 import {createExecutionOptions} from "./execution-options"
@@ -46,6 +46,7 @@ export function createChatServer(options: Readonly<{
   entries(): StorybookAppKnowledge.Input[1]["entries"]
   connect?: typeof createAcp
   recordRequest?: (entry: Record<string, unknown>) => void
+  onActivity?: (event: EnvironmentActivity) => void
   extensions?: StorybookAppEnvironment.Input["extensions"]
 }>) {
   const environment = createServerEnvironment({...options,

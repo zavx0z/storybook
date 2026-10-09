@@ -68,7 +68,7 @@ snapshot применённой ревизии; server продолжает ра
 ## Граф применённой ревизии
 
 Published revision содержит immutable package graph/route/resource snapshot.
-Содержимое package tab использует только snapshot своей revision. Общее дерево
+Содержимое представления пакета использует только snapshot своей revision. Общее дерево
 оболочки сохраняет положение пакета из текущего каталога по
 [правилу дерева навигации](../../../../app/web/page/shell/workbench/meta/notes/workspace.md#дерево-навигации); его содержимое и маршруты берутся из применённой ревизии.
 

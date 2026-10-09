@@ -46,18 +46,22 @@ export declare namespace StorybookAppWebPage {
 
   @property [startPackage] - Seam тестового package controller; production использует контроллер текущего host.
 
+  @property [maxWarmSubjects=6] - Бюджет уже посещённых предметных исполнений: от 1 до 32.
+  Выбранный пакет и активный ввод защищены от вытеснения. Перемещение ViewPoint не загружает пакеты.
+
   @property [prepareTarget] - Server resolver target. Default вызывает {@link PageTarget.prepare}.
 
   @property [loadAppliedRevision] - Generic exact package/revision payload loader. Default использует {@link loadStorybookAppliedRevision}.
   */
   type Input = Readonly<{
-    /** Бюджет удерживаемых предметных исполнений, по умолчанию 6; активный ввод удерживается до завершения. */
     maxWarmSubjects?: number
     initialTarget?: ExternalStorybookPreparedPageTarget
     initialPayload?: ExternalStorybookAppliedRevision | null
     initialHistory?: "push" | "replace"
     /** Фокусирует целевой Display после перехода с заменой Web; обычный HMR сохраняет камеру. */
     initialFocus?: boolean
+    /** Admission следования при передаче Root; выключение режима отменяет ещё не принятый первый scope. */
+    initialTransition?: Readonly<{signal: AbortSignal; cancel(): void}>
     sharedModuleEpoch: string
     hostModuleEpoch?: string
     browserDocument?: globalThis.Document
@@ -91,7 +95,8 @@ export declare namespace StorybookAppWebPage {
 
   @property route - Committed package route или landing pathname.
 
-  @property navigatePackage - Выбирает Display предмета, лениво готовит его содержимое и фиксирует адрес.
+  @property navigatePackage - При смене адреса готовит содержимое и выбирает Display предмета.
+  Повтор текущего адреса сохраняет исполнение и фокусирует его Display; HMR имеет отдельный lifecycle.
 
   @property navigateLanding - Выбирает предмет или Project в том же пространстве.
 

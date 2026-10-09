@@ -29,6 +29,14 @@ test("явный check применяет ревизию через HMR; под�
   let canceledApplications = 0
   let running!: Awaited<ReturnType<typeof startExternalStorybookServer>>
   const browser: StorybookBrowserLifecycle = {
+    async currentWorkspace() {
+      const revision = latest?.revision ?? running.sessions.session("@fixture/automatic").snapshot().builtRevision ?? null
+      return {view: {viewId, packageId: "@fixture/automatic", route: "", title: "Automatic"}, identity: {
+        protocol: "external-storybook-agent-bridge/1", packageId: "@fixture/automatic", route: "", revision,
+        graphDigest: revision === null ? null : running.sessions.session("@fixture/automatic").revisionGraphSnapshot(revision)!.packageGraphDigest,
+        ready: true, presented: true, timeOrigin: 1, followEnvironment: false,
+      }}
+    },
     async listViews(_origin, _signal, _packages, packageId) {
       return packageId === "@fixture/automatic"
         ? [
@@ -224,7 +232,7 @@ test("явный check применяет ревизию через HMR; под�
     newConsoleErrors = []
     leaveDuringApplication = true
     await Bun.write(component, 'export function Example() { return <article title="after-navigation" /> }\n')
-    await check()
+    expect(await check()).toMatchObject({ok: true, applied: false, pending: true})
     await waitFor(() => canceledApplications > 0)
     const deferred = running.sessions.session("@fixture/automatic").snapshot()
     expect(deferred.buildState).toBe("built")

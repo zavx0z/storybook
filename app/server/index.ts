@@ -3,6 +3,10 @@
 Web-выпуск, browser lifecycle и авторизованный HTTP/WebSocket API в одном процессе.
 Общий вход окружения обслуживает разработчика Project и назначенных исполнителей
 через одни предметные знания и инструменты; подключение модели сохраняет отдельный lifecycle.
+Начало принятого действия передаёт только identity и адрес источника через тему
+`environment`; наблюдение Storybook не запускает следование. Проверка применяет
+кандидат выбранного адреса; «Следовать» разрешает переход в том же workspace.
+В остальных случаях готовая ревизия сохраняется как pending без загрузки содержимого.
 
 @packageDocumentation
 */
@@ -159,6 +163,8 @@ export default async function startExternalStorybookServer(
   let closePromise: Promise<void> | null = null
   const browserSessions = new StorybookBrowserSessionRegistry()
   const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent>()
+  let latestEnvironmentActivityId: string | undefined
+  let latestWorkspaceNavigation = 0
   const publish = (event: StorybookPackageEvent | RegistryEvent): number => {
     if (serverRecordCreated && (event.type === "catalog.progress" || event.type === "build.progress")) {
       try { state.writeExternalStorybookOperationProgress(serverRecord, event, statePath) }
@@ -332,8 +338,8 @@ export default async function startExternalStorybookServer(
       packageId: string
       route: string
       timeoutMs?: number
-      existingViewId?: string
       recover?: boolean
+      followEnvironment?: true
     }>,
     signal: AbortSignal,
   ): Promise<Readonly<Record<string, unknown>>> => {
@@ -347,7 +353,25 @@ export default async function startExternalStorybookServer(
     const packageNode = graph.nodes.find((node) =>
       node.kind === "package" && node.packageId === input.packageId)
     if (packageNode === undefined) throw new Error(`Unknown Storybook package: ${input.packageId}`)
-    const packageState = sessions.session(input.packageId).snapshot()
+    let packageState = sessions.session(input.packageId).snapshot()
+    if (input.recover === true && !packageState.builtRevision && packageState.failedRevision != null &&
+      packageState.diagnostics.some(diagnostic => diagnostic.phase === "activation")) {
+      signal.throwIfAborted()
+      packageState = await sessions.build(input.packageId, {owner: "open", reason: "explicit-retry"})
+      signal.throwIfAborted()
+      if (!packageBuildSucceeded(packageState)) throw new Error("Не удалось подготовить ревизию пакета для восстановления. Исправьте диагностику storybook_check.")
+    }
+    const selectedRevision = packageState.builtRevision ?? packageState.activeRevision ?? null
+    const publishedEpoch = usesSharedKernel ? web.platform?.epoch : undefined
+    if (selectedRevision !== null && publishedEpoch !== undefined &&
+      packageState.revisions?.find(record => record.revision === selectedRevision)?.sharedModuleEpoch !== publishedEpoch) {
+      const aligned = await prepareStorybookPackagePageTarget({
+        session: sessions.session(input.packageId), routePath: resolvedRoute.path,
+        previewRevision: null, currentRoute: resolvedRoute, platformEpoch: publishedEpoch, signal,
+      })
+      packageState = sessions.session(input.packageId).snapshot()
+      if (aligned.kind !== "revision") throw new Error("Не удалось подготовить пакет для опубликованной платформы. Рабочая ревизия сохранена; переход не выполнен.")
+    }
     if (!packageState.builtRevision && !packageState.activeRevision) throw new Error("Пакет ещё не собран. Выполните storybook_check для этого пакета.")
     const expectedRevision = packageState.builtRevision ?? packageState.activeRevision ?? undefined
     if (packageState.revisions?.find(record => record.revision === expectedRevision)?.sharedModuleEpoch === undefined) {
@@ -361,6 +385,7 @@ export default async function startExternalStorybookServer(
     }
     const openInput = {
       ...(input.recover === undefined ? {} : {recover: input.recover}),
+      ...(input.followEnvironment === undefined ? {} : {followEnvironment: input.followEnvironment}),
       origin: server.url.origin,
       packageId: input.packageId,
       route: selectedRoute.path,
@@ -370,7 +395,6 @@ export default async function startExternalStorybookServer(
         packageId: node.packageId!, label: node.label, urlPath: node.urlPath,
       })),
       ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
-      ...(input.existingViewId === undefined ? {} : {existingViewId: input.existingViewId}),
       ...(expectedRevision === undefined ? {} : {expectedRevision}),
     }
     let opened
@@ -386,8 +410,8 @@ export default async function startExternalStorybookServer(
         url: previewUrl.href,
         packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
         knownPackages: openInput.knownPackages,
+        ...(input.followEnvironment === undefined ? {} : {followEnvironment: input.followEnvironment}),
         ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
-        ...(input.existingViewId === undefined ? {} : {existingViewId: input.existingViewId}),
       }, signal)
     }
     const candidateMatches = expectedRevision === undefined || opened.identity.revision === expectedRevision
@@ -493,6 +517,10 @@ export default async function startExternalStorybookServer(
     entries: mcpEntries,
     ...(options.extensions === undefined ? {} : {extensions: options.extensions}),
     recordRequest: entry => mcpRequests.write(entry),
+    onActivity: event => {
+      latestEnvironmentActivityId = event.id
+      publish(event)
+    },
   })
   try {
     await options.migrateChats?.(chat.chats, registry.snapshot().graph)
@@ -863,6 +891,7 @@ export default async function startExternalStorybookServer(
             session,
             routePath,
             previewRevision: preview,
+            ...(usesSharedKernel && web.platform !== undefined ? {platformEpoch: web.platform.epoch} : {}),
             currentRoute: currentRoute ?? null,
             signal: request.signal,
           })
@@ -1045,6 +1074,9 @@ export default async function startExternalStorybookServer(
               : responseJson(await execute())
           }
           const selectedPackages = new Set<string>()
+          const navigationActivityId = latestEnvironmentActivityId
+          const checkNavigation = ++latestWorkspaceNavigation
+          const workspaceAtStart = await browserLifecycle.currentWorkspace(server.url.origin, request.signal).catch(() => null)
           const execute = async () => {
             const refreshed = await refreshCheckCatalog(scope, registry, refreshCatalog, resolveCheckPackages)
             const packageIds = resolveCheckPackages(refreshed, scope)
@@ -1062,14 +1094,20 @@ export default async function startExternalStorybookServer(
                   const packages = registry.snapshot().graph.nodes
                     .filter(node => node.kind === "package")
                     .map(node => ({packageId: node.packageId!, label: node.label, urlPath: node.urlPath}))
-                  const existing = (await browserLifecycle.listViews(server.url.origin, request.signal, packages, packageId))
-                    .find(view => view.packageId === packageId)
+                  const workspace = await browserLifecycle.currentWorkspace(server.url.origin, request.signal, packages)
+                  const existing = workspace?.view.packageId === packageId ? workspace.view : undefined
+                  const navigationCurrent = navigationActivityId === latestEnvironmentActivityId && checkNavigation === latestWorkspaceNavigation &&
+                    workspaceAtStart?.view.packageId === workspace?.view.packageId && workspaceAtStart?.view.route === workspace?.view.route
+                  if (existing === undefined && (workspace?.identity.followEnvironment !== true || !navigationCurrent)) {
+                    views.push({packageId, status: "success", applied: false, pending: true, builtRevision: revision, reason: "workspace-not-selected"})
+                    continue
+                  }
                   const routes = session.revisionGraphSnapshot(revision!)?.routes ?? []
                   const currentRoute = storybookCurrentRouteKey(existing?.route ?? "")
                   const route = routes.some(route => route.path === currentRoute) ? currentRoute : ""
                   let opened: Readonly<Record<string, unknown>>
                   if (existing === undefined) {
-                    opened = await openPackageView({packageId, route}, request.signal)
+                    opened = await openPackageView({packageId, route, followEnvironment: true}, request.signal)
                   } else if (result.builtRevision != null || browserLifecycle.applyRevision !== undefined) {
                     if (browserLifecycle.applyRevision === undefined) throw new Error("Текущий браузерный адаптер не поддерживает HMR")
                     const updated = await browserLifecycle.applyRevision(existing.viewId, revision!, request.signal)
@@ -1087,6 +1125,10 @@ export default async function startExternalStorybookServer(
                   )
                   views.push({...opened, package: session.snapshot(), status: "success", applied: true})
                 } catch (error) {
+                  if (isStorybookNavigationSupersededError(error)) {
+                    views.push({packageId, status: "success", applied: false, pending: true, builtRevision: revision, reason: "workspace-navigation-superseded"})
+                    continue
+                  }
                   ok = false
                   const message = error instanceof Error ? error.message : String(error)
                   if (result.builtRevision != null && session.snapshot().builtRevision === result.builtRevision &&
@@ -1100,7 +1142,8 @@ export default async function startExternalStorybookServer(
                 }
               }
             }
-            return {ok, applied: ok && !request.signal.aborted, graphDigest: registry.snapshot().graph.digest,
+            return {ok, applied: ok && !request.signal.aborted && views.every(view => view.applied === true),
+              pending: views.some(view => view.pending === true), graphDigest: registry.snapshot().graph.digest,
               packages: packageIds.map(packageId => sessions.session(packageId).snapshot()), views}
           }
           if (request.headers.get("accept")?.includes("application/x-ndjson")) {
@@ -1165,6 +1208,7 @@ export default async function startExternalStorybookServer(
           const route = body.route === undefined || body.route === ""
             ? ""
             : requiredText("open route", body.route)
+          latestWorkspaceNavigation += 1
           return responseJson(await openPackageView({
             packageId,
             route,
@@ -1300,7 +1344,7 @@ export default async function startExternalStorybookServer(
             return
           }
           if (record.executorId !== undefined || record.sessionId !== undefined) throw new Error("Identity исполнителя и сессии относятся только к подписке чата")
-          if (topic !== "registry" && topic !== "catalog" && !topic.startsWith("package:")) {
+          if (topic !== "registry" && topic !== "catalog" && topic !== "environment" && !topic.startsWith("package:")) {
             throw new Error(`Invalid Storybook subscription topic: ${topic}`)
           }
           if (!websocket.data.grant.allowedTopics.has(topic)) {
@@ -1427,7 +1471,7 @@ function landingWorkbenchAuthorStyleSheets(assets: SharedBrowserAssets): readonl
 /** Точная цель подтверждения из контракта владельца Activation. */
 type StorybookActivationCandidate = Pick<ActivationOutput, "packageId" | "revision">
 
-type RegistryEvent = Readonly<{
+type RegistryEvent = import("./src/environment").EnvironmentActivity | Readonly<{
   type: "catalog.progress"
   state: "running" | "completed" | "failed"
 }> | Readonly<{
@@ -1473,10 +1517,12 @@ async function packagePageResponse(
     if (currentRoute === undefined) throw new Error(`Unknown Storybook route: ${route.packageId}:${route.routePath}`)
     signal.throwIfAborted()
   }
+  const platformEpoch = readSharedAssets().browserIdentity?.epoch
   const target = await prepareStorybookPackagePageTarget({
     session,
     routePath: route.routePath,
     previewRevision: preview,
+    ...(platformEpoch === undefined ? {} : {platformEpoch}),
     currentRoute: currentRoute ?? null,
     signal,
   })
@@ -1800,6 +1846,7 @@ function matchesSubscription(
   subscriptions: ReadonlySet<string>,
   event: StorybookPackageEvent | RegistryEvent,
 ): boolean {
+  if (event.type === "environment.activity") return subscriptions.has("environment")
   if (!("packageId" in event) || event.type === "build.progress" && event.packageId === null) {
     return subscriptions.has("registry") || subscriptions.has("catalog") ||
       ["shared.updated", "shared.failed", "app.web", "build.progress"].includes(event.type) &&

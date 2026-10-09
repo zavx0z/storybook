@@ -14,7 +14,13 @@ export type GlobalMcpWindowState = McpWindowState & Readonly<{tab?: Readonly<{ed
 export type ExternalStorybookRootFactory = typeof createBrowserRoot
 
 /** Предмет пространства и его родитель в опубликованной иерархии. */
-export type StorybookShellSubject = Readonly<{id: string; parentId?: string; label: string}>
+export type StorybookShellSubject = Readonly<{
+  id: string
+  parentId?: string
+  label: string
+  /** Самостоятельная поверхность Repo; внутренние пакеты разделяют этот Display. */
+  surfaceId?: string
+}>
 
 export type ExternalStorybookNativeKey = Readonly<{
   key: string
@@ -26,6 +32,9 @@ export type ExternalStorybookNativeKey = Readonly<{
 
 /** Снимок настроек именно этой вкладки; другой localStorage writer не меняет её HMR-состояние. */
 export type StorybookShellUserState = Readonly<{
+  followEnvironment?: boolean
+  /** Совместимость сохранённого обзора с устройством пространства. */
+  spatialLayout?: "repo-frame/1" | "prism-tree/1" | "prism-tree/2" | "prism-tree/3"
   workbench: WorkbenchUserState
   minimap: MinimapState | undefined
   executionWindow?: ExecutionSettings.Input["initialState"]

@@ -1,3 +1,5 @@
+import createAgentBridge, {type StorybookAppWebPageAgentBridge} from "@zavx0z/storybook-app-web-page-agent-bridge"
+import {createDocument} from "@zavx0z/immersive-dom"
 import routeUrl from "@zavx0z/storybook-package-route-url"
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, readFileSync, readdirSync, rmSync} from "node:fs"
@@ -18,6 +20,238 @@ afterEach(() => {
 })
 
 describe("Storybook browser lifecycle service", () => {
+  test("Browser принимает настоящую identity AgentBridge для общего пространства", async () => {
+    const chrome = new FakeChrome()
+    const semanticDocument = createDocument()
+    const space = semanticDocument.createElement("div")
+    semanticDocument.append(space)
+    let selectedPackage: string | null = "@fixture/a"
+    let route = openInput(chrome).route
+    let revision: string | null = "revision-a"
+    const dataset: Record<string, string> = {
+      externalStorybookPackage: "ready", externalStorybookPackageId: selectedPackage,
+      externalStorybookRoute: route, externalStorybookRevision: revision,
+    }
+    const nativeDocument = {
+      documentElement: {dataset}, defaultView: {name: "storybook:workspace"},
+      location: new URL(openInput(chrome).url), visibilityState: "visible", hasFocus: () => true,
+    }
+    let presentedFrame = 1
+    const shell = {
+      document: semanticDocument, browserDocument: nativeDocument,
+      canvas: {id: "shared-canvas", width: 800, height: 600, hidden: false, getBoundingClientRect: () => ({left: 5, top: 6, width: 800, height: 600})},
+      space, workbench: {element: space, elements: {previewHost: space}},
+      get presentedFrameSequence() {return presentedFrame},
+      presentFrame() {return ++presentedFrame}, followEnvironment: false,
+      projectionFor: () => ({kind: "space"}),
+    } as unknown as StorybookAppWebPageAgentBridge.Input["shell"]
+    const bridge = createAgentBridge({
+      packageId: selectedPackage, revision, graphDigest: "a".repeat(64), shell,
+      getRoute: () => route,
+      getModel: () => selectedPackage === null ? null : {selectedNode: {id: selectedPackage, kind: "directory"}, tabActiveId: "overview"},
+      navigate: async () => {}, applyRevision: async () => {},
+      async navigateWorkspace(input) {
+        selectedPackage = input.packageId
+        route = input.route
+        revision = selectedPackage === null ? null : input.revision ?? "revision-b"
+        nativeDocument.location = new URL(input.url!, chrome.origin)
+        chrome.targetsValue = chrome.targetsValue.map(target => ({...target, url: nativeDocument.location.href}))
+        dataset.externalStorybookRoute = route
+        if (selectedPackage === null) {delete dataset.externalStorybookPackageId; delete dataset.externalStorybookRevision}
+        else {dataset.externalStorybookPackageId = selectedPackage; dataset.externalStorybookRevision = revision!}
+        bridge.updateIdentity(selectedPackage, revision, "a".repeat(64))
+      },
+    })
+    chrome.callBridge = async (_target, method, params, signal) => {signal?.throwIfAborted(); return bridge.call(method, params)}
+    try {
+      const controller = createController(chrome)
+      const first = await controller.openPackage(openInput(chrome))
+      const second = await controller.openPackage({...openInput(chrome), packageId: "@fixture/b", route: "", url: `${chrome.origin}/pkg-fixture-b/`})
+      const landing = await controller.openPackage({origin: chrome.origin, packageId: null, route: "", url: `${chrome.origin}/`})
+      expect(first.identity.viewName).toBe("storybook:workspace")
+      expect(second.identity).toMatchObject({packageId: "@fixture/b", viewName: "storybook:workspace", timeOrigin: first.identity.timeOrigin})
+      expect(landing.identity).toMatchObject({packageId: null, revision: null, route: "", viewName: "storybook:workspace", timeOrigin: first.identity.timeOrigin})
+      for (const area of ["page", "canvas"] as const) {
+        const capture = await controller.capture({viewId: landing.view.viewId, area})
+        expect(capture).toMatchObject({packageId: null, revision: null, route: "", graphDigest: "a".repeat(64), area, width: 2, height: 3})
+        expect(controller.readCapture(capture.captureId).metadata).toMatchObject({packageId: null, revision: null, route: "", area})
+      }
+      expect(chrome.lastClip).toEqual({x: 5, y: 6, width: 800, height: 600, scale: 1})
+      expect(chrome.created).toBe(1)
+      expect(chrome.navigations).toBe(0)
+      nativeDocument.defaultView.name = "storybook:foreign"
+      await expect(controller.currentWorkspace(chrome.origin)).rejects.toThrow("window.name")
+    } finally {bridge.dispose()}
+  })
+
+  test("landing node capture сохраняет null identity и отклоняет старый handle", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const landing = await controller.openPackage({origin: chrome.origin, packageId: null, route: "", url: `${chrome.origin}/`})
+    const original = chrome.callBridge.bind(chrome)
+    let captured = 0
+    chrome.callBridge = async (target, method, params, signal) => {
+      if (method === "capture") {
+        expect(params).toMatchObject({expectedPackageId: null, area: "node", nodeId: "root-node"})
+        captured += 1
+      }
+      return original(target, method, params, signal)
+    }
+    expect(await controller.capture({viewId: landing.view.viewId, area: "node", nodeId: "root-node"})).toMatchObject({packageId: null, revision: null, route: "", nodeId: "root-node"})
+    await controller.openPackage(openInput(chrome))
+    await expect(controller.capture({viewId: landing.view.viewId, area: "node", nodeId: "root-node"})).rejects.toThrow("Unknown")
+    expect(captured).toBe(1)
+    expect(chrome.created).toBe(1)
+  })
+
+  test.each(["before", "during"])("landing capture отклоняет пользовательский переход %s screenshot", async phase => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const landing = await controller.openPackage({origin: chrome.origin, packageId: null, route: "", url: `${chrome.origin}/`})
+    const move = () => {chrome.targetsValue = chrome.targetsValue.map(target => ({...target, url: openInput(chrome).url}))}
+    let screenshots = 0
+    const screenshot = chrome.screenshot.bind(chrome)
+    chrome.screenshot = async (...args) => {screenshots += 1; if (phase === "during") move(); return screenshot(...args)}
+    if (phase === "before") move()
+    await expect(controller.capture({viewId: landing.view.viewId, area: "page"})).rejects.toThrow("navigated")
+    expect(screenshots).toBe(phase === "before" ? 0 : 1)
+    expect(chrome.created).toBe(1)
+  })
+
+  test("package capture требует настоящую ревизию", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const opened = await controller.openPackage(openInput(chrome))
+    const original = chrome.callBridge.bind(chrome)
+    chrome.callBridge = async (target, method, params, signal) => {
+      const result = await original(target, method, params, signal) as {markers?: object}
+      return method === "identity" ? {...result, revision: null, markers: {...result.markers, revision: null}} : result
+    }
+    await expect(controller.capture({viewId: opened.view.viewId, area: "page"})).rejects.toThrow("not ready and presented")
+  })
+
+  test.each([false, true])("имя пакета принимается только у legacy bridge, modern=%s", async modern => {
+    const chrome = new FakeChrome()
+    chrome.inPageNavigation = modern
+    const original = chrome.callBridge.bind(chrome)
+    chrome.callBridge = async (target, method, params, signal) => {
+      const result = await original(target, method, params, signal)
+      return method === "identity" ? {...result as object, viewName: "storybook:@fixture/a"} : result
+    }
+    const controller = createController(chrome)
+    if (modern) await expect(controller.openPackage(openInput(chrome))).rejects.toThrow("window.name")
+    else expect((await controller.openPackage(openInput(chrome))).identity.packageId).toBe("@fixture/a")
+    expect(chrome.created).toBe(1)
+  })
+
+  test.each([false, true])("native recovery не понижает записанное имя workspace до legacy, modern=%s", async modern => {
+    const chrome = new FakeChrome()
+    chrome.inPageNavigation = modern
+    const controller = createController(chrome)
+    const initial = await controller.openPackage(openInput(chrome))
+    chrome.hangBridgeMethod = "identity"
+    chrome.bridgeDiagnostics = async () => ({viewName: "storybook:@fixture/a", markers: {packageId: "@fixture/a"}})
+    const navigate = chrome.navigate.bind(chrome)
+    chrome.navigate = async (target, url) => {chrome.hangBridgeMethod = null; await navigate(target, url)}
+    if (modern) {
+      await expect(controller.openPackage({...openInput(chrome), recover: true, timeoutMs: 600})).rejects.toThrow("ownership is indeterminate")
+      expect(chrome.navigations).toBe(0)
+    } else {
+      expect((await controller.openPackage({...openInput(chrome), recover: true, timeoutMs: 600})).view).toEqual(initial.view)
+      expect(chrome.navigations).toBe(1)
+    }
+    expect(chrome.created).toBe(1)
+  })
+
+  test("переходы пакетов и Project сохраняют один target и realm", async () => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    const first = createController(chrome, root)
+    const second = createController(chrome, root)
+    const a = await first.openPackage(openInput(chrome))
+    const b = await second.openPackage({...openInput(chrome), packageId: "@fixture/b", route: "example", url: `${chrome.origin}/pkg-fixture-b/example`})
+    expect(b.identity.timeOrigin).toBe(a.identity.timeOrigin)
+    expect(b.view.viewId).not.toBe(a.view.viewId)
+    expect(await first.listViews(chrome.origin, undefined, undefined, "@fixture/a")).toEqual([])
+    await expect(first.interact({viewId: a.view.viewId, action: "click", target: {nodeId: "old"}})).rejects.toThrow("Unknown")
+    const landing = await first.openPackage({origin: chrome.origin, packageId: null, route: "", url: `${chrome.origin}/`})
+    expect(landing.identity).toMatchObject({packageId: null, route: "", revision: null, timeOrigin: a.identity.timeOrigin})
+    expect((await second.currentWorkspace(chrome.origin))?.view).toEqual(landing.view)
+    await second.openPackage(openInput(chrome))
+    expect(chrome.created).toBe(1)
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.bridgeNavigations).toBe(3)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("конкурентные opens разных предметов используют одну reservation", async () => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    const [a, b] = await Promise.all([
+      createController(chrome, root).openPackage(openInput(chrome)),
+      createController(chrome, root).openPackage({...openInput(chrome), packageId: "@fixture/b", route: "", url: `${chrome.origin}/pkg-fixture-b/`}),
+    ])
+    expect(a.view.packageId).toBe("@fixture/a")
+    expect(b.view.packageId).toBe("@fixture/b")
+    expect(chrome.created).toBe(1)
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.bridgeNavigations).toBe(1)
+  })
+
+  test("первое принятие выбирает сфокусированное пространство, legacy peers сохраняются", async () => {
+    const chrome = new FakeChrome()
+    chrome.targetsValue = [
+      {targetId: "OLD_A", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`},
+      {targetId: "FOCUSED_B", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`},
+    ]
+    chrome.focusedTarget = "FOCUSED_B"
+    const controller = createController(chrome)
+    expect((await controller.currentWorkspace(chrome.origin))?.view.packageId).toBe("@fixture/b")
+    chrome.focusedTarget = "OLD_A"
+    expect((await controller.currentWorkspace(chrome.origin))?.view.packageId).toBe("@fixture/b")
+    const opened = await controller.openPackage(openInput(chrome))
+    expect(opened.view.packageId).toBe("@fixture/a")
+    expect(chrome.targetsValue.find(target => target.targetId === "OLD_A")?.url).toBe(`${chrome.origin}/pkg-fixture-a/`)
+    expect(chrome.created).toBe(0)
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("legacy bridge обновляется один раз в существующем target", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const first = await controller.openPackage(openInput(chrome))
+    chrome.inPageNavigation = false
+    const native = chrome.navigate.bind(chrome)
+    chrome.navigate = async (target, url) => {await native(target, url); chrome.inPageNavigation = true}
+    await controller.openPackage({...openInput(chrome), packageId: "@fixture/b", route: "", url: `${chrome.origin}/pkg-fixture-b/`})
+    await expect(controller.interact({viewId: first.view.viewId, action: "click"})).rejects.toThrow("Unknown")
+    await controller.openPackage(openInput(chrome))
+    expect(chrome.created).toBe(1)
+    expect(chrome.navigations).toBe(1)
+    expect(chrome.navigatedTargets).toEqual([chrome.targetId])
+    expect(chrome.bridgeNavigations).toBe(1)
+  })
+
+  test("следование окружению проверяет toggle перед переходом", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const original = await controller.openPackage(openInput(chrome))
+    const input = {...openInput(chrome), packageId: "@fixture/b", route: "", url: `${chrome.origin}/pkg-fixture-b/`, followEnvironment: true as const}
+    await expect(controller.openPackage(input)).rejects.toThrow("following was disabled")
+    expect(chrome.bridgeNavigations).toBe(0)
+    chrome.followEnvironment = true
+    const bridge = chrome.callBridge.bind(chrome)
+    chrome.callBridge = async (target, method, params, signal) => {
+      if (method === "navigate") chrome.followEnvironment = false
+      return bridge(target, method, params, signal)
+    }
+    await expect(controller.openPackage(input)).rejects.toThrow("following was disabled")
+    expect((await controller.currentWorkspace(chrome.origin))?.view).toEqual(original.view)
+    expect(chrome.bridgeNavigations).toBe(0)
+    expect(chrome.navigations).toBe(0)
+  })
+
   test.each([false, true])("структурный адрес требует точную identity bridge, mismatch=%s", async mismatch => {
     const chrome = new FakeChrome()
     const original = chrome.callBridge.bind(chrome)
@@ -26,7 +260,7 @@ describe("Storybook browser lifecycle service", () => {
       if (method !== "identity") return result
       const packageId = mismatch ? "@fixture/b" : "@fixture/a"
       const route = "diagram/scenarios"
-      return {...result as object, packageId, route, viewName: `storybook:${packageId}`,
+      return {...result as object, packageId, route, viewName: "storybook:workspace",
         markers: {package: "ready", packageId, route, revision: chrome.identityRevision}}
     }
     const controller = createController(chrome)
@@ -98,6 +332,114 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.created).toBe(1)
   })
 
+  test.each([false, true])("applyRevision сохраняет handle и адрес при повторном обновлении, preview=%s", async preview => {
+    const chrome = new FakeChrome()
+    enableRevisionUpdates(chrome)
+    const root = temporaryRoot()
+    const controller = createController(chrome, root)
+    const url = `${openInput(chrome).url}?view=contract&variant=Круг&inspector=chat${preview ? "&preview=revision-a" : ""}`
+    const opened = await controller.openPackage({...openInput(chrome), url})
+    for (const revision of ["revision-b", "revision-c"]) {
+      expect(await controller.applyRevision!(opened.view.viewId, revision)).toMatchObject({revision, viewId: opened.view.viewId, inPageApplied: true})
+      const expected = new URL(url)
+      if (preview) expected.searchParams.set("preview", revision)
+      expect(chrome.targetsValue[0]!.url).toBe(expected.href)
+      expect(new StorybookBrowserState(join(root, "state")).readWorkspace()?.url).toBe(expected.href)
+      expect(await controller.inspect(opened.view.viewId, {})).toMatchObject({view: opened.view})
+      expect(await controller.inspect(opened.view.viewId, {})).toMatchObject({view: opened.view})
+      expect(await controller.capture({viewId: opened.view.viewId, area: "page"})).toMatchObject({revision, route: opened.view.route})
+    }
+    expect(chrome.created).toBe(1)
+    expect(chrome.navigations).toBe(0)
+  })
+
+  test.each(["preview", "preview-removed", "preview-added", "view", "variant", "inspector", "origin", "path", "package", "route", "realm", "result", "target", "unknown-query"])(
+    "applyRevision отклоняет неожиданный переход %s", async change => {
+      const chrome = new FakeChrome()
+      let applied = false
+      enableRevisionUpdates(chrome, () => {
+        applied = true
+        chrome.targetsValue = chrome.targetsValue.map(target => {
+          const url = new URL(target.url)
+          if (change === "preview") url.searchParams.set("preview", "revision-user")
+          if (change === "preview-removed") url.searchParams.delete("preview")
+          if (change === "preview-added") url.searchParams.set("preview", "revision-b")
+          if (change === "view") url.searchParams.set("view", "scenarios")
+          if (change === "variant") url.searchParams.set("variant", "Квадрат")
+          if (change === "inspector") url.searchParams.set("inspector", "files")
+          if (change === "origin") url.port = "43124"
+          if (change === "path") url.pathname = "/pkg-fixture-a/fixture/a/other"
+          if (change === "package") url.pathname = "/pkg-fixture-b/fixture/a/default"
+          if (change === "unknown-query") url.searchParams.set("user", "changed")
+          return {...target, url: url.href, ...(change === "target" ? {targetId: "REPLACED_TARGET"} : {})}
+        })
+      })
+      const original = chrome.callBridge.bind(chrome)
+      chrome.callBridge = async (target, method, params, signal) => {
+        const result = await original(target, method, params, signal)
+        if (!applied || method !== "identity" && method !== "applyRevision") return result
+        if (change === "realm") return {...result as object, timeOrigin: 43}
+        if (change === "route") return {...result as object, route: "other", markers: {...(result as {markers: object}).markers, route: "other"}}
+        if (change === "result" && method === "applyRevision") return {...result as object, revision: "revision-user"}
+        return result
+      }
+      const root = temporaryRoot()
+      const controller = createController(chrome, root)
+      const url = `${openInput(chrome).url}?view=contract&variant=Круг&inspector=chat${change === "preview-added" ? "" : "&preview=revision-a"}`
+      const opened = await controller.openPackage({...openInput(chrome), url})
+      const previousUrl = chrome.targetsValue[0]!.url
+      await expect(controller.applyRevision!(opened.view.viewId, "revision-b")).rejects.toThrow()
+      expect(new StorybookBrowserState(join(root, "state")).readWorkspace()?.url).toBe(previousUrl)
+      expect(chrome.created).toBe(1)
+      expect(chrome.navigations).toBe(0)
+    },
+  )
+
+  test("переход во время проверки консоли не принимается как применение ревизии", async () => {
+    const chrome = new FakeChrome()
+    enableRevisionUpdates(chrome)
+    let consoleReads = 0
+    chrome.consoleEntries = async () => {
+      if (++consoleReads === 2) chrome.targetsValue = chrome.targetsValue.map(target => ({...target, url: target.url.replace("revision-b", "revision-user")}))
+      return []
+    }
+    const controller = createController(chrome)
+    const opened = await controller.openPackage({...openInput(chrome), url: `${openInput(chrome).url}?preview=revision-a`})
+    await expect(controller.applyRevision!(opened.view.viewId, "revision-b")).rejects.toThrow("navigated away")
+    await expect(controller.inspect(opened.view.viewId, {})).rejects.toThrow("navigated away")
+  })
+
+  test("переход до отправки applyRevision отменяет применение", async () => {
+    const chrome = new FakeChrome()
+    let applications = 0
+    enableRevisionUpdates(chrome, () => {applications++})
+    chrome.consoleEntries = async () => {
+      chrome.targetsValue = chrome.targetsValue.map(target => ({...target, url: target.url.replace("revision-a", "revision-user")}))
+      return []
+    }
+    const controller = createController(chrome)
+    const opened = await controller.openPackage({...openInput(chrome), url: `${openInput(chrome).url}?preview=revision-a`})
+    await expect(controller.applyRevision!(opened.view.viewId, "revision-b")).rejects.toThrow("navigated away")
+    expect(applications).toBe(0)
+  })
+
+  test("console rollback preview восстанавливает согласованные URL, запись и handle", async () => {
+    const chrome = new FakeChrome()
+    enableRevisionUpdates(chrome)
+    chrome.consoleEntries = async () => chrome.identityRevision === "revision-b"
+      ? [{source: "console", type: "error", level: "error", text: "new", timestamp: 2}] : []
+    const root = temporaryRoot()
+    const controller = createController(chrome, root)
+    const url = `${openInput(chrome).url}?view=contract&inspector=chat&preview=revision-a`
+    const opened = await controller.openPackage({...openInput(chrome), url})
+    await expect(controller.applyRevision!(opened.view.viewId, "revision-b")).rejects.toThrow("previous revision retained")
+    expect(chrome.identityRevision).toBe("revision-a")
+    expect(chrome.targetsValue[0]!.url).toBe(url)
+    expect(new StorybookBrowserState(join(root, "state")).readWorkspace()?.url).toBe(url)
+    expect(await controller.inspect(opened.view.viewId, {})).toMatchObject({view: opened.view})
+    expect(await controller.capture({viewId: opened.view.viewId, area: "page"})).toMatchObject({revision: "revision-a"})
+  })
+
   test("старая страница не обновляется скрытой навигацией", async () => {
     const chrome = new FakeChrome()
     const controller = createController(chrome)
@@ -113,21 +455,23 @@ describe("Storybook browser lifecycle service", () => {
     const root = temporaryRoot()
     const state = new StorybookBrowserState(join(root, "state"))
     const expectedUrl = `${chrome.origin}/pkg-fixture-a/original?preview=old`
-    state.reserveTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
+    state.reserveWorkspace({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
       url: expectedUrl, baselineTargetIds: ["BASELINE", "FOREIGN"]})
-    state.markCreateSent("@fixture/a")
-    const stateFile = join(root, "state", readdirSync(join(root, "state")).find(name => name.startsWith("target-"))!)
+    state.markCreateSent()
+    const stateFile = join(root, "state", readdirSync(join(root, "state")).find(name => name === "workspace.json")!)
     const bytes = readFileSync(stateFile, "utf8")
     const foreign = {targetId: "FOREIGN", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`}
     chrome.targetsValue = [{targetId: "BASELINE", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`}, foreign]
     chrome.hangingTargetIds.add("FOREIGN")
+    chrome.focusedTarget = "BASELINE"
     chrome.revisionAfterNavigate = "revision-next"
     const controller = createController(chrome, root)
     const input = {...openInput(chrome), expectedRevision: "revision-next"}
     const opened = await controller.openPackage(input)
     expect(opened.reused).toBeTrue()
     expect(opened.identity).toMatchObject({ready: true, revision: "revision-next", route: input.route})
-    expect(chrome.navigatedTargets).toEqual(["BASELINE"])
+    expect(chrome.navigatedTargets).toEqual([])
+    expect(chrome.bridgeNavigations).toBe(1)
     expect(chrome.targetsValue.find(target => target.targetId === "FOREIGN")).toEqual(foreign)
     expect(readFileSync(stateFile, "utf8")).toBe(bytes)
     expect((await createController(chrome, root).openPackage(input)).view.viewId).toBe(opened.view.viewId)
@@ -136,7 +480,7 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.closed).toEqual([])
     chrome.targetsValue.push({targetId: "LATE_RECEIPT", type: "page", title: "A", url: expectedUrl})
     await controller.openPackage(input)
-    expect(state.readTarget("@fixture/a")).toMatchObject({phase: "owned", targetId: "LATE_RECEIPT"})
+    expect(state.readWorkspace()).toMatchObject({phase: "owned", targetId: "LATE_RECEIPT"})
     expect(chrome.created).toBe(0)
     expect(chrome.closed).toEqual([])
   })
@@ -145,17 +489,25 @@ describe("Storybook browser lifecycle service", () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
     const state = new StorybookBrowserState(join(root, "state"))
-    state.reserveTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
+    state.reserveWorkspace({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
       url: `${chrome.origin}/pkg-fixture-a/original`, baselineTargetIds: ["BASELINE"]})
-    state.markCreateSent("@fixture/a")
-    const before = state.readTarget("@fixture/a")
+    state.markCreateSent()
+    const before = state.readWorkspace()
     chrome.targetsValue = [{targetId: "BASELINE", type: "page", title: "A", url: openInput(chrome).url}]
     if (failure === "wrong-package") chrome.identityPackageOverrides.set("BASELINE", "@fixture/b")
     if (failure === "unverified") chrome.foreignTargetIds.add("BASELINE")
     if (failure === "readiness") chrome.waitReady = async () => {throw new Error("Page readiness failed")}
+    if (failure === "revision") {
+      const bridge = chrome.callBridge.bind(chrome)
+      chrome.callBridge = async (target, method, params, signal) => {
+        const result = await bridge(target, method, params, signal)
+        if (method === "navigate") chrome.identityRevision = "revision-a"
+        return result
+      }
+    }
     const error = failure === "revision" ? "revision mismatch" : failure === "readiness" ? "readiness failed" : "creation is indeterminate"
     await expect(createController(chrome, root).openPackage({...openInput(chrome), expectedRevision: "revision-next"})).rejects.toThrow(error)
-    expect(state.readTarget("@fixture/a")).toEqual(before)
+    expect(state.readWorkspace()).toEqual(before)
     expect(chrome.created).toBe(0)
     expect(chrome.closed).toEqual([])
     if (failure === "wrong-package" || failure === "unverified") expect(chrome.navigations).toBe(0)
@@ -165,12 +517,12 @@ describe("Storybook browser lifecycle service", () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
     const state = new StorybookBrowserState(join(root, "state"))
-    state.reserveTarget({
+    state.reserveWorkspace({
       packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
       url: `${chrome.origin}/pkg-fixture-a/expected?preview=SECRET_QUERY`, baselineTargetIds: [],
     })
-    state.markCreateSent("@fixture/a")
-    const before = state.readTarget("@fixture/a")
+    state.markCreateSent()
+    const before = state.readWorkspace()
     if (outcome !== "missing") chrome.targetsValue = [{
       targetId: "PRIVATE_BASELINE", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/observed?preview=ANOTHER_SECRET`,
     }]
@@ -183,7 +535,7 @@ describe("Storybook browser lifecycle service", () => {
     expect(message).toContain("creation is indeterminate")
     const evidence = JSON.parse(message.split("; evidence=")[1]!)
     expect(evidence.reservation).toMatchObject({
-      protocol: "external-storybook-browser-target/3", phase: "reserved", createSent: true,
+      protocol: "external-storybook-browser-workspace/1", phase: "reserved", createSent: true,
       recordedReceipt: false, sendHistoryAvailable: false, expectedPath: "/pkg-fixture-a/expected",
     })
     expect(evidence.observation).toMatchObject({inventoryCompleted: true, sameBrowserSession: true, exactNewReservationUrlCount: 0})
@@ -194,7 +546,7 @@ describe("Storybook browser lifecycle service", () => {
     for (const secret of ["SECRET_QUERY", "ANOTHER_SECRET", "PRIVATE_BASELINE", chrome.origin, chrome.cdp]) {
       expect(message).not.toContain(secret)
     }
-    expect(state.readTarget("@fixture/a")).toEqual(before)
+    expect(state.readWorkspace()).toEqual(before)
     expect(chrome.created).toBe(0)
     expect(chrome.navigations).toBe(0)
     expect(chrome.closed).toEqual([])
@@ -204,9 +556,9 @@ describe("Storybook browser lifecycle service", () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
     const state = new StorybookBrowserState(join(root, "state"))
-    state.reserveTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
+    state.reserveWorkspace({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
       url: `${chrome.origin}/pkg-fixture-a/expected`, baselineTargetIds: []})
-    state.markCreateSent("@fixture/a")
+    state.markCreateSent()
     chrome.targetsValue = Array.from({length: 5}, (_, index) => ({
       targetId: `PRIVATE_${index}`, type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/observed-${index}`,
     }))
@@ -215,7 +567,7 @@ describe("Storybook browser lifecycle service", () => {
     let message = ""
     try {await createController(chrome, root).openPackage(openInput(chrome))} catch (error) {message = (error as Error).message}
     const evidence = JSON.parse(message.split("; evidence=")[1]!)
-    expect(evidence.observation).toMatchObject({matchingPackageCount: 5, omittedCount: 2})
+    expect(evidence.observation).toMatchObject({matchingWorkspaceCount: 6, omittedCount: 3})
     expect(evidence.observation.targets).toHaveLength(3)
     expect(chrome.identityCalls).toBe(3)
     expect(chrome.created).toBe(0)
@@ -233,7 +585,7 @@ describe("Storybook browser lifecycle service", () => {
     }
     await expect(controller.openPackage(openInput(chrome), abort.signal)).rejects.toThrow()
     expect(chrome.created).toBe(0)
-    expect(state.readTarget("@fixture/a")).toBeNull()
+    expect(state.readWorkspace()).toBeNull()
     chrome.createPreflight = null
     const opened = await createController(chrome, root).openPackage(openInput(chrome))
     expect(opened.identity.ready).toBeTrue()
@@ -251,87 +603,8 @@ describe("Storybook browser lifecycle service", () => {
     chrome.createPreflight = null
     await expect(controller.openPackage(openInput(chrome))).rejects.toThrow("creation is indeterminate")
     expect(chrome.created).toBe(0)
-    expect(new StorybookBrowserState(join(root, "state")).readTarget("@fixture/a"))
+    expect(new StorybookBrowserState(join(root, "state")).readWorkspace())
       .toMatchObject({phase: "reserved", createSent: true})
-  })
-
-  test.each([[false, false], [false, true], [true, false], [true, true]] as const)("незавершённый inventory сохраняет handles: abort=%s, known packages=%s", async (abort, knownPackages) => {
-    const chrome = new FakeChrome()
-    chrome.targetsValue = [
-      {targetId: "A", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`},
-      {targetId: "B", type: "page", title: "B", url: `${chrome.origin}/packages/%40fixture%2Fb/`},
-    ]
-    const controller = createController(chrome)
-    const labels = [{packageId: "@fixture/a", label: "A"}, {packageId: "@fixture/b", label: "B"}]
-    const before = await controller.listViews(chrome.origin, undefined, labels)
-    chrome.targetsValue.reverse()
-    if (abort) chrome.hangingTargetIds.add("B")
-    else chrome.unavailableDiagnosticsTargetIds.add("B")
-    const listing = controller.listViews(chrome.origin, AbortSignal.timeout(100), knownPackages ? labels : undefined)
-    if (abort) await expect(listing).rejects.toMatchObject({name: "TimeoutError"})
-    else await expect(listing).rejects.toThrow("indeterminate")
-    for (const view of before) expect(controller.getView(view.viewId)).toEqual(view)
-    expect(chrome.created).toBe(0)
-    expect(chrome.closed).toEqual([])
-  })
-
-  test("scoped inventory и действие A не проверяют зависшую вкладку B", async () => {
-    const chrome = new FakeChrome()
-    chrome.targetsValue = [
-      {targetId: "A", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`},
-      {targetId: "B", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`},
-    ]
-    const controller = createController(chrome)
-    const labels = [{packageId: "@fixture/a", label: "A"}, {packageId: "@fixture/b", label: "B"}]
-    const before = await controller.listViews(chrome.origin, undefined, labels)
-    const a = before.find(view => view.packageId === "@fixture/a")!
-    const b = before.find(view => view.packageId === "@fixture/b")!
-    chrome.hangingTargetIds.add("B")
-    chrome.targetsValue[1] = {...chrome.targetsValue[1]!, title: "Непроверенное новое имя B"}
-    chrome.targetOperations.length = 0
-    const views = await controller.listViews(chrome.origin, AbortSignal.timeout(100), labels, "@fixture/a")
-    expect(views).toEqual([a])
-    expect(controller.getView(b.viewId)).toEqual(b)
-    await controller.interact({viewId: a.viewId, action: "click", target: {nodeId: "node:1"}})
-    expect(chrome.targetOperations).not.toContain("identity:B")
-    expect(chrome.created).toBe(0)
-    expect(chrome.closed).toEqual([])
-  })
-
-  test.each(["closed", "moved"])("scoped inventory удаляет доказанно устаревший A, сохраняя B: %s", async change => {
-    const chrome = new FakeChrome()
-    chrome.targetsValue = [
-      {targetId: "A", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`},
-      {targetId: "B", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`},
-    ]
-    const controller = createController(chrome)
-    const labels = [{packageId: "@fixture/a", label: "A"}, {packageId: "@fixture/b", label: "B"}]
-    const before = await controller.listViews(chrome.origin, undefined, labels)
-    const a = before.find(view => view.packageId === "@fixture/a")!
-    const b = before.find(view => view.packageId === "@fixture/b")!
-    if (change === "closed") chrome.targetsValue.shift()
-    else chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/pkg-fixture-b/changed`}
-    expect(await controller.listViews(chrome.origin, undefined, labels, "@fixture/a")).toEqual([])
-    expect(() => controller.getView(a.viewId)).toThrow("Unknown")
-    expect(controller.getView(b.viewId)).toEqual(b)
-    await expect(controller.interact({viewId: a.viewId, action: "click", target: {nodeId: "node:1"}})).rejects.toThrow("Unknown")
-    expect(chrome.created).toBe(0)
-    expect(chrome.closed).toEqual([])
-  })
-
-  test("inspect exposes bootstrap diagnostics for an attested page without a bridge", async () => {
-    const chrome = new FakeChrome()
-    const controller = createController(chrome)
-    const opened = await controller.openPackage(openInput(chrome))
-    chrome.markerOnlyTargetIds.add(chrome.targetId)
-    const result = await controller.inspect(opened.view.viewId, {include: ["state", "diagnostics", "console"]})
-    expect(result.ready).toBe(false)
-    expect(result.bridgeAvailable).toBe(false)
-    expect(result.bootstrap).toMatchObject({markers: {packageId: "@fixture/a"}})
-    expect(result.console).toEqual([])
-    expect(JSON.stringify(result)).not.toContain(chrome.targetId)
-    chrome.targetsValue = chrome.targetsValue.map(target => ({...target, url: "https://example.com/foreign"}))
-    await expect(controller.inspect(opened.view.viewId, {include: ["console"]})).rejects.toThrow("navigated away")
   })
 
   test("reuses one package view and never returns the CDP target identity", async () => {
@@ -377,7 +650,7 @@ describe("Storybook browser lifecycle service", () => {
       title: "Old Storybook",
       url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default",
     }]
-    new StorybookBrowserState(join(root, "state")).writeTarget({
+    new StorybookBrowserState(join(root, "state")).writeWorkspace({
       packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(), targetId: "OLD_TARGET",
     })
     const opened = await createController(chrome, root).openPackage(openInput(chrome))
@@ -424,21 +697,6 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.created).toBe(0)
   })
 
-  test.each(["closed", "moved"])("reuse-only open does not create a target after the discovered page is %s", async state => {
-    const chrome = new FakeChrome()
-    chrome.targetsValue = [{targetId: "USER", type: "page", title: "User", url: openInput(chrome).url}]
-    const controller = createController(chrome)
-    const [view] = await controller.listViews(chrome.origin, undefined, [{packageId: "@fixture/a", label: "Fixture A"}])
-    expect(view).toBeDefined()
-    if (state === "closed") chrome.targetsValue = []
-    else chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/pkg-fixture-b/`}
-
-    await expect(controller.openPackage({...openInput(chrome), existingViewId: view!.viewId}))
-      .rejects.toThrow("existing package view is no longer available")
-    expect(chrome.created).toBe(0)
-    expect(chrome.targetsValue).toHaveLength(state === "closed" ? 0 : 1)
-  })
-
   test("prefers the agent's existing matching view without changing its peers", async () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
@@ -446,38 +704,12 @@ describe("Storybook browser lifecycle service", () => {
       {targetId: "USER", type: "page", title: "User", url: openInput(chrome).url},
       {targetId: "AGENT", type: "page", title: "Agent", url: `${chrome.origin}/pkg-fixture-a/fixture/a/alternate`},
     ]
-    new StorybookBrowserState(join(root, "state")).writeTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: "a".repeat(64), targetId: "AGENT"})
+    new StorybookBrowserState(join(root, "state")).writeWorkspace({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: "a".repeat(64), targetId: "AGENT"})
     const views = await createController(chrome, root).listViews(chrome.origin)
     expect(views[0]?.route).toBe("fixture/a/alternate")
     expect(chrome.navigations).toBe(0)
     expect(chrome.activated).toEqual([])
     expect(chrome.closed).toEqual([])
-  })
-
-  test("lists multiple current package views and refuses stale-handle interactions", async () => {
-    const chrome = new FakeChrome()
-    const controller = createController(chrome)
-    const opened = await controller.openPackage(openInput(chrome))
-    chrome.targetsValue.push({targetId: "PEER", type: "page", title: "Peer", url: openInput(chrome).url})
-    expect(await controller.listViews(chrome.origin)).toHaveLength(2)
-    chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/pkg-fixture-b/`}
-    await expect(controller.interact({viewId: opened.view.viewId, action: "click", target: {role: "button", name: "Run"}}))
-      .rejects.toThrow("navigated away")
-    expect(chrome.closed).toEqual([])
-  })
-
-  test("preserves a recorded tab whose actual package differs despite the same readable slug", async () => {
-    const chrome = new FakeChrome()
-    const controller = createController(chrome)
-    const first = await controller.openPackage(openInput(chrome))
-    chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: chrome.targetsValue[0]!.url.replace(chrome.origin, "http://127.0.0.1:41000")}
-    chrome.identityPackageOverrides.set(chrome.targetId, "fixture-a")
-    const opened = await controller.openPackage(openInput(chrome))
-    expect(opened.reused).toBeFalse()
-    expect(opened.view.viewId).not.toBe(first.view.viewId)
-    expect(chrome.created).toBe(2)
-    expect(chrome.closed).toEqual([])
-    expect(chrome.navigations).toBe(0)
   })
 
   test("leaves an unattested foreign tab untouched", async () => {
@@ -575,23 +807,6 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.created).toBe(1)
   })
 
-  test("reopens the same owned URL once when an earlier bootstrap left no bridge", async () => {
-    const chrome = new FakeChrome()
-    const input = openInput(chrome)
-    chrome.targetsValue = [{targetId: "BROKEN", type: "page", title: "Fixture", url: input.url}]
-    chrome.legacyTargetIds.add("BROKEN")
-    const navigate = chrome.navigate.bind(chrome)
-    chrome.navigate = async (target, url) => {
-      await navigate(target, url)
-      chrome.legacyTargetIds.delete(target)
-    }
-    const opened = await createController(chrome).openPackage(input)
-    expect(opened.reused).toBe(true)
-    expect(chrome.created).toBe(0)
-    expect(chrome.navigations).toBe(1)
-    expect(chrome.closed).toEqual([])
-  })
-
   test("recovers a sent reservation before applying a new route and server origin", async () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
@@ -621,7 +836,7 @@ describe("Storybook browser lifecycle service", () => {
   test("preserves a recorded tab that no longer shows the package", async () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
-    new StorybookBrowserState(join(root, "state")).writeTarget({
+    new StorybookBrowserState(join(root, "state")).writeWorkspace({
       packageId: "@fixture/a",
       cdpOrigin: chrome.cdp,
       browserIdentity: "a".repeat(64),
@@ -736,7 +951,8 @@ describe("Storybook browser lifecycle service", () => {
     })
 
     expect(second.reused).toBeTrue()
-    expect(second.view.viewId).toBe(first.view.viewId)
+    expect(second.view.viewId).not.toBe(first.view.viewId)
+    expect(() => controller.getView(first.view.viewId)).toThrow("Unknown")
     expect(second.view.route).toBe("fixture/a/alternate")
     expect(chrome.created).toBe(1)
   })
@@ -905,6 +1121,127 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.activated).toEqual([])
   })
 
+  test("explicit recover reloads one recorded stalled target after independent marker attestation", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const opened = await controller.openPackage(openInput(chrome))
+    const originalDiagnostic = chrome.bridgeDiagnostics.bind(chrome)
+    chrome.bridgeDiagnostics = async (target, signal) => {
+      await originalDiagnostic(target, signal)
+      return {viewName: "storybook:workspace", markers: {packageId: "@fixture/a"}}
+    }
+    const originalNavigate = chrome.navigate.bind(chrome)
+    chrome.navigate = async (target, url) => {chrome.hangBridgeMethod = null; await originalNavigate(target, url)}
+    chrome.hangBridgeMethod = "identity"
+    const recovered = await controller.openPackage({...openInput(chrome), recover: true, timeoutMs: 1200})
+    expect(recovered.view.viewId).toBe(opened.view.viewId)
+    expect(recovered.view.route).toBe(opened.view.route)
+    expect(recovered.reused).toBe(true)
+    expect(chrome.created).toBe(1)
+    expect(chrome.navigations).toBe(1)
+    expect(chrome.closed).toEqual([])
+    expect(chrome.navigatedTargets).toEqual([chrome.targetsValue[0]!.targetId])
+  })
+
+  test("recover rebinds only server-selected preview pin and preserves same route view and Inspector", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const original = {...openInput(chrome), url: `${openInput(chrome).url}?view=contract&inspector=chat&preview=revision-old`}
+    const opened = await controller.openPackage(original)
+    chrome.hangBridgeMethod = "identity"
+    chrome.bridgeDiagnostics = async () => ({viewName: "storybook:workspace", markers: {packageId: "@fixture/a"}})
+    const navigate = chrome.navigate.bind(chrome)
+    chrome.navigate = async (target, url) => {chrome.hangBridgeMethod = null; await navigate(target, url)}
+    chrome.revisionAfterNavigate = "revision-next"
+    const recovered = await controller.openPackage({...original, url: `${openInput(chrome).url}?view=contract&preview=revision-next`,
+      expectedRevision: "revision-next", recover: true, timeoutMs: 1200})
+    expect(recovered.view.viewId).toBe(opened.view.viewId)
+    expect(recovered.identity.revision).toBe("revision-next")
+    expect(chrome.targetsValue[0]!.url).toBe(`${openInput(chrome).url}?view=contract&preview=revision-next&inspector=chat`)
+    expect(chrome.navigations).toBe(1)
+    expect(chrome.created).toBe(1)
+  })
+
+  test.each(["fetch", "console"])("recover installs the server-selected revision in the same healthy owned tab after failed in-page delivery: %s", async failure => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const original = {...openInput(chrome), url: `${openInput(chrome).url}?view=contract&inspector=chat`}
+    const identity = chrome.callBridge.bind(chrome)
+    chrome.callBridge = async (target, method, params, signal) => {
+      if (method === "applyRevision") {
+        if (failure === "fetch") throw new TypeError("Failed to fetch")
+        chrome.identityRevision = (params as {revision: string}).revision
+        return {...await identity(target, "identity", params, signal) as object, capabilities: {inPageUpdates: true}}
+      }
+      const result = await identity(target, method, params, signal)
+      return method === "identity" ? {...result as object, capabilities: {inPageUpdates: true}} : result
+    }
+    chrome.consoleEntries = async () => failure === "console" && chrome.identityRevision === "revision-next"
+      ? [{source: "log", type: "network", level: "error", text: "Package reader renewal returned 400", timestamp: 2}]
+      : []
+    const opened = await controller.openPackage(original)
+    await expect(controller.applyRevision!(opened.view.viewId, "revision-next"),
+      "Ошибка доставки новой ревизии сохраняет прежнее исполнение").rejects.toThrow(
+      failure === "fetch" ? "Failed to fetch" : "new revision reported console errors",
+    )
+    expect(chrome.identityRevision, "Ошибка применения сохраняет последнюю рабочую ревизию").toBe("revision-a")
+    expect(chrome.navigations, "Неудача HMR не вызывает скрытую загрузку страницы").toBe(0)
+    chrome.revisionAfterNavigate = "revision-next"
+    const recovered = await controller.openPackage({...original,
+      url: `${openInput(chrome).url}?view=contract&preview=revision-next`,
+      expectedRevision: "revision-next", recover: true})
+    expect(recovered.view, "Восстановление сохраняет handle и маршрут подтверждённой вкладки").toEqual(opened.view)
+    expect(recovered.identity.revision, "Browser принимает точную выбранную сервером ревизию").toBe("revision-next")
+    expect(recovered.reused, "Восстановление использует прежнюю вкладку").toBe(true)
+    expect(chrome.navigatedTargets, "Загружается ровно один прежний target").toEqual([chrome.targetId])
+    expect(chrome.targetsValue[0]!.url, "Маршрут и Inspector сохраняются при смене preview pin").toBe(
+      `${openInput(chrome).url}?view=contract&preview=revision-next&inspector=chat`,
+    )
+    expect(chrome.created, "Восстановление не создаёт дубль вкладки").toBe(1)
+    expect(chrome.closed, "Соседние вкладки остаются открытыми").toEqual([])
+  })
+
+  test("recover preserves healthy owned target and default open does not reload a stalled bridge", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    await controller.openPackage(openInput(chrome))
+    await controller.openPackage({...openInput(chrome), recover: true, timeoutMs: 1200})
+    expect(chrome.navigations).toBe(0)
+    chrome.hangBridgeMethod = "identity"
+    await expect(controller.openPackage({...openInput(chrome), timeoutMs: 100})).rejects.toMatchObject({name: "TimeoutError"})
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.created).toBe(1)
+  })
+
+  test.each(["different-marker", "different-route", "different-origin"])("recover refuses unsafe native evidence %s without navigation or duplicate target", async evidence => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    await controller.openPackage(openInput(chrome))
+    chrome.hangBridgeMethod = "identity"
+    chrome.bridgeDiagnostics = async () => ({viewName: "storybook:workspace", markers: {packageId: evidence === "different-marker" ? "@fixture/b" : "@fixture/a"}})
+    if (evidence === "different-origin") chrome.targetsValue = chrome.targetsValue.map(target => ({...target, url: target.url.replace(chrome.origin, "http://127.0.0.1:54322")}))
+    const input = evidence === "different-route" ? {...openInput(chrome), route: "fixture/a/other", url: `${chrome.origin}/pkg-fixture-a/fixture/a/other`} : openInput(chrome)
+    await expect(controller.openPackage({...input, recover: true, timeoutMs: 600})).rejects.toThrow("recovery")
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.created).toBe(1)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("recover rechecks exact native target origin before navigation", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    await controller.openPackage(openInput(chrome))
+    chrome.hangBridgeMethod = "identity"
+    chrome.bridgeDiagnostics = async () => {
+      chrome.targetsValue = chrome.targetsValue.map(target => ({...target, url: "https://example.com/user-page"}))
+      return {viewName: "storybook:workspace", markers: {packageId: "@fixture/a"}}
+    }
+    await expect(controller.openPackage({...openInput(chrome), recover: true, timeoutMs: 600})).rejects.toThrow("recovery target changed")
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.created).toBe(1)
+    expect(chrome.closed).toEqual([])
+  })
+
   test("waits for the package bridge after document readiness", async () => {
     const chrome = new FakeChrome()
     chrome.unavailableBridgeCalls = 2
@@ -918,22 +1255,6 @@ describe("Storybook browser lifecycle service", () => {
     })
     expect(opened.identity.ready).toBeTrue()
     expect(chrome.identityCalls).toBeGreaterThanOrEqual(3)
-  })
-
-  test("reloads the exact view until the event-selected revision is presented", async () => {
-    const chrome = new FakeChrome()
-    chrome.identityRevision = "revision-old"
-    chrome.revisionAfterNavigate = "revision-next"
-    const controller = createController(chrome)
-    const opened = await controller.openPackage({
-      origin: chrome.origin,
-      packageId: "@fixture/a",
-      route: "fixture/a/default",
-      url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
-      expectedRevision: "revision-next",
-    })
-    expect(opened.identity.revision).toBe("revision-next")
-    expect(chrome.navigations).toBe(1)
   })
 
   test("bounds the whole open and interaction operations by their public timeout", async () => {
@@ -989,6 +1310,10 @@ class FakeChrome implements StorybookChromeClient {
   identityCalls = 0
   identityRevision = "revision-a"
   identityReady = true
+  inPageNavigation = true
+  followEnvironment = false
+  focusedTarget: string | null = null
+  bridgeNavigations = 0
   revisionAfterNavigate: string | null = null
   navigations = 0
   readonly navigatedTargets: string[] = []
@@ -1103,7 +1428,7 @@ class FakeChrome implements StorybookChromeClient {
   async callBridge(
     targetId: string,
     method: StorybookBridgeMethod,
-    _params?: unknown,
+    params?: unknown,
     signal?: AbortSignal,
   ): Promise<unknown> {
     signal?.throwIfAborted()
@@ -1115,6 +1440,18 @@ class FakeChrome implements StorybookChromeClient {
     if (this.legacyTargetIds.has(targetId) || this.markerOnlyTargetIds.has(targetId) ||
       this.titleOnlyTargetIds.has(targetId) || this.unavailableDiagnosticsTargetIds.has(targetId)) {
       throw new Error("Storybook agent bridge is unavailable in the exact target")
+    }
+    if (method === "navigate") {
+      const input = params as {expectedPackageId: string | null; packageId: string | null; url: string; revision?: string; followEnvironment?: true}
+      const current = this.targetsValue.find(target => target.targetId === targetId)!
+      if (targetIdentity(current.url).packageId !== input.expectedPackageId) throw new Error("Storybook bridge address changed")
+      if (input.followEnvironment && !this.followEnvironment) throw new Error("Storybook environment following was disabled")
+      this.bridgeNavigations += 1
+      this.targetsValue = this.targetsValue.map(target => target.targetId === targetId
+        ? {...target, url: new URL(input.url, this.origin).href} : target)
+      this.identityPackageOverrides.delete(targetId)
+      if (input.revision !== undefined) this.identityRevision = input.revision
+      return this.callBridge(targetId, "identity", {}, signal)
     }
     if (method === "identity") {
       this.identityCalls += 1
@@ -1136,17 +1473,20 @@ class FakeChrome implements StorybookChromeClient {
       protocol: "external-storybook-agent-bridge/1",
       packageId: target.packageId,
       route: target.route,
-      revision: this.identityRevision,
+      revision: target.packageId === null ? null : this.identityRevision,
       graphDigest: "a".repeat(64),
       ready: this.identityReady,
       presented: true,
       timeOrigin: 42,
-      viewName: this.invalidIdentity ? "storybook:@fixture/other" : `storybook:${target.packageId}`,
+      viewName: this.invalidIdentity ? "storybook:foreign" : this.inPageNavigation || target.packageId === null ? "storybook:workspace" : `storybook:${target.packageId}`,
+      capabilities: {inPageNavigation: this.inPageNavigation},
+      followEnvironment: this.followEnvironment,
+      nativePage: {hasFocus: this.focusedTarget === targetId, visibilityState: this.focusedTarget === targetId ? "visible" : "hidden"},
       markers: {
         package: "ready",
         packageId: target.packageId,
         route: target.route,
-        revision: this.identityRevision,
+        revision: target.packageId === null ? null : this.identityRevision,
       },
       }
     }
@@ -1162,8 +1502,28 @@ class FakeChrome implements StorybookChromeClient {
   }
 }
 
-function targetIdentity(value: string): Readonly<{packageId: string; route: string}> {
+function enableRevisionUpdates(chrome: FakeChrome, afterApply: (revision: string) => void = () => {}): void {
+  const original = chrome.callBridge.bind(chrome)
+  chrome.callBridge = async (target, method, params, signal) => {
+    if (method === "applyRevision") {
+      const revision = (params as {revision: string}).revision
+      chrome.identityRevision = revision
+      chrome.targetsValue = chrome.targetsValue.map(current => {
+        const url = new URL(current.url)
+        if (url.searchParams.has("preview")) url.searchParams.set("preview", revision)
+        return {...current, url: url.href}
+      })
+      afterApply(revision)
+    }
+    const result = await original(target, method === "applyRevision" ? "identity" : method, params, signal)
+    return method === "identity" || method === "applyRevision"
+      ? {...result as object, capabilities: {inPageNavigation: true, inPageUpdates: true}} : result
+  }
+}
+
+function targetIdentity(value: string): Readonly<{packageId: string | null; route: string}> {
   const url = new URL(value)
+  if (url.pathname === "/") return {packageId: null, route: ""}
   const parts = url.pathname.split("/")
   const fallback = decodeURIComponent(parts[parts[1] === "packages" ? 2 : 1]!)
   const packageId = ["@fixture/a", "@fixture/b", "@fixture/other", "a", "b"]
@@ -1245,29 +1605,13 @@ test("временное отсутствие CDP-контекста при от
   expect(chrome.navigations).toBe(0)
 })
 
-test("scoped inventory структурных адресов не ждёт чужой JS-мост", async () => {
+test("инвентарь возвращает только выбранное пространство и не ждёт legacy peer", async () => {
   const chrome = new FakeChrome()
-  chrome.targetsValue = [
-    {targetId: "A", type: "page", title: "A", url: `${chrome.origin}/project/ui/a?view=scenarios`},
-    {targetId: "B", type: "page", title: "B", url: `${chrome.origin}/project/ui/b?view=scenarios`},
-    {targetId: "CHILD", type: "page", title: "Child", url: `${chrome.origin}/project/ui/a/child`},
-  ]
-  chrome.identityPackageOverrides.set("A", "@fixture/a")
-  chrome.hangingTargetIds.add("B")
-  chrome.hangingTargetIds.add("CHILD")
-  const packages = [
-    {packageId: "@fixture/a", label: "A", urlPath: "/project/ui/a"},
-    {packageId: "@fixture/b", label: "B", urlPath: "/project/ui/b"},
-    {packageId: "@fixture/other", label: "Child", urlPath: "/project/ui/a/child"},
-  ]
   const controller = createController(chrome)
-  const views = await controller.listViews(chrome.origin, AbortSignal.timeout(200), packages, "@fixture/a")
-  expect(views.map(view => view.packageId)).toEqual(["@fixture/a"])
-  const opened = await controller.openPackage({
-    ...openInput(chrome), route: "", url: chrome.targetsValue[0]!.url, knownPackages: packages,
-  }, AbortSignal.timeout(200))
-  expect(opened.reused).toBeTrue()
-  expect(opened.view.viewId).toBe(views[0]!.viewId)
-  expect(chrome.created).toBe(0)
-  expect(chrome.targetOperations.every(value => !value.includes(":B") && !value.includes(":CHILD"))).toBeTrue()
+  const opened = await controller.openPackage(openInput(chrome))
+  chrome.targetsValue.push({targetId: "LEGACY_B", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`})
+  chrome.hangingTargetIds.add("LEGACY_B")
+  expect(await controller.listViews(chrome.origin, AbortSignal.timeout(200), undefined, "@fixture/a")).toEqual([opened.view])
+  expect(await controller.listViews(chrome.origin, AbortSignal.timeout(200), undefined, "@fixture/b")).toEqual([])
+  expect(chrome.targetOperations.every(value => !value.includes(":LEGACY_B"))).toBeTrue()
 })

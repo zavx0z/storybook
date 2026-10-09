@@ -13,6 +13,21 @@ import createInstructionsReader from "./instructions"
 type Assignment = Awaited<ReturnType<StorybookAppEnvironment.Output["assign"]>>
 type Authority = Parameters<typeof state.assertExternalStorybookControlRequest>[1]
 type CallEvent = Parameters<NonNullable<StorybookAppEnvironment.Input["onCall"]>>[0]
+export type EnvironmentActivity = Readonly<{type: "environment.activity", id: string, address: string, startedAt: number}>
+
+/** Наблюдение не меняет адрес и не порождает обратное следование за инспекцией. */
+export function environmentActivity(event: CallEvent): EnvironmentActivity | null {
+  if (event.phase !== "running" || observationCommand(event)) return null
+  return Object.freeze({type: "environment.activity", id: event.id, address: event.address, startedAt: event.startedAt})
+}
+
+const observationCommands = new Set(["storybook_status", "storybook_inspect", "storybook_capture", "storybook_search", "storybook_wait", "storybook_read_resource", "environment.inspect", "team.list", "storybook_open", "storybook_rebuild_web"])
+
+function observationCommand(event: CallEvent): boolean {
+  return observationCommands.has(event.name) || event.name === "storybook_check" &&
+    (event.arguments.scope === "storybook:shared" || event.arguments.scope === "storybook:web")
+}
+
 type Options = Readonly<{
   project: string
   /** Канонические checkout объявленного состава Project, независимо от графа и сохранённого дерева. */
@@ -22,6 +37,7 @@ type Options = Readonly<{
   graph(): StorybookPackageGraphRead.Input
   entries(): StorybookAppKnowledge.Input[1]["entries"]
   recordRequest?: (entry: Record<string, unknown>) => void
+  onActivity?: (event: EnvironmentActivity) => void
   extensions?: StorybookAppEnvironment.Input["extensions"]
 }>
 
@@ -140,6 +156,10 @@ export default function createServerEnvironment(options: Options) {
         result: event.phase === "running" ? "" : JSON.stringify(publicResponse.sanitizeValue(event.phase === "progress" ? {progress: event.progress} : event.phase === "success" ? event.result : {error: event.error})),
       }
       try { options.recordRequest?.(record) } catch { /* Журнал не отменяет исполнение или доставку истории. */ }
+      const activity = environmentActivity(event)
+      if (activity !== null) {
+        try { options.onActivity?.(activity) } catch { /* Отказ навигации не отменяет исполнение. */ }
+      }
       for (const observer of observers.get(event.executorId) ?? []) {
         try { void Promise.resolve(observer(structuredClone(event))).catch(() => {}) } catch { /* Каждый наблюдатель независим. */ }
       }

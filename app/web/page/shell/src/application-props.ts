@@ -32,6 +32,7 @@ export type StorybookAppProps = Readonly<{
   saveMinimapState?: ((state: MinimapState) => void) | undefined
   onRebuildWeb?: (() => Promise<void>) | undefined
   viewPointControls: ViewPointTabProps["controls"]
+  followEnvironment: ViewPointTabProps["followEnvironment"]
   title: string
   statusOwner: string
   displayId: string

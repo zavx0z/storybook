@@ -13,12 +13,13 @@ export declare namespace StorybookAppWebPageAgentBridge {
 @property [waitForStableScope] - Ожидает transition; после HMR возвращает нового владельца bridge.
 */
   export type Input = Readonly<{
-    packageId: string
-    revision: string
+    packageId: string | null
+    revision: string | null
     graphDigest: string
     shell: Shell
     getRoute(): string
-    getModel(): Readonly<{selectedNode: Pick<ClientNode, "id" | "kind">, tabActiveId: string}>
+    getModel(): Readonly<{selectedNode: Pick<ClientNode, "id" | "kind">, tabActiveId: string}> | null
+    navigateWorkspace?(input: Readonly<{expectedPackageId: string | null; packageId: string | null; route: string; revision?: string; url?: string; followEnvironment?: true}>): Promise<void>
     navigate(route: string): Promise<void>
     selectScenario?(value: string): void
     applyRevision(revision: string): Promise<void>
@@ -29,9 +30,9 @@ export declare namespace StorybookAppWebPageAgentBridge {
   /** Действующий bridge страницы; dispose освобождает inspector и свой global binding. */
   export type Output = Readonly<{
     protocol: "external-storybook-agent-bridge/1"
-    call(method: "identity" | "inspect" | "interact" | "capture" | "applyRevision", params?: unknown): Promise<unknown>
+    call(method: "identity" | "inspect" | "interact" | "capture" | "applyRevision" | "navigate", params?: unknown): Promise<unknown>
     invoke(request: Request): Promise<unknown>
-    updateIdentity(packageId: string, revision: string, graphDigest: string): void
+    updateIdentity(packageId: string | null, revision: string | null, graphDigest: string): void
     dispose(): void
   }>
 }

@@ -141,7 +141,7 @@ test("закрытие ожидания во время refresh не отмен�
         return discover(...args)
       },
       browserLifecycle: {
-        openPackage: unavailable, listViews: unavailable, inspect: unavailable,
+        currentWorkspace: unavailable, openPackage: unavailable, listViews: unavailable, inspect: unavailable,
         interact: unavailable, capture: unavailable, close: unavailable,
         readCapture() { throw new Error("Нет снимков") },
         getView() { throw new Error("Нет представлений") },

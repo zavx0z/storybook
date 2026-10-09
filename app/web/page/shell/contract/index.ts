@@ -30,10 +30,13 @@ export declare namespace StorybookAppWebPageShell {
   }>
 
   type Output = Readonly<{
-    /** Все предметы находятся в одном Space; выбор сохраняет их Displays и состояние. */
-    configureSubjects(items: readonly StorybookShellSubject[], onSelect: (id: string) => void, onDemand?: (id: string) => void): void
+    /** Repo имеют самостоятельные Display; пакеты внутри Repo сохраняют собственный UI в общей поверхности. */
+    configureSubjects(items: readonly StorybookShellSubject[], onSelect: (id: string, focus?: boolean) => void, onDemand?: (id: string) => void): void
     createSubjectView(options: Readonly<{id: string; title: string; userState?: StorybookShellUserState}>): Output
     selectSubject(id: string, focus?: boolean): void
+    readonly followEnvironment: boolean
+    setFollowEnvironment(enabled: boolean): void
+    subscribeFollowEnvironment(listener: () => void): () => void
     releaseSubjectView(id: string): void
     document: SemanticDocument
     browserDocument: globalThis.Document

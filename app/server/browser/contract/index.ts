@@ -11,7 +11,7 @@ import type {
   StoredStorybookCapture,
 } from "./types"
 
-/** Контракт жизненного цикла точных вкладок одного внешнего Storybook. */
+/** Контракт единого пространства внешнего Storybook. */
 export declare namespace StorybookAppServerBrowser {
   /**
   Приватные директории состояния и снимков, а также необязательный клиент Chrome.
@@ -33,10 +33,10 @@ export declare namespace StorybookAppServerBrowser {
   }>
 
   /**
-  Один владелец открытия, инвентаря, взаимодействия и снимков вкладок.
+  Один владелец открытия, инвентаря, взаимодействия и снимков пространства.
 
-  @property openPackage - Открывает точный пакет в подходящей вкладке или
-  создаёт фоновую; ошибка сохраняет имя и этап операции.
+  @property openPackage - Выбирает пакет или корень Project в общем пространстве.
+  Первое открытие создаёт одну страницу; переход сохраняет её realm.
 
   @property listViews - Читает только принадлежащие указанному origin views.
 
@@ -61,7 +61,12 @@ export declare namespace StorybookAppServerBrowser {
       identity: StorybookBridgeIdentity
       reused: boolean
     }>>
-    /** При заданном пакете его канонический urlPath отсекает чужие и вложенные пакеты до чтения JS-мостов. */
+    /** Читает единственное выбранное пространство, не открывая браузер. */
+    currentWorkspace(origin: string, signal?: AbortSignal, packages?: readonly StorybookBrowserPackage[]): Promise<Readonly<{
+      view: StorybookPublicView
+      identity: StorybookBridgeIdentity
+    }> | null>
+    /** Возвращает выбранный адрес; иной packageId даёт пустой список. */
     listViews(origin: string, signal?: AbortSignal, packages?: readonly StorybookBrowserPackage[], packageId?: string): Promise<readonly StorybookPublicView[]>
     getView(viewId: string): StorybookPublicView
     applyRevision?(viewId: string, revision: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>

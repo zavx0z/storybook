@@ -19,7 +19,7 @@ export declare namespace StorybookAppWebPageShellViewpointControls {
     restoreCamera(): void
     getSnapshot(): Readonly<{ready: boolean, frozen: boolean}>
     subscribe(listener: () => void): () => void
-    bind(viewPoint: ViewPointElement, fitView: () => void, canSaveCamera?: () => boolean): void
+    bind(viewPoint: ViewPointElement, fitView: () => void, canSaveCamera?: () => boolean, zoomView?: (factor: number) => boolean): void
     toggleFrozen(): void
     zoom(factor: number): void
     fit(): void
