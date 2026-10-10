@@ -13,10 +13,10 @@ Host Storybook сохраняет видимость, размер и полож
 
 @packageDocumentation
 */
-import {useId, useRef, useState} from "@zavx0z/immersive-component"
-import {Window} from "@zavx0z/immersive-ui-component"
-import {WindowControl} from "@zavx0z/immersive-ui-component"
-import {Tab} from "@zavx0z/immersive-ui-component"
+import {useId, useRef, useState} from "@zavx0z/immersive/XReact"
+import {Window} from "@zavx0z/immersive/ui"
+import {WindowControl} from "@zavx0z/immersive/ui"
+import {Tab} from "@zavx0z/immersive/ui"
 import CatalogPanel from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 import {normalizeMinimapState} from "./src/state"
 import type {StorybookAppWebPageShellMinimap} from "./contract"

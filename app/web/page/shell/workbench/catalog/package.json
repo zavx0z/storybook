@@ -10,12 +10,9 @@
   },
   "dependencies": {
     "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": "workspace:*",
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0",
-    "@zavx0z/immersive-ui-theme-icon": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-dom": "^0.0.0",
-    "@zavx0z/immersive-headless": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

@@ -14,7 +14,7 @@ const navigatePackage = WebNavigationOwner.navigatePackage
 import ReadGraph from "@zavx0z/storybook-package-graph-read"
 import {attachPickedDirectory, pickStorybookDirectory} from "./src/directory-picker.ts"
 
-import type {CustomEvent} from "@zavx0z/immersive-dom"
+import type {CustomEvent} from "@zavx0z/immersive"
 import indexedWorkbenchAuthorStyleSheetSources from "@zavx0z/storybook-app-web-page-style-sheets"
 import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 type WorkbenchCatalogAction = Parameters<StorybookAppWebPageShellWorkbenchCatalog.Input["onAction"]>[0]

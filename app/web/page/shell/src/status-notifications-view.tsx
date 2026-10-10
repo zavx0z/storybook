@@ -1,5 +1,5 @@
-import {useSyncExternalStore} from "@zavx0z/immersive-component"
-import {Notification} from "@zavx0z/immersive-ui-component"
+import {useSyncExternalStore} from "@zavx0z/immersive/XReact"
+import {Notification} from "@zavx0z/immersive/ui"
 import type {createStatusNotifications} from "./status-notifications"
 
 /** Статусы Display используют готовые уведомления в нижнем левом углу общего HUD. */

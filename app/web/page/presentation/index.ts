@@ -5,8 +5,8 @@
 
 @packageDocumentation
 */
-import type {Element, HTMLElement} from "@zavx0z/immersive-dom"
-import {createRoot} from "@zavx0z/immersive-component"
+import type {Element, HTMLElement} from "@zavx0z/immersive"
+import {createRoot} from "@zavx0z/immersive/XReact"
 import type {StorybookAppWebPagePresentation} from "./contract"
 export type {StorybookAppWebPagePresentation} from "./contract"
 

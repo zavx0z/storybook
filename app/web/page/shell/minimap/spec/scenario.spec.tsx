@@ -1,7 +1,7 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import {MouseEvent} from "@zavx0z/immersive-dom"
-import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import {MouseEvent} from "@zavx0z/immersive"
+import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
 import Minimap from "../index.tsx"
 
 describe.each([

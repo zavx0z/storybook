@@ -1,11 +1,11 @@
-import {component, createRoot} from "@zavx0z/immersive-component"
-import {createDocument, Event, type HTMLElement} from "@zavx0z/immersive-dom"
+import {component, createRoot} from "@zavx0z/immersive/XReact"
+import {createDocument, Event, type HTMLElement} from "@zavx0z/immersive"
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
 type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
-import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
+import {createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
 import {createScenarioPresentation} from "../src/scenario-presentation.ts"
 import StorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
 import {ChildrenFixture, Content, FixedSizeFixture, StatefulFixture} from "./fixture/scenario-presentation.tsx"

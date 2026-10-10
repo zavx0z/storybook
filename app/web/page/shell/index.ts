@@ -19,7 +19,7 @@ import {createEnvironmentFollowState} from "./src/environment-follow-state"
 import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 import {createViewPointPersistence} from "./src/viewpoint-persistence.ts"
 import createViewPointControls from "@zavx0z/storybook-app-web-page-shell-viewpoint-controls"
-import {DisplayElement} from "@zavx0z/immersive-dom/display"
+import {DisplayElement} from "@zavx0z/immersive"
 import {createWebRebuildAction} from "./src/web-rebuild.ts"
 import {createMinimapPersistence} from "./src/minimap-persistence.ts"
 import {createExecutionWindowPersistence} from "./src/execution-window-persistence"
@@ -28,16 +28,16 @@ import {createMcpWindowPersistence} from "./src/mcp-window-persistence.ts"
 import {createStatusNotifications} from "./src/status-notifications"
 import {createMcpRequestSource} from "./src/mcp-requests"
 import {createNavigationExpansion} from "./src/navigation-persistence.ts"
-import {createRoot as createBrowserRoot, type Presentation as Root, type RootProjection} from "@zavx0z/immersive-browser/integration"
-import {loadDocumentDefaultFont} from "@zavx0z/immersive-engine/default-font"
+import {createRoot as createBrowserRoot, type Presentation as Root, type RootProjection} from "@zavx0z/immersive/XReact/browser/integration"
+import {loadDocumentDefaultFont} from "@zavx0z/immersive/engine"
 import {StorybookApp} from "./src/application.tsx"
 import type {StorybookAppProps} from "./src/application-props"
-import {component} from "@zavx0z/immersive-component"
+import {component} from "@zavx0z/immersive/XReact"
 import {createSubjectGraphState} from "./src/subject-graph-state.ts"
 import {createSubjectGraph} from "./src/subject-graph.ts"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import {HTMLElement as SemanticHTMLElement, type Node as SemanticNode} from "@zavx0z/immersive-dom"
-import {HUDElement} from "@zavx0z/immersive-dom/hud"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import {HTMLElement as SemanticHTMLElement, type Node as SemanticNode} from "@zavx0z/immersive"
+import {HUDElement} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 type Workbench = StorybookAppWebPageShellWorkbench.Output
 
@@ -489,7 +489,7 @@ async function createExternalStorybookShell(
     ): void => {
       assertActive(disposed)
       if (!(target instanceof SemanticHTMLElement)) {
-        throw new TypeError("Storybook native key target must be an @zavx0z/immersive-dom HTMLElement")
+        throw new TypeError("Storybook native key target must be an @zavx0z/immersive HTMLElement")
       }
       const projection = projectionFor(target)
       if (projection.kind === "space") {
@@ -508,7 +508,7 @@ async function createExternalStorybookShell(
     const dispatchNativeText = (target: SemanticHTMLElement, text: string): boolean => {
       assertActive(disposed)
       if (!(target instanceof SemanticHTMLElement)) {
-        throw new TypeError("Storybook native text target must be an @zavx0z/immersive-dom HTMLElement")
+        throw new TypeError("Storybook native text target must be an @zavx0z/immersive HTMLElement")
       }
       const projection = projectionFor(target)
       if (projection.kind === "space") throw new Error("Storybook native text target has no Display or HUD projection")

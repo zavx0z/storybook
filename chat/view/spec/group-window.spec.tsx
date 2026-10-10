@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
+import {createHeadless} from "@zavx0z/immersive/headless"
 import {createHistoryWindow, type HistoryController} from "@zavx0z/chat/history"
 import type {HistoryOccurrence} from "@zavx0z/storybook-chat-session"
 import type {StorybookChatView} from "../contract"

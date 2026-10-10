@@ -5,7 +5,7 @@ Bridge удерживает inspector и публикует себя в realm д
 
 @packageDocumentation
 */
-import {createDomInspector} from "@zavx0z/immersive-devtool"
+import {createDomInspector} from "@zavx0z/immersive/diagnostics"
 import type {StorybookAppWebPageAgentBridge} from "./contract"
 import type {Request} from "./contract/request"
 import {STORYBOOK_AGENT_BRIDGE_GLOBAL, STORYBOOK_AGENT_BRIDGE_PROTOCOL} from "./src/protocol"

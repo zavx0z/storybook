@@ -1,4 +1,4 @@
-import type {Document} from "@zavx0z/immersive-dom"
+import type {Document} from "@zavx0z/immersive"
 import type {
   WorkbenchAddress,
   WorkbenchCatalogManagement,

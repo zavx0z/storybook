@@ -112,7 +112,7 @@ describe.each([
 test("Результат JSX не подменяет заявленные точки вставки", async () => {
   const fixture = await createFixture("jsx-component")
   try {
-    await fixture.write("contract/index.ts", 'import type {JSX} from "@zavx0z/immersive-jsx"\nexport declare namespace StorybookContractsSpecFixtureJsxComponent {type Input = {readonly title: string}\ntype Slots = {readonly default: JSX.Element, readonly header?: JSX.Element}\ntype Output = JSX.Element<{readonly wrong: JSX.Element}>}\n')
+    await fixture.write("contract/index.ts", 'import type {JSX} from "@zavx0z/immersive/XReact"\nexport declare namespace StorybookContractsSpecFixtureJsxComponent {type Input = {readonly title: string}\ntype Slots = {readonly default: JSX.Element, readonly header?: JSX.Element}\ntype Output = JSX.Element<{readonly wrong: JSX.Element}>}\n')
     const result = await readContract({path: fixture.root})
     expect(result.entries[0]?.namespaces[0]?.slotsLinked,
       "Наличие JSX.Element само по себе не связывает его чужую форму wrong с объявленными Slots").toBeFalse()

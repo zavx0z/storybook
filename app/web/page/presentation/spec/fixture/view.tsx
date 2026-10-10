@@ -1,4 +1,4 @@
-import {useState} from "@zavx0z/immersive-component"
+import {useState} from "@zavx0z/immersive/XReact"
 
 export type ExampleProps = Readonly<{label: string}>
 

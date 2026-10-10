@@ -9,7 +9,7 @@ describe.each([
   {name: "Первый host entry", props: {entry: "/__storybook/shared/entries/package-a.js", moduleUrl: "/__storybook/shared/kernel/dom-a.js", epoch: "08e40fe383987c1e3088f1b3dbb938a637cd69ecd475ccdd62783b72317b45f1"}},
   {name: "Новый модуль платформы", props: {entry: "/__storybook/shared/entries/package-b.js", moduleUrl: "/__storybook/shared/kernel/dom-b.js", epoch: "c61301e15669e35e2fe9c22979a0096a5fc7646bebdfc48be01e91313f2c295a"}},
 ])("$name", ({props}) => {
-  const modules = [{specifier: "@zavx0z/immersive-dom", sourcePath, url: props.moduleUrl}]
+  const modules = [{specifier: "@zavx0z/immersive", sourcePath, url: props.moduleUrl}]
   const identity = Environment.identity(props.entry, modules, hostEpoch)
 
   test("Эпоха платформы", () => {

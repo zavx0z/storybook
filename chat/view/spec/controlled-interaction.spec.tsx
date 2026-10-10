@@ -1,7 +1,7 @@
 /** Беседа показывает историю, управляемый черновик и действия текущего исполнения. */
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import {Event, InputEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import {Event, InputEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/immersive"
 import {fixtureImageData, fixtureImageDraws, fixtureImageEncodings, fixtureDecodedEncodings, installFixtureImageEncoder} from "./fixture/media-host"
 import StorybookChatView, {type FixtureContract as Contract} from "./fixture/history"
 

@@ -1,1 +1,11 @@
-{"name":"@contract-fixture/workspace","type":"module","exports":{".":"./index.tsx"},"dependencies":{"@zavx0z/immersive-jsx":"workspace:*","@contract-fixture/part":"workspace:*"}}
+{
+  "name": "@contract-fixture/workspace",
+  "type": "module",
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "dependencies": {
+    "@contract-fixture/part": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
+  }
+}

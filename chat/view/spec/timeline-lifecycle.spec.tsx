@@ -1,7 +1,7 @@
 /** Обновление props сохраняет keyed запись и её раскрытие, включая повторную проекцию снимка. */
 import {expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import type {HTMLButtonElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import type {HTMLButtonElement} from "@zavx0z/immersive"
 import StorybookChatView, {type FixtureContract as Contract} from "./fixture/history"
 
 test("дополнение вызова сохраняет раскрытие по id и не создаёт детали закрытого контекста", async () => {

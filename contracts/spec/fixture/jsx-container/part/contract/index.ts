@@ -1,4 +1,4 @@
-import type {JSX} from "@zavx0z/immersive-jsx"
+import type {JSX} from "@zavx0z/immersive/XReact"
 
 /** Формы взаимодействия самостоятельного владельца примера. */
 export declare namespace StorybookContractsSpecFixtureJsxContainerPart {

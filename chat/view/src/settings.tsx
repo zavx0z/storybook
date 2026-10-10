@@ -1,8 +1,8 @@
-import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
-import {observeElementLayout} from "@zavx0z/immersive-dom"
-import Button from "@zavx0z/immersive-ui-component-button-basic"
-import SelectField from "@zavx0z/immersive-ui-component-field-select"
-import svgIcon from "@zavx0z/immersive-tech-svg-encode"
+import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive/XReact"
+import {observeElementLayout} from "@zavx0z/immersive"
+import {Button} from "@zavx0z/immersive/ui"
+import {SelectField} from "@zavx0z/immersive/ui"
+import svgIcon from "@zavx0z/immersive/ui/svg"
 import type {StorybookChatView as Contract} from "../contract"
 
 export const effortLabels: Readonly<Record<string, string>> = {

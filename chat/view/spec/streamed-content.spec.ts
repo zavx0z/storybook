@@ -1,7 +1,7 @@
 /** Границы транспортных кусочков не становятся абзацами или разрывами Markdown. */
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocument} from "@zavx0z/immersive-dom"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocument} from "@zavx0z/immersive"
 import {FixtureTimeline as ChatTimeline, type FixtureContract as Contract} from "./fixture/history"
 
 test("потоковый и повторно открытый ответ показывают целые слова и Markdown", async () => {

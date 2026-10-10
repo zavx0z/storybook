@@ -7,6 +7,8 @@ type StorybookPackageCompilerInput = StorybookTechBuildCompiler.Input
 Собирает граф физических владельцев для компиляции пакета и общей оболочки.
 Объявление зависимости задаёт имя и совместимость; установленная ссылка на
 исходники сохраняет локального владельца и при обычном диапазоне версий.
+Готовая JS-поставка с публичной .d.ts участвует в точном разрешении exports,
+но её исходники и внутренние зависимости не становятся входами компилятора.
 Ссылки внутри node_modules остаются установками менеджера пакетов и не
 расширяют граф исходников. Resolver и JSX compiler используют одни границы.
 
@@ -30,8 +32,8 @@ import {
   sameStorybookPackageOwner,
 } from "./owner-identity.ts"
 
-const JSX_IMPORT_SOURCE = "@zavx0z/immersive-jsx"
-const JSX_BUN_PACKAGE = "@zavx0z/immersive-jsx-compiler-bun"
+const JSX_IMPORT_SOURCE = "@zavx0z/immersive/XReact"
+const JSX_BUN_PACKAGE = "@zavx0z/immersive/compiler"
 const LOCAL_DEPENDENCY_PREFIXES = ["link:", "workspace:", "file:", "portal:"] as const
 const PHYSICAL_PROBE_EXTENSIONS = /(?:\.[cm]?[jt]sx?|\.d\.ts)$/u
 const physicalOwnerRootsCache = new Map<string, readonly string[]>()
@@ -41,6 +43,7 @@ type PackageManifest = Readonly<{
   root: string
   name: string
   localDependencies: ReadonlyMap<string, string>
+  ready: boolean
 }>
 
 type OwnerDependencyGraph = Readonly<{
@@ -196,21 +199,24 @@ function resolveCompilerContext(
     ? effectiveJsxCompilerConfig(repo, packageRoot, sourcePaths)
     : Object.freeze({jsxImportSource: undefined, configPaths: Object.freeze([])})
   const jsxImportSource = effectiveConfig.jsxImportSource
-  const compileOwnerJsx = hasConsumerModules && jsxImportSource === JSX_IMPORT_SOURCE
+  const publicOwner = dependencyGraph.packageRootsByName.get(barePackageName(JSX_IMPORT_SOURCE))
+  const sourceJsxOwner = jsxImportSource === undefined ? undefined : dependencyGraph.packageRootsByName.get(barePackageName(jsxImportSource))
+  const compileOwnerJsx = hasConsumerModules && (jsxImportSource === JSX_IMPORT_SOURCE ||
+    (publicOwner === repo && sourceJsxOwner !== undefined && inside(repo, sourceJsxOwner)))
   const jsxRoot = compileOwnerJsx
-    ? dependencyGraph.packageRootsByName.get(JSX_IMPORT_SOURCE) ?? (
-      dependencyGraph.declaredDependencies.has(JSX_IMPORT_SOURCE)
-        ? toolGraph.packageRootsByName.get(JSX_IMPORT_SOURCE)
+    ? dependencyGraph.packageRootsByName.get(barePackageName(JSX_IMPORT_SOURCE)) ?? (
+      dependencyGraph.declaredDependencies.has(barePackageName(JSX_IMPORT_SOURCE))
+        ? toolGraph.packageRootsByName.get(barePackageName(JSX_IMPORT_SOURCE))
         : undefined
     )
-    : toolGraph.packageRootsByName.get(JSX_IMPORT_SOURCE)
+    : toolGraph.packageRootsByName.get(barePackageName(JSX_IMPORT_SOURCE))
   if (jsxRoot === undefined) {
     throw new Error(compileOwnerJsx
       ? `${JSX_IMPORT_SOURCE} is required by tsconfig but is not a linked owner dependency`
       : `${JSX_IMPORT_SOURCE} is required by the shared Storybook Workbench compiler`)
   }
-  const adapterRoot = (compileOwnerJsx ? dependencyGraph.packageRootsByName.get(JSX_BUN_PACKAGE) : undefined)
-    ?? toolGraph.packageRootsByName.get(JSX_BUN_PACKAGE)
+  const adapterRoot = (compileOwnerJsx ? dependencyGraph.packageRootsByName.get(barePackageName(JSX_BUN_PACKAGE)) : undefined)
+    ?? toolGraph.packageRootsByName.get(barePackageName(JSX_BUN_PACKAGE))
   if (adapterRoot === undefined) {
     throw new Error(`${JSX_BUN_PACKAGE} is required by the Storybook JSX compiler`)
   }
@@ -218,7 +224,7 @@ function resolveCompilerContext(
     ...(compileOwnerJsx ? [dependencyGraph] : []),
     toolGraph,
   )
-  const adapterPath = resolveJsxAdapter(packageRoot, repo, adapterRoot, toolRoot)
+  const adapterPath = resolveJsxAdapter(adapterRoot)
   return Object.freeze({
     repo,
     packageRootsByName,
@@ -502,21 +508,22 @@ function discoverOwnerDependencyGraph(
   while (queue.length > 0) {
     const root = queue.shift()!
     if (manifestsByRoot.has(root)) continue
-    const manifest = readPackageManifest(root, root === repo || root === packageRoot)
+    const manifest = readPackageManifest(root, root === repo || root === packageRoot, root === repo || root === packageRoot)
     manifestsByRoot.set(root, manifest)
     for (const name of manifest.declaredDependencies) declaredDependencies.add(name)
     registerPackageRoot(packageRootsByName, manifest.name, root)
     for (const [name, specifier] of [...manifest.localDependencies].sort(([left], [right]) =>
       left < right ? -1 : left > right ? 1 : 0)) {
       const dependencyRoot = resolveLocalDependencyRoot(name, specifier, root)
-      const dependencyManifest = readPackageManifest(dependencyRoot, false)
+      const dependencyManifest = readPackageManifest(dependencyRoot, false, dependencyRoot === repo || dependencyRoot === packageRoot)
       if (dependencyManifest.name !== name) {
         throw new Error(
           `Resolved owner dependency identity mismatch: expected ${name}, found ${dependencyManifest.name}`,
         )
       }
       registerPackageRoot(packageRootsByName, name, dependencyRoot)
-      if (!manifestsByRoot.has(dependencyRoot)) queue.push(dependencyRoot)
+      if (!dependencyManifest.ready && !manifestsByRoot.has(dependencyRoot)) queue.push(dependencyRoot)
+      else if (dependencyManifest.ready) manifestsByRoot.set(dependencyRoot, dependencyManifest)
     }
   }
 
@@ -530,6 +537,7 @@ function discoverOwnerDependencyGraph(
   }
   const sourceOwners = new Map<string, string>()
   for (const [name, root] of packageRootsByName) {
+    if (manifestsByRoot.get(root)?.ready) continue
     for (const physicalRoot of physicalOwnerRoots(root)) {
       const previous = sourceOwners.get(physicalRoot)
       if (previous !== undefined && previous !== name) {
@@ -598,7 +606,7 @@ function packagePhysicalProbeFiles(root: string): readonly string[] {
   const files: string[] = []
   const visit = (directory: string): void => {
     for (const entry of readdirSync(directory, {withFileTypes: true})) {
-      if (entry.isSymbolicLink() || entry.name === "node_modules" || entry.name === ".git") continue
+      if (entry.isSymbolicLink() || entry.name.startsWith(".") || ["node_modules", "tmp", "dist"].includes(entry.name)) continue
       const path = join(directory, entry.name)
       if (entry.isDirectory()) visit(path)
       else if (entry.isFile() && PHYSICAL_PROBE_EXTENSIONS.test(entry.name)) files.push(path)
@@ -635,6 +643,7 @@ function collectPackageTargets(value: unknown, output: string[]): void {
 function readPackageManifest(
   root: string,
   includeDevDependencies: boolean,
+  authored: boolean,
 ): PackageManifest {
   const manifestPath = join(root, "package.json")
   const manifest = parseJsonObject(manifestPath, "owner package manifest")
@@ -643,6 +652,8 @@ function readPackageManifest(
   }
   const dependencies = new Map<string, string>()
   const declaredDependencies = new Set<string>()
+  const ready = !authored && isReadyPackage(root, manifest)
+  if (ready) return Object.freeze({root, name: manifest.name, ready, localDependencies: dependencies, declaredDependencies})
   const sectionNames = [
     "dependencies",
     "optionalDependencies",
@@ -672,8 +683,28 @@ function readPackageManifest(
     declaredDependencies: Object.freeze(declaredDependencies),
     root,
     name: manifest.name,
+    ready,
     localDependencies: dependencies,
   })
+}
+
+/** Готовая публичная JS-поставка читается через exports и .d.ts без обхода её исходников. */
+function isReadyPackage(root: string, manifest: Record<string, unknown>): boolean {
+  const exports = manifest.exports
+  const entry = isObject(exports) && Object.keys(exports).some(key => key.startsWith("."))
+    ? exports["."] : exports
+  const runtime = conditionalExportTarget(entry, ["browser", "import"])
+    ?? (exports === undefined ? conditionalExportTarget(manifest.module ?? manifest.main, ["browser", "import"]) : null)
+  const declarations = isObject(entry) ? conditionalExportTarget(entry, ["types"]) : null
+  const types = declarations?.match(/\.d\.[cm]?ts$/u) ? declarations : manifest.types ?? manifest.typings
+  if (typeof runtime !== "string" || !/\.[cm]?js$/u.test(runtime) ||
+    typeof types !== "string" || !/\.d\.[cm]?ts$/u.test(types)) return false
+  for (const target of [runtime, types]) {
+    if (!target.startsWith("./") || target.includes("*")) return false
+    const file = canonicalLexicalFile(resolve(root, target), "ready owner package export")
+    if (!inside(root, file)) throw new Error(`Ready owner export escaped its package: ${file}`)
+  }
+  return true
 }
 
 /**
@@ -757,49 +788,13 @@ function findResolvedPackageRoot(entry: string, expectedName: string): string | 
   }
 }
 
-function resolveJsxAdapter(
-  packageRoot: string,
-  repo: string,
-  adapterRoot: string,
-  toolRoot: string,
-): string {
-  const manifest = parseJsonObject(
-    join(adapterRoot, "package.json"),
-    "JSX Bun owner package manifest",
+function resolveJsxAdapter(adapterRoot: string): string {
+  return resolveExactOwnerExport(
+    adapterRoot,
+    barePackageName(JSX_BUN_PACKAGE),
+    JSX_BUN_PACKAGE,
+    ["bun", "node", "import"],
   )
-  const declared = conditionalExportTarget(
-    isObject(manifest.exports) ? manifest.exports["."] : manifest.exports,
-  )
-  if (declared !== null) {
-    if (!declared.startsWith("./")) {
-      throw new Error(`JSX compiler export must be package-relative: ${declared}`)
-    }
-    const adapterPath = canonicalLexicalFile(
-      resolve(adapterRoot, declared),
-      "JSX compiler adapter",
-    )
-    if (!inside(adapterRoot, adapterPath)) {
-      throw new Error(`JSX compiler adapter escaped its owner package: ${adapterPath}`)
-    }
-    return adapterPath
-  }
-  const attempts = [...new Set([
-    packageRoot,
-    repo,
-    toolRoot,
-  ])]
-  for (const fromRoot of attempts) {
-    let resolved: string
-    try {
-      resolved = Bun.resolveSync(JSX_BUN_PACKAGE, fromRoot)
-    } catch {
-      continue
-    }
-    const adapterPath = canonicalLexicalFile(resolved, "JSX compiler adapter")
-    if (!inside(adapterRoot, adapterPath)) continue
-    return adapterPath
-  }
-  throw new Error(`Cannot resolve ${JSX_BUN_PACKAGE} from owner dependency graph`)
 }
 
 

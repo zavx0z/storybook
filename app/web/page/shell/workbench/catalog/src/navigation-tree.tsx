@@ -1,9 +1,9 @@
-import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
-import {Tree} from "@zavx0z/immersive-ui-component"
-import type {ImmersiveUiComponentWidgetTree} from "@zavx0z/immersive-ui-component"
+import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive/XReact"
+import {Tree} from "@zavx0z/immersive/ui"
+import type {ImmersiveUiComponentWidgetTree} from "@zavx0z/immersive/ui"
 type TreeHandle = NonNullable<Parameters<NonNullable<ImmersiveUiComponentWidgetTree.Input["onReady"]>>[0]>
 type TreeItem = ImmersiveUiComponentWidgetTree.Input["items"][number]
-import {closeIcon} from "@zavx0z/immersive-ui-theme-icon"
+import {closeIcon} from "@zavx0z/immersive/ui/icons"
 import Navigation, {type StorybookAppWebPageShellWorkbenchCatalogNavigation} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation"
 type NavigationTopLevelProjection = ReturnType<StorybookAppWebPageShellWorkbenchCatalogNavigation.Output["projectNavigation"]>["topLevel"][number]
 import type {Item, Group, Expansion} from "../contract/navigation"

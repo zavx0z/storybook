@@ -9,7 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/immersive-jsx": "^0.0.0",
     "@zavx0z/storybook-package-build-scheduler": "workspace:*",
     "@zavx0z/storybook-tech-build-environment": "workspace:*",
     "@zavx0z/storybook-package-session": "workspace:*",
@@ -18,14 +17,15 @@
     "@zavx0z/storybook-package-build-conformance": "workspace:*",
     "@zavx0z/storybook-package-build-scenarios": "workspace:*",
     "@zavx0z/storybook-package-build-inputs": "workspace:*",
-    "@zavx0z/storybook-tech-build-worker": "workspace:*"
+    "@zavx0z/storybook-tech-build-worker": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-headless": "^0.0.0",
     "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-package-revision": "workspace:*",
     "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
-    "@zavx0z/storybook-specs-reader": "workspace:*"
+    "@zavx0z/storybook-specs-reader": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

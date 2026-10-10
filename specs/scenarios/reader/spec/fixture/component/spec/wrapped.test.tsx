@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
+import {createHeadless} from "@zavx0z/immersive/headless"
 import {ChildrenFixture as Example} from "./fixture/children"
 
 describe.each([{name: "Обёртка", props: {label: "Текст"}}])("$name", async ({props}) => {

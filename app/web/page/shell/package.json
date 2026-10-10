@@ -9,17 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
-    "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
     "@zavx0z/storybook-app-web-protocol": "workspace:*",
-    "@zavx0z/immersive-markdown": "^0.0.0",
-    "@zavx0z/immersive-nodes": "^0.0.0",
-    "@zavx0z/immersive-typedoc": "^0.0.0",
-    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
     "@zavx0z/storybook-app-server-requests": "workspace:*",
-    "@zavx0z/immersive-nodes-layout": "^0.0.0",
-    "@zavx0z/immersive-nodes-node": "^0.0.0",
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
     "@zavx0z/storybook-app-web-page-shell-mcp-window": "workspace:*",
@@ -28,19 +19,11 @@
     "@zavx0z/storybook-app-web-page-shell-viewpoint-controls": "workspace:*",
     "@zavx0z/storybook-app-web-page-shell-viewpoint-tab": "workspace:*",
     "@zavx0z/storybook-app-web-page-shell-workbench": "workspace:*",
-    "@zavx0z/immersive-browser": "^0.0.0",
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-dom": "^0.0.0",
-    "@zavx0z/immersive-engine": "^0.0.0",
-    "@zavx0z/immersive-template": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-tab": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0",
     "@zavx0z/storybook-app-web-page-shell-execution-settings": "workspace:*",
-    "@zavx0z/immersive-space": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-renderer-html": "^0.0.0",
-    "@zavx0z/storybook-tech-testing-browser-root": "workspace:*"
+    "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

@@ -33,11 +33,11 @@ describe("Storybook view registry", () => {
     const registry = new StorybookViewRegistry(new Uint8Array(32).fill(7))
     const origin = "http://127.0.0.1:43123"
     const views = registry.synchronize([{
-      targetId: "STRUCTURAL", packageId: "@zavx0z/immersive-nodes-node", route: "diagram/scenarios",
+      targetId: "STRUCTURAL", packageId: "@zavx0z/immersive/nodes/node", route: "diagram/scenarios",
       type: "page", title: "Diagram", url: `${origin}/immersive/nodes/node/diagram?view=scenarios&variant=Круг`,
     }], origin)
     expect(views.map(({packageId, route}) => ({packageId, route}))).toEqual([
-      {packageId: "@zavx0z/immersive-nodes-node", route: "diagram/scenarios"},
+      {packageId: "@zavx0z/immersive/nodes/node", route: "diagram/scenarios"},
     ])
   })
 

@@ -1,3 +1,4 @@
+import {expectNamedUiImport} from "../../test/fixture/ui-ownership.ts"
 import {beforeAll, describe, expect, test} from "bun:test"
 import {
   createDocument,
@@ -8,10 +9,10 @@ import {
   type HTMLButtonElement,
   type HTMLInputElement,
   type HTMLElement,
-} from "@zavx0z/immersive-dom"
-import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
-import uiIcons from "@zavx0z/immersive-ui-theme-icon-set"
-import {isCompiledTemplate} from "@zavx0z/immersive-template/compiled"
+} from "@zavx0z/immersive"
+import {createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
+import uiIcons from "@zavx0z/immersive/ui/icons/set"
+import {isCompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import {WORKBENCH_EVENTS, WORKBENCH_LAYOUT_PROTOCOL, WORKBENCH_REGIONS} from "../src/events"
 import type {Workbench} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"
@@ -96,7 +97,7 @@ describe("compiled Storybook Workbench", () => {
     } finally { workbench.dispose() }
   })
 
-  test("поиск и геометрия шапки Inspector сохраняются при выборе ветки", () => {
+  test("поиск сохраняет node/state при скрытии шапки на ветке и геометрию при возврате", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({document, parent: document, initial: {
       "inspector.subject": {subjectId: "layout", widgetIds: ["source"]},
@@ -112,22 +113,34 @@ describe("compiled Storybook Workbench", () => {
       const inspector = workbench.elements.inspectorHost.querySelector("aside")!
       const header = inspector.querySelector("header")!
       const categories = inspector.querySelector('nav[aria-label="Панели"]')!
-      const search = header.querySelector('input[type="search"]')!
+      const search = header.querySelector('input[type="search"]') as HTMLInputElement
       const geometry = () => {
         const boxes = renderer.flush().boxByNode
         return [inspector, header, categories, search].map(node => {
-          const box = boxes.get(node)!
-          return {x: box.x, y: box.y, width: box.width, height: box.height}
+          const box = boxes.get(node)
+          return box === undefined ? null : {x: box.x, y: box.y, width: box.width, height: box.height}
         })
       }
+      search.value = "Сохранённый поиск"
+      search.dispatchEvent(new Event("input", {bubbles: true}))
       const before = geometry()
       expect(before[1]!.height).toBe(30)
       workbench.selectInspector("tree")
-      expect(geometry()).toEqual(before)
+      // showSearch=false скрывает шапку, сохраняя её DOM и состояние поля.
+      const hidden = geometry()
+      expect(hidden[0]).toEqual(before[0])
+      expect(hidden[1]).toBeNull()
+      expect(hidden[3]).toBeNull()
+      expect(header.getBoundingClientRect()).toMatchObject({width: 0, height: 0})
+      expect(search.getBoundingClientRect()).toMatchObject({width: 0, height: 0})
       expect(workbench.elements.catalog.querySelector('input[type="search"]')).toBeNull()
       expect(header.querySelector('input[type="search"]')).toBe(search)
+      expect(search.value).toBe("Сохранённый поиск")
       workbench.selectInspector("source")
       expect(geometry()).toEqual(before)
+      expect(inspector.querySelector("header")).toBe(header)
+      expect(header.querySelector('input[type="search"]')).toBe(search)
+      expect(search.value).toBe("Сохранённый поиск")
     } finally {
       renderer.dispose()
       workbench.dispose()
@@ -168,10 +181,12 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.elements.tabs.textContent).toBe("")
     const status = workbench.elements.status.querySelector("footer") as HTMLElement | null
     expect(status?.getAttribute("role")).toBe("status")
-    expect(status?.getAttribute("aria-label")).toBe(
-      "Создано для MetaFor · Immersive UI",
-    )
-    expect(status?.textContent).toBe("MetaFor · Immersive UI")
+    // Lead/detail сохраняются в state; видимая проекция StatusRegion показывает Breadcrumbs.
+    expect(workbench.controller.read("status")).toMatchObject({
+      lead: "Создано для ", owner: "MetaFor", detail: " · Immersive UI",
+    })
+    expect(status?.getAttribute("aria-label")).toBe("MetaFor")
+    expect(status?.textContent).toBe("MetaFor")
     expect(workbench.elements.status.querySelectorAll('[role="status"]')).toHaveLength(1)
     expect(workbench.elements.status.querySelector('nav[aria-label="Текущий путь"]')).not.toBeNull()
     expect(workbench.elements.status.querySelector('[aria-current="page"]')?.textContent).toBe("MetaFor")
@@ -527,7 +542,7 @@ describe("compiled Storybook Workbench", () => {
     const view = await Bun.file(new URL("../src/view.tsx", import.meta.url)).text()
     const inspector = await Bun.file(new URL("../src/inspector/panel.tsx", import.meta.url)).text()
     const navigation = await Bun.file(new URL("../src/regions/catalog.tsx", import.meta.url)).text()
-    expect(inspector).toContain('from "@zavx0z/immersive-ui-component/widget/inspector"')
+    expectNamedUiImport(inspector, "Inspector")
     expect(inspector).not.toContain("InspectorSections")
     expect(inspector).not.toContain("uiIcons")
     expect(view).not.toContain("createElement(")

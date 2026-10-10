@@ -3,9 +3,9 @@
 */
 import type {StorybookTechTestingBrowserRoot} from "./contract"
 export type {StorybookTechTestingBrowserRoot} from "./contract"
-import type {ComponentValue} from "@zavx0z/immersive-component"
-import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
-import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/immersive-browser/integration"
+import type {ComponentValue} from "@zavx0z/immersive/XReact"
+import type {JSX} from "@zavx0z/immersive/XReact"
+import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/immersive/XReact/browser/integration"
 
 /** Supplies a deterministic presentation behind the synchronous Browser root contract. */
 export default function presentationRootFixture(factory: StorybookTechTestingBrowserRoot.Input): StorybookTechTestingBrowserRoot.Output {

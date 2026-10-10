@@ -1,6 +1,6 @@
 import McpWindow from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import type {StorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createMcpWindowPersistence} from "../src/mcp-window-persistence"

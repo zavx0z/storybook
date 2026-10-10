@@ -1,4 +1,4 @@
-import {isCompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {isCompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import {
   breakpointIcon,
   databaseIcon,
@@ -9,7 +9,7 @@ import {
   languageIcon,
   settingsIcon,
   visibilityOnIcon,
-} from "@zavx0z/immersive-ui-theme-icon"
+} from "@zavx0z/immersive/ui/icons"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorValues,
@@ -17,7 +17,7 @@ import type {
   WorkbenchViewState,
 } from "../../contract/workbench.ts"
 import {requiredText} from "../validation.ts"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import {AgentsWidget} from "./agents-widget"
 import {ChatWidget} from "./chat-widget.tsx"
 import type {WorkbenchChatContext} from "../../contract/workbench.ts"

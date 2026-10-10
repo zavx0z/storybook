@@ -9,10 +9,9 @@
   },
   "description": "Управление существующим ViewPoint страницы: движение, масштаб, заморозка и вписывание",
   "dependencies": {
-    "@zavx0z/immersive-dom": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-space": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

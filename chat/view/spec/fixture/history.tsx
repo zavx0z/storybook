@@ -1,4 +1,4 @@
-import {useState} from "@zavx0z/immersive-component"
+import {useState} from "@zavx0z/immersive/XReact"
 import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
 import View, {type StorybookChatView} from "../../index"
 import {fixtureHistory} from "./history-data"

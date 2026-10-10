@@ -5,7 +5,7 @@ const {pattern: EXTERNAL_STORYBOOK_PACKAGE_ID_PATTERN, package: validateExternal
 describe("package.json identity law", () => {
   test("accepts exact scoped and unscoped package names", () => {
     const pattern = new RegExp(EXTERNAL_STORYBOOK_PACKAGE_ID_PATTERN, "u")
-    for (const name of ["bulk", "@fixture/components", "@zavx0z/immersive-dom"]) {
+    for (const name of ["bulk", "@fixture/components", "@zavx0z/immersive"]) {
       expect(validateExternalStorybookPackageId(name, "package.json name")).toBe(name)
       expect(pattern.test(name)).toBeTrue()
     }

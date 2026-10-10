@@ -1,5 +1,5 @@
 import type {WorkbenchPresentationProjection} from "../types.ts"
-import {Pane} from "@zavx0z/immersive-ui-component"
+import {Pane} from "@zavx0z/immersive/ui"
 
 export type PreviewRegionProps = Readonly<{
   label: string

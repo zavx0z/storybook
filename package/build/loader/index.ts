@@ -102,9 +102,9 @@ function generateStorybookLoaderSource(
 
   return [
     ...(scenarios.some(scenario => scenario.kind === "component" && scenario.variants.some(variant => variant.jsxProps || variant.slots !== undefined))
-      ? ['import {component as bindStorybookJsx} from "@zavx0z/immersive-component"'] : []),
+      ? ['import {component as bindStorybookJsx} from "@zavx0z/immersive/XReact"'] : []),
     ...(scenarios.some(scenario => scenario.kind === "component" && scenario.variants.some(variant => variant.slots !== undefined))
-      ? ['import {slotContents as storybookSlotContents} from "@zavx0z/immersive-template/compiled"'] : []),
+      ? ['import {slotContents as storybookSlotContents} from "@zavx0z/immersive/XReact/compiled"'] : []),
     scenarioVariants,
     `export const storybookRevisionUrl = ${jsString(revisionUrl)}`,
     `export const STORYBOOK_PACKAGE_SCENARIO_LOADERS = new Map([`,

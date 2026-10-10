@@ -6,7 +6,7 @@
 */
 import {realpathSync, statSync} from "node:fs"
 import {dirname, isAbsolute, relative, resolve} from "node:path"
-import {markdownDestinations} from "@zavx0z/immersive-markdown/destination"
+import {markdownDestinations} from "@zavx0z/immersive/markdown/destination"
 
 const EXTERNAL_STORYBOOK_DOCUMENTATION_MAX_BYTES = 1_048_576
 

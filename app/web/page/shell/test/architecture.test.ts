@@ -1,3 +1,4 @@
+import {expectNamedUiImport} from "./fixture/ui-ownership.ts"
 import {expect, test} from "bun:test"
 
 test("uses no visible imperative element construction or global Markdown CSS", async () => {
@@ -6,7 +7,7 @@ test("uses no visible imperative element construction or global Markdown CSS", a
   const action = await Bun.file(new URL("../src/components/overview-action-button.tsx", import.meta.url)).text()
   expect(source).not.toContain("createElement(")
   expect(source).not.toContain("storybookMarkdownCss")
-  expect(view).toContain('from "@zavx0z/immersive-markdown"')
+  expect(view).toContain('from "@zavx0z/immersive/markdown"')
   expect(source).not.toContain("parseInline")
   expect(view).not.toContain("function MarkdownBlock")
   expect(view).toContain('from "./components/overview-action-button.tsx"')
@@ -14,7 +15,7 @@ test("uses no visible imperative element construction or global Markdown CSS", a
   expect(view).not.toContain("actionStyle")
   expect(view).not.toContain("<section data-markdown-block")
   expect(view).not.toContain("<section data-markdown-list")
-  expect(action).toContain('from "@zavx0z/immersive-ui-component/button/button"')
+  expectNamedUiImport(action, "Button")
   expect(action).toContain('size="large"')
   expect(action).toContain('data-storybook-overview-action=""')
   expect(action).toContain("display: flex;")

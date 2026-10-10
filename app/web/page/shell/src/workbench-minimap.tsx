@@ -1,4 +1,4 @@
-import {useSyncExternalStore} from "@zavx0z/immersive-component"
+import {useSyncExternalStore} from "@zavx0z/immersive/XReact"
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 import type {StorybookAppWebPageShellMinimap} from "@zavx0z/storybook-app-web-page-shell-minimap"
 type MinimapInitialState = NonNullable<StorybookAppWebPageShellMinimap.Input["initialState"]>

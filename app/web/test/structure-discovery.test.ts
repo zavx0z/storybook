@@ -17,6 +17,7 @@ const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStoryboo
 const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
 import startExternalStorybookServer from "@zavx0z/storybook-app-server"
+import {createProjectFixture} from "../../server/test/project.fixture"
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })
@@ -81,17 +82,14 @@ test("duplicate package names fail closed", async () => {
 
 test("explicit refresh discovers a new workspace package and serves its structural page", async () => {
   const {root, repo} = await fixture()
-  for (const directory of [root, repo]) {
-    const result = Bun.spawnSync(["git", "init", "--quiet", directory])
-    if (result.exitCode !== 0) throw new Error(result.stderr.toString())
-  }
-  await Bun.write(join(root, "package.json"), JSON.stringify({name: "Fixture Project", private: true}))
-  await Bun.write(join(root, ".gitmodules"), '[submodule "repo-0"]\n\tpath = repo\n\turl = https://example.invalid/repo-0.git\n')
+  createProjectFixture(root, [repo])
   await Bun.write(join(repo, "packages/a/index.ts"), "/**\n# Structural A\n@packageDocumentation\n*/\n")
   const artifactRoot = join(root, "artifacts")
   seedSharedPage(artifactRoot)
+  const stateRoot = await realpath(await mkdtemp(join(tmpdir(), "storybook-web-state-")))
+  roots.push(stateRoot)
   const server = await startExternalStorybookServer({createWeb, project: root,
-    statePath: join(root, "state/server.json"), artifactRoot})
+    statePath: join(stateRoot, "server.json"), artifactRoot})
   try {
     await write(join(repo, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
     expect(server.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/c")).toBeFalse()
@@ -116,7 +114,7 @@ function seedSharedPage(artifactRoot: string): void {
   const toolRoot = realpathSync(join(import.meta.dir, "../../.."))
   const bytes = "export {}\n"
   const digest = (value: string) => createHash("sha256").update(value).digest("hex")
-  const modules = BuildEnvironmentOwner.createModuleEntries(toolRoot, join(artifactRoot, "identity-entries"))
+  const modules = BuildEnvironmentOwner.createModuleEntries(toolRoot)
     .map(({specifier, sourcePath}) => ({specifier, sourcePath,
       url: `/__storybook/shared/kernel/${digest(specifier)}.js`}))
   const paths = ["entries/page.js", "entries/bootstrap.js",

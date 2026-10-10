@@ -1,5 +1,5 @@
-import {type Document as SemanticDocument} from "@zavx0z/immersive-dom"
-import {type ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
+import {type Document as SemanticDocument} from "@zavx0z/immersive"
+import {type ViewPointElement} from "@zavx0z/immersive"
 
 import type {StorybookPreviewBounds, StorybookSpacePreviewCamera} from "../contract/preview.ts"
 

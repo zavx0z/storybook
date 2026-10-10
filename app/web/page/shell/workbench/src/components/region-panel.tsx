@@ -1,5 +1,5 @@
-import {Pane} from "@zavx0z/immersive-ui-component"
-import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
+import {Pane} from "@zavx0z/immersive/ui"
+import type {JSX} from "@zavx0z/immersive/XReact"
 
 export type WorkbenchRegionPanelProps = Readonly<{
   transparent?: boolean

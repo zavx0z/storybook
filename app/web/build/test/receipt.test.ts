@@ -25,9 +25,9 @@ function fixture() {
     }
     return {root, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[2]!,
       artifactDigests: paths.map(path => ({path, digest: digest(`${version}:${path}`)})),
-      authorStyleSheets: [{specifier: "@zavx0z/immersive-ui-component/theme.css", url: paths[3]!, contentDigest: digest(`${version}:${paths[3]}`)}],
+      authorStyleSheets: [{specifier: "@zavx0z/immersive/ui/theme.css", url: paths[3]!, contentDigest: digest(`${version}:${paths[3]}`)}],
       browserIdentity: Environment.identity(`/__storybook/shared/${paths[1]}`,
-        [{specifier: "@zavx0z/immersive-component", sourcePath: source, url: `/__storybook/shared/${paths[0]}`}],
+        [{specifier: "@zavx0z/immersive/XReact", sourcePath: source, url: `/__storybook/shared/${paths[0]}`}],
         digest(`host:${version}`)),
     }
   }

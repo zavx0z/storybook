@@ -79,7 +79,7 @@ route и явную preview revision. Политика built/active/last-working
 ```ts
 const target = await PageTarget.prepare(
   fetch,
-  {packageId: "@zavx0z/immersive-markdown", route: "", intent: "navigation"},
+  {packageId: "@zavx0z/immersive/markdown", route: "", intent: "navigation"},
   signal,
 )
 ```

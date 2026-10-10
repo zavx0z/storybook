@@ -209,14 +209,14 @@ describe("structural package revision build", () => {
       "}", "",
     ].join("\n"))
     writeFileSync(join(fixture.packageRoot, "tsconfig.json"), JSON.stringify({
-      compilerOptions: {jsx: "preserve", jsxImportSource: "@zavx0z/immersive-jsx", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
+      compilerOptions: {jsx: "preserve", jsxImportSource: "@zavx0z/immersive/XReact", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
       include: ["**/*.ts", "**/*.tsx"],
     }))
     mkdirSync(join(fixture.root, "node_modules", "@immersive"), {recursive: true})
-    symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-headless")), join(fixture.root, "node_modules", "@zavx0z/immersive-headless"))
+    symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-headless")), join(fixture.root, "node_modules", "@zavx0z/immersive/headless"))
     writeFileSync(join(fixture.packageRoot, "preload.ts"), [
       'import {afterAll} from "bun:test"',
-      'import {createHeadless} from "@zavx0z/immersive-headless"',
+      'import {createHeadless} from "@zavx0z/immersive/headless"',
       `const host = createHeadless({projectRoot: ${JSON.stringify(fixture.packageRoot)}})`,
       'afterAll(() => host.dispose())',
     ].join("\n"))
@@ -331,7 +331,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   const browserEntry = join(root, "browser-entry.ts")
   const jsxRoot = realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-jsx"))
   writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", type: "module",
-    devDependencies: {"@zavx0z/immersive-jsx": "link:@zavx0z/immersive-jsx"}}))
+    devDependencies: {"@zavx0z/immersive/XReact": "link:@zavx0z/immersive-jsx"}}))
   mkdirSync(join(root, "node_modules", "@zavx0z"), {recursive: true})
   symlinkSync(jsxRoot, join(root, "node_modules", "@zavx0z", "jsx"))
   symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-template")), join(root, "node_modules", "@zavx0z", "template"))

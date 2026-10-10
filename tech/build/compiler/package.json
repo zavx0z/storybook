@@ -9,17 +9,11 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/immersive-jsx": "^0.0.0",
-    "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
-    "@zavx0z/immersive-jsx-runtime": "^0.0.0",
-    "@zavx0z/immersive-jsx-development": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-template": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0",
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-dom": "^0.0.0",
     "@zavx0z/storybook-package-build-loader": "workspace:*",
-    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*"
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

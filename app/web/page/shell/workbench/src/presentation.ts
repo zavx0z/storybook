@@ -1,4 +1,4 @@
-import {type Document, Node} from "@zavx0z/immersive-dom"
+import {type Document, Node} from "@zavx0z/immersive"
 import type {
   WorkbenchElements,
   WorkbenchPresentation,
@@ -18,7 +18,7 @@ export function validateWorkbenchPresentation(
     throw new Error(`Unknown Workbench presentation projection: ${String(candidate.projection)}`)
   }
   if (candidate.node !== null && !(candidate.node instanceof Node)) {
-    throw new TypeError("Workbench presentation node must be a Node from @zavx0z/immersive-dom")
+    throw new TypeError("Workbench presentation node must be a Node from @zavx0z/immersive")
   }
   if (document !== undefined && candidate.node !== null) {
     assertNodeInDocument(candidate.node, document, "Presentation node")
@@ -63,7 +63,7 @@ export function validateWorkbenchProjectionHosts(
 }
 
 export function assertNodeInDocument(node: Node, document: Document, label: string): void {
-  if (!(node instanceof Node)) throw new TypeError(`${label} must be a Node from @zavx0z/immersive-dom`)
+  if (!(node instanceof Node)) throw new TypeError(`${label} must be a Node from @zavx0z/immersive`)
   if (node !== document && node.ownerDocument !== document) {
     throw new Error(`${label} belongs to another Document`)
   }

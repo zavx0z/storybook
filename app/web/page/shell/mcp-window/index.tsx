@@ -19,8 +19,8 @@
 */
 import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import {useEffect, useState} from "@zavx0z/immersive-component"
-import Window from "@zavx0z/immersive-ui-component-surface-window"
+import {useEffect, useState} from "@zavx0z/immersive/XReact"
+import {Window} from "@zavx0z/immersive/ui"
 import {McpContent} from "./src/content"
 import {normalizeMcpWindowState} from "./src/state"
 import type {StorybookAppWebPageShellMcpWindow} from "./contract"

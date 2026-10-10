@@ -9,16 +9,14 @@
     ".": "./index.tsx"
   },
   "dependencies": {
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0",
     "@zavx0z/storybook-app-web-page-package-scenario-model": "workspace:*",
     "@zavx0z/storybook-specs-scenarios": "workspace:*",
-    "@zavx0z/immersive-ui-component-view-code-editor": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-headless": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "scripts": {
-    "test": "bun test --preload @zavx0z/immersive-headless/preload ./spec"
+    "test": "bun test --preload @zavx0z/immersive/headless/preload ./spec"
   }
 }

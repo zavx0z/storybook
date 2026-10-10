@@ -1,4 +1,4 @@
-import type {TypeDocProps} from "@zavx0z/immersive-typedoc"
+import type {TypeDocProps} from "@zavx0z/immersive/typedoc"
 import type {StorybookContractDocument} from "./documents"
 
 /** Передаёт владельцу вкладки навигатор текущего направления; null отзывает его при unmount. */

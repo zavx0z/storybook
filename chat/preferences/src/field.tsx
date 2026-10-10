@@ -1,5 +1,5 @@
-import Typography from "@zavx0z/immersive-ui-component-typography"
-import SelectField from "@zavx0z/immersive-ui-component-field-select"
+import {Typography} from "@zavx0z/immersive/ui"
+import {SelectField} from "@zavx0z/immersive/ui"
 import type {StorybookChatPreferences} from "../contract"
 
 const sourceLabels: Readonly<Record<string, string>> = {

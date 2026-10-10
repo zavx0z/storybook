@@ -57,7 +57,7 @@ describe("structural browser client protocol", () => {
   })
 
   test("encodes exact package identities in one path segment", () => {
-    expect(WebProtocol.encodePackagePath("@zavx0z/immersive-dom")).toBe("pkg-zavx0z-immersive-dom")
+    expect(WebProtocol.encodePackagePath("@zavx0z/immersive")).toBe("pkg-zavx0z-immersive-dom")
     const encoded = WebProtocol.encodePackagePath("@fixture/components")
     expect(encoded).toBe("pkg-fixture-components")
     expect(WebProtocol.decodePackagePath(encoded, ["@fixture/components"])).toBe("@fixture/components")

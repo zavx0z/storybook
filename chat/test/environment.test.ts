@@ -23,7 +23,7 @@ test("browser выбирает представление без файлово�
     // UI-зависимости предоставляет общая браузерная среда.
     // StorybookChatSession разрешается полностью: случайный runtime-импорт обязан прервать сборку.
     const result = await Bun.build({entrypoints: [entry], target: "browser", minify: false,
-      external: ["@zavx0z/*", "@zavx0z/immersive-markdown", "@zavx0z/immersive-jsx-compiler-session"]})
+      external: ["@zavx0z/*", "@zavx0z/immersive/markdown", "@zavx0z/immersive/compiler/session"]})
     expect(result.success, JSON.stringify(result.logs)).toBeTrue()
     const code = await result.outputs[0]!.text()
     expect(code).toContain("data-chat-address")

@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import type {StorybookAppWebPageShellMcpWindow} from "../contract"
 type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createWindowHost} from "../spec/fixture"
@@ -113,15 +113,21 @@ describe.each([{name: "Выделение JSON поверх соседней п�
     background.textContent = "Текст соседней панели ".repeat(20)
     host.container.insertBefore(background, host.container.firstChild)
     frame = await host.settle()
+    // Paint item хранит local координаты; pointer API принимает client координаты.
+    const localX = text.x + (text.width ?? 100) * (text.text.indexOf("Путь") / text.text.length)
+    const localY = text.y + text.lineHeight / 2
+    const clientPoint = (x: number, y: number) => ({
+      clientX: x * text.transform.scaleX + text.transform.translateX,
+      clientY: y * text.transform.scaleY + text.transform.translateY,
+    })
     const point = {
-      clientX: text.x + (text.width ?? 100) * (text.text.indexOf("Путь") / text.text.length),
-      clientY: text.y + text.lineHeight / 2,
+      ...clientPoint(localX, localY),
       pointerId: 21,
       buttons: 1,
     }
     host.input.pointerDown(frame, point)
     const startedInCode = code.contains(host.document.getSelection().anchorNode)
-    const end = {...point, clientX: point.clientX + 100, clientY: point.clientY + text.lineHeight}
+    const end = {...point, ...clientPoint(localX + 100, localY + text.lineHeight)}
     host.input.pointerMove(frame, end)
     host.input.pointerUp(frame, {...end, buttons: 0})
     const selection = host.document.getSelection()

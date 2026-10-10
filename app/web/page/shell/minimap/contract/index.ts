@@ -1,6 +1,6 @@
-import type {ImmersiveUiComponentSurfaceWindow} from "@zavx0z/immersive-ui-component"
+import type {ImmersiveUiComponentSurfaceWindow} from "@zavx0z/immersive/ui"
 type WindowGeometry = NonNullable<ImmersiveUiComponentSurfaceWindow.Input["geometry"]>
-import type {ImmersiveUiComponentSurfaceTab} from "@zavx0z/immersive-ui-component"
+import type {ImmersiveUiComponentSurfaceTab} from "@zavx0z/immersive/ui"
 type TabProps = ImmersiveUiComponentSurfaceTab.Input
 import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 import type {MinimapInitialState} from "./state"

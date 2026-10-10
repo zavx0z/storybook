@@ -1,4 +1,4 @@
-import {useState} from "@zavx0z/immersive-component"
+import {useState} from "@zavx0z/immersive/XReact"
 import {BrowserPreview} from "../src/browser-preview"
 import type {createSettingsClient} from "../src/client"
 import type {createBrowserPreviewSession} from "../src/browser-preview-session"

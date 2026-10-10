@@ -8,7 +8,7 @@
 Запуск: `bun package/metadata/collect/test/reproduce-namespace.ts` из корня Storybook.
 */
 import {resolve} from "node:path"
-import {analyzeTypeDoc} from "@zavx0z/immersive-typedoc/parser"
+import {analyzeTypeDoc} from "@zavx0z/immersive/typedoc/parser"
 
 const root = resolve(import.meta.dir, "../../../..")
 const path = resolve(import.meta.dir, "fixture/namespace-contract/contract/index.ts")

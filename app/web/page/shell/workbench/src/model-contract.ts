@@ -1,4 +1,4 @@
-import type {Document, HTMLDivElement, Node} from "@zavx0z/immersive-dom"
+import type {Document, HTMLDivElement, Node} from "@zavx0z/immersive"
 import type {WorkbenchViewProps} from "../contract/view"
 import type {
   Workbench, WorkbenchAddressMap, WorkbenchUserState,

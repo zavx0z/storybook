@@ -1,8 +1,8 @@
 import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import {memo, useEffect, useMemo, useState} from "@zavx0z/immersive-component"
-import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
-import Button from "@zavx0z/immersive-ui-component-button-basic"
+import {memo, useEffect, useMemo, useState} from "@zavx0z/immersive/XReact"
+import {CodeEditor} from "@zavx0z/immersive/ui"
+import {Button} from "@zavx0z/immersive/ui"
 import {selectRequest} from "./selected-request"
 import formatJson from "@zavx0z/storybook-tech-json-format"
 

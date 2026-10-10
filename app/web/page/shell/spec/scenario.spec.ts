@@ -1,17 +1,17 @@
-import {DisplayElement} from "@zavx0z/immersive-dom/display"
+import {DisplayElement} from "@zavx0z/immersive"
 import presentationRootFixture, {type StorybookTechTestingBrowserRoot} from "@zavx0z/storybook-tech-testing-browser-root"
 type PresentationFixtureOptions = Parameters<StorybookTechTestingBrowserRoot.Input>[0]
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocumentClipboardController} from "@zavx0z/immersive-browser/clipboard"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocumentClipboardController} from "@zavx0z/immersive"
 import {describe, expect, test} from "bun:test"
-import {ViewPoint, Vector3} from "@zavx0z/immersive-engine"
-import type {Presentation as Root, RootDocumentProjection, RootLinkedAuthorStyleSheet, RootProjection, RootSpaceProjection} from "@zavx0z/immersive-browser/integration"
-import {createDocument, MouseEvent, PointerEvent, type Element, type Node} from "@zavx0z/immersive-dom"
-import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/immersive-renderer-html"
-import {createSpaceElementFactories} from "@zavx0z/immersive-space"
-import {HUDElement} from "@zavx0z/immersive-dom/hud"
-import {SpaceElement} from "@zavx0z/immersive-dom/space"
-import {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
+import {ViewPoint, Vector3} from "@zavx0z/immersive/engine"
+import type {Presentation as Root, RootDocumentProjection, RootLinkedAuthorStyleSheet, RootProjection, RootSpaceProjection} from "@zavx0z/immersive/XReact/browser/integration"
+import {createDocument, MouseEvent, PointerEvent, type Element, type Node} from "@zavx0z/immersive"
+import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/immersive/renderer/html"
+import {createSpaceElementFactories} from "@zavx0z/immersive/space"
+import {HUDElement} from "@zavx0z/immersive"
+import {SpaceElement} from "@zavx0z/immersive"
+import {ViewPointElement} from "@zavx0z/immersive"
 import PageShellOwner from "@zavx0z/storybook-app-web-page-shell"
 const EXTERNAL_STORYBOOK_DISPLAY_ID = PageShellOwner.displayId
 const EXTERNAL_STORYBOOK_WORKBENCH_ID = PageShellOwner.workbenchId
@@ -289,11 +289,11 @@ describe("external Storybook shared Browser Root", () => {
     const state = createFakeRootState()
     const link = {} as HTMLLinkElement
     const shell = await createShell(state, {
-      authorStyleSheetSources: [{id: "@zavx0z/immersive-ui-component/theme/theme.css", link}],
+      authorStyleSheetSources: [{id: "@zavx0z/immersive/ui/theme.css", link}],
     })
 
     expect(state.options?.stylesheets).toEqual([{
-      id: "@zavx0z/immersive-ui-component/theme/theme.css",
+      id: "@zavx0z/immersive/ui/theme.css",
       link,
     }])
     expect(state.options?.stylesheets).toHaveLength(1)

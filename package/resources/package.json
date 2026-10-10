@@ -8,7 +8,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/immersive-markdown": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
     "@zavx0z/storybook-package-documentation": "workspace:*"

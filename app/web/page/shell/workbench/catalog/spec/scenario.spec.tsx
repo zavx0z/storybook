@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import {Event, KeyboardEvent, MouseEvent, type HTMLInputElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import {Event, KeyboardEvent, MouseEvent, type HTMLInputElement} from "@zavx0z/immersive"
 import CatalogPanel, {type StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 
 const items = [

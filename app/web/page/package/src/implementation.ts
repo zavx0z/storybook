@@ -8,9 +8,9 @@ import WebNavigationOwner from "@zavx0z/storybook-app-web-page-navigation"
 
 /** Вкладка структурного владельца с подготовленными сценариями. */
 
-import type {RootLinkedAuthorStyleSheet} from "@zavx0z/immersive-browser/integration"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import {arrowDownIcon, arrowUpIcon} from "@zavx0z/immersive-ui-theme-icon"
+import type {RootLinkedAuthorStyleSheet} from "@zavx0z/immersive/XReact/browser/integration"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import {arrowDownIcon, arrowUpIcon} from "@zavx0z/immersive/ui/icons"
 
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never

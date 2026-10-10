@@ -14,7 +14,7 @@ test("общий маршрут находит вложенный пакет Dia
   const snapshot = registry.snapshot()
   expect(storybookRouteRoots(snapshot)).toEqual([{name: "immersive-nodes-node", path: root}])
   expect(await resolveStorybookRoute("/immersive-nodes-node/diagram?view=scenarios&variant=Круг&inspector=storybook-scenarios", snapshot)).toEqual({
-    packageId: "@zavx0z/immersive-nodes-node-diagram",
+    packageId: "@zavx0z/immersive/nodes/diagram",
     route: "scenarios",
     urlPath: "/immersive-nodes-node/diagram?view=scenarios",
     variant: "Круг",

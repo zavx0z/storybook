@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import {Event, type HTMLSelectElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import {Event, type HTMLSelectElement} from "@zavx0z/immersive"
 import Preferences, {type StorybookChatPreferences} from "@zavx0z/storybook-chat-preferences"
 
 describe.each([

@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "devDependencies": {
-    "@zavx0z/immersive-dom": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

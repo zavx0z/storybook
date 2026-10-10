@@ -68,7 +68,7 @@ test("browser page entry предоставляет единственный def
     plugins: [{
       name: "page-entry-test-double",
       setup(build) {
-        build.onResolve({filter: /^@web\/page$/u}, () => ({path: "@zavx0z/storybook-app-web-page", namespace: "page-entry-test"}))
+        build.onResolve({filter: /^@zavx0z\/storybook-app-web-page$/u}, () => ({path: "@zavx0z/storybook-app-web-page", namespace: "page-entry-test"}))
         build.onLoad({filter: /.*/u, namespace: "page-entry-test"}, () => ({
           contents: "const start = () => 'page-ready'\nexport default start",
           loader: "js",

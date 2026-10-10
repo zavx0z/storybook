@@ -40,7 +40,7 @@ describe("Текущая публичная структура", () => {
     expect(await resolveRoute({route: "/immersive/nodes/node/diagram?view=scenarios", roots})).toMatchObject({
       node: "immersive/nodes/node/diagram",
       pathname: "/immersive/nodes/node/diagram",
-      package: {id: "@zavx0z/immersive-nodes-node", path: resolve(immersivePath, "nodes/node")},
+      package: {id: "@zavx0z/immersive/nodes/node", path: resolve(immersivePath, "nodes/node")},
       directory: resolve(immersivePath, "nodes/node/diagram"),
       relativePath: "diagram",
       view: "scenarios",

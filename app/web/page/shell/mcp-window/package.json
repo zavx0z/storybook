@@ -10,19 +10,11 @@
   "description": "Просмотр вызовов среды и контекста текущего адреса страницы",
   "dependencies": {
     "@zavx0z/storybook-app-server-requests": "workspace:*",
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
-    "@zavx0z/immersive-ui-component-view-code-editor": "^0.0.0",
-    "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
-    "@zavx0z/storybook-tech-json-format": "workspace:*"
+    "@zavx0z/storybook-tech-json-format": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-headless": "^0.0.0",
-    "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
     "@zavx0z/storybook-specs-presentation": "workspace:*",
-    "@zavx0z/immersive-renderer-html": "^0.0.0",
-    "@zavx0z/immersive-dom": "^0.0.0",
-    "@zavx0z/immersive-template": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

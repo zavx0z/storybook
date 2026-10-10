@@ -1,10 +1,10 @@
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocument, Event, InputEvent, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
-import {createSpaceElementFactories} from "@zavx0z/immersive-space"
-import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
-import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocument, Event, InputEvent, type HTMLTextAreaElement} from "@zavx0z/immersive"
+import {createSpaceElementFactories} from "@zavx0z/immersive/space"
+import {createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
+import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import createViewPointControls from "@zavx0z/storybook-app-web-page-shell-viewpoint-controls"
 import type {ChatBrowserSnapshot} from "../src/inspector/chat-client"
 import {readChatSelection, selectChatSession} from "../src/inspector/chat-selection"
@@ -33,7 +33,7 @@ test.each([{settingsReady: true, small: false}, {settingsReady: false, small: fa
   const element = document.createElement("div")
   document.append(element)
   const root = createRoot(element)
-  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive-ui-component/theme/theme.css"))).text()
+  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: element, viewport: {width: 354, height: 700}, styleSheets: [theme]})
   const camera = document.createElement("viewpoint")
   const controls = createViewPointControls()

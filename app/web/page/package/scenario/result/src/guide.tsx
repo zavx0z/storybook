@@ -1,5 +1,5 @@
-import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
-import {Typography} from "@zavx0z/immersive-ui-component"
+import {CodeEditor} from "@zavx0z/immersive/ui"
+import {Typography} from "@zavx0z/immersive/ui"
 import {type StorybookSpecsScenarios} from "@zavx0z/storybook-specs-scenarios"
 /** Форма из публичного пространства исходного владельца. */
 type ReadScenarioGuideOutput = StorybookSpecsScenarios.Output

@@ -1,5 +1,5 @@
 import type {StorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 
 /** Подготовленные данные выбранного сценария принадлежат читателю Specs. */
 type Preview = NonNullable<StorybookSpecsScenariosReader.Output["preview"]>

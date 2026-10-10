@@ -1,4 +1,4 @@
-import {Button, type ImmersiveUiComponentButtonBasic} from "@zavx0z/immersive-ui-component"
+import {Button, type ImmersiveUiComponentButtonBasic} from "@zavx0z/immersive/ui"
 import type {WorkbenchTabItem} from "../types.ts"
 
 type TabProps = Readonly<{

@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import type {HTMLButtonElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import type {HTMLButtonElement} from "@zavx0z/immersive"
 import {Command} from "@fixture/scenario-component"
 
 describe.each([

@@ -1,4 +1,4 @@
-import type {RootLinkedAuthorStyleSheet} from "@zavx0z/immersive-browser/integration"
+import type {RootLinkedAuthorStyleSheet} from "@zavx0z/immersive/XReact/browser/integration"
 
 export declare namespace StorybookAppWebPageStyleSheets {
   /** Native Document страницы, содержащий серверный индекс ссылок авторских стилей. */

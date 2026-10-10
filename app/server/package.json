@@ -14,7 +14,6 @@
     "@zavx0z/ai-filesystem-stat": "link:@zavx0z/ai-filesystem-stat",
     "@zavx0z/ai-filesystem-list": "link:@zavx0z/ai-filesystem-list",
     "@zavx0z/ai-filesystem-read": "link:@zavx0z/ai-filesystem-read",
-    "@zavx0z/immersive-markdown": "^0.0.0",
     "@zavx0z/storybook-package-build-conformance": "workspace:*",
     "@zavx0z/storybook-chat-session": "workspace:*",
     "@zavx0z/storybook-tech-acp": "workspace:*",
@@ -53,14 +52,11 @@
     "@zavx0z/provider-app-codex": "0.0.0",
     "@zavx0z/provider-app-capsule": "0.0.0",
     "@zavx0z/provider-tech-ssh": "0.0.0",
-    "@zavx0z/provider-app-chrome-studio": "0.0.0"
+    "@zavx0z/provider-app-chrome-studio": "0.0.0",
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
     "@zavx0z/storybook-tech-build-artifacts": "workspace:*",
-    "@zavx0z/immersive-engine": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0",
-    "@zavx0z/immersive-nodes-node": "^0.0.0",
-    "@zavx0z/immersive-component": "^0.0.0",
     "@zavx0z/storybook-package-artifacts": "workspace:*",
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-app-web-release": "workspace:*",
@@ -72,6 +68,7 @@
     "@zavx0z/storybook-container-env": "workspace:*",
     "@zavx0z/storybook-cluster-env": "workspace:*",
     "@zavx0z/storybook-domain-env": "workspace:*",
-    "@zavx0z/storybook-app-control": "workspace:*"
+    "@zavx0z/storybook-app-control": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

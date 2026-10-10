@@ -1,5 +1,5 @@
 import {afterEach, expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
+import {createHeadless} from "@zavx0z/immersive/headless"
 import createApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
 import Result from "@zavx0z/storybook-app-web-page-package-scenario-result"
 

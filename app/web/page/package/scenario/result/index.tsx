@@ -4,9 +4,9 @@
 */
 import type {StorybookAppWebPagePackageScenarioResult as Contract} from "./contract"
 export type {StorybookAppWebPagePackageScenarioResult} from "./contract"
-import {useSyncExternalStore} from "@zavx0z/immersive-component"
-import {Typography} from "@zavx0z/immersive-ui-component"
-import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
+import {useSyncExternalStore} from "@zavx0z/immersive/XReact"
+import {Typography} from "@zavx0z/immersive/ui"
+import {CodeEditor} from "@zavx0z/immersive/ui"
 import {ScenarioAssertionResult} from "./src/assertion"
 import {ScenarioCallResult} from "./src/call"
 

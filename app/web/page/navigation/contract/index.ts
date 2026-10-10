@@ -48,7 +48,7 @@ export declare namespace StorybookAppWebPageNavigation {
     @example
     ```ts
     await Navigation.navigatePackage(
-      {packageId: "@zavx0z/immersive-markdown", route: ""},
+      {packageId: "@zavx0z/immersive/markdown", route: ""},
       page.navigatePackage,
     )
     ```

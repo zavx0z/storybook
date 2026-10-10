@@ -1,8 +1,8 @@
-import {useEffect, useRef, useState} from "@zavx0z/immersive-component"
-import Panel from "@zavx0z/immersive-ui-component-surface-panel"
-import Button from "@zavx0z/immersive-ui-component-button-basic"
-import Typography from "@zavx0z/immersive-ui-component-typography"
-import Notification from "@zavx0z/immersive-ui-component-feedback-notification"
+import {useEffect, useRef, useState} from "@zavx0z/immersive/XReact"
+import {Panel} from "@zavx0z/immersive/ui"
+import {Button} from "@zavx0z/immersive/ui"
+import {Typography} from "@zavx0z/immersive/ui"
+import {Notification} from "@zavx0z/immersive/ui"
 import {createSettingsClient} from "./client"
 import {createBrowserPreviewSession, idleBrowserPreview} from "./browser-preview-session"
 

@@ -1,10 +1,10 @@
-import {iconSvg} from "@zavx0z/immersive-ui-theme-icon"
-import Inspector from "@zavx0z/immersive-ui-component-widget-inspector"
-import type {ImmersiveUiComponentWidgetInspector} from "@zavx0z/immersive-ui-component-widget-inspector"
+import {iconSvg} from "@zavx0z/immersive/ui/icons"
+import {Inspector} from "@zavx0z/immersive/ui"
+import type {ImmersiveUiComponentWidgetInspector} from "@zavx0z/immersive/ui"
 type InspectorCategory = ImmersiveUiComponentWidgetInspector.Input["categories"][number]
 import {ChatSessionHeader} from "./chat-header"
 import type {WorkbenchChatContext} from "../../contract/workbench"
-import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
+import type {JSX} from "@zavx0z/immersive/XReact"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorWidgetRegistration,

@@ -118,7 +118,7 @@ export async function buildStorybookPackageRevisionInProcess(
       ensureGeneratedJsxProtocol(generatedSourceRoot, toolRoot)
       await Bun.write(join(generatedSourceRoot, "tsconfig.json"), JSON.stringify({
         compilerOptions: {target: "ESNext", module: "ESNext", moduleResolution: "Bundler",
-          jsx: "react-jsx", jsxImportSource: "@zavx0z/immersive-jsx", noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
+          jsx: "react-jsx", jsxImportSource: "@zavx0z/immersive/XReact", noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
         include: ["*.tsx"],
       }))
       for (const module of [...jsxModules, ...componentModules]) await Bun.write(join(stagingDirectory, module.path), module.source)
@@ -193,7 +193,7 @@ export async function buildStorybookPackageRevisionInProcess(
       plugins: [
         ...(sharedBrowserIdentity === undefined
           ? []
-          : [createStorybookSharedBrowserExternalPlugin(sharedBrowserIdentity)]),
+          : [createStorybookSharedBrowserExternalPlugin(sharedBrowserIdentity, {moduleSourcePaths: sourcePaths})]),
         ...plugins,
       ],
       metafile: true,

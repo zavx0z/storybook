@@ -9,8 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-dom": "^0.0.0",
-    "@zavx0z/immersive-template": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

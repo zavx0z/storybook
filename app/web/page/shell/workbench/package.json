@@ -9,30 +9,18 @@
   },
   "description": "Рабочая область каталога, вкладок, содержимого, Inspector и статуса в одном Display",
   "dependencies": {
-    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
     "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
     "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": "workspace:*",
     "@zavx0z/storybook-chat-session": "workspace:*",
     "@zavx0z/storybook-chat-history": "workspace:*",
     "@zavx0z/storybook-chat-view": "workspace:*",
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-dom": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0",
-    "@zavx0z/immersive-template": "^0.0.0",
-    "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
     "@zavx0z/chat": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
-    "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
-    "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
-    "@zavx0z/immersive-ui-component-widget-inspector": "^0.0.0",
     "@zavx0z/storybook-chat-preferences": "workspace:*",
-    "@zavx0z/immersive-browser": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
     "@zavx0z/storybook-app-web-page-shell-viewpoint-controls": "workspace:*",
-    "@zavx0z/immersive-renderer-html": "^0.0.0",
     "@zavx0z/storybook-tech-limits": "workspace:*",
-    "@zavx0z/immersive-space": "^0.0.0",
-    "@zavx0z/immersive-ui-theme-icon-set": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

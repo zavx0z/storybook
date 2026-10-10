@@ -9,9 +9,9 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/immersive-ui-component": "^0.0.0",
     "@zavx0z/storybook-package-graph-read": "workspace:*",
-    "@zavx0z/storybook-package-graph-create": "workspace:*"
+    "@zavx0z/storybook-package-graph-create": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
     "@zavx0z/storybook-package-metadata-collect": "workspace:*"

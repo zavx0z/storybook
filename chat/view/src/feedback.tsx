@@ -1,5 +1,5 @@
-import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
-import Button from "@zavx0z/immersive-ui-component-button-basic"
+import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive/XReact"
+import {Button} from "@zavx0z/immersive/ui"
 import type {StorybookChatView as Contract} from "../contract"
 import {permissionLabel} from "./permission-label"
 

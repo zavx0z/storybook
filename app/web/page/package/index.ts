@@ -22,7 +22,7 @@ const navigatePackage = WebNavigationOwner.navigatePackage
 import ReadGraph from "@zavx0z/storybook-package-graph-read"
 /** Вкладка структурного владельца с подготовленными сценариями. */
 
-import type {CustomEvent} from "@zavx0z/immersive-dom"
+import type {CustomEvent} from "@zavx0z/immersive"
 
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 type WorkbenchPresentationUpdate = Parameters<StorybookAppWebPageShellWorkbench.Output["present"]>[0]

@@ -1,6 +1,6 @@
-import type {Document, Element, HTMLElement} from "@zavx0z/immersive-dom"
-import type {ComponentRoot} from "@zavx0z/immersive-component"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {Document, Element, HTMLElement} from "@zavx0z/immersive"
+import type {ComponentRoot} from "@zavx0z/immersive/XReact"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 
 export declare namespace StorybookAppWebPagePresentation {
   /** Существующий Document, governed шаблон, его props и selector единственного корня. */

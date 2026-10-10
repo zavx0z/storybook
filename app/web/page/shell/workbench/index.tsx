@@ -6,11 +6,11 @@
 
 @packageDocumentation
 */
-import {HUDElement} from "@zavx0z/immersive-dom/hud"
-import {DisplayElement} from "@zavx0z/immersive-dom/display"
-import {useLayoutEffect, useMemo, useRef, useSyncExternalStore} from "@zavx0z/immersive-component"
-import {SpaceElement} from "@zavx0z/immersive-dom/space"
-import type {HTMLDivElement as SemanticDiv} from "@zavx0z/immersive-dom"
+import {HUDElement} from "@zavx0z/immersive"
+import {DisplayElement} from "@zavx0z/immersive"
+import {useLayoutEffect, useMemo, useRef, useSyncExternalStore} from "@zavx0z/immersive/XReact"
+import {SpaceElement} from "@zavx0z/immersive"
+import type {HTMLDivElement as SemanticDiv} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellWorkbench} from "./contract"
 export type {StorybookAppWebPageShellWorkbench} from "./contract"
 import {WorkbenchView} from "./src/view"

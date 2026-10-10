@@ -4,9 +4,9 @@ import {basename} from "node:path"
 import {constants} from "node:fs"
 import {open, readFile} from "node:fs/promises"
 import readModuleDocumentation from "@zavx0z/storybook-package-documentation"
-import {analyzeTypeDoc} from "@zavx0z/immersive-typedoc/parser"
-import {analyzeTypeDocs} from "@zavx0z/immersive-typedoc/batch"
-import type {AnalyzeTypeDocOutput} from "@zavx0z/immersive-typedoc/parser"
+import {analyzeTypeDoc} from "@zavx0z/immersive/typedoc/parser"
+import {analyzeTypeDocs} from "@zavx0z/immersive/typedoc/batch"
+import type {AnalyzeTypeDocOutput} from "@zavx0z/immersive/typedoc/parser"
 
 export async function readContractDocumentation(root: string, path: string) {
   const source = await readContractSource(path)

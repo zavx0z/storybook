@@ -1,5 +1,5 @@
-import {useState} from "@zavx0z/immersive-component"
-import Panel from "@zavx0z/immersive-ui-component-surface-panel"
+import {useState} from "@zavx0z/immersive/XReact"
+import {Panel} from "@zavx0z/immersive/ui"
 import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
 type ScenarioApp = StorybookAppWebPagePackageScenarioModel.Output

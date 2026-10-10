@@ -2,9 +2,10 @@ import Compiler from "@zavx0z/storybook-tech-build-compiler"
 import {plugin} from "bun"
 import {readFileSync} from "node:fs"
 import {join, resolve} from "node:path"
-import createJsxBunPlugin from "@zavx0z/immersive-jsx-compiler-bun"
+import createJsxBunPlugin from "@zavx0z/immersive/compiler"
 const {createStorybookOwnerResolver, createStorybookOwnerSourcePath, resolveStorybookCompilerSourceRoots} = Compiler
 const storybookRoot = resolve(import.meta.dir, "../../../..")
+// Готовая платформа разрешается по public exports; JSX компилируется только у авторских владельцев.
 const sourceRoots = resolveStorybookCompilerSourceRoots({
   repo: storybookRoot,
   packageRoot: storybookRoot,

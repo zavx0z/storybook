@@ -693,7 +693,7 @@ describe("one external Storybook server", () => {
     expect(fontAsset.status).toBe(200)
     expect(fontAsset.headers.get("content-type")).toBe("font/ttf")
     expect(Buffer.from(await fontAsset.arrayBuffer())).toEqual(readFileSync(fileURLToPath(
-      import.meta.resolve("@zavx0z/immersive-engine/fonts/inter-regular.ttf"),
+      import.meta.resolve("@zavx0z/immersive/engine/fonts/inter-regular.ttf"),
     )))
     const script = html.match(/<script type="module" src="([^"]+)"/u)?.[1]
     expect(script).toBeDefined()
@@ -1097,7 +1097,7 @@ describe("one external Storybook server", () => {
     const built = await running.sessions.ensure("@fixture/components")
     const revision = built.builtRevision!
     const graph = running.sessions.session("@fixture/components").revisionGraphSnapshot(revision)!
-    expect(graph.workbenchAuthorStyleSheets.map(({specifier}) => specifier)).toEqual(["@zavx0z/immersive-ui-component/theme/theme.css"])
+    expect(graph.workbenchAuthorStyleSheets.map(({specifier}) => specifier)).toEqual(["@zavx0z/immersive/ui/theme.css"])
     const resource = graph.workbenchAuthorStyleSheets[0]!
     const response = await fetch(new URL(`/__storybook/revisions/%40fixture%2Fcomponents/${revision}/${resource.url}`, running.origin))
     expect(response.status).toBe(200)

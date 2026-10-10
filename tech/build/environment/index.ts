@@ -1,5 +1,5 @@
 /**
-Определяет точную общую browser-среду из исходников владельцев и проверяет
+Читает готовую общую browser-среду владельца Immersive и проверяет
 неизменяемую identity до её участия в разрешении модулей.
 
 @packageDocumentation
@@ -9,55 +9,32 @@ import {runPlatformBuild} from "./src/builder"
 import Compiler from "@zavx0z/storybook-tech-build-compiler"
 import Protocol from "@zavx0z/storybook-tech-build-environment-protocol"
 import {createHash} from "node:crypto"
-import {existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync} from "node:fs"
-import {extname, join, resolve, sep} from "node:path"
+import {readFileSync, realpathSync, statSync} from "node:fs"
+import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import type {StorybookTechBuildEnvironment} from "./contract"
 import type {
   StorybookSharedBrowserIdentity,
   StorybookSharedBrowserModule,
   StorybookSharedBrowserModuleEntry,
+  StorybookSharedBrowserSource,
 } from "./contract/types"
 import {
   canonicalExactFile,
   canonicalDirectory,
 } from "./src/paths"
 
-const {conditionalExportTarget, readStorybookPackageOwner, isOwnedJsxProtocol} = Compiler
+const {readStorybookPackageOwner} = Compiler
 
 export type {StorybookTechBuildEnvironment} from "./contract"
 
 /** Владельцы платформы, чьи browser-значения сохраняют одну identity в realm страницы. */
-const STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES = Object.freeze([
-  "@zavx0z/immersive-renderer-html",
-  "@zavx0z/immersive-browser",
-  "@zavx0z/immersive-component",
-  "@zavx0z/immersive-devtool",
-  "@zavx0z/immersive-dom",
-  "@zavx0z/immersive-engine",
-  "@zavx0z/immersive-jsx",
-  "@zavx0z/immersive-jsx-runtime-fragment",
-  "@zavx0z/immersive-jsx-event",
-  "@zavx0z/immersive-jsx-runtime-create",
-  "@zavx0z/immersive-jsx-development-create",
-  "@zavx0z/immersive-jsx-slot-plan",
-  "@zavx0z/immersive-jsx-slot-child",
-  "@zavx0z/immersive-space",
-  "@zavx0z/immersive-template",
-  "@zavx0z/immersive-webgpu",
-] as const)
+const STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES = Object.freeze(["@zavx0z/immersive"] as const)
 
-/**
-Создаёт private entrypoints реальных публичных модулей владельцев.
-
-Entrypoints реэкспортируют канонические файлы владельцев и служат только корнями
-компиляции: они не вводят compatibility modules или альтернативные package identity.
-*/
+/** Читает готовые browser-входы публичной поставки без компиляции исходников. */
 function createStorybookSharedBrowserModuleEntries(
   toolRoot: string,
-  directory: string,
 ): readonly StorybookSharedBrowserModuleEntry[] {
   const entries: StorybookSharedBrowserModuleEntry[] = []
-  mkdirSync(directory, {recursive: true})
   for (const packageName of STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES) {
     const packageRoot = realpathSync(join(toolRoot, "node_modules", ...packageName.split("/")))
     const manifestPath = join(packageRoot, "package.json")
@@ -66,18 +43,9 @@ function createStorybookSharedBrowserModuleEntries(
       throw new Error(`Shared Storybook owner mismatch: expected ${packageName}, found ${String(manifest.name)}`)
     }
     for (const [subpath, target] of publicModuleExports(manifest.exports, packageName)) {
-      const sourcePath = canonicalOwnerTarget(packageRoot, target, `${packageName}${subpath === "." ? "" : subpath.slice(1)}`)
-      if (!/\.[cm]?[jt]sx?$/u.test(extname(sourcePath))) continue
       const specifier = `${packageName}${subpath === "." ? "" : subpath.slice(1)}`
-      const entryPath = join(directory, `${createHash("sha256").update(specifier).digest("hex")}.ts`)
-      const hasDefault = new Bun.Transpiler({loader: transpilerLoader(sourcePath)})
-        .scan(readFileSync(sourcePath, "utf8")).exports.includes("default")
-      writeFileSync(entryPath, [
-        `export * from ${JSON.stringify(sourcePath)}`,
-        ...(hasDefault ? [`export {default} from ${JSON.stringify(sourcePath)}`] : []),
-        "",
-      ].join("\n"))
-      entries.push(Object.freeze({specifier, sourcePath, entryPath}))
+      const sourcePath = canonicalOwnerTarget(packageRoot, target, specifier)
+      entries.push(Object.freeze({specifier, sourcePath, entryPath: sourcePath}))
     }
   }
   return Object.freeze(entries.sort((left, right) => left.specifier.localeCompare(right.specifier)))
@@ -121,10 +89,13 @@ function validateStorybookSharedBrowserIdentity(
     }
     specifiers.add(module.specifier)
     urls.add(url)
-    return Object.freeze({specifier: module.specifier, sourcePath: resolve(module.sourcePath), url})
+    const sources = module.sources === undefined ? undefined : validateSources(module.sources, module.specifier)
+    return Object.freeze({specifier: module.specifier, sourcePath: resolve(module.sourcePath), url,
+      ...(sources === undefined ? {} : {sources}),
+    })
   })
   const expectedEpoch = createHash("sha256").update(JSON.stringify({
-    modules: modules.map(({specifier, url}) => ({specifier, url})),
+    modules: modules.map(moduleProjection),
   })).digest("hex")
   if (value.epoch !== expectedEpoch) throw new Error("Shared Storybook module map does not match its epoch")
   return Object.freeze({
@@ -139,9 +110,23 @@ function validateStorybookSharedBrowserIdentity(
 /** Сохраняет governed imports как browser imports общих immutable entrypoints. */
 function createStorybookSharedBrowserExternalPlugin(
   identity: StorybookSharedBrowserIdentity,
+  options: Readonly<{moduleSourcePaths?: readonly string[]}> = {},
 ): Bun.BunPlugin {
   const validated = validateStorybookSharedBrowserIdentity(identity)
   const urls = new Map(validated.modules.map(({specifier, url}) => [specifier, url]))
+  const sourceBindings = new Map<string, StorybookSharedBrowserSource>()
+  const sourcesByPath = new Map<string, StorybookSharedBrowserSource>()
+  for (const module of validated.modules) {
+    for (const source of module.sources ?? []) {
+      const previous = sourceBindings.get(source.specifier)
+      if (previous !== undefined && JSON.stringify(previous) !== JSON.stringify(source)) {
+        throw new Error(`Ambiguous shared Storybook source binding: ${source.specifier}`)
+      }
+      sourceBindings.set(source.specifier, source)
+      sourcesByPath.set(source.sourcePath, source)
+    }
+  }
+  const requested = new Set((options.moduleSourcePaths ?? []).map(path => fileIdentity(canonicalExactFile(path))))
   return {
     name: "external-storybook-shared-browser-identity",
     setup(builder) {
@@ -152,6 +137,22 @@ function createStorybookSharedBrowserExternalPlugin(
         return undefined
       })
       builder.onResolve({filter: /^\/__storybook\/shared\//u}, ({path}) => ({path, external: true}))
+      if (sourceBindings.size > 0) builder.onResolve({filter: /.*/u}, ({path, importer, resolveDir}) => {
+        const bySpecifier = sourceBindings.get(path)
+        if (bySpecifier === undefined && !path.startsWith(".") && !isAbsolute(path)) return undefined
+        const directory = resolveDir || (importer ? dirname(importer) : process.cwd())
+        let resolved: string
+        try { resolved = canonicalExactFile(Bun.resolveSync(path, directory)) }
+        catch (error) {
+          if (bySpecifier !== undefined) throw new Error(`Cannot resolve shared Storybook source ${path}`, {cause: error})
+          return undefined
+        }
+        if (requested.has(fileIdentity(resolved))) return undefined
+        const binding = bySpecifier ?? sourcesByPath.get(resolved)
+        if (binding === undefined) return undefined
+        attestSource(binding, resolved)
+        return {path: binding.url, external: true}
+      })
     },
   }
 }
@@ -162,7 +163,7 @@ function storybookSharedBrowserIdentity(
   hostModuleEpoch: string,
 ): StorybookSharedBrowserIdentity {
   const epoch = createHash("sha256").update(JSON.stringify({
-    modules: modules.map(({specifier, url}) => ({specifier, url})),
+    modules: modules.map(moduleProjection),
   })).digest("hex")
   return validateStorybookSharedBrowserIdentity({
     protocol: Protocol,
@@ -173,6 +174,67 @@ function storybookSharedBrowserIdentity(
   })
 }
 
+/** Источники входят в epoch как metadata; наличие текущих файлов проверяется только при linkage. */
+function moduleProjection(module: StorybookSharedBrowserModule): unknown {
+  return {specifier: module.specifier, url: module.url,
+    ...(module.sources === undefined ? {} : {sources: validateSources(module.sources, module.specifier)}),
+  }
+}
+
+function validateSources(value: readonly StorybookSharedBrowserSource[], module: string): readonly StorybookSharedBrowserSource[] {
+  if (!Array.isArray(value)) throw new TypeError(`Shared Storybook sources must be a list: ${module}`)
+  const seen = new Set<string>()
+  return Object.freeze(value.map((source, index) => {
+    if (source === null || typeof source !== "object" || Array.isArray(source) || !isBareModuleSpecifier(source.specifier)) {
+      throw new TypeError(`Invalid shared Storybook source ${index}: ${module}`)
+    }
+    if (typeof source.sourcePath !== "string" || !isAbsolute(source.sourcePath) ||
+      typeof source.manifestPath !== "string" || !isAbsolute(source.manifestPath) ||
+      !source.manifestPath.endsWith(`${sep}package.json`)) {
+      throw new Error(`Invalid shared Storybook source paths: ${source.specifier}`)
+    }
+    const sourcePath = resolve(source.sourcePath)
+    const manifestPath = resolve(source.manifestPath)
+    const tail = relative(dirname(manifestPath), sourcePath)
+    if (tail === "" || tail === ".." || tail.startsWith(`..${sep}`) || isAbsolute(tail)) {
+      throw new Error(`Shared Storybook source escaped its owner: ${source.specifier}`)
+    }
+    if (typeof source.manifestDigest !== "string" || !/^[a-f0-9]{64}$/u.test(source.manifestDigest)) {
+      throw new Error(`Invalid shared Storybook source manifest digest: ${source.specifier}`)
+    }
+    const key = `${source.specifier}:${sourcePath}`
+    if (seen.has(key)) throw new Error(`Duplicate shared Storybook source: ${source.specifier}`)
+    seen.add(key)
+    return Object.freeze({specifier: source.specifier, sourcePath, manifestPath,
+      manifestDigest: source.manifestDigest, url: validateSharedUrl(source.url, `source ${source.specifier}`),
+    })
+  }))
+}
+
+/** Подтверждает actual package и exact source, не присваивая одноимённый сторонний owner. */
+function attestSource(binding: StorybookSharedBrowserSource, resolved: string): void {
+  const manifest = canonicalExactFile(binding.manifestPath)
+  const expectedRoot = dirname(manifest)
+  const expected = Compiler.readStorybookPackageRoot(expectedRoot)
+  const actual = readStorybookPackageOwner(resolved)
+  const name = binding.specifier.startsWith("@") ? binding.specifier.split("/").slice(0, 2).join("/") : binding.specifier.split("/")[0]
+  if (expected.name !== name || actual === null || !Compiler.sameStorybookPackageOwner(expectedRoot, actual.root)) {
+    throw new Error(`Shared Storybook source has a different package identity: ${binding.specifier}`)
+  }
+  const digest = createHash("sha256").update(readFileSync(manifest)).digest("hex")
+  if (digest !== binding.manifestDigest) throw new Error(`Shared Storybook source manifest changed: ${binding.specifier}`)
+  const expectedSource = Compiler.canonicalizeStorybookPackageFile(expectedRoot, canonicalExactFile(binding.sourcePath))
+  const actualSource = Compiler.canonicalizeStorybookPackageFile(expectedRoot, resolved)
+  if (fileIdentity(expectedSource) !== fileIdentity(actualSource)) {
+    throw new Error(`Shared Storybook source export changed identity: ${binding.specifier}`)
+  }
+}
+
+function fileIdentity(path: string): string {
+  const file = statSync(path)
+  return `${file.dev}:${file.ino}`
+}
+
 function publicModuleExports(value: unknown, packageName: string): readonly [string, string][] {
   if (typeof value === "string") return [[".", value]]
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -180,8 +242,9 @@ function publicModuleExports(value: unknown, packageName: string): readonly [str
   }
   const entries: [string, string][] = []
   for (const [subpath, declaration] of Object.entries(value)) {
-    const target = conditionalExportTarget(declaration, ["browser", "import"])
-    if (!subpath.startsWith(".") || target === null || target.includes("*")) continue
+    if (declaration === null || typeof declaration !== "object" || Array.isArray(declaration)) continue
+    const target = (declaration as Record<string, unknown>).browser
+    if (!subpath.startsWith(".") || typeof target !== "string" || !target.endsWith(".js") || target.includes("*")) continue
     entries.push([subpath, target])
   }
   return entries
@@ -200,7 +263,7 @@ function canonicalOwnerTarget(packageRoot: string, target: string, specifier: st
   const packageName = specifier.startsWith("@")
     ? specifier.split("/").slice(0, 2).join("/")
     : specifier.split("/")[0]!
-  if (owner?.name !== packageName && !isOwnedJsxProtocol(packageRoot, specifier, owner)) {
+  if (!path.startsWith(`${packageRoot}${sep}`) || owner?.name !== packageName || owner.root !== packageRoot) {
     throw new Error(`Shared Storybook owner export changed identity: ${specifier}`)
   }
   return path
@@ -233,18 +296,7 @@ function validateSharedUrl(value: string, label: string): string {
   return value
 }
 
-function transpilerLoader(path: string): Bun.JavaScriptLoader {
-  switch (extname(path).toLowerCase()) {
-    case ".tsx": return "tsx"
-    case ".jsx": return "jsx"
-    case ".js":
-    case ".mjs":
-    case ".cjs": return "js"
-    default: return "ts"
-  }
-}
-
-/** Сборка и проверка одной exact module identity из авторских файлов. */
+/** Публикация и проверка одной identity готовых модулей. */
 export default Object.freeze({
   build: buildPlatform,
   runWorker: runPlatformBuild,

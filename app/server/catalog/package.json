@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@zavx0z/storybook-app-server-sessions": "workspace:*",
-    "@zavx0z/immersive-ui-component": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "description": "Атомарно обновляет каталог подключённых владельцев и производный граф приложения"
 }

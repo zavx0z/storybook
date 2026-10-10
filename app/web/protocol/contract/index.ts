@@ -1,5 +1,5 @@
 import type {StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-import type {BrowserFontFaceSource} from "@zavx0z/immersive-browser/integration"
+import type {BrowserFontFaceSource} from "@zavx0z/immersive/XReact/browser/integration"
 import type {StorybookSharedHost} from "./host"
 import type {ClientSnapshotInput, ClientSnapshot} from "./snapshot"
 import type {ExternalStorybookClientNodeContent} from "./client"

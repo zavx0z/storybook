@@ -1,4 +1,4 @@
-import {useSyncExternalStore} from "@zavx0z/immersive-component"
+import {useSyncExternalStore} from "@zavx0z/immersive/XReact"
 import type {StorybookChatView} from "../../contract"
 import ChatView from "../../index"
 

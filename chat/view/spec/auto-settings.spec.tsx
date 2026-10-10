@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import {InputEvent, KeyboardEvent, type HTMLButtonElement, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import {InputEvent, KeyboardEvent, type HTMLButtonElement, type HTMLTextAreaElement} from "@zavx0z/immersive"
 import AutoSettingsFixture from "./fixture/auto-settings"
 
 test("cold354px: auto prepare once, одна строка, локальная загрузка без блокировки текста и вложений", async () => {

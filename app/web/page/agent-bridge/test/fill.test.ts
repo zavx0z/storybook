@@ -1,6 +1,6 @@
 /** Проверки адаптера общего fill: штатный native delegate владеет изменением value и событиями. */
 import {expect, test} from "bun:test"
-import {createDocument, type HTMLInputElement, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
+import {createDocument, type HTMLInputElement, type HTMLTextAreaElement} from "@zavx0z/immersive"
 import {boundedFillText, boundedText, fillTextControl} from "../src/actions"
 
 test.each([

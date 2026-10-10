@@ -21,8 +21,7 @@
     "@types/bun": "^1.4.0",
     "@types/pngjs": "^6.0.5",
     "typescript": "^7.0.2",
-    "@zavx0z/immersive-nodes-node": "^0.0.0",
-    "@zavx0z/immersive-dom": "^0.0.0",
-    "@zavx0z/storybook-app-web-page-agent-bridge": "workspace:*"
+    "@zavx0z/storybook-app-web-page-agent-bridge": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

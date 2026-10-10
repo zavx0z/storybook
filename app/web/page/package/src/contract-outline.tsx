@@ -1,9 +1,9 @@
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import {Tree} from "@zavx0z/immersive-ui-component"
-import type {ImmersiveUiComponentWidgetTree} from "@zavx0z/immersive-ui-component"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import {Tree} from "@zavx0z/immersive/ui"
+import type {ImmersiveUiComponentWidgetTree} from "@zavx0z/immersive/ui"
 type TreeItem = ImmersiveUiComponentWidgetTree.Input["items"][number]
 type TreeHandle = NonNullable<Parameters<NonNullable<ImmersiveUiComponentWidgetTree.Input["onReady"]>>[0]>
-import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
+import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive/XReact"
 import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
 type StorybookContractDocument = Parameters<StorybookAppWebPageShell.Output["showContract"]>[1][number]
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"

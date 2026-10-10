@@ -17,9 +17,8 @@
     "@zavx0z/storybook-tech-limits": "workspace:*"
   },
   "devDependencies": {
-    "@zavx0z/immersive-jsx": "^0.0.0",
-    "@zavx0z/immersive-headless": "^0.0.0",
     "@zavx0z/storybook-package-reader": "workspace:*",
-    "@zavx0z/storybook-package-build-loader": "workspace:*"
+    "@zavx0z/storybook-package-build-loader": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

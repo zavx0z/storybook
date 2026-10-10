@@ -9,7 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/immersive-typedoc": "^0.0.0",
     "typescript": "^7.0.2",
     "@zavx0z/storybook-package-route-directories": "workspace:*",
     "@zavx0z/storybook-package-route-ignored": "workspace:*",
@@ -18,7 +17,8 @@
     "@zavx0z/storybook-package-index": "workspace:*",
     "@zavx0z/storybook-contracts": "workspace:*",
     "@zavx0z/storybook-package-route-workspaces": "workspace:*",
-    "@zavx0z/storybook-package-identity": "workspace:*"
+    "@zavx0z/storybook-package-identity": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
     "@zavx0z/storybook-package-graph-create": "workspace:*"

@@ -6,15 +6,15 @@
 
 @packageDocumentation
 */
-import {useMemo, useState} from "@zavx0z/immersive-component"
-import {SelectField} from "@zavx0z/immersive-ui-component"
-import {DiagramNode} from "@zavx0z/immersive-nodes-node"
-import {GraphView, type GraphInput, type GraphLayoutComputer, type GraphNodeProps} from "@zavx0z/immersive-nodes/view"
-import {layoutTopDown} from "@zavx0z/immersive-nodes-layout/top-down"
-import {createCubicLinkRoute} from "@zavx0z/immersive-nodes/routing/link-path"
+import {useMemo, useState} from "@zavx0z/immersive/XReact"
+import {SelectField} from "@zavx0z/immersive/ui"
+import {DiagramNode} from "@zavx0z/immersive/nodes/node"
+import {GraphView, type GraphInput, type GraphLayoutComputer, type GraphNodeProps} from "@zavx0z/immersive/nodes/view"
+import {layoutTopDown} from "@zavx0z/immersive/nodes/layout/top-down"
+import {createCubicLinkRoute} from "@zavx0z/immersive/nodes/routing"
 import type {StorybookDependencyCase} from "../contract/documents.ts"
-import type {Document} from "@zavx0z/immersive-dom"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {Document} from "@zavx0z/immersive"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
 
 type DependencyLabel = Readonly<{label: string, title: string}>

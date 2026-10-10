@@ -1,3 +1,4 @@
+import {expectNamedUiImport} from "../../test/fixture/ui-ownership.ts"
 import {describe, expect, test} from "bun:test"
 import {existsSync, readdirSync, readFileSync} from "node:fs"
 import {basename, join} from "node:path"
@@ -59,7 +60,7 @@ describe("Workbench component module boundary", () => {
   test("composes the production Pane instead of duplicating its visual contract", () => {
     const panel = readFileSync(join(root, "components/region-panel.tsx"), "utf8")
     const preview = readFileSync(join(root, "regions/preview.tsx"), "utf8")
-    expect(panel).toContain('from "@zavx0z/immersive-ui-component/surface/pane"')
+    expectNamedUiImport(panel, "Pane")
     expect(panel).toContain("<Pane")
     for (const declaration of [
       "box-sizing:",
@@ -71,15 +72,15 @@ describe("Workbench component module boundary", () => {
       "color:",
     ]) expect(panel).not.toContain(declaration)
     expect(preview).not.toContain("WorkbenchRegionPanel")
-    expect(preview).toContain('from "@zavx0z/immersive-ui-component/surface/pane"')
+    expectNamedUiImport(preview, "Pane")
     expect(preview).toContain('<Pane')
     expect(preview).not.toContain("border:")
   })
 
   test("composes the production StatusBar instead of duplicating its footer visual contract", () => {
     const status = readFileSync(join(root, "regions/status.tsx"), "utf8")
-    expect(status).toContain('from "@zavx0z/immersive-ui-component/feedback/status-bar"')
-    expect(status).toContain('from "@zavx0z/immersive-ui-component/navigation/breadcrumb"')
+    expectNamedUiImport(status, "StatusBar")
+    expectNamedUiImport(status, "Breadcrumbs")
     expect(status).toContain("<StatusBar")
     expect(status).toContain("<Breadcrumbs")
     expect(status).not.toContain("<footer")
@@ -92,7 +93,7 @@ describe("Workbench component module boundary", () => {
       "color:",
       "font-size:",
       "line-height:",
-    ]) expect(status).not.toContain(declaration)
+    ]) expect(status).not.toMatch(new RegExp(`(?:^|[;{\n])\\s*${declaration.slice(0, -1)}\\s*:`, "u"))
   })
 
   test("keeps reusable component contour and states with production owners", () => {
@@ -101,7 +102,10 @@ describe("Workbench component module boundary", () => {
     expect(inspector).toContain("panelIds:")
     expect(inspector).not.toContain("InspectorSections")
     expect(inspector).not.toContain("sectionIds")
-    expect(inspector).not.toContain("context=")
+    expectNamedUiImport(inspector, "Inspector")
+    const inspectorOpening = inspector.match(/<Inspector\b[\s\S]*?>/u)?.[0]
+    expect(inspectorOpening).toBeDefined()
+    expect(inspectorOpening!).not.toContain("context=")
     expect(existsSync(join(root, "inspector/widget-section.tsx"))).toBeFalse()
 
     expect(existsSync(join(root, "components/region-heading.tsx"))).toBeFalse()

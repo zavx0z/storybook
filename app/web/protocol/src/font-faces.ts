@@ -1,4 +1,4 @@
-import type {BrowserFontFaceSource} from "@zavx0z/immersive-browser/integration"
+import type {BrowserFontFaceSource} from "@zavx0z/immersive/XReact/browser/integration"
 
 /** Application font declarations; every file is served from its Engine owner. */
 export const STORYBOOK_FONT_FACES: readonly BrowserFontFaceSource[] = Object.freeze([

@@ -1,21 +1,21 @@
-import {ViewPoint, Vector3} from "@zavx0z/immersive-engine"
+import {ViewPoint, Vector3} from "@zavx0z/immersive/engine"
 import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
-import {DisplayElement} from "@zavx0z/immersive-dom/display"
+import {DisplayElement} from "@zavx0z/immersive"
 import StorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
 import presentationRootFixture from "@zavx0z/storybook-tech-testing-browser-root"
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocumentClipboardController} from "@zavx0z/immersive-browser/clipboard"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocumentClipboardController} from "@zavx0z/immersive"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import {createDocument} from "@zavx0z/immersive-dom"
-import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/immersive-browser/integration"
-import type {RenderFrame} from "@zavx0z/immersive-renderer-html"
-import {createSpaceElementFactories} from "@zavx0z/immersive-space"
-import {HUDElement} from "@zavx0z/immersive-dom/hud"
-import {SpaceElement} from "@zavx0z/immersive-dom/space"
-import {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
+import {createDocument} from "@zavx0z/immersive"
+import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/immersive/XReact/browser/integration"
+import type {RenderFrame} from "@zavx0z/immersive/renderer/html"
+import {createSpaceElementFactories} from "@zavx0z/immersive/space"
+import {HUDElement} from "@zavx0z/immersive"
+import {SpaceElement} from "@zavx0z/immersive"
+import {ViewPointElement} from "@zavx0z/immersive"
 import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import createExternalStorybookGraph, {type StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
 type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
@@ -86,7 +86,7 @@ describe("external Storybook landing frontend", () => {
       // Домашнюю ссылку landing проверяем из его собственного обзора директории.
       await controller.select("directory:package:@fixture/components/docs")
       expect(controller.shell.workbench.controller.read("catalog.active")).toBe("directory:package:@fixture/components/docs")
-      const homeButton = controller.shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button') as import("@zavx0z/immersive-dom").HTMLButtonElement
+      const homeButton = controller.shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button') as import("@zavx0z/immersive").HTMLButtonElement
       expect(homeButton.hasAttribute("disabled")).toBeFalse()
       homeButton.click()
       await waitUntil(() => location.pathname === "/")

@@ -1,9 +1,9 @@
 import {expect, test} from "bun:test"
-import {Event, createDocument, type HTMLElement} from "@zavx0z/immersive-dom"
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocumentRenderer, createDocumentInteractionController} from "@zavx0z/immersive-renderer-html"
-import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {Event, createDocument, type HTMLElement} from "@zavx0z/immersive"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocumentRenderer, createDocumentInteractionController} from "@zavx0z/immersive/renderer/html"
+import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import type {StorybookChatSession, HistoryGroup} from "@zavx0z/storybook-chat-session"
 import type {StorybookChatView} from "../contract"
 import {createChatHistoryWindow} from "../../../app/web/page/shell/workbench/src/inspector/chat-history"
@@ -21,7 +21,7 @@ async function fixture(count: number, withGroup = false, unresolved = false) {
   const host = document.createElement("div")
   document.append(host)
   const root = createRoot(host)
-  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive-ui-component/theme/theme.css"))).text()
+  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: host, viewport: {width: 480, height: 700}, styleSheets: [theme]})
   const input = createDocumentInteractionController({document})
   let revision = 1

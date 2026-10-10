@@ -4,7 +4,7 @@
     "module": "Preserve",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
-    "jsxImportSource": "@zavx0z/immersive-jsx",
+    "jsxImportSource": "@zavx0z/immersive/XReact",
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true

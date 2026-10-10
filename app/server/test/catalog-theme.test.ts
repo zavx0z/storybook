@@ -15,12 +15,12 @@ const fixtureRoot = resolve(storybookRoot, "package/metadata/collect/fixtures/va
     await registry.attachMany([fixtureRoot])
     const descriptor = registry.packageDescriptors().find(({packageId}) => packageId === "@fixture/components")!
     expect(descriptor.graphSnapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([{
-      specifier: "@zavx0z/immersive-ui-component/theme/theme.css",
+      specifier: "@zavx0z/immersive/ui/theme.css",
       url: "workbench-author-style-sheets/0.css",
     }])
     const resource = descriptor.resourceFiles?.find(({targetPath}) => targetPath === "workbench-author-style-sheets/0.css")
     expect(resource?.contentDigest).toBe(descriptor.graphSnapshot.workbenchAuthorStyleSheets[0]!.contentDigest)
-    expect(resource?.sourcePath).toBe(Bun.resolveSync("@zavx0z/immersive-ui-component/theme/theme.css", storybookRoot))
+    expect(resource?.sourcePath).toBe(Bun.resolveSync("@zavx0z/immersive/ui/theme.css", storybookRoot))
     expect(descriptor.resourceFiles).toContain(resource!)
   }, 20_000)
 

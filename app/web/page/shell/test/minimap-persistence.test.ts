@@ -1,10 +1,10 @@
 import Minimap from "@zavx0z/storybook-app-web-page-shell-minimap"
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocument, MouseEvent, type Element} from "@zavx0z/immersive-dom"
-import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
-import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@zavx0z/immersive-renderer-html"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocument, MouseEvent, type Element} from "@zavx0z/immersive"
+import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
+import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@zavx0z/immersive/renderer/html"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import type {StorybookAppWebPageShellMinimap} from "@zavx0z/storybook-app-web-page-shell-minimap"
 type MinimapProps = StorybookAppWebPageShellMinimap.Input
 type MinimapState = StorybookAppWebPageShellMinimap.Output
@@ -12,7 +12,7 @@ import {createMinimapPersistence} from "../src/minimap-persistence"
 
 const initialLayout: MinimapState = {collapsed: false, geometry: {x: 8, y: 8, width: 300, height: 480}, tab: {edge: "left", offset: .5}}
 
-const theme = await Bun.file(Bun.resolveSync("@zavx0z/immersive-ui-component/theme/theme.css", import.meta.dir)).text()
+const theme = await Bun.file(Bun.resolveSync("@zavx0z/immersive/ui/theme.css", import.meta.dir)).text()
 
 /** Новая сессия компонента использует настоящее дерево, layout, ввод и переданное хранилище. */
 function mount(storage: () => Pick<Storage, "getItem" | "setItem">, width = 800, height = 600) {
@@ -45,7 +45,8 @@ function mount(storage: () => Pick<Storage, "getItem" | "setItem">, width = 800,
   }
   const button = (name: string) => root.querySelector(`button[aria-label="${name}"]`)!
   const point = (element: Element, pointerId: number) => {
-    const box = flush().boxByNode.get(element)!
+    flush()
+    const box = element.getBoundingClientRect()
     return {clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, pointerId, button: 0, buttons: 1}
   }
   flush()
@@ -119,7 +120,8 @@ test("Minimap восстанавливает окно и Tab после ново
     expect(createMinimapPersistence(storage).initialState).toEqual(state)
     expect(writes).toHaveLength(4)
     host.click("Fixture Project")
-    const box = host.flush().boxByNode.get(shell)!
+    host.flush()
+    const box = shell.getBoundingClientRect()
     expect({x: box.x, y: box.y, width: box.width, height: box.height}).toEqual(state.geometry)
     expect(createMinimapPersistence(storage).initialState?.collapsed).toBeFalse()
   } finally { host.dispose() }

@@ -1,9 +1,9 @@
 import {expect, test} from "bun:test"
-import {createDocument, acquireDocumentAuthorStyleSheetOwner, Event, WheelEvent, HTMLSelectElement} from "@zavx0z/immersive-dom"
-import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
-import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
-import {layoutTopDown} from "@zavx0z/immersive-nodes-layout/top-down"
-import {createCubicLinkRoute, projectLinkArrowheads, projectLinkEndpoints, projectLinkRoute} from "@zavx0z/immersive-nodes/routing/link-path"
+import {createDocument, acquireDocumentAuthorStyleSheetOwner, Event, WheelEvent, HTMLSelectElement} from "@zavx0z/immersive"
+import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
+import {createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
+import {layoutTopDown} from "@zavx0z/immersive/nodes/layout/top-down"
+import {createCubicLinkRoute, projectLinkArrowheads, projectLinkEndpoints, projectLinkRoute} from "@zavx0z/immersive/nodes/routing"
 import {createDependencyPresentation, dependencyGraphInput} from "../src/dependency-view.tsx"
 
 const ownerId = "owner.tsx#Owner"
@@ -54,7 +54,7 @@ test("[DEPENDENCIES-FIT] большой граф вписывается в Displ
   const renderer = createDocumentRenderer({document, root: owner, viewport: {width: 900, height: 650},
     textMeasurer: {measureTextAdvance: (text, size) => text.length * size * .5}})
   const styles = acquireDocumentAuthorStyleSheetOwner(document)
-  styles.replace([{id: "theme", cssText: await Bun.file(Bun.resolveSync("@zavx0z/immersive-ui-component/theme/theme.css", import.meta.dir)).text()}])
+  styles.replace([{id: "theme", cssText: await Bun.file(Bun.resolveSync("@zavx0z/immersive/ui/theme.css", import.meta.dir)).text()}])
   const leaves = Array.from({length: 48}, (_, index) => `leaf-${index}.tsx#Leaf${index}`)
   const large = {...value, name: "Большой граф", graph: {
     [ownerId]: {uses: leaves, elements: ["article"]},

@@ -2,7 +2,7 @@ import type {StorybookSharedBrowserIdentity} from "./types"
 import type {StorybookPackageBuildScheduler} from "@zavx0z/storybook-package-build-scheduler"
 import type Scheduler from "@zavx0z/storybook-package-build-scheduler"
 
-/** Вход явной компиляции общей платформы без browser-входов приложения. */
+/** Вход публикации готовой платформы без повторной компиляции и browser-входов приложения. */
 export type PlatformBuildInput = Readonly<{root: string, toolRoot: string, stagingDirectory: string}>
 
 /** Готовые внешние зависимости Web; файлы уже опубликованы внутри root. */

@@ -1,8 +1,8 @@
 /** Публичный ChatView показывает bounded snapshot беседы; действия возвращаются владельцу состояния. */
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
+import {createHeadless} from "@zavx0z/immersive/headless"
 import {readFile} from "node:fs/promises"
-import type {HTMLButtonElement} from "@zavx0z/immersive-dom"
+import type {HTMLButtonElement} from "@zavx0z/immersive"
 import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
 import StorybookChatView, {type StorybookChatView as Contract} from "@zavx0z/storybook-chat-view"
 import {fixtureHistory} from "./fixture/history-data"

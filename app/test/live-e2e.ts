@@ -9,7 +9,7 @@ const roots = [
   fileURLToPath(new URL("../../", import.meta.url)),
   fileURLToPath(new URL("../../../immersive", import.meta.url)),
 ]
-const packages = ["@zavx0z/storybook", "@zavx0z/immersive-ui-component", "@zavx0z/immersive-nodes-node"] as const
+const packages = ["@zavx0z/storybook", "@zavx0z/immersive/ui", "@zavx0z/immersive/nodes/node"] as const
 const app = createApp()
 const context = {signal: new AbortController().signal}
 let endpoint: URL

@@ -9,32 +9,18 @@
     ".": "./index.tsx"
   },
   "scripts": {
-    "test": "bun test --preload ./spec/fixture/preload.ts --preload @zavx0z/immersive-headless/preload ./spec"
+    "test": "bun test --preload ./spec/fixture/preload.ts --preload @zavx0z/immersive/headless/preload ./spec"
   },
   "dependencies": {
-    "@zavx0z/immersive-tech-svg-encode": "^0.0.0",
-    "@zavx0z/immersive-jsx": "^0.0.0",
-    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
     "@zavx0z/storybook-chat-session": "workspace:*",
-    "@zavx0z/immersive-component": "^0.0.0",
     "@zavx0z/storybook-tech-json-format": "workspace:*",
     "@zavx0z/storybook-chat-history": "workspace:*",
-    "@zavx0z/immersive-dom": "^0.0.0",
     "@zavx0z/chat": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
-    "@zavx0z/immersive-ui-component-view-code-editor": "^0.0.0",
-    "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
-    "@zavx0z/immersive-ui-component-button-icon": "^0.0.0",
-    "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
-    "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
     "@zavx0z/storybook-chat-preferences": "workspace:*",
-    "@zavx0z/immersive-template": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-browser": "^0.0.0",
-    "@zavx0z/immersive-renderer-html": "^0.0.0",
-    "@zavx0z/immersive-headless": "^0.0.0",
-    "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
-    "@zavx0z/storybook-tech-build-compiler": "workspace:*"
+    "@zavx0z/storybook-tech-build-compiler": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

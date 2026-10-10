@@ -1,5 +1,5 @@
-import type {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
-import type {ImmersiveUiComponentSurfaceTab} from "@zavx0z/immersive-ui-component"
+import type {ViewPointElement} from "@zavx0z/immersive"
+import type {ImmersiveUiComponentSurfaceTab} from "@zavx0z/immersive/ui"
 type TabProps = ImmersiveUiComponentSurfaceTab.Input
 
 export declare namespace StorybookAppWebPageShellViewpointControls {

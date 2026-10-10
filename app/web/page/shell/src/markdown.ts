@@ -1,5 +1,5 @@
-import type {Document} from "@zavx0z/immersive-dom"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {Document} from "@zavx0z/immersive"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import createStorybookComponentPresentation, {type StorybookAppWebPagePresentation} from "@zavx0z/storybook-app-web-page-presentation"
 type StorybookComponentPresentation = StorybookAppWebPagePresentation.Output
 import {StorybookMarkdownView, type StorybookMarkdownViewProps} from "./markdown-view.tsx"

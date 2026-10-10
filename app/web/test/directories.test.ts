@@ -17,6 +17,7 @@ import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 const createExternalStorybookClientSnapshot = WebProtocol.clientSnapshot
 const deriveStorybookBreadcrumbs = WebNavigationOwner.deriveStorybookBreadcrumbs
 import startExternalStorybookServer from "@zavx0z/storybook-app-server"
+import {createProjectFixture} from "../../server/test/project.fixture"
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })
@@ -81,13 +82,10 @@ test("keeps packages and physical directories in the same navigation tree", asyn
 
 test("явный refresh обновляет обзор директории и правила gitignore", async () => {
   const {root, repo} = await fixture()
-  for (const directory of [root, repo]) {
-    const result = Bun.spawnSync(["git", "init", "--quiet", directory])
-    if (result.exitCode !== 0) throw new Error(result.stderr.toString())
-  }
-  await Bun.write(join(root, "package.json"), JSON.stringify({name: "Fixture Project", private: true}))
-  await Bun.write(join(root, ".gitmodules"), '[submodule "repo-0"]\n\tpath = repo\n\turl = https://example.invalid/repo-0.git\n')
-  const server = await startExternalStorybookServer({createWeb, project: root, statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
+  createProjectFixture(root, [repo])
+  const stateRoot = await realpath(await mkdtemp(join(tmpdir(), "storybook-web-state-")))
+  roots.push(stateRoot)
+  const server = await startExternalStorybookServer({createWeb, project: root, statePath: join(stateRoot, "server.json"), artifactRoot: join(root, "artifacts")})
   try {
     const refresh = async () => fetch(new URL("/api/control/refresh", server.origin), {
       method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"}, body: JSON.stringify({force: true}),

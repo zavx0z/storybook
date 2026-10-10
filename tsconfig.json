@@ -18,7 +18,7 @@
       "node"
     ],
     "jsx": "react-jsx",
-    "jsxImportSource": "@zavx0z/immersive-jsx",
+    "jsxImportSource": "@zavx0z/immersive/XReact",
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,

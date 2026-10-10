@@ -72,7 +72,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
       "app/web/src/browser-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
-    expect(combined).toContain('from "@zavx0z/immersive-browser/integration"')
+    expect(combined).toContain('from "@zavx0z/immersive/XReact/browser/integration"')
     expect(combined).toContain("createBrowserRoot")
     expect(combined).toContain("application.render(")
     expect(combined).toContain("root.document")

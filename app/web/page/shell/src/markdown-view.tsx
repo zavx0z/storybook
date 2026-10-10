@@ -1,4 +1,4 @@
-import {Markdown, type MarkdownProps} from "@zavx0z/immersive-markdown"
+import {Markdown, type MarkdownProps} from "@zavx0z/immersive/markdown"
 import {StorybookOverviewActionButton} from "./components/overview-action-button.tsx"
 import type {StorybookOverviewAction} from "../contract/overview-action.ts"
 

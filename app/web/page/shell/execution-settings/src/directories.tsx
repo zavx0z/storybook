@@ -1,8 +1,8 @@
-import {useEffect, useRef, useState} from "@zavx0z/immersive-component"
-import Button from "@zavx0z/immersive-ui-component-button-basic"
-import TextField from "@zavx0z/immersive-ui-component-field-text"
-import Panel from "@zavx0z/immersive-ui-component-surface-panel"
-import Typography from "@zavx0z/immersive-ui-component-typography"
+import {useEffect, useRef, useState} from "@zavx0z/immersive/XReact"
+import {Button} from "@zavx0z/immersive/ui"
+import {TextField} from "@zavx0z/immersive/ui"
+import {Panel} from "@zavx0z/immersive/ui"
+import {Typography} from "@zavx0z/immersive/ui"
 import type {StorybookAppWebPageShellExecutionSettings as Contract} from "../contract"
 
 type Client = NonNullable<Contract.Input["directories"]>

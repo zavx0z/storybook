@@ -1,9 +1,9 @@
 import {expect, test} from "bun:test"
-import {Event, createDocument, type HTMLElement} from "@zavx0z/immersive-dom"
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocumentRenderer, createDocumentInteractionController} from "@zavx0z/immersive-renderer-html"
-import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {Event, createDocument, type HTMLElement} from "@zavx0z/immersive"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocumentRenderer, createDocumentInteractionController} from "@zavx0z/immersive/renderer/html"
+import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import type {StorybookChatView} from "../contract"
 import {createChatHistoryWindow} from "../../../app/web/page/shell/workbench/src/inspector/chat-history"
 import GroupIntegration, {type GroupIntegrationProps} from "./fixture/group-integration"
@@ -13,7 +13,7 @@ test("external-store раскрытие группы стабилизирует�
   const element = document.createElement("div")
   document.append(element)
   const root = createRoot(element)
-  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive-ui-component/theme/theme.css"))).text()
+  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: element, viewport: {width: 480, height: 700}, styleSheets: [theme]})
   const group = {id: "service:user:u", kind: "group" as const, origin: "local" as const, ordinal: 2, sequence: 2,
     revision: 1, bodyBytes: 0 as const, evidenceCount: 1000, memberCount: 1000, userId: "u", lastSequence: 1001, title: "Действия агента"}
@@ -144,7 +144,7 @@ test("33 KiB Markdown и два одинаковых вопроса стабил
   const element = document.createElement("div")
   document.append(element)
   const root = createRoot(element)
-  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive-ui-component/theme/theme.css"))).text()
+  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: element, viewport: {width: 480, height: 700}, styleSheets: [theme]})
   // Искусственный текст воспроизводит объём и Markdown, не сохраняет реальный bootstrap.
   const paragraph = "## Synthetic section\n\nA bounded offline paragraph with **formatted text** and a list.\n\n- One fixture item\n- Another fixture item\n\n"
@@ -226,7 +226,7 @@ test.each([2, 64])("группа с %i записями измеряет ест�
   const host = document.createElement("div")
   document.append(host)
   const root = createRoot(host)
-  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive-ui-component/theme/theme.css"))).text()
+  const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: host, viewport: {width: 480, height: 700}, styleSheets: [theme]})
   const input = createDocumentInteractionController({document})
   const group = {id: "service:user:u", kind: "group" as const, origin: "local" as const, ordinal: 1, sequence: 2,

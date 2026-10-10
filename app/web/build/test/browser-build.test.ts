@@ -3,7 +3,7 @@ import {afterEach, expect, setDefaultTimeout, spyOn, test} from "bun:test"
 import {mkdtempSync, rmSync, writeFileSync} from "node:fs"
 import {randomUUID} from "node:crypto"
 import {tmpdir} from "node:os"
-import {join} from "node:path"
+import {join, resolve} from "node:path"
 import {saveSharedBrowserCandidate} from "../src/receipt"
 import {buildSharedBrowserAssets} from "../src/browser-build"
 import {sources} from "../src/sources"
@@ -30,7 +30,7 @@ test("сборка host сохраняет платформу и адресуе�
     }
 
     const platform = await Environment.build({root: join(root, "assets"), toolRoot, stagingDirectory: join(root, "platform")})
-    expect(nativeBuild).toHaveBeenCalledTimes(1)
+    expect(nativeBuild).toHaveBeenCalledTimes(0)
     const first = await buildSharedBrowserAssets({
       sharedKernel: platform.identity, kernelArtifacts: platform.artifacts,
       ...common,
@@ -49,8 +49,23 @@ test("сборка host сохраняет платформу и адресуе�
     expect(first.landingEntry).toBe(first.bootstrapEntry!)
     expect(first.fallbackEntry).toBe(first.bootstrapEntry!)
     expect(first.browserIdentity!.packageEntryUrl).not.toBe(`/__storybook/shared/${first.bootstrapEntry}`)
-    expect(nativeBuild).toHaveBeenCalledTimes(2)
-    expect(nativeBuild.mock.calls.filter(([config]) => config.outdir?.includes("kernel"))).toHaveLength(1)
+    expect(nativeBuild).toHaveBeenCalledTimes(1)
+    expect(nativeBuild.mock.calls.filter(([config]) => config.outdir?.includes("kernel"))).toHaveLength(0)
+    const host = await nativeBuild.mock.results[0]!.value as Bun.BuildOutput
+    const sharedSources = new Set(platform.identity.modules.flatMap(module => [
+      module.sourcePath, ...module.sources?.map(source => source.sourcePath) ?? [],
+    ]))
+    expect(Object.keys(host.metafile!.inputs).map(path => resolve(path)).filter(path => sharedSources.has(path)),
+      "Web не включает повторную копию готовых модулей или их source owners").toEqual([])
+    const ui = platform.identity.modules.find(module => module.specifier === "@zavx0z/immersive/ui")!
+    const uiUrls = new Set([ui.url, ...ui.sources?.map(source => source.url) ?? []])
+    // Bun metadata пропускает external imports, возвращённые resolver plugin.
+    // Проверяем настоящие ESM imports выпущенного Web, сохраняя exact UI identity.
+    const hostImports = (await Promise.all(hostFiles.filter(output => output.path.endsWith(".js")).map(async output =>
+      new Bun.Transpiler({loader: "js"}).scan(await Bun.file(join(first.root, output.path)).text()).imports,
+    ))).flat()
+    expect(hostImports.some(imported => uiUrls.has(imported.path)),
+      "Web ссылается на UI того же готового runtime").toBeTrue()
     const phases: string[] = []
     const second = await buildSharedBrowserAssets({
       ...common,
@@ -63,8 +78,8 @@ test("сборка host сохраняет платформу и адресуе�
     expect(phases).not.toContain("kernel")
     expect(phases).not.toContain("fingerprint")
     expect(phases).not.toContain("cache")
-    expect(nativeBuild).toHaveBeenCalledTimes(3)
-    expect(nativeBuild.mock.calls.filter(([config]) => config.outdir?.includes("kernel"))).toHaveLength(1)
+    expect(nativeBuild).toHaveBeenCalledTimes(2)
+    expect(nativeBuild.mock.calls.filter(([config]) => config.outdir?.includes("kernel"))).toHaveLength(0)
 
     expect(first.browserIdentity?.epoch).toBe(second.browserIdentity?.epoch)
     const webArtifacts = (assets: typeof first) => assets.artifactDigests!.filter(artifact =>
@@ -75,8 +90,8 @@ test("сборка host сохраняет платформу и адресуе�
       .toBe(JSON.stringify(webArtifacts(first)) === JSON.stringify(webArtifacts(second)))
     expect(first.browserIdentity?.modules.map(({specifier, url}) => ({specifier, url})))
       .toEqual(second.browserIdentity?.modules.map(({specifier, url}) => ({specifier, url})))
-    expect(first.browserIdentity?.modules.some(({specifier}) => specifier.startsWith("@zavx0z/immersive-ui-component")))
-      .toBeFalse()
+    expect(first.browserIdentity?.modules.some(({specifier}) => specifier === "@zavx0z/immersive/ui"),
+      "Web использует готовый UI того же общего runtime").toBeTrue()
   } finally {
     nativeBuild.mockRestore()
     rmSync(note, {force: true})

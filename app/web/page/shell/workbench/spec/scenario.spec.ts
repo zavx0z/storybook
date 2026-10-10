@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import {WorkbenchFrame} from "./fixture/frame"
 import {createFrameEnvironment} from "./fixture/environment"
 

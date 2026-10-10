@@ -1,7 +1,7 @@
 /** Управление отправкой и параметры агента используют реальные события общего Document. */
 import {afterAll, expect, mock, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import {Event, KeyboardEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import {Event, KeyboardEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/immersive"
 import StorybookChatView from "./fixture/history"
 
 const headless = createHeadless({width: 360, height: 680})

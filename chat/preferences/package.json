@@ -10,12 +10,9 @@
   },
   "dependencies": {
     "@zavx0z/storybook-chat-session": "workspace:*",
-    "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
-    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
-    "@zavx0z/immersive-ui-component-typography": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-headless": "^0.0.0",
-    "@zavx0z/immersive-dom": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

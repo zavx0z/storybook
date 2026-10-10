@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
-import {InputEvent, type HTMLInputElement} from "@zavx0z/immersive-dom"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {InputEvent, type HTMLInputElement} from "@zavx0z/immersive"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import ExecutionSettings from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 import type {createDirectorySettingsClient, DirectorySettingsDraft} from "../src/directory-settings-client"
 import {createWindowHost} from "./fixture/mcp-window-host"

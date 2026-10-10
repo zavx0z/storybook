@@ -1,4 +1,4 @@
-import {createAudioPlayback} from "@zavx0z/immersive-browser/audio"
+import {createAudioPlayback} from "@zavx0z/immersive"
 import {saveDraftMedia, loadDraftMedia} from "./chat-draft-media"
 import {createHistoryRequests} from "./history-requests"
 import {openChatOriginalImage} from "./chat-original-image"

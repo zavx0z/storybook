@@ -1,5 +1,5 @@
-import {createRoot} from "@zavx0z/immersive-component"
-import type {HTMLDivElement, Document} from "@zavx0z/immersive-dom"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import type {HTMLDivElement, Document} from "@zavx0z/immersive"
 import type {WorkbenchModel} from "../../src/model-contract"
 type CreateWorkbenchOptions = Omit<WorkbenchModel.Input, "document"> & {document: Document}
 import {createWorkbenchModel} from "../../src/model"

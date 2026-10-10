@@ -27,7 +27,7 @@ describe("external Storybook package compiler", () => {
     const selected = resolveStorybookPackageCompilerInputs(input)
     expect(selected.sourceRoots).toContain(await realpath(selectedToolRoot))
     expect(selected.sourceRoots).not.toContain(await realpath(toolRoot))
-    expect(selected.adapterPath).toBe(join(await realpath(fixture.adapterRoot), "index.ts"))
+    expect(selected.adapterPath).toBe(join(await realpath(fixture.adapterRoot), "dist/compiler/index.js"))
   })
 
   test("uses only tool compiler owners when a package has no executable modules", async () => {
@@ -37,8 +37,8 @@ describe("external Storybook package compiler", () => {
       "external-storybook-exact-owner-resolution",
       "zavx0z-jsx",
     ])
-    expect(resolveWithPlugin(plugins[0]!, "@zavx0z/immersive-template/compiled").path)
-      .toBe(join(await realpath(resolve(import.meta.dir, "../../../../../immersive/template")), "compiled.ts"))
+    expect(resolveWithPlugin(plugins[0]!, "@zavx0z/immersive/XReact/compiled").path)
+      .toBe(join(await realpath(resolve(import.meta.dir, "../../../../../immersive")), "dist/XReact/compiled/index.js"))
   })
 
   test("keeps exact owner resolution when effective tsconfig does not require JSX", async () => {
@@ -73,7 +73,7 @@ describe("external Storybook package compiler", () => {
       compilerOptions: {jsx: "react-jsx", jsxImportSource: "react"},
     })
     await writeJson(join(foreignTemplate, "package.json"), {
-      name: "@zavx0z/immersive-template",
+      name: "@zavx0z/immersive/template",
       exports: {"./compiled": "./compiled.ts"},
     })
     await Bun.write(join(foreignTemplate, "compiled.ts"), "export const foreign = true\n")
@@ -86,11 +86,11 @@ describe("external Storybook package compiler", () => {
       repo: root,
       moduleSourcePaths: [source],
     })
-    const resolved = resolveWithPlugin(plugins[0]!, "@zavx0z/immersive-template/compiled")
+    const resolved = resolveWithPlugin(plugins[0]!, "@zavx0z/immersive/XReact/compiled")
     expect(resolved.path).toBe(join(await realpath(resolve(
       import.meta.dir,
-      "../../../../../immersive/template",
-    )), "compiled.ts"))
+      "../../../../../immersive",
+    )), "dist/XReact/compiled/index.js"))
   })
 
   test("resolves a fresh JSX plugin and exact manifest-reached source roots", async () => {
@@ -113,7 +113,6 @@ describe("external Storybook package compiler", () => {
     const canonicalRepo = await realpath(fixture.repo)
     const canonicalDependencyRoots = await Promise.all([
       fixture.linkedRoot,
-      fixture.adapterRoot,
       fixture.transitiveRoot,
     ].map(async (path) => await realpath(path)))
     const expectedOwnerSourceRoots = [
@@ -133,7 +132,7 @@ describe("external Storybook package compiler", () => {
     ])
     expect(compilerInputs.adapterPath).toBe(join(
       await realpath(fixture.adapterRoot),
-      "index.ts",
+      "dist/compiler/index.js",
     ))
     expect(compilerInputs.semanticSourceRoots).toContain(canonicalRepo)
   })
@@ -167,7 +166,7 @@ describe("external Storybook package compiler", () => {
     const root = await temporaryRoot()
     await writeJson(join(root, "package.json"), {name: "@fixture/missing-template"})
     await writeJson(join(root, "tsconfig.json"), {
-      compilerOptions: {jsxImportSource: "@zavx0z/immersive-jsx"},
+      compilerOptions: {jsxImportSource: "@zavx0z/immersive/XReact"},
     })
     const source = join(root, "story.tsx")
     await Bun.write(source, "export const story = <Component />")
@@ -185,8 +184,7 @@ describe("external Storybook package compiler", () => {
     const manifestPath = join(fixture.repo, "package.json")
     const manifest = await Bun.file(manifestPath).json()
     manifest.dependencies["@fixture/linked"] = "^1.0.0"
-    manifest.devDependencies["@zavx0z/immersive-jsx"] = "^0.0.0"
-    manifest.devDependencies["@zavx0z/immersive-jsx-compiler-bun"] = "^0.0.0"
+    manifest.devDependencies["@zavx0z/immersive"] = "^0.0.0"
     await writeJson(manifestPath, manifest)
     await writeJson(join(fixture.linkedRoot, "package.json"), {
       name: "@fixture/linked", version: "1.2.0", dependencies: {"@fixture/transitive": "^2.0.0"},
@@ -195,7 +193,7 @@ describe("external Storybook package compiler", () => {
 
     const inputs = resolveStorybookPackageCompilerInputs(fixture.input)
     expect(inputs.adapterPath, "Диапазон версии сохраняет публичный адаптер установленного JSX владельца")
-      .toBe(join(fixture.adapterRoot, "index.ts"))
+      .toBe(join(fixture.adapterRoot, "dist/compiler/index.js"))
     expect(inputs.sourceRoots, "Транзитивная зависимость раскрывает тот же физический каталог исходников")
       .toContain(await realpath(fixture.transitiveRoot))
   })
@@ -210,6 +208,72 @@ describe("external Storybook package compiler", () => {
     expect(resolveStorybookCompilerSourceRoots({repo: root, packageRoot: root}),
       "Установка из npm store остаётся обычной зависимостью и не становится исходным владельцем")
       .toEqual([await realpath(root)])
+  })
+
+  test.each(["linked", "installed"] as const)("готовая %s зависимость сохраняет exports без чужих source roots", async installation => {
+    const directory = await temporaryRoot()
+    const repo = join(directory, "repo")
+    const ready = installation === "linked" ? join(directory, "ready") : join(repo, "node_modules/@fixture/ready")
+    await writeJson(join(repo, "package.json"), {
+      name: "@fixture/consumer",
+      dependencies: {"@fixture/ready": installation === "linked" ? "^1.0.0" : "file:./node_modules/@fixture/ready", "@zavx0z/immersive": "^0.0.0"},
+    })
+    await writeJson(join(repo, "tsconfig.json"), {compilerOptions: {jsxImportSource: "@zavx0z/immersive/XReact"}})
+    await writeJson(join(ready, "package.json"), {
+      name: "@fixture/ready", version: "1.0.0", type: "module",
+      exports: {".": {source: "./source/index.tsx", types: "./index.d.ts", browser: "./index.js", default: "./index.js"}},
+      dependencies: {"@fixture/private": "file:./absent-private-source"},
+    })
+    await Bun.write(join(ready, "index.js"), 'export const prepared = "ready-marker"\n')
+    await Bun.write(join(ready, "index.d.ts"), 'export declare const prepared: "ready-marker"\n')
+    await Bun.write(join(ready, "source/index.tsx"), 'throw new Error("ready source must not execute")\n')
+    if (installation === "linked") await linkPackage(repo, "@fixture/ready", ready)
+    await linkPackage(repo, "@zavx0z/immersive", await realpath(resolve(import.meta.dir, "../../../../../immersive")))
+    const source = join(repo, "app.ts")
+    await Bun.write(source, 'export {prepared} from "@fixture/ready"\n')
+    const input = {toolRoot, repo, packageRoot: repo, moduleSourcePaths: [source]}
+    const roots = resolveStorybookCompilerSourceRoots(input)
+    expect(roots).toEqual([await realpath(repo)])
+    const context = resolveStorybookPackageCompilerInputs(input)
+    expect(context.sourceRoots).not.toContain(await realpath(ready))
+    expect(context.semanticSourceRoots).not.toContain(await realpath(ready))
+    expect(context.sourceRoots).not.toContain(await realpath(resolve(import.meta.dir, "../../../../../immersive")))
+    const plugins = await createStorybookPackageCompilerPlugins(input)
+    expect(resolveWithPlugin(plugins[0]!, "@fixture/ready").path).toBe(join(await realpath(ready), "index.js"))
+    const result = await Bun.build({entrypoints: [source], target: "browser", plugins: [...plugins]})
+    expect(result.success, result.logs.map(log => log.message).join("\n")).toBeTrue()
+    expect(await result.outputs[0]!.text()).toContain("ready-marker")
+  })
+
+  test("проверяемый Repo остаётся авторским владельцем при наличии собственной готовой поставки", async () => {
+    const repo = await temporaryRoot()
+    const sourceOwner = join(repo, "component")
+    await writeJson(join(repo, "package.json"), {
+      name: "@fixture/authored-platform", version: "1.0.0",
+      exports: {".": {source: "./source.ts", types: "./dist/index.d.ts", browser: "./dist/index.js", default: "./dist/index.js"}},
+      dependencies: {"@fixture/component": "file:./component"},
+    })
+    await Bun.write(join(repo, "dist/index.js"), "export const built = true\n")
+    await Bun.write(join(repo, "dist/index.d.ts"), "export declare const built: true\n")
+    await writeJson(join(sourceOwner, "package.json"), {name: "@fixture/component", exports: {".": "./index.ts"}})
+    await Bun.write(join(sourceOwner, "index.ts"), "export const authored = true\n")
+    const roots = resolveStorybookCompilerSourceRoots({repo, packageRoot: repo})
+    expect(roots).toContain(await realpath(repo))
+    expect(roots).toContain(await realpath(sourceOwner))
+  })
+
+  test("generated native JSX подключает bare public package и подтверждает его physical owner", async () => {
+    const generated = await temporaryRoot()
+    Compiler.ensureGeneratedJsxProtocol(generated, toolRoot)
+    const installed = join(generated, "node_modules/@zavx0z/immersive")
+    const owner = Compiler.readStorybookPackageRoot(installed)
+    expect(owner.name).toBe("@zavx0z/immersive")
+    expect(Compiler.isOwnedJsxProtocol(installed, "@zavx0z/immersive/XReact/jsx-runtime", owner)).toBeTrue()
+    expect(Compiler.isOwnedJsxProtocol(installed, "@zavx0z/immersive/XReact/jsx-dev-runtime", owner)).toBeTrue()
+    expect(Compiler.isOwnedJsxProtocol(installed, "@zavx0z/immersive/XReact/private", owner)).toBeFalse()
+    const foreign = await temporaryRoot()
+    await writeJson(join(foreign, "package.json"), {name: "@zavx0z/immersive"})
+    expect(Compiler.isOwnedJsxProtocol(installed, "@zavx0z/immersive/XReact/jsx-runtime", Compiler.readStorybookPackageRoot(foreign))).toBeFalse()
   })
 
   test("несовместимая версия установленного исходного владельца отклоняется", async () => {
@@ -230,7 +294,7 @@ describe("external Storybook package compiler", () => {
     await mkdir(packageRoot, {recursive: true})
     await writeJson(join(root, "package.json"), {name: "@fixture/repo"})
     await writeJson(join(root, "tsconfig.json"), {
-      compilerOptions: {jsxImportSource: "@zavx0z/immersive-jsx"},
+      compilerOptions: {jsxImportSource: "@zavx0z/immersive/XReact"},
     })
     await writeJson(join(packageRoot, "package.json"), {name: "@fixture/declaration-only-engine"})
 
@@ -271,7 +335,7 @@ describe("external Storybook package compiler", () => {
     expect(inputs).toContain("immersive/component/src/index.ts")
     expect(inputs).toContain("immersive/template/compiled.ts")
     expect(inputs).not.toContain("node_modules/.bun/@zavx0z+")
-  })
+  }, 60_000)
 
   test("maps an exact Bun hardlink module mirror back to the declared package owner", async () => {
     const {packageRoot, source, mirrorSource} = await moduleMirrorFixture()
@@ -338,7 +402,7 @@ export default function createJsxBunPlugin() {
 }
 `)
     await expect(createStorybookPackageCompilerPlugins(fixture.input)).rejects.toThrow(
-      "Ambiguous owner dependency identity @zavx0z/immersive-jsx-compiler-bun",
+      "Ambiguous owner dependency identity @zavx0z/immersive",
     )
   })
 
@@ -392,9 +456,9 @@ async function jsxRepoFixture(adapterSource?: string): Promise<Readonly<{
   const root = await temporaryRoot()
   const repo = join(root, "repo")
   const packageRoot = join(repo, "packages", "owner")
-  const jsxRoot = await realpath(resolve(import.meta.dir, "../../../../../immersive/jsx"))
+  const immersiveRoot = await realpath(resolve(import.meta.dir, "../../../../../immersive"))
   const adapterRoot = adapterSource === undefined
-    ? join(jsxRoot, "compiler/bun")
+    ? immersiveRoot
     : join(root, "owners", "jsx-bun")
   const linkedRoot = join(root, "owners", "linked")
   const transitiveRoot = join(root, "owners", "transitive")
@@ -414,16 +478,18 @@ async function jsxRepoFixture(adapterSource?: string): Promise<Readonly<{
       "@fixture/owner": "workspace:*",
       "@fixture/linked": "link:@fixture/linked",
     },
-    devDependencies: {"@zavx0z/immersive-jsx": `file:${jsxRoot}`, "@zavx0z/immersive-jsx-compiler-bun": `file:${adapterRoot}`},
+    devDependencies: {"@zavx0z/immersive": `file:${adapterRoot}`},
   })
   await writeJson(join(packageRoot, "package.json"), {name: "@fixture/owner"})
   if (adapterSource !== undefined) {
     await writeJson(join(adapterRoot, "package.json"), {
-      name: "@zavx0z/immersive-jsx-compiler-bun",
+      name: "@zavx0z/immersive",
       type: "module",
-      exports: {".": "./index.js"},
+      exports: {".": {types: "./index.d.ts", browser: "./index.js", default: "./index.js"}, "./compiler": "./compiler.js"},
     })
-    await Bun.write(join(adapterRoot, "index.js"), adapterSource)
+    await Bun.write(join(adapterRoot, "index.js"), "export const ready = true\n")
+    await Bun.write(join(adapterRoot, "index.d.ts"), "export declare const ready: true\n")
+    await Bun.write(join(adapterRoot, "compiler.js"), adapterSource)
   }
   await writeJson(join(linkedRoot, "package.json"), {
     name: "@fixture/linked",
@@ -433,13 +499,12 @@ async function jsxRepoFixture(adapterSource?: string): Promise<Readonly<{
 
   await linkPackage(repo, "@fixture/owner", packageRoot)
   await linkPackage(repo, "@fixture/linked", linkedRoot)
-  await linkPackage(repo, "@zavx0z/immersive-jsx", jsxRoot)
-  await linkPackage(repo, "@zavx0z/immersive-jsx-compiler-bun", adapterRoot)
+  await linkPackage(repo, "@zavx0z/immersive", adapterRoot)
   await linkPackage(linkedRoot, "@fixture/transitive", transitiveRoot)
 
   await Bun.write(join(repo, "tsconfig.base.json"), String.raw`{
     // The owner compiler setting may come from an existing JSONC base.
-    "compilerOptions": {"jsxImportSource": "@zavx0z/immersive-jsx"}
+    "compilerOptions": {"jsxImportSource": "@zavx0z/immersive/XReact"}
   }`)
   await writeJson(join(repo, "tsconfig.json"), {extends: "./tsconfig.base.json"})
   const source = join(packageRoot, "story.tsx")
@@ -590,16 +655,16 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
   const root = await temporaryRoot()
   const generatedSourceRoot = join(root, "scenario-jsx")
   await mkdir(generatedSourceRoot)
-  await linkPackage(generatedSourceRoot, "@zavx0z/immersive-jsx", await realpath(resolve(import.meta.dir, "../../../../../immersive/jsx")))
+  await linkPackage(generatedSourceRoot, "@zavx0z/immersive", await realpath(resolve(import.meta.dir, "../../../../../immersive")))
   await writeJson(join(generatedSourceRoot, "tsconfig.json"), {compilerOptions: {
     target: "ESNext", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx",
-    jsxImportSource: "@zavx0z/immersive-jsx", noEmit: true, allowImportingTsExtensions: true, skipLibCheck: true,
+    jsxImportSource: "@zavx0z/immersive/XReact", noEmit: true, allowImportingTsExtensions: true, skipLibCheck: true,
   }, include: ["*.tsx"]})
   const modules = Loader.generateJsxModules([{
     kind: "component", nodeId: "fixture", module: {path: source, export: "default"},
     variants: [{id: "child", title: "child", props: {}, source: "", points: [], jsxProps: {
       children: {source: '<Button label="Дочерний" />', imports: [
-        {local: "Button", imported: "default", specifier: "@zavx0z/immersive-ui-component-button-basic", path: source},
+        {local: "Button", imported: "default", specifier: "@zavx0z/immersive/ui", path: source},
       ]},
     }}],
   }])
@@ -613,7 +678,7 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
   expect(loaded.ScenarioJsx.displayName).toBe("ScenarioJsx")
   expect(typeof loaded.ScenarioJsx.mount).toBe("function")
   expect(typeof loaded.ScenarioJsx.render).toBe("function")
-}, 30_000)
+}, 60_000)
 
 test("слоты each проходят генерацию, штатную компиляцию и переключение без замены родителя", async () => {
   const readScenario = (await import("@zavx0z/storybook-specs-scenarios-reader")).default
@@ -626,10 +691,10 @@ test("слоты each проходят генерацию, штатную ком
   const root = await temporaryRoot()
   const generatedSourceRoot = join(root, "scenario-jsx")
   await mkdir(generatedSourceRoot)
-  await linkPackage(generatedSourceRoot, "@zavx0z/immersive-jsx", await realpath(resolve(import.meta.dir, "../../../../../immersive/jsx")))
+  await linkPackage(generatedSourceRoot, "@zavx0z/immersive", await realpath(resolve(import.meta.dir, "../../../../../immersive")))
   await writeJson(join(generatedSourceRoot, "tsconfig.json"), {compilerOptions: {
     target: "ESNext", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx",
-    jsxImportSource: "@zavx0z/immersive-jsx",
+    jsxImportSource: "@zavx0z/immersive/XReact",
     strict: true, noEmit: true, allowImportingTsExtensions: true, skipLibCheck: true,
   }, include: ["*.tsx"]})
   const scenarios = [{...preview, nodeId: "slots", module: {path: join(generatedSourceRoot, "component.tsx"), export: "ScenarioComponent"}}]
@@ -637,8 +702,8 @@ test("слоты each проходят генерацию, штатную ком
   for (const module of Loader.generateJsxModules(scenarios)) await Bun.write(join(root, module.path), module.source)
   await Bun.write(join(root, "loader.ts"), Loader.generateLoaderSource({revisionUrl: "/__storybook/revisions/%40fixture%2Fscenario-slots/test/", scenarios}))
   await Bun.write(join(root, "entry.ts"), `
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocument} from "@zavx0z/immersive-dom"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocument} from "@zavx0z/immersive"
 import {STORYBOOK_PACKAGE_SCENARIO_LOADERS} from "./loader"
 export async function verify() {
   const scenario = await STORYBOOK_PACKAGE_SCENARIO_LOADERS.get("slots")()

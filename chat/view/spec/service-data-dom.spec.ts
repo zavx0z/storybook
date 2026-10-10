@@ -1,13 +1,13 @@
 /** Семантические проверки без Renderer и GPU: lazy данные, подсветка и полный readonly source. */
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive-dom"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import StorybookChatView, {type FixtureContract as Contract} from "./fixture/history"
 import {ChatContextContent, ChatData} from "../src/content"
-import {createDocumentRenderer, readRenderedSelectionText} from "@zavx0z/immersive-renderer-html"
-import {createDocumentClipboardController} from "@zavx0z/immersive-browser/clipboard"
-import {textPositionAtOffset} from "@zavx0z/immersive-dom/text-position"
+import {createDocumentRenderer, readRenderedSelectionText} from "@zavx0z/immersive/renderer/html"
+import {createDocumentClipboardController} from "@zavx0z/immersive"
+import {textPositionAtOffset} from "@zavx0z/immersive"
 
 test("закрытая tool запись не форматирует документ и не создаёт CodeEditor", async () => {
   const f = fixture()

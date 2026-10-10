@@ -21,11 +21,11 @@ Chrome. Адрес Studio и имя профиля определяют подк
 
 @packageDocumentation
 */
-import {useEffect, useState} from "@zavx0z/immersive-component"
-import Window from "@zavx0z/immersive-ui-component-surface-window"
-import Tab from "@zavx0z/immersive-ui-component-surface-tab"
-import WindowControl from "@zavx0z/immersive-ui-component-surface-window-control"
-import Settings from "@zavx0z/immersive-ui-component-widget-settings"
+import {useEffect, useState} from "@zavx0z/immersive/XReact"
+import {Window} from "@zavx0z/immersive/ui"
+import {Tab} from "@zavx0z/immersive/ui"
+import {WindowControl} from "@zavx0z/immersive/ui"
+import {Settings} from "@zavx0z/immersive/ui"
 import {SettingsContent} from "./src/content"
 import {Directories} from "./src/directories"
 import {windowState} from "./src/state"

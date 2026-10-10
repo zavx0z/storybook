@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useSyncExternalStore} from "@zavx0z/immersive-component"
+import {useEffect, useMemo, useRef, useSyncExternalStore} from "@zavx0z/immersive/XReact"
 import Header from "@zavx0z/chat/header"
 import type {WorkbenchChatContext} from "../../contract/workbench"
 import {createChatBrowserClient} from "./chat-client"

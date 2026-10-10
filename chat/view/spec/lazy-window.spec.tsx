@@ -1,6 +1,6 @@
 /** Resident headers и видимые тела составляют один bounded DOM без полной timeline. */
 import {expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
+import {createHeadless} from "@zavx0z/immersive/headless"
 import ChatView, {type StorybookChatView} from "../index"
 import {ChatData} from "../src/content"
 

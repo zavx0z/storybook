@@ -14,7 +14,7 @@ export function seedPublishedSharedAssets(artifactRoot: string): void {
   const toolRoot = realpathSync(join(import.meta.dir, "../../.."))
   const bytes = "export {}\n"
   const digest = (value: string) => createHash("sha256").update(value).digest("hex")
-  const modules = BuildEnvironmentOwner.createModuleEntries(toolRoot, join(artifactRoot, "identity-entries"))
+  const modules = BuildEnvironmentOwner.createModuleEntries(toolRoot)
     .map(({specifier, sourcePath}) => ({specifier, sourcePath,
       url: `/__storybook/shared/kernel/${digest(specifier)}.js`}))
   const theme = AppWebBuildOwner.readTheme(toolRoot)[0]!

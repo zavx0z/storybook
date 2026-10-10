@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import {RequestList} from "../mcp-window/src/request-list"
 import {createWindowHost} from "./fixture/mcp-window-host"
 

@@ -1,6 +1,6 @@
-import {useEffect, useRef, useState} from "@zavx0z/immersive-component"
-import Button from "@zavx0z/immersive-ui-component-button-basic"
-import Panel from "@zavx0z/immersive-ui-component-surface-panel"
+import {useEffect, useRef, useState} from "@zavx0z/immersive/XReact"
+import {Button} from "@zavx0z/immersive/ui"
+import {Panel} from "@zavx0z/immersive/ui"
 import Preferences from "@zavx0z/storybook-chat-preferences"
 import type {createChatBrowserClient, ChatBrowserSnapshot} from "./chat-client"
 

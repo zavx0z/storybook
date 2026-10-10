@@ -1,5 +1,5 @@
-import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
-import {Typography} from "@zavx0z/immersive-ui-component"
+import {CodeEditor} from "@zavx0z/immersive/ui"
+import {Typography} from "@zavx0z/immersive/ui"
 import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
 type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input

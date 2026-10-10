@@ -1,5 +1,5 @@
-import {useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from "@zavx0z/immersive-component"
-import {observeElementLayout} from "@zavx0z/immersive-dom"
+import {useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from "@zavx0z/immersive/XReact"
+import {observeElementLayout} from "@zavx0z/immersive"
 import StorybookChatView from "@zavx0z/storybook-chat-view"
 import type {WorkbenchInspectorCustomWidgetProps, WorkbenchChatContext} from "../../contract/workbench"
 import {createChatBrowserClient} from "./chat-client"

@@ -4,7 +4,7 @@
 */
 import type {StorybookAppWebPagePackageScenarioPreview as Contract} from "./contract"
 export type {StorybookAppWebPagePackageScenarioPreview} from "./contract"
-import {useSyncExternalStore} from "@zavx0z/immersive-component"
+import {useSyncExternalStore} from "@zavx0z/immersive/XReact"
 import StorybookAppWebPagePackageScenarioResult from "@zavx0z/storybook-app-web-page-package-scenario-result"
 /**
 Предоставляет место общей фикстуре в существующем Display.

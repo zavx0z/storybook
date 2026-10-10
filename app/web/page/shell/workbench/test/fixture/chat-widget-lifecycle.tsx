@@ -1,4 +1,4 @@
-import {useSyncExternalStore} from "@zavx0z/immersive-component"
+import {useSyncExternalStore} from "@zavx0z/immersive/XReact"
 import type {StorybookAppWebPageShellViewpointControls} from "@zavx0z/storybook-app-web-page-shell-viewpoint-controls"
 import type {WorkbenchChatContext} from "../../contract/workbench"
 import {ChatWidget} from "../../src/inspector/chat-widget"

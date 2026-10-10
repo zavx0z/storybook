@@ -1,7 +1,7 @@
-import {useEffect, useRef, useState} from "@zavx0z/immersive-component"
-import Button from "@zavx0z/immersive-ui-component-button-basic"
+import {useEffect, useRef, useState} from "@zavx0z/immersive/XReact"
+import {Button} from "@zavx0z/immersive/ui"
 import Composer from "@zavx0z/chat/composer"
-import svgIcon from "@zavx0z/immersive-tech-svg-encode"
+import svgIcon from "@zavx0z/immersive/ui/svg"
 import {ChatSettings, ChatModelSettings} from "./settings"
 import type {StorybookChatView as Contract} from "../contract"
 

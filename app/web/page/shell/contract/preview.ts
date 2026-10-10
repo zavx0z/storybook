@@ -1,4 +1,4 @@
-import type {Node as SemanticNode} from "@zavx0z/immersive-dom"
+import type {Node as SemanticNode} from "@zavx0z/immersive"
 
 /**
 Положение обзора в единственном пространстве страницы.

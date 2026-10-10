@@ -170,7 +170,7 @@ test("явный запрос полной среды собирает kernel п
         fallbackEntry: "page.js",
         browserIdentity: Environment.identity(
           "/__storybook/shared/page.js",
-          [{specifier: "@zavx0z/immersive-component", sourcePath: platform, url: `/__storybook/shared/kernel/${platformVersion}.js`}],
+          [{specifier: "@zavx0z/immersive/XReact", sourcePath: platform, url: `/__storybook/shared/kernel/${platformVersion}.js`}],
           digest(readFileSync(web, "utf8")),
         ),
       }

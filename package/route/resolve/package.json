@@ -18,7 +18,7 @@
     "@zavx0z/storybook-contracts": "workspace:*"
   },
   "devDependencies": {
-    "@zavx0z/immersive-nodes-node": "^0.0.0",
-    "@zavx0z/storybook-package-route-children": "workspace:*"
+    "@zavx0z/storybook-package-route-children": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

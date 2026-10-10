@@ -10,7 +10,7 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
     devDependencies: Readonly<Record<string, string>>
   }
 
-  expect(shell).toContain('from "@zavx0z/immersive-browser/integration"')
+  expect(shell).toContain('from "@zavx0z/immersive/XReact/browser/integration"')
   expect(shell).toContain("createBrowserRoot")
   expect(shell).toContain("application.render(")
   expect(shell).toContain("root.document")
@@ -20,17 +20,20 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
   expect(shell).not.toContain("DocumentOverlayRuntime")
   expect(shell).not.toContain("workbenchOverlay")
 
+  expect(Object.keys(manifest.devDependencies).filter(name =>
+    name === "@zavx0z/immersive" || name.startsWith("@zavx0z/immersive-") || name.startsWith("@zavx0z/immersive/")))
+    .toEqual(["@zavx0z/immersive"])
   for (const required of [
-    "@zavx0z/immersive-browser",
-    "@zavx0z/immersive-component",
-    "@zavx0z/immersive-dom",
-    "@zavx0z/immersive-engine",
-    "@zavx0z/immersive-renderer-html",
-    "@zavx0z/immersive-space",
-    "@zavx0z/immersive-template",
-    "@zavx0z/immersive-ui-component",
-    "@zavx0z/immersive-webgpu",
-  ]) expect(manifest.devDependencies[required], required).toBeDefined()
+    "@zavx0z/immersive/XReact/browser",
+    "@zavx0z/immersive/XReact",
+    "@zavx0z/immersive",
+    "@zavx0z/immersive/engine",
+    "@zavx0z/immersive/renderer/html",
+    "@zavx0z/immersive/space",
+    "@zavx0z/immersive/template",
+    "@zavx0z/immersive/ui",
+    "@zavx0z/immersive/webgpu",
+  ]) expect(Bun.resolveSync(required, repositoryRoot), required).toMatch(/\/dist\/.+\.js$/u)
 
   for (const forbidden of [
     "@engine/core",

@@ -24,7 +24,6 @@
     "@zavx0z/storybook-app-server": "workspace:*",
     "@zavx0z/storybook-tech-build-compiler": "workspace:*",
     "@zavx0z/storybook-tech-build-environment": "workspace:*",
-    "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
     "@zavx0z/storybook-package-build-descriptor": "workspace:*",
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-package-graph-read": "workspace:*",
@@ -33,8 +32,6 @@
     "@zavx0z/storybook-package-route-url": "workspace:*",
     "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
     "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-ui-component": "^0.0.0",
-    "@zavx0z/immersive-markdown": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

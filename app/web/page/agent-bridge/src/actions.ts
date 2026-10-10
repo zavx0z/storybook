@@ -1,5 +1,5 @@
-import {HTMLElement, HTMLInputElement, HTMLLabelElement, HTMLTextAreaElement, type Node} from "@zavx0z/immersive-dom"
-import type {DomInspector, DomInspectorNode} from "@zavx0z/immersive-devtool"
+import {HTMLElement, HTMLInputElement, HTMLLabelElement, HTMLTextAreaElement, type Node} from "@zavx0z/immersive"
+import type {DomInspector, DomInspectorNode} from "@zavx0z/immersive/diagnostics"
 import type {Request, Target} from "../contract/request"
 import type {Shell} from "../contract/shell"
 import {STORYBOOK_AGENT_BRIDGE_PROTOCOL} from "./protocol"

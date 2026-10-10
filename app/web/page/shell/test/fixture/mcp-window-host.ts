@@ -1,12 +1,12 @@
 import {resolve} from "node:path"
-import {createRoot} from "@zavx0z/immersive-component"
-import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
-import {createDocument, MouseEvent} from "@zavx0z/immersive-dom"
-import type {Element} from "@zavx0z/immersive-dom"
-import {createDocumentInteractionController, createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
+import {createDocument, MouseEvent} from "@zavx0z/immersive"
+import type {Element} from "@zavx0z/immersive"
+import {createDocumentInteractionController, createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
 
 const repository = resolve(import.meta.dir, "../../../../../../..")
-const theme = await Bun.file(Bun.resolveSync("@zavx0z/immersive-ui-component/theme/theme.css", repository)).text()
+const theme = await Bun.file(Bun.resolveSync("@zavx0z/immersive/ui/theme.css", repository)).text()
 
 /** Изолированное окно использует настоящий компонент, Document, layout и ввод; GPU-кадр здесь не проверяется. */
 export function createWindowHost() {

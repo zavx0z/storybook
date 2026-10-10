@@ -1,8 +1,8 @@
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive-component"
-import {createDocument, MouseEvent, KeyboardEvent} from "@zavx0z/immersive-dom"
-import {createSpaceElementFactories} from "@zavx0z/immersive-space"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDocument, MouseEvent, KeyboardEvent} from "@zavx0z/immersive"
+import {createSpaceElementFactories} from "@zavx0z/immersive/space"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import Workbench, {type StorybookAppWebPageShellWorkbench} from "../index"
 type WorkbenchProps = StorybookAppWebPageShellWorkbench.Input
 import {selectWorkbenchNavigationBranch} from "../src/navigation/branch.ts"

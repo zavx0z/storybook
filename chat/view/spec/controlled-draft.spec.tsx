@@ -1,7 +1,7 @@
 /** Проверяет обратную связь редактора с владельцем draft; native ввод и caret проверяются в Browser отдельно. */
 import {expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import {InputEvent, KeyboardEvent, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import {InputEvent, KeyboardEvent, type HTMLTextAreaElement} from "@zavx0z/immersive"
 import StorybookChatView from "./fixture/history"
 
 /** Проверяет совместимость с legacy payload; штатный Immersive constructor не принимает keyCode. */

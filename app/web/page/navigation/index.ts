@@ -156,7 +156,7 @@ const Owner: StorybookAppWebPageNavigation.Output = Object.freeze({
   @example
   ```ts
   await Owner.navigatePackage(
-    {packageId: "@zavx0z/immersive-markdown", route: ""},
+    {packageId: "@zavx0z/immersive/markdown", route: ""},
     page.navigatePackage,
   )
   ```

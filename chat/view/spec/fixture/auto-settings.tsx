@@ -1,4 +1,4 @@
-import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
+import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive/XReact"
 import type {StorybookChatView} from "../../contract"
 import FixtureChatView from "./history"
 

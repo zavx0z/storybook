@@ -1,5 +1,5 @@
 import createAgentBridge, {type StorybookAppWebPageAgentBridge} from "@zavx0z/storybook-app-web-page-agent-bridge"
-import {createDocument} from "@zavx0z/immersive-dom"
+import {createDocument} from "@zavx0z/immersive"
 import routeUrl from "@zavx0z/storybook-package-route-url"
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, readFileSync, readdirSync, rmSync} from "node:fs"

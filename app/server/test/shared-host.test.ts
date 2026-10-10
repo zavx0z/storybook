@@ -63,7 +63,7 @@ test("общая оболочка читается и доставляется �
     writeFileSync(join(assetsRoot, path), "export {}")
   }
   const identity = storybookSharedBrowserIdentity("/__storybook/shared/entries/page.js", [{
-    specifier: "@zavx0z/immersive-component", sourcePath, url: "/__storybook/shared/kernel/fixture.js",
+    specifier: "@zavx0z/immersive/XReact", sourcePath, url: "/__storybook/shared/kernel/fixture.js",
   }], digest("host"))
   saveSharedBrowserReceipt({root: assetsRoot, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[2]!,
     browserIdentity: identity, authorStyleSheets: [],
@@ -225,7 +225,7 @@ function retainedHostFixture() {
       fallbackEntry: paths[1]!,
       bootstrapEntry: paths[2]!,
       browserIdentity: storybookSharedBrowserIdentity(`/__storybook/shared/${paths[1]}`, [{
-        specifier: "@zavx0z/immersive-component", sourcePath, url: `/__storybook/shared/${paths[0]}`,
+        specifier: "@zavx0z/immersive/XReact", sourcePath, url: `/__storybook/shared/${paths[0]}`,
       }], digest(host)),
       authorStyleSheets: [],
       artifactDigests: paths.map(path => ({path, digest: digest("export {}")})),

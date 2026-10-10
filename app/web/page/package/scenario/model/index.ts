@@ -5,7 +5,7 @@
 
 @packageDocumentation
 */
-import {isCompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {isCompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import type {StorybookAppWebPagePackageScenarioModel} from "./contract"
 export type {StorybookAppWebPagePackageScenarioModel} from "./contract"
 

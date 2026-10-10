@@ -7,14 +7,14 @@
 
 @packageDocumentation
 */
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {JSX} from "@zavx0z/immersive/XReact"
 
-import {useRef, component, provideContext} from "@zavx0z/immersive-component"
+import {useRef, component, provideContext} from "@zavx0z/immersive/XReact"
 import type {StorybookChatView as Contract} from "./contract"
 import {ChatComposer} from "./src/composer"
 import {ChatPermission, ChatStatus, ChatError} from "./src/feedback"
-import Button from "@zavx0z/immersive-ui-component-button-basic"
+import {Button} from "@zavx0z/immersive/ui"
 import ConversationSurface from "@zavx0z/chat/surface"
 import {MediaOverlay, MediaHostContext} from "@zavx0z/chat/content"
 import HistoryView from "@zavx0z/chat/history/view"

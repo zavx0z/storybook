@@ -1,6 +1,6 @@
-import type {ComponentValue} from "@zavx0z/immersive-component"
-import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
-import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/immersive-browser/integration"
+import type {ComponentValue} from "@zavx0z/immersive/XReact"
+import type {JSX} from "@zavx0z/immersive/XReact"
+import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/immersive/XReact/browser/integration"
 
 type PresentationFixtureOptions = IntegrationOptions & {
   canvas: HTMLCanvasElement

@@ -7,8 +7,8 @@
 
 @packageDocumentation
 */
-import Typography from "@zavx0z/immersive-ui-component-typography"
-import SelectField from "@zavx0z/immersive-ui-component-field-select"
+import {Typography} from "@zavx0z/immersive/ui"
+import {SelectField} from "@zavx0z/immersive/ui"
 import {PreferenceField} from "./src/field"
 import type {StorybookChatPreferences} from "./contract"
 export type {StorybookChatPreferences} from "./contract"

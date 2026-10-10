@@ -1,5 +1,5 @@
-import {useSyncExternalStore} from "@zavx0z/immersive-component"
-import {Button} from "@zavx0z/immersive-ui-component"
+import {useSyncExternalStore} from "@zavx0z/immersive/XReact"
+import {Button} from "@zavx0z/immersive/ui"
 import type {StorybookAppWebPageShellViewpointTab} from "../contract"
 
 /** Обычные компоненты управления сохраняют клик и перетаскивание родительского Tab. */

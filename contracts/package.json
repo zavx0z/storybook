@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "typescript": "^7.0.2",
-    "@zavx0z/immersive-jsx": "^0.0.0",
     "@zavx0z/storybook-package-route-ignored": "workspace:*",
-    "@zavx0z/storybook-package-reader": "workspace:*"
+    "@zavx0z/storybook-package-reader": "workspace:*",
+    "@zavx0z/immersive": "^0.0.0"
   },
   "scripts": {
     "test": "bun test ./spec ./test --max-concurrency=1",

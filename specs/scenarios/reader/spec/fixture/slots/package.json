@@ -6,9 +6,9 @@
     ".": "./index.tsx"
   },
   "scripts": {
-    "test": "bun test --preload @zavx0z/immersive-headless/preload ./spec"
+    "test": "bun test --preload @zavx0z/immersive/headless/preload ./spec"
   },
   "devDependencies": {
-    "@zavx0z/immersive-jsx": "workspace:*"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

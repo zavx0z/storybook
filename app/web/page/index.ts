@@ -65,7 +65,7 @@ payload, styles, socket, Inspector, scroll и последний committed URL. 
 ```ts
 const page = await startExternalStorybookPage({sharedModuleEpoch})
 try {
-  await page.navigatePackage({packageId: "@zavx0z/immersive-markdown", route: ""})
+  await page.navigatePackage({packageId: "@zavx0z/immersive/markdown", route: ""})
 } finally {
   await page.dispose()
 }

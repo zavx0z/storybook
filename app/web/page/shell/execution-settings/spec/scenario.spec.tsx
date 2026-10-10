@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import {Event, InputEvent, type HTMLButtonElement, type HTMLInputElement, type HTMLSelectElement} from "@zavx0z/immersive-dom"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import {Event, InputEvent, type HTMLButtonElement, type HTMLInputElement, type HTMLSelectElement} from "@zavx0z/immersive"
 import ExecutionSettings from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 
 const settings = {schemaVersion: 1, revision: 0, connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}], general: {connectionId: "codex"}, types: {}}

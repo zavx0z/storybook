@@ -1,5 +1,5 @@
-import type {DisplayElement} from "@zavx0z/immersive-dom/display"
-import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
+import type {DisplayElement} from "@zavx0z/immersive"
+import type {JSX} from "@zavx0z/immersive/XReact"
 
 /** Одна оболочка Workbench; положение и физический габарит не меняют её оформление. */
 export function StorybookDisplay(props: Readonly<{

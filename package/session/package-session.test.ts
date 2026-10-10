@@ -888,7 +888,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
     const graphSnapshot = redigest({
       ...base.graphSnapshot,
       workbenchAuthorStyleSheets: [{
-        specifier: "@zavx0z/immersive-ui-component/theme/theme.css",
+        specifier: "@zavx0z/immersive/ui/theme.css",
         url: "workbench-author-style-sheets/0.css",
         contentDigest,
       }],

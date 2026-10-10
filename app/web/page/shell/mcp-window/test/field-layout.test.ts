@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import type {HTMLElement} from "@zavx0z/immersive-dom"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {HTMLElement} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellMcpWindow} from "../contract"
 import {createWindowHost} from "../spec/fixture"
 import {command} from "../spec/fixture/records"

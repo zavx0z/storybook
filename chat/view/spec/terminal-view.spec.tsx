@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
+import {createHeadless} from "@zavx0z/immersive/headless"
 import ToolTerminal from "../src/terminal-output-view"
 
 test("обычные детали показывают terminal data и exit читаемо без metadata JSON", async () => {

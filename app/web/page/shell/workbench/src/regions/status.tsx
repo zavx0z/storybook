@@ -1,5 +1,5 @@
-import {Breadcrumbs, type ImmersiveUiComponentNavigationBreadcrumb} from "@zavx0z/immersive-ui-component"
-import {StatusBar} from "@zavx0z/immersive-ui-component"
+import {Breadcrumbs, type ImmersiveUiComponentNavigationBreadcrumb} from "@zavx0z/immersive/ui"
+import {StatusBar} from "@zavx0z/immersive/ui"
 import type {
   WorkbenchBreadcrumb,
   WorkbenchStatus,

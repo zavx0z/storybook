@@ -12,25 +12,11 @@
     "@zavx0z/storybook-app-settings": "workspace:*",
     "@zavx0z/storybook-chat-session": "workspace:*",
     "@zavx0z/storybook-chat-preferences": "workspace:*",
-    "@zavx0z/immersive-component": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-tab": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0",
-    "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
-    "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
-    "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
-    "@zavx0z/immersive-ui-component-feedback-notification": "^0.0.0",
-    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
-    "@zavx0z/immersive-ui-theme-icon-plus": "^0.0.0",
-    "@zavx0z/immersive-ui-theme-icon-apply": "^0.0.0",
     "@capsule/webrtc": "link:@capsule/webrtc",
     "@capsule/input": "link:@capsule/input",
-    "@zavx0z/immersive-ui-component-widget-settings": "^0.0.0",
-    "@zavx0z/immersive-ui-component-typography": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/immersive-headless": "^0.0.0",
-    "@zavx0z/immersive-dom": "^0.0.0"
+    "@zavx0z/immersive": "^0.0.0"
   }
 }

@@ -34,7 +34,7 @@ export function createWebArtifacts() {
       fallbackEntry: paths[1]!,
       bootstrapEntry: paths[2]!,
       browserIdentity: Environment.identity(`/__storybook/shared/${paths[1]}`, [{
-        specifier: "@zavx0z/immersive-component",
+        specifier: "@zavx0z/immersive/XReact",
         sourcePath,
         url: `/__storybook/shared/${paths[0]}`,
       }], digest(host)),

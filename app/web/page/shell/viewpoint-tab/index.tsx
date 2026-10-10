@@ -8,8 +8,8 @@ Workbench остаётся в Display; Tab не создаёт Window, каме�
 
 @packageDocumentation
 */
-import {useState} from "@zavx0z/immersive-component"
-import {Tab} from "@zavx0z/immersive-ui-component"
+import {useState} from "@zavx0z/immersive/XReact"
+import {Tab} from "@zavx0z/immersive/ui"
 import {ViewPointActions} from "./src/actions"
 import type {StorybookAppWebPageShellViewpointTab} from "./contract"
 export type {StorybookAppWebPageShellViewpointTab} from "./contract"

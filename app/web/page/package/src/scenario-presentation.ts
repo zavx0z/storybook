@@ -1,4 +1,4 @@
-import {createRoot} from "@zavx0z/immersive-component"
+import {createRoot} from "@zavx0z/immersive/XReact"
 import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
 import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
@@ -7,8 +7,8 @@ import StorybookAppWebPagePackageScenarioPreview, {type StorybookAppWebPagePacka
 /** Форма исходного публичного владельца. */
 type ScenarioPreviewPlacement = ScenarioPreviewContract.Input["placement"]
 import StorybookAppWebPagePackageScenarioResult from "@zavx0z/storybook-app-web-page-package-scenario-result"
-import type {Document} from "@zavx0z/immersive-dom"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {Document} from "@zavx0z/immersive"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
 
 /**

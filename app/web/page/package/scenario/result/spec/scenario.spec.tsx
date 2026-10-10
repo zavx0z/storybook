@@ -1,6 +1,6 @@
 /** Result показывает исход выбранного варианта на общем Experience. */
 import {afterAll, describe, expect, test} from "bun:test"
-import {createHeadless} from "@zavx0z/immersive-headless"
+import {createHeadless} from "@zavx0z/immersive/headless"
 import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
 import StorybookAppWebPagePackageScenarioResult from "@zavx0z/storybook-app-web-page-package-scenario-result"
 

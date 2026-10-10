@@ -1,6 +1,7 @@
+import {expectNamedUiImport} from "./fixture/ui-ownership.ts"
 import {describe, expect, test} from "bun:test"
-import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive-dom"
-import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
+import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive"
+import {createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
 import {createStorybookMessagePresentation} from "../src/message-presentation.ts"
 
 describe("Storybook message presentation ownership", () => {
@@ -39,13 +40,13 @@ describe("Storybook message presentation ownership", () => {
       new URL("../src/components/overview-action-button.tsx", import.meta.url),
     ).text()
 
-    expect(view).toContain('from "@zavx0z/immersive-ui-component/surface/pane"')
+    expectNamedUiImport(view, "Pane")
     expect(view).toContain("<Pane")
     expect(view).not.toContain("--widget-box-outline")
     expect(view).not.toContain("--widget-box-background")
     expect(view).not.toContain("border-radius:")
     expect(view).not.toContain("padding:")
-    expect(action).toContain('from "@zavx0z/immersive-ui-component/button/button"')
+    expectNamedUiImport(action, "Button")
     expect(action).toContain('size="large"')
     expect(action).toContain('data-storybook-overview-action=""')
     expect(action).toContain("display: flex;")

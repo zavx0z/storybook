@@ -42,7 +42,7 @@ export type StorybookContractDocument = Readonly<{
   direction: "input" | "output" | "slots"
   /** Точный источник выбранного протокола; прежние сохранённые документы этого поля не имели. */
   sourcePath?: string
-  document: import("@zavx0z/immersive-typedoc/parser").AnalyzeTypeDocOutput["document"]
+  document: import("@zavx0z/immersive/typedoc/parser").AnalyzeTypeDocOutput["document"]
 }>
 
 /**

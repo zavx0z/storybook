@@ -1,7 +1,7 @@
 import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 import {CatalogRegion} from "./catalog"
 import type {WorkbenchChatContext} from "../../contract/workbench"
-import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
+import type {JSX} from "@zavx0z/immersive/XReact"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorWidgetRegistration,

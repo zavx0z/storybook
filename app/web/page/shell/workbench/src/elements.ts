@@ -2,7 +2,7 @@ import type {
   HTMLDivElement,
   HTMLElement,
   Node,
-} from "@zavx0z/immersive-dom"
+} from "@zavx0z/immersive"
 import type {WorkbenchElements} from "../contract/workbench.ts"
 
 export function readWorkbenchElements(root: HTMLDivElement): WorkbenchElements {

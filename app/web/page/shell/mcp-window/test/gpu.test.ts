@@ -4,8 +4,8 @@ const readScenarios = McpRestScenariosOwner
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {createHeadless} from "@zavx0z/immersive-headless"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {createHeadless} from "@zavx0z/immersive/headless"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import {command} from "../spec/fixture/records"
 import createJournal from "@zavx0z/storybook-app-server-requests"
 

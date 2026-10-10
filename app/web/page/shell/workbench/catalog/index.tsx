@@ -10,10 +10,10 @@ Section занимает ширину и высоту принимающей о�
 
 @packageDocumentation
 */
-import {TextField, type ImmersiveUiComponentFieldText} from "@zavx0z/immersive-ui-component"
-import {Button} from "@zavx0z/immersive-ui-component"
-import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/immersive-ui-theme-icon"
-import {useRef} from "@zavx0z/immersive-component"
+import {TextField, type ImmersiveUiComponentFieldText} from "@zavx0z/immersive/ui"
+import {Button} from "@zavx0z/immersive/ui"
+import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/immersive/ui/icons"
+import {useRef} from "@zavx0z/immersive/XReact"
 import {CatalogNavigationTree, type CatalogNavigationTreeHandle} from "./src/navigation-tree"
 import {rebuildIcon} from "./src/icons"
 import type {StorybookAppWebPageShellWorkbenchCatalog} from "./contract"

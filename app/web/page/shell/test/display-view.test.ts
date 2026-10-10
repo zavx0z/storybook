@@ -1,9 +1,9 @@
 import {expect, test} from "bun:test"
-import {createDocument} from "@zavx0z/immersive-dom"
-import {createRoot} from "@zavx0z/immersive-component"
-import {DisplayElement} from "@zavx0z/immersive-dom/display"
-import {readDisplayStyle} from "@zavx0z/immersive-renderer-html"
-import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {createDocument} from "@zavx0z/immersive"
+import {createRoot} from "@zavx0z/immersive/XReact"
+import {DisplayElement} from "@zavx0z/immersive"
+import {readDisplayStyle} from "@zavx0z/immersive/renderer/html"
+import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import {StorybookDisplay} from "../src/display-view"
 
 test("прежний Display поддерживает размеры окна и миниатюры без замены содержимого", () => {

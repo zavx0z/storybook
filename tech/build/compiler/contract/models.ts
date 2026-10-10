@@ -1,5 +1,6 @@
 /**
-@property sourceRoots - Канонические корни владельцев, из которых resolver и compiler могут читать код.
+@property sourceRoots - Канонические корни авторских исходников. Готовые JS/.d.ts
+зависимости разрешаются по exports и не расширяют эти корни.
 
 @property adapterPath - Точный публичный адаптер JSX в Bun, создающий compiler plugin.
 
