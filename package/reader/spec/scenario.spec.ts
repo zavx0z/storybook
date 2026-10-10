@@ -23,7 +23,7 @@ describe.each([
   {name: "Архетип пакета", props: {path: resolve(import.meta.dir, "..")}},
 ])("$name", async ({props}) => {
   const result = await readPackage(props)
-  const entries = result.index.entries.filter(entry => entry.path === "." && entry.code && entry.status === "owned")
+  const entries = result.sourceIndex.entries.filter(entry => entry.path === "." && entry.code && entry.status === "owned")
   const localCode = result.code.filter(source => source.statements.length > 0
     || source.exports.some(item => item.runtime && item.declarations.some(declaration => declaration.owner?.path === result.root)))
   const repo = result.repository.gitRoot === result.root
@@ -44,7 +44,7 @@ describe.each([
     && !contract.sources.some(source => source.path.startsWith(resolve(result.root, "contract") + sep))
   const parts = result.packages.filter(part => part.parent === result.root)
   const participatingParts = container ? await runtimeOwnedParts(result) : new Set<string>()
-  const codeEntries = result.index.entries.filter(entry => entry.code && entry.status !== "blocked")
+  const codeEntries = result.sourceIndex.entries.filter(entry => entry.code && entry.status !== "blocked")
   const domainSubpaths = codeEntries.filter(entry => entry.path !== "." && entry.status === "forwarded")
   const resources = result.index.entries.filter(entry => !entry.code && entry.status !== "blocked")
   const domainFacts = domain ? await readDomain({path: result.root}) : null
@@ -431,7 +431,7 @@ describe.each([
         })))
     })
     test("Публичная граница", () => {
-      expect({applicable: component || container || domain, value: result.index.entries},
+      expect({applicable: component || container || domain, value: result.sourceIndex.entries},
         "Дополнительные самостоятельные реализации получают собственные пакеты; Component и Container публикуют только основной кодовый вход целого")
         .toSatisfy(({applicable, value: entries}) => !applicable || (entries.every(entry => !entry.code || entry.status === "blocked" || entry.path === "." && entry.status === "owned")))
     })
@@ -494,7 +494,7 @@ describe.each([
         .toSatisfy(({applicable, value}) => !applicable || (value.length === 0))
     })
     test("Публичное целое", () => {
-      expect({applicable: container, value: result.index.entries.filter(entry => entry.code && entry.status !== "blocked")},
+      expect({applicable: container, value: result.sourceIndex.entries.filter(entry => entry.code && entry.status !== "blocked")},
         "Внешний код обращается к собственной реализации контейнера; внутренние компоненты и контейнеры сохраняют собственных владельцев и не получают публичные подпути через целое")
         .toSatisfy(({applicable, value: entries}) => !applicable || (entries.every(entry => entry.path === "." && entry.status === "owned")))
     })

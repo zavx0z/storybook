@@ -12,6 +12,7 @@ import type {ScenarioSource} from "./types"
 import {readComponentOrigins} from "./component-origins"
 import {defaultExportInvocation} from "./public-callable"
 import {selectedVariantNames} from "./variant-selection"
+import {sourceModule} from "./source-module"
 
 /**
 Читает объявления как данные; не регистрирует и не исполняет тесты исходника.
@@ -55,7 +56,9 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
       const bindings = statement.importClause?.namedBindings
       if (subject && statement.importClause?.phaseModifier !== SyntaxKind.TypeKeyword && statement.moduleSpecifier.text !== "bun:test") {
         try {
-          if (Bun.resolveSync(statement.moduleSpecifier.text, dirname(path)) === subject.module) {
+          // Checker может видеть ready .d.ts; source export сохраняет authored
+          // identity того же адреса, а native symbols ниже проверяют alias/shadowing.
+          if (await sourceModule(statement.moduleSpecifier.text, path, project?.compilerOptions.customConditions) === subject.module) {
             if (statement.importClause?.name) ownerBindings.push({name: statement.importClause.name, exported: "default"})
             if (bindings && isNamedImports(bindings)) {
               for (const binding of bindings.elements) if (!binding.isTypeOnly) ownerBindings.push({name: binding.name, exported: binding.propertyName?.text ?? binding.name.text})

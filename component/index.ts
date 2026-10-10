@@ -19,7 +19,7 @@ export type {StorybookComponent} from "./contract"
 export default async function readComponent({path}: StorybookComponent.Input): Promise<StorybookComponent.Output> {
   const description = await readPackage({path})
   const entries: StorybookComponent.Output["entries"][number][] = []
-  for (const entry of description.index.entries) {
+  for (const entry of description.sourceIndex.entries) {
     if (entry.path !== "." || entry.status !== "owned" || !entry.code || !entry.target) continue
     const source = resolve(description.root, entry.target)
     const jsx = /\.[jt]sx$/u.test(source)
@@ -27,5 +27,5 @@ export default async function readComponent({path}: StorybookComponent.Input): P
       input: entry.input, output: entry.output, jsx})
   }
   return {package: description, entries, scenarios: description.scenarios,
-    additionalCode: description.index.entries.filter(entry => entry.code && entry.status !== "blocked" && (entry.path !== "." || entry.status !== "owned")).map(entry => entry.path)}
+    additionalCode: description.sourceIndex.entries.filter(entry => entry.code && entry.status !== "blocked" && (entry.path !== "." || entry.status !== "owned")).map(entry => entry.path)}
 }

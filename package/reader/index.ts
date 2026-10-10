@@ -20,6 +20,7 @@ import {readRootDocumentation} from "./src/root-documentation"
 import {readPackageSources} from "./src/sources"
 import {readRepositoryBoundary} from "./src/repository"
 import {readPackageComposition} from "./src/composition"
+import {sourceExports} from "./src/source-index"
 import type {StorybookPackageReader} from "./contract"
 
 export type {StorybookPackageReader} from "./contract"
@@ -37,16 +38,20 @@ export type {StorybookPackageReader} from "./contract"
 export default async function readPackage({path}: StorybookPackageReader.Input): Promise<StorybookPackageReader.Output> {
   const directory = await realpath(resolve(path))
   const packageJson = await readPackageJson({path: resolve(directory, "package.json")})
-  const [documentation, index, packages] = await Promise.all([
+  const authoredExports = sourceExports(packageJson.exports)
+  const indexPromise = readPackageIndex({path: directory, exports: packageJson.exports})
+  const sourceIndexPromise = authoredExports === packageJson.exports ? indexPromise : readPackageIndex({path: directory, exports: authoredExports})
+  const [documentation, index, sourceIndex, packages] = await Promise.all([
     readRootDocumentation(directory),
-    readPackageIndex({path: directory, exports: packageJson.exports}),
+    indexPromise,
+    sourceIndexPromise,
     readPackageComposition(directory, packageJson),
   ])
   const [sources, repository] = await Promise.all([
-    readPackageSources(directory, index.entries),
+    readPackageSources(directory, sourceIndex.entries),
     readRepositoryBoundary(directory, packages),
   ])
-  const entryDocumentation = await Promise.all(index.entries
+  const entryDocumentation = await Promise.all(sourceIndex.entries
     .filter(entry => entry.code && entry.status === "owned" && entry.target !== null)
     .map(async entry => ({
       path: entry.path,
@@ -62,6 +67,7 @@ export default async function readPackage({path}: StorybookPackageReader.Input):
     documentation,
     entryDocumentation,
     index,
+    sourceIndex,
     packages,
   }
 }

@@ -24,6 +24,10 @@ export declare namespace StorybookPackageReader {
   @property index - Публичные входы, их принадлежность и доступные файлы контрактов.
   Наличие файлов не подтверждает смысловую полноту API или правильность управления состоянием.
 
+  @property sourceIndex - Авторские воплощения тех же входов. Явная ветвь source
+  выбирает исходник вместо готовых format/type targets, не становясь условием среды.
+  Реальные внешние условия сохраняются; index и packageJson.exports остаются полными.
+
   @property root - Каноническая директория пакета.
 
   @property repository - Наблюдаемая Git-граница и вложенные самостоятельные репозитории.
@@ -75,6 +79,7 @@ export declare namespace StorybookPackageReader {
       readonly documentation: StorybookPackageDocumentation.Output
     }[]
     readonly index: StorybookPackageIndex.Output
+    readonly sourceIndex: StorybookPackageIndex.Output
     readonly packages: readonly {readonly path: string, readonly name: string, readonly parent: string}[]
   }
 }

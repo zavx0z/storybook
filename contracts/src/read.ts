@@ -19,7 +19,7 @@ import {declarationOf, originalSymbol} from "./declarations"
 освобождаются после чтения; изменение источника отклоняет весь результат.
 */
 export async function readNamespaces(description: ReadPackageOutput, definitions: readonly string[]): Promise<StorybookContracts.Output> {
-  const paths = [...new Set(description.index.entries.filter(entry => entry.code && entry.target
+  const paths = [...new Set(description.sourceIndex.entries.filter(entry => entry.code && entry.target
     && (entry.status === "owned" || entry.status === "forwarded"))
     .map(entry => resolve(description.root, entry.target!)))]
   const api = new API({cwd: description.root})
@@ -82,7 +82,7 @@ export async function readNamespaces(description: ReadPackageOutput, definitions
         }
       }
       extensions.push(...await readExtensions(namespaceSymbols, context))
-      for (const entry of description.index.entries.filter(entry => entry.target && resolve(description.root, entry.target) === path)) {
+      for (const entry of description.sourceIndex.entries.filter(entry => entry.target && resolve(description.root, entry.target) === path)) {
         entries.push({path, exportPath: entry.path, conditions: entry.conditions, implementation: implementationDeclaration, exports, namespaces})
       }
     }

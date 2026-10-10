@@ -37,6 +37,7 @@ import {readScenarioSource} from "./read-source"
 import {readPreviewSetup} from "./preview-setup"
 import {readPreviewSource, type PreviewReplacement} from "./preview-source"
 import {isPortable, previewPoints} from "./preview-values"
+import {sourceModule} from "./source-module"
 
 /** Runtime import компонента в исходнике сценария. */
 interface ComponentBinding {
@@ -193,8 +194,10 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
     const render = renders[0]!
     let componentPath: string
     try {
-      componentPath = Bun.resolveSync(render.binding.module, dirname(scenarioPath))
-      if (renders.some(item => item.binding.export !== render.binding.export || Bun.resolveSync(item.binding.module, dirname(scenarioPath)) !== componentPath)) return null
+      componentPath = await sourceModule(render.binding.module, scenarioPath, project!.compilerOptions.customConditions)
+      for (const item of renders) {
+        if (item.binding.export !== render.binding.export || await sourceModule(item.binding.module, scenarioPath, project!.compilerOptions.customConditions) !== componentPath) return null
+      }
     } catch { return null }
     const jsx = render.jsx
     const setup = await readPreviewSetup(file, jsx, render.scope, project!.checker)
