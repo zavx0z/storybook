@@ -29,11 +29,63 @@ describe("generated structural scenario loader", () => {
       .toBe(generateStorybookLoaderSource({revisionUrl, scenarios: [operation, component]}))
   })
 
+  test("передаёт готовые JSX-конструкторы как props и именованный content без runtime автора", async () => {
+    const jsx = {source: "<span>Контент</span>", imports: []}
+    const scenario = {...component, variants: [{...component.variants[0]!,
+      jsxProps: {badge: jsx}, slots: {default: jsx, footer: jsx}}]}
+    const source = generateStorybookLoaderSource({revisionUrl, scenarios: [scenario]})
+    const imported: string[] = []
+    const constructors = new Map<string, Function>()
+    const load = (url: string) => {
+      imported.push(url)
+      const Constructor = function ReadyComponent() {}
+      constructors.set(url, Constructor)
+      return Promise.resolve({Button: Constructor, ScenarioJsx: Constructor})
+    }
+    const loaders = new Function("importModule", source.replaceAll("export ", "").replaceAll("import(", "importModule(") +
+      "\nreturn STORYBOOK_PACKAGE_SCENARIO_LOADERS")(load) as Map<string, () => Promise<{
+      template: Function
+      resolveProps(id: string, props: Record<string, unknown>): Record<string, unknown>
+      resolveContent(id: string): Record<string, unknown>
+    }>>
+    expect(imported).toEqual([])
+    const ready = await loaders.get(scenario.nodeId)!()
+    expect(imported).toEqual(["/owner/component/index.tsx", "./scenario-jsx/0-0-0.tsx", "./scenario-jsx/0-0-1.tsx", "./scenario-jsx/0-0-2.tsx"])
+    expect(constructors.has(imported[0]!)).toBe(true)
+    expect(ready.template).toBe(constructors.get(imported[0]!)!)
+    expect(ready.resolveProps("default", {name: "Button"})).toEqual({
+      badge: {type: constructors.get(imported[1]!), props: {}}, name: "Button",
+    })
+    expect(ready.resolveContent("default")).toEqual({
+      "": [{type: constructors.get(imported[2]!), props: {}}],
+      footer: [{type: constructors.get(imported[3]!), props: {}}],
+    })
+    expect(ready.resolveContent("absent")).toEqual({})
+    expect(source).not.toContain("@zavx0z/immersive/XReact")
+    expect(source).not.toContain("slotContents")
+    const modules = loader.generateJsxModules([scenario])
+    expect(modules.map(module => module.path)).toEqual(imported.slice(1))
+    expect(modules[2]!.source).toContain("return <span>Контент</span>")
+    expect(modules[2]!.source).not.toContain("ScenarioSlot")
+  })
+
   test("retries changed immutable revision URLs", () => {
     const first = generateStorybookLoaderSource({revisionUrl})
     const next = generateStorybookLoaderSource({revisionUrl: revisionUrl.replace("revision-a", "revision-b")})
     expect(first).not.toBe(next)
     expect(next).toContain("revision-b")
+  })
+
+  test("contentSource используется только для уже адресованных slot entries", () => {
+    const jsx = {source: '<Badge slot="header" label="Заголовок" />', contentSource: '<Badge label="Заголовок" />', imports: []}
+    const scenario = {...component, variants: [{...component.variants[0]!, jsxProps: {badge: jsx}, slots: {header: jsx}}]}
+    const modules = loader.generateJsxModules([scenario])
+    expect(modules).toHaveLength(2)
+    expect(modules[0]!.source).toContain(`return ${jsx.source}`)
+    expect(modules[1]!.source).toContain(`return ${jsx.contentSource}`)
+    expect(modules[1]!.source).not.toContain('slot="header"')
+    expect(modules[1]!.source).not.toContain("ScenarioSlot")
+    expect(scenario.variants[0]!.slots.header.source).toBe(jsx.source)
   })
 
   test("rejects unsafe imports, duplicate nodes and malformed scenario data", () => {

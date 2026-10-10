@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellMcpWindow} from "../contract"
 type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createWindowHost} from "../spec/fixture"
@@ -12,7 +12,7 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
   afterAll(() => host.dispose())
   let closeRequests = 0
   const props: McpWindowProps = {open: true, onClose: () => { closeRequests++ }, load: async () => entries}
-  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
+  host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, props)
   await host.settle()
   const element = host.container.querySelector('[data-window]')!
 
@@ -36,10 +36,10 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
   })
 
   const code = host.container.querySelector("code")!
-  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {...props, open: false})
+  host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {...props, open: false})
   const minimizedFrame = await host.settle()
   const minimized = !minimizedFrame.boxByNode.has(code)
-  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
+  host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, props)
   const restoredFrame = await host.settle()
   const restored = restoredFrame.boxByNode.has(code)
   describe("Содержимое", () => {
@@ -82,9 +82,9 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
 
   await host.click("Скрыть Среда")
   const requested = closeRequests
-  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {...props, open: false})
+  host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {...props, open: false})
   const closed = !(await host.settle()).boxByNode.has(element)
-  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
+  host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, props)
   const reopened = (await host.settle()).boxByNode.has(element)
   describe("Управление видимостью", () => {
     test("Запрос закрытия", () => {
@@ -103,7 +103,7 @@ describe.each([{name: "Выделение JSON поверх соседней п�
   const host = createWindowHost()
   const entry = command("selection", "success", JSON.stringify({description: "Путь к сценарию"}))
   try {
-    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {open: true, onClose() {}, load: async () => [entry]})
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {open: true, onClose() {}, load: async () => [entry]})
     let frame = await host.settle()
     const code = host.container.querySelectorAll("code")[1]!
     const text = frame.displayList.find(item => item.kind === "text" && code.contains(item.node) && item.text.includes("Путь"))!

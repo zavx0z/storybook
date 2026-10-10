@@ -4,15 +4,15 @@ import {ViewPoint, Vector3} from "@zavx0z/immersive/engine"
 */
 import {describe} from "bun:test"
 import WebProtocol from "@zavx0z/storybook-app-web-protocol"
-import type {ComponentValue} from "@zavx0z/immersive/XReact"
+import type {DOMConstruction} from "@zavx0z/immersive"
 import type {JSX} from "@zavx0z/immersive/XReact"
 import {expect, test} from "bun:test"
 import {join} from "node:path"
 import {DisplayElement} from "@zavx0z/immersive"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocumentClipboardController} from "@zavx0z/immersive"
 import {createDocument, PointerEvent, MouseEvent} from "@zavx0z/immersive"
-import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/immersive/XReact/browser/integration"
+import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/immersive"
 import type {RenderFrame} from "@zavx0z/immersive/renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/immersive/space"
 import {HUDElement} from "@zavx0z/immersive"
@@ -373,7 +373,7 @@ function fakeRootFactory(
     const body = document.createElement("body")
     html.append(body)
     document.append(html)
-    const appRoot = createRoot(body)
+    const appRoot = createDomRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
     let space = body.querySelector("space") as SpaceElement
@@ -441,7 +441,7 @@ function fakeRootFactory(
       return documentProjection(owner as DisplayElement | HUDElement)
     }
 
-    const root: Root & {renderApplication(app: ComponentValue | JSX.Element): void} = Object.freeze({
+    const root: Root & {renderApplication(app: DOMConstruction<any> | JSX.Element): void} = Object.freeze({
       clipboard,
       input: {
         pointerDown() {},
@@ -454,7 +454,7 @@ function fakeRootFactory(
       document,
       get space() { return space },
       get viewPoint() { return viewPoint },
-      renderApplication(app: ComponentValue | JSX.Element) {
+      renderApplication(app: DOMConstruction<any> | JSX.Element) {
         appRoot.render(app)
         appRoot.flush()
         space = body.querySelector("space") as SpaceElement

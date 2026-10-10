@@ -1,10 +1,10 @@
 import Minimap from "@zavx0z/storybook-app-web-page-shell-minimap"
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, MouseEvent, type Element} from "@zavx0z/immersive"
 import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
 import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@zavx0z/immersive/renderer/html"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellMinimap} from "@zavx0z/storybook-app-web-page-shell-minimap"
 type MinimapProps = StorybookAppWebPageShellMinimap.Input
 type MinimapState = StorybookAppWebPageShellMinimap.Output
@@ -20,7 +20,7 @@ function mount(storage: () => Pick<Storage, "getItem" | "setItem">, width = 800,
   const root = document.createElement("div")
   root.setAttribute("style", `position:relative;width:${width}px;height:${height}px`)
   document.append(root)
-  const component = createRoot(root)
+  const component = createDomRoot(root)
   const persistence = createMinimapPersistence(storage)
   const props: MinimapProps = {
     projectName: "Fixture Project",
@@ -29,7 +29,7 @@ function mount(storage: () => Pick<Storage, "getItem" | "setItem">, width = 800,
     catalog: {label: "Каталог", search: "", items: [{id: "item", label: "Пример", route: "/example"}], activeId: "item", management: null,
       onAction() {}, onNavigate() {}, onSearch() {}, onGroupToggle() {}},
   }
-  component.render(Minimap as unknown as CompiledTemplate<MinimapProps>, props)
+  component.render(Minimap as unknown as DOMComponentConstructor<MinimapProps>, props)
   const renderer = createDocumentRenderer({document, root, viewport: {width, height}, styleSheets: [theme]})
   const input = createDocumentInteractionController({document, hitTest: hitTestProjection})
   const flush = () => {

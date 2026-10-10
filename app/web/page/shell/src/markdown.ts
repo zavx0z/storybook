@@ -1,5 +1,5 @@
 import type {Document} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import createStorybookComponentPresentation, {type StorybookAppWebPagePresentation} from "@zavx0z/storybook-app-web-page-presentation"
 type StorybookComponentPresentation = StorybookAppWebPagePresentation.Output
 import {StorybookMarkdownView, type StorybookMarkdownViewProps} from "./markdown-view.tsx"
@@ -16,7 +16,7 @@ export type StorybookMarkdownPresentation = StorybookComponentPresentation & Rea
 export function renderStorybookMarkdown(
   options: RenderStorybookMarkdownOptions,
 ): StorybookMarkdownPresentation {
-  const template = StorybookMarkdownView as unknown as CompiledTemplate<StorybookMarkdownViewProps>
+  const template = StorybookMarkdownView as unknown as DOMComponentConstructor<StorybookMarkdownViewProps>
   const presentation = createStorybookComponentPresentation(
     options.document,
     template,

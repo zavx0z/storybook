@@ -19,6 +19,15 @@ export declare namespace StorybookTechBuildCompiler {
     repo: string
     moduleSourcePaths: readonly string[]
     generatedSourceRoot?: string
+    /** Runtime Bun.plugin не имеет onEnd; жизненный цикл сохраняет вызывающий процесс. */
+    persistent?: boolean
+    /** Runtime-интеграция преобразует текст исходного файла до JSX, без записи на диск. */
+    sourceTransform?: (path: string, source: string) => string | Promise<string>
+    /** Точные неизменённые участки результата относительно effective входного текста. */
+    onCompiled?: (path: string, source: string, result: Readonly<{
+      code: string
+      sourceRanges: readonly Readonly<{generatedStart: number; generatedEnd: number; sourceStart: number}>[]
+    }>) => void | Promise<void>
   }>
 
   /**

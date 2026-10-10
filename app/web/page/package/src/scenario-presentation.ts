@@ -1,4 +1,4 @@
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
 import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
@@ -8,34 +8,38 @@ import StorybookAppWebPagePackageScenarioPreview, {type StorybookAppWebPagePacka
 type ScenarioPreviewPlacement = ScenarioPreviewContract.Input["placement"]
 import StorybookAppWebPagePackageScenarioResult from "@zavx0z/storybook-app-web-page-package-scenario-result"
 import type {Document} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
 
 /**
 Монтирует общую фикстуру после успешного теста и центрирует её по локальной раскладке Display.
-Переход между вариантами сохраняет ComponentRoot и semantic Element компонента.
+Переход между вариантами сохраняет DOMRoot и semantic Element компонента.
 Для функции монтируется только редактор сохранённого результата в том же Document.
 */
 export function createScenarioPresentation(document: Document, input: ScenarioAppInput) {
   const app = createScenarioApp(input)
   if (input.kind === "function") {
-    const template = StorybookAppWebPagePackageScenarioResult as unknown as CompiledTemplate<{app: typeof app}>
+    const template = StorybookAppWebPagePackageScenarioResult as unknown as DOMComponentConstructor<{app: typeof app}>
     const view = createStorybookComponentPresentation(document, template, {app}, "[data-scenario-result]")
     return Object.freeze({...view, app, center: () => false, dispose() {
       app.dispose()
       view.dispose()
     }})
   }
-  const fixtureProps = () => {
+  const fixtureConstruction = () => {
     const selected = app.getSnapshot()
     if (!("props" in selected) || selected.props === undefined) throw new TypeError("Нет props компонента")
-    return input.resolveProps?.(selected.id, selected.props) ?? selected.props
+    return {
+      type: input.template,
+      props: input.resolveProps?.(selected.id, selected.props) ?? selected.props,
+      content: input.resolveContent?.(selected.id, selected.props),
+    }
   }
   let placement: ScenarioPreviewPlacement = {x: 0, y: 0}
-  const template = StorybookAppWebPagePackageScenarioPreview as unknown as CompiledTemplate<Parameters<typeof StorybookAppWebPagePackageScenarioPreview>[0]>
+  const template = StorybookAppWebPagePackageScenarioPreview as unknown as DOMComponentConstructor<Parameters<typeof StorybookAppWebPagePackageScenarioPreview>[0]>
   const view = createStorybookComponentPresentation(document, template, {placement, app}, "[data-scenario-preview]")
   const stage = view.element.querySelector("[data-scenario-stage]")!
-  const fixtureRoot = createRoot(stage)
+  const fixtureRoot = createDomRoot(stage)
   let renderedVariant: string | undefined
   let renderedProps: unknown
   const updateFixture = () => {
@@ -43,7 +47,7 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
     if (app.getSnapshot().assertion !== undefined) return
     if (input.run !== undefined && app.getSnapshot().execution?.status !== "passed") return
     if ("props" in selected && selected.id === renderedVariant && selected.props === renderedProps) return
-    fixtureRoot.render(input.template, fixtureProps())
+    fixtureRoot.render(fixtureConstruction())
     renderedVariant = selected.id
     renderedProps = "props" in selected ? selected.props : undefined
   }

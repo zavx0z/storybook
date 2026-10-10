@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {GlobalMcpWindow} from "../src/global-mcp-window"
 import type {GlobalMcpWindowState} from "../contract/types"
 import {createWindowHost} from "./fixture/mcp-window-host"
@@ -14,7 +14,7 @@ test("общее окно закрыто по умолчанию, открыва
         loads += 1
         return []
       }}
-    host.component.render(GlobalMcpWindow as unknown as CompiledTemplate<typeof props>, props)
+    host.component.render(GlobalMcpWindow as unknown as DOMComponentConstructor<typeof props>, props)
     await host.settle()
     return host
   }

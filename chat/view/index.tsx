@@ -7,7 +7,7 @@
 
 @packageDocumentation
 */
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {JSX} from "@zavx0z/immersive/XReact"
 
 import {useRef, component, provideContext} from "@zavx0z/immersive/XReact"
@@ -33,7 +33,7 @@ export default function StorybookChatView(props: Contract.Input) {
 /** Provider владеет только runtime context, разметка остаётся compiled ChatView. */
 function renderChat(props: Contract.Input): ChatContent {
   return provideContext(MediaHostContext, props.mediaHost ?? null,
-    component(ChatView as unknown as CompiledTemplate<Contract.Input>, props, "conversation")) as unknown as ChatContent
+    component(ChatView as unknown as DOMComponentConstructor<Contract.Input>, props, "conversation")) as unknown as ChatContent
 }
 
 function ChatHostContent() {

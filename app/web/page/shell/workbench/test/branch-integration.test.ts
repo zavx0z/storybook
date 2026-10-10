@@ -1,8 +1,8 @@
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, MouseEvent, KeyboardEvent} from "@zavx0z/immersive"
 import {createSpaceElementFactories} from "@zavx0z/immersive/space"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import Workbench, {type StorybookAppWebPageShellWorkbench} from "../index"
 type WorkbenchProps = StorybookAppWebPageShellWorkbench.Input
 import {selectWorkbenchNavigationBranch} from "../src/navigation/branch.ts"
@@ -49,13 +49,13 @@ test("Ветка следует адресу, но клики и поиск Mini
   hud.id = "hud"
   document.append(space)
   space.append(display, hud)
-  const component = createRoot(display)
+  const component = createDomRoot(display)
   let workbench: StorybookAppWebPageShellWorkbench.Output | undefined
   const rows = () => [...display.querySelectorAll("[data-tree-id]")]
     .filter(node => node.closest("[hidden]") === null)
     .map(node => node.getAttribute("data-tree-id"))
   try {
-    component.render(Workbench as unknown as CompiledTemplate<WorkbenchProps>, {
+    component.render(Workbench as unknown as DOMComponentConstructor<WorkbenchProps>, {
       initial: {"catalog.items": items, "catalog.active": "package"},
       displayId: "display", hudId: "hud", onReady: handle => { workbench = handle },
     })

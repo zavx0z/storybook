@@ -46,6 +46,7 @@ import {
 } from "./inspector/registry.ts"
 import {
   assertNodeInDocument,
+  detachWorkbenchPresentation,
   syncWorkbenchPresentation,
   validateWorkbenchPresentation,
   validateWorkbenchProjectionHosts,
@@ -269,7 +270,7 @@ export function createWorkbenchModel(options: WorkbenchModel.Input): WorkbenchMo
     if (disposed) return
     disposed = true
     const node = state.presentation.node
-    if (node !== null && node.parentNode !== null) node.parentNode.removeChild(node)
+    if (node !== null) detachWorkbenchPresentation(node)
     listeners.clear()
   }
 

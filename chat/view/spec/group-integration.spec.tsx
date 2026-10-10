@@ -1,9 +1,9 @@
 import {expect, test} from "bun:test"
 import {Event, createDocument, type HTMLElement} from "@zavx0z/immersive"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocumentRenderer, createDocumentInteractionController} from "@zavx0z/immersive/renderer/html"
 import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookChatView} from "../contract"
 import {createChatHistoryWindow} from "../../../app/web/page/shell/workbench/src/inspector/chat-history"
 import GroupIntegration, {type GroupIntegrationProps} from "./fixture/group-integration"
@@ -12,7 +12,7 @@ test("external-store раскрытие группы стабилизирует�
   const document = createDocument()
   const element = document.createElement("div")
   document.append(element)
-  const root = createRoot(element)
+  const root = createDomRoot(element)
   const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: element, viewport: {width: 480, height: 700}, styleSheets: [theme]})
   const group = {id: "service:user:u", kind: "group" as const, origin: "local" as const, ordinal: 2, sequence: 2,
@@ -83,7 +83,7 @@ test("external-store раскрытие группы стабилизирует�
   try {
     history.accept({id: "chat", executorId: "agent", history: {revision: 1, total: 1000, lastSequence: 1001}, displayHistory: {revision: 1, total: 1, lastSequence: 1001}} as Parameters<typeof history.accept>[0])
     await Bun.sleep(0)
-    root.render(GroupIntegration as unknown as CompiledTemplate<GroupIntegrationProps>, {store})
+    root.render(GroupIntegration as unknown as DOMComponentConstructor<GroupIntegrationProps>, {store})
     await settle()
     Bun.gc(true)
     const heapBefore = process.memoryUsage().heapUsed
@@ -143,7 +143,7 @@ test("33 KiB Markdown и два одинаковых вопроса стабил
   const document = createDocument()
   const element = document.createElement("div")
   document.append(element)
-  const root = createRoot(element)
+  const root = createDomRoot(element)
   const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: element, viewport: {width: 480, height: 700}, styleSheets: [theme]})
   // Искусственный текст воспроизводит объём и Markdown, не сохраняет реальный bootstrap.
@@ -208,7 +208,7 @@ test("33 KiB Markdown и два одинаковых вопроса стабил
     history.accept({id: "chat", executorId: "agent", history: {revision: 1, total: messages.length, lastSequence: 3},
       displayHistory: {revision: 1, total: messages.length, lastSequence: 3}} as Parameters<typeof history.accept>[0])
     await Bun.sleep(0)
-    root.render(GroupIntegration as unknown as CompiledTemplate<GroupIntegrationProps>, {store})
+    root.render(GroupIntegration as unknown as DOMComponentConstructor<GroupIntegrationProps>, {store})
     await settle()
     expect(calls.filter(call => call.operation === "history-item" && call.id === "synthetic-bootstrap")).toHaveLength(1)
     expect(element.querySelectorAll('[data-chat-history-id="question-2"]')).toHaveLength(1)
@@ -225,7 +225,7 @@ test.each([2, 64])("группа с %i записями измеряет ест�
   const document = createDocument()
   const host = document.createElement("div")
   document.append(host)
-  const root = createRoot(host)
+  const root = createDomRoot(host)
   const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: host, viewport: {width: 480, height: 700}, styleSheets: [theme]})
   const input = createDocumentInteractionController({document})
@@ -291,7 +291,7 @@ test.each([2, 64])("группа с %i записями измеряет ест�
     history.accept({id: "chat", executorId: "agent", history: {revision: 1, total: count, lastSequence: count},
       displayHistory: {revision: 1, total: 1, lastSequence: count}} as Parameters<typeof history.accept>[0])
     await Bun.sleep(0)
-    root.render(GroupIntegration as unknown as CompiledTemplate<GroupIntegrationProps>, {store})
+    root.render(GroupIntegration as unknown as DOMComponentConstructor<GroupIntegrationProps>, {store})
     await settle()
     const outer = host.querySelector('[data-chat-messages]')!
     const row = host.querySelector('[data-chat-history-id="service:user:u"]')!

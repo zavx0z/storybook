@@ -1,10 +1,11 @@
 import type {
   Document,
+  DOMGroup,
   HTMLDivElement,
   HTMLElement,
   Node,
 } from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 import type {WorkbenchViewProps} from "./view"
 
@@ -72,7 +73,7 @@ export type WorkbenchInspectorCustomWidgetRegistration = Readonly<{
   title: string
   iconSrc?: string
   wrapInPanel?: boolean
-  component: CompiledTemplate<WorkbenchInspectorCustomWidgetProps>
+  component: DOMComponentConstructor<WorkbenchInspectorCustomWidgetProps>
 }>
 
 /**
@@ -210,12 +211,12 @@ export type WorkbenchPresentationProjection = "display" | "hud" | "space"
 /**
 Семантическое содержимое и выбранное место его отображения.
 
-@property node - Узел содержимого либо `null`, когда содержимое отсутствует.
+@property node - Фактический узел или диапазон соседних узлов; `null`, когда содержимое отсутствует.
 
 @property projection - Назначение проекции {@link WorkbenchPresentationProjection}.
 */
 export type WorkbenchPresentation = Readonly<{
-  node: Node | null
+  node: Node | DOMGroup | null
   projection: WorkbenchPresentationProjection
 }>
 
@@ -376,7 +377,7 @@ export type WorkbenchController = Readonly<{
 }>
 
 /**
-Стабильные семантические узлы рабочей области, созданные одним {@link ComponentRoot}.
+Стабильные семантические узлы рабочей области, созданные одним {@link DOMRoot}.
 
 @property root - Корневой элемент рабочей области.
 

@@ -5,12 +5,12 @@ const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
 import {DisplayElement} from "@zavx0z/immersive"
 import StorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
 import presentationRootFixture from "@zavx0z/storybook-tech-testing-browser-root"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocumentClipboardController} from "@zavx0z/immersive"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {createDocument} from "@zavx0z/immersive"
-import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/immersive/XReact/browser/integration"
+import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/immersive"
 import type {RenderFrame} from "@zavx0z/immersive/renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/immersive/space"
 import {HUDElement} from "@zavx0z/immersive"
@@ -249,7 +249,7 @@ function fakeRootFactory(
     const body = document.createElement("body")
     html.append(body)
     document.append(html)
-    const appRoot = createRoot(body)
+    const appRoot = createDomRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
     const space = body.querySelector("space") as SpaceElement

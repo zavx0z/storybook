@@ -1,6 +1,6 @@
 import McpWindow from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createMcpWindowPersistence} from "../src/mcp-window-persistence"
@@ -20,10 +20,10 @@ test("перемещение, размер, режим и закрытие пе�
       initialState: persistence.initialState,
       onStateChange: persistence.save,
       onClose() {
-        host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {...props, open: false})
+        host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {...props, open: false})
       },
     }
-    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, props)
     return host.settle()
   }
   createMcpWindowPersistence(storage).save({...initialLayout, open: true})
@@ -73,7 +73,7 @@ test("повреждённое или запрещённое хранилище 
   const host = createWindowHost()
   let normalized: StorybookAppWebPageShellMcpWindow.Output | undefined
   try {
-    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {
       open: true,
       onClose() {},
       initialState: partial.initialState,
@@ -89,7 +89,7 @@ test("старое сворачивание шапки восстанавлив�
   const state = createMcpWindowPersistence(() => ({getItem: () => JSON.stringify({open: true, minimized: true}), setItem() {}}))
   const host = createWindowHost()
   try {
-    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {
       open: state.initialState?.minimized !== true && state.initialState?.open === true,
       onClose() {},
       initialState: state.initialState,

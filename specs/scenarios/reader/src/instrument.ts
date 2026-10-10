@@ -18,6 +18,7 @@ import {
   isArrowFunction,
   isBlock,
   isCallExpression,
+  isExpressionStatement,
   isFunctionExpression,
   isIdentifier,
   isImportDeclaration,
@@ -29,6 +30,17 @@ interface Insertion {
   readonly position: number
   readonly text: string
   readonly order: number
+}
+
+/** Type-only подпись сохраняет contextual types исходного callee и строк each. */
+function typedRuntime(method: "native" | "register" | "testRegistrar" | "table"): string {
+  const signatures = {
+    native: "<T extends (...args: never[]) => unknown>(original: T) => T",
+    register: "<T extends (...args: never[]) => unknown>(declaration: unknown, original: T) => T",
+    testRegistrar: "<T extends (...args: never[]) => unknown>(declaration: unknown, parent: unknown, original: T) => T",
+    table: "<Row>(site: string, rows: readonly Row[], ...options: unknown[]) => Row[]",
+  }
+  return `(globalThis[Symbol.for("storybook.trace")].${method} as ${signatures[method]})`
 }
 
 /** Распознаёт прямой вызов describe/test и цепочки их модификаторов. */
@@ -75,7 +87,10 @@ export async function instrument(path: string, source: string): Promise<string> 
           const start = callee.getStart(file)
           if (!nativeBindings.has(start)) {
             nativeBindings.add(start)
-            insertions.push({position: start, text: 'globalThis[Symbol.for("storybook.trace")].native(', order: 1})
+            // Cast-callee начинается с `(`; void сохраняет границу исходного
+            // expression statement без ASI-зависимости от предыдущей строки.
+            if (isExpressionStatement(node.parent)) insertions.push({position: node.expression.getStart(file), text: "void ", order: -1})
+            insertions.push({position: start, text: `${typedRuntime("native")}(`, order: 1})
             insertions.push({position: callee.end, text: ")", order: 0})
           }
         }
@@ -140,11 +155,11 @@ export async function instrument(path: string, source: string): Promise<string> 
           const skipReason = comments.match(/@remarks\s+([\s\S]*?)\*\//u)?.[1]?.trim() ?? null
           const declaration = JSON.stringify({site, location, modifiers, each: selectedEach !== null, assertions, skipReason})
           if (selectedEach?.arguments[0]) {
-            insertions.push({position: selectedEach.arguments[0].getStart(file), text: `globalThis[Symbol.for("storybook.trace")].table(${JSON.stringify(site)},(`, order: 0})
+            insertions.push({position: selectedEach.arguments[0].getStart(file), text: `${typedRuntime("table")}(${JSON.stringify(site)},(`, order: 0})
             insertions.push({position: selectedEach.arguments[0].end, text: `),${owner === "describe" && parentGroup === null},${owner === "describe"},${parentGroup ?? "undefined"})`, order: 1})
           }
           if (owner === "test") {
-            insertions.push({position: node.expression.getStart(file), text: `globalThis[Symbol.for("storybook.trace")].testRegistrar(${declaration},${parentGroup ?? "undefined"},`, order: 0})
+            insertions.push({position: node.expression.getStart(file), text: `${typedRuntime("testRegistrar")}(${declaration},${parentGroup ?? "undefined"},`, order: 0})
             insertions.push({position: node.expression.end, text: ")", order: 1})
             node.forEachChild(child => visit(child, parentGroup))
             return
@@ -154,7 +169,7 @@ export async function instrument(path: string, source: string): Promise<string> 
           const argumentsText = `${JSON.stringify(site)},${source.slice(name.getStart(file), name.end)}`
           insertions.push({
             position: node.expression.getStart(file),
-            text: `globalThis[Symbol.for("storybook.trace")].register(${declaration},`,
+            text: `${typedRuntime("register")}(${declaration},`,
             order: 0,
           })
           insertions.push({position: node.expression.end, text: ")", order: 1})

@@ -9,7 +9,7 @@ import {
 import type {
   RootPointerInput,
   RootWheelInput,
-} from "@zavx0z/immersive/XReact/browser/integration"
+} from "@zavx0z/immersive"
 import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@zavx0z/immersive/renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/immersive/space"
 import {HUDElement} from "@zavx0z/immersive"
@@ -19,7 +19,7 @@ const STORYBOOK_AGENT_BRIDGE_GLOBAL = createStorybookAgentBridge.global
 const STORYBOOK_AGENT_BRIDGE_PROTOCOL = createStorybookAgentBridge.protocol
 type StorybookAgentBridge = StorybookAppWebPageAgentBridge.Output
 type StorybookAgentBridgeRequest = Parameters<StorybookAppWebPageAgentBridge.Output["invoke"]>[0]
-import type {Presentation} from "@zavx0z/immersive/XReact/browser/integration"
+import type {Presentation} from "@zavx0z/immersive"
 type ExternalStorybookNativeKey = Parameters<StorybookAppWebPageAgentBridge.Input["shell"]["dispatchNativeKey"]>[1]
 type ExternalStorybookShell = StorybookAppWebPageAgentBridge.Input["shell"] & Readonly<{
   hud: HUDElement

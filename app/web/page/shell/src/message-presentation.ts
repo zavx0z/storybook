@@ -1,5 +1,5 @@
 import type {Document} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import createStorybookComponentPresentation, {type StorybookAppWebPagePresentation} from "@zavx0z/storybook-app-web-page-presentation"
 type StorybookComponentPresentation = StorybookAppWebPagePresentation.Output
 import {StorybookMessageView, type StorybookMessageViewProps} from "./message-view.tsx"
@@ -10,7 +10,7 @@ export function createStorybookMessagePresentation(
 ): StorybookComponentPresentation {
   return createStorybookComponentPresentation(
     document,
-    StorybookMessageView as unknown as CompiledTemplate<StorybookMessageViewProps>,
+    StorybookMessageView as unknown as DOMComponentConstructor<StorybookMessageViewProps>,
     props,
     "[data-storybook-message]",
   )

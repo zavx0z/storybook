@@ -14,7 +14,7 @@ import {layoutTopDown} from "@zavx0z/immersive/nodes/layout/top-down"
 import {createCubicLinkRoute} from "@zavx0z/immersive/nodes/routing"
 import type {StorybookDependencyCase} from "../contract/documents.ts"
 import type {Document} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
 
 type DependencyLabel = Readonly<{label: string, title: string}>
@@ -150,7 +150,7 @@ export function StorybookDependencyView(props: Readonly<{cases: readonly Storybo
 export function createDependencyPresentation(document: Document, cases: readonly StorybookDependencyCase[]) {
   return createStorybookComponentPresentation(
     document,
-    StorybookDependencyView as unknown as CompiledTemplate<{cases: readonly StorybookDependencyCase[]}>,
+    StorybookDependencyView as unknown as DOMComponentConstructor<{cases: readonly StorybookDependencyCase[]}>,
     {cases},
     "[data-storybook-dependencies]",
   )

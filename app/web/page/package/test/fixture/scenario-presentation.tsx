@@ -12,14 +12,13 @@ export function StatefulFixture(props: Readonly<{name: string}>) {
   </button>
 }
 
-/** Родитель сохраняет свой semantic Element при смене children в подготовленном результате. */
+/** Родитель сохраняет свой semantic Element при смене slot content в подготовленном результате. */
 export function ChildrenFixture(props: Readonly<{
   label: string | null
-  children?: import("@zavx0z/immersive/compiler/session").JSX.Element | null | undefined
 }>) {
   return <section data-container="">
     <span>{props.label}</span>
-    {props.children}
+    <slot />
   </section>
 }
 

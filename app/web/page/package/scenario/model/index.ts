@@ -5,7 +5,7 @@
 
 @packageDocumentation
 */
-import {isCompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import {isDOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPagePackageScenarioModel} from "./contract"
 export type {StorybookAppWebPagePackageScenarioModel} from "./contract"
 
@@ -18,7 +18,7 @@ export type {StorybookAppWebPagePackageScenarioModel} from "./contract"
 Монтированием компонента владеет host.
 */
 export default function createScenarioApp(input: StorybookAppWebPagePackageScenarioModel.Input): StorybookAppWebPagePackageScenarioModel.Output {
-  if (input.kind === "component" && !isCompiledTemplate(input.template)) throw new TypeError("Фикстура сценария должна быть compiled template")
+  if (input.kind === "component" && !isDOMComponentConstructor(input.template)) throw new TypeError("Фикстура сценария должна быть готовым DOM-конструктором")
   if (input.kind !== "component" && input.kind !== "function") throw new TypeError("Неизвестное представление сценария")
   const first = input.variants[0]
   if (first === undefined) throw new Error("Для просмотра сценария нужен хотя бы один вариант")

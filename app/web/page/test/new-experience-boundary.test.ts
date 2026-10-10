@@ -10,7 +10,7 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
     devDependencies: Readonly<Record<string, string>>
   }
 
-  expect(shell).toContain('from "@zavx0z/immersive/XReact/browser/integration"')
+  expect(shell).toContain('from "@zavx0z/immersive"')
   expect(shell).toContain("createBrowserRoot")
   expect(shell).toContain("application.render(")
   expect(shell).toContain("root.document")
@@ -24,9 +24,8 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
     name === "@zavx0z/immersive" || name.startsWith("@zavx0z/immersive-") || name.startsWith("@zavx0z/immersive/")))
     .toEqual(["@zavx0z/immersive"])
   for (const required of [
-    "@zavx0z/immersive/XReact/browser",
-    "@zavx0z/immersive/XReact",
     "@zavx0z/immersive",
+    "@zavx0z/immersive/XReact",
     "@zavx0z/immersive/engine",
     "@zavx0z/immersive/renderer/html",
     "@zavx0z/immersive/space",

@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellMcpWindow} from "../contract"
 type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createWindowHost} from "../spec/fixture"
@@ -10,7 +10,7 @@ let host: ReturnType<typeof createWindowHost>
 beforeEach(() => { host = createWindowHost() })
 afterEach(() => host.dispose())
 const render = async (props: McpWindowProps) => {
-  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
+  host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, props)
   await host.settle()
 }
 const result = () => host.container.querySelector('[data-mcp-address]')?.querySelectorAll("code")[1]?.textContent ?? ""

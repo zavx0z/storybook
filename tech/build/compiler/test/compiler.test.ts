@@ -1,4 +1,5 @@
 import Compiler from "@zavx0z/storybook-tech-build-compiler"
+import {isDOMComponentConstructor} from "@zavx0z/immersive"
 const {createStorybookPackageCompilerPlugins, resolveStorybookCompilerSourceRoots, resolveStorybookPackageCompilerInputs} = Compiler
 import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {
@@ -37,8 +38,8 @@ describe("external Storybook package compiler", () => {
       "external-storybook-exact-owner-resolution",
       "zavx0z-jsx",
     ])
-    expect(resolveWithPlugin(plugins[0]!, "@zavx0z/immersive/XReact/compiled").path)
-      .toBe(join(await realpath(resolve(import.meta.dir, "../../../../../immersive")), "dist/XReact/compiled/index.js"))
+    expect(resolveWithPlugin(plugins[0]!, "@zavx0z/immersive").path)
+      .toBe(join(await realpath(resolve(import.meta.dir, "../../../../../immersive")), "dist/index.js"))
   })
 
   test("keeps exact owner resolution when effective tsconfig does not require JSX", async () => {
@@ -66,17 +67,17 @@ describe("external Storybook package compiler", () => {
 
   test("skips a foreign ambient cache and resolves the exact attested tool owner", async () => {
     const root = await temporaryRoot()
-    const foreignTemplate = join(root, "node_modules", "@zavx0z", "template")
-    await mkdir(foreignTemplate, {recursive: true})
+    const foreignImmersive = join(root, "node_modules", "@zavx0z", "immersive")
+    await mkdir(foreignImmersive, {recursive: true})
     await writeJson(join(root, "package.json"), {name: "@fixture/foreign-cache"})
     await writeJson(join(root, "tsconfig.json"), {
       compilerOptions: {jsx: "react-jsx", jsxImportSource: "react"},
     })
-    await writeJson(join(foreignTemplate, "package.json"), {
-      name: "@zavx0z/immersive/template",
-      exports: {"./compiled": "./compiled.ts"},
+    await writeJson(join(foreignImmersive, "package.json"), {
+      name: "@zavx0z/immersive",
+      exports: {".": "./index.js"},
     })
-    await Bun.write(join(foreignTemplate, "compiled.ts"), "export const foreign = true\n")
+    await Bun.write(join(foreignImmersive, "index.js"), "export const foreign = true\n")
     const source = join(root, "story.ts")
     await Bun.write(source, "export const story = true\n")
 
@@ -86,11 +87,11 @@ describe("external Storybook package compiler", () => {
       repo: root,
       moduleSourcePaths: [source],
     })
-    const resolved = resolveWithPlugin(plugins[0]!, "@zavx0z/immersive/XReact/compiled")
+    const resolved = resolveWithPlugin(plugins[0]!, "@zavx0z/immersive")
     expect(resolved.path).toBe(join(await realpath(resolve(
       import.meta.dir,
       "../../../../../immersive",
-    )), "dist/XReact/compiled/index.js"))
+    )), "dist/index.js"))
   })
 
   test("resolves a fresh JSX plugin and exact manifest-reached source roots", async () => {
@@ -331,9 +332,16 @@ describe("external Storybook package compiler", () => {
     expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
     const inputs = JSON.stringify(result.metafile?.inputs ?? {})
     expect(inputs).toContain("immersive/ui/component/button/icon/index.tsx")
-    expect(inputs).toContain("immersive/ui/component/button/basic/index.tsx")
-    expect(inputs).toContain("immersive/component/src/index.ts")
-    expect(inputs).toContain("immersive/template/compiled.ts")
+    expect(inputs).toContain("immersive/dist/ui/component/button/basic/index.js")
+    expect(inputs).not.toContain("immersive/ui/component/button/basic/index.tsx")
+    expect(Object.keys(result.metafile!.inputs).filter(path => /\/immersive\/dom\/.*\.[cm]?tsx?$/u.test(path))).toEqual([])
+    const readyGraph = await Bun.file(join(repo, "dist/metafile.json")).json()
+    const nodeOutputs = Object.entries(readyGraph.outputs).filter(([, output]) => Object.hasOwn((output as {inputs: Record<string, unknown>}).inputs, "dom/src/node.ts"))
+    expect(nodeOutputs).toHaveLength(1)
+    const nodeArtifact = resolve(repo, "dist", nodeOutputs[0]![0])
+    expect(Object.keys(result.metafile!.inputs).filter(path => resolve(process.cwd(), path) === nodeArtifact)).toHaveLength(1)
+    expect(Object.keys(result.metafile!.inputs).filter(path => /\/immersive\/(?:component|template|jsx|XReact)\//u.test(path)))
+      .toEqual([])
     expect(inputs).not.toContain("node_modules/.bun/@zavx0z+")
   }, 60_000)
 
@@ -675,9 +683,11 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
     outdir: join(root, "out"), format: "esm", target: "bun", plugins: [...plugins]})
   expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
   const loaded = await import(result.outputs.find(item => item.kind === "entry-point")!.path)
-  expect(loaded.ScenarioJsx.displayName).toBe("ScenarioJsx")
-  expect(typeof loaded.ScenarioJsx.mount).toBe("function")
-  expect(typeof loaded.ScenarioJsx.render).toBe("function")
+  expect(loaded.ScenarioJsx.name).toBe("ScenarioJsx")
+  expect(isDOMComponentConstructor(loaded.ScenarioJsx)).toBeTrue()
+  expect(loaded.ScenarioJsx.slots).toEqual([])
+  expect(loaded.ScenarioJsx.mount).toBeUndefined()
+  expect(loaded.ScenarioJsx.render).toBeUndefined()
 }, 60_000)
 
 test("слоты each проходят генерацию, штатную компиляцию и переключение без замены родителя", async () => {
@@ -702,19 +712,22 @@ test("слоты each проходят генерацию, штатную ком
   for (const module of Loader.generateJsxModules(scenarios)) await Bun.write(join(root, module.path), module.source)
   await Bun.write(join(root, "loader.ts"), Loader.generateLoaderSource({revisionUrl: "/__storybook/revisions/%40fixture%2Fscenario-slots/test/", scenarios}))
   await Bun.write(join(root, "entry.ts"), `
-import {createRoot} from "@zavx0z/immersive/XReact"
-import {createDocument} from "@zavx0z/immersive"
+import {createDocument, createDomRoot} from "@zavx0z/immersive"
 import {STORYBOOK_PACKAGE_SCENARIO_LOADERS} from "./loader"
 export async function verify() {
   const scenario = await STORYBOOK_PACKAGE_SCENARIO_LOADERS.get("slots")()
   const document = createDocument()
   const host = document.createElement("div")
-  const root = createRoot(host)
+  const root = createDomRoot(host)
   const rows = []
   let parent
   try {
     for (const variant of scenario.variants) {
-      root.render(scenario.template, scenario.resolveProps(variant.id, variant.props))
+      root.render({
+        type: scenario.template,
+        props: scenario.resolveProps?.(variant.id, variant.props) ?? variant.props,
+        content: scenario.resolveContent?.(variant.id, variant.props),
+      })
       parent ??= host.querySelector("section")
       rows.push({
         sameParent: host.querySelector("section") === parent,

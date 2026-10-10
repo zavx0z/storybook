@@ -1,10 +1,10 @@
-import type {ComponentValue} from "@zavx0z/immersive/XReact"
+import type {DOMConstruction} from "@zavx0z/immersive"
 import type {JSX} from "@zavx0z/immersive/XReact"
-import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/immersive/XReact/browser/integration"
+import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/immersive"
 
 type PresentationFixtureOptions = IntegrationOptions & {
   canvas: HTMLCanvasElement
-  app: ComponentValue | JSX.Element
+  app: DOMConstruction<any> | JSX.Element
 }
 
 export declare namespace StorybookTechTestingBrowserRoot {

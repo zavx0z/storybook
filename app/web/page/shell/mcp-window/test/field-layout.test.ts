@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {HTMLElement} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellMcpWindow} from "../contract"
 import {createWindowHost} from "../spec/fixture"
@@ -28,7 +28,7 @@ test.each([false, true])("короткий input занимает содержи
   const host = createWindowHost()
   try {
     const record = {...command("short", "success", longJson), input: "{}"}
-    host.component.render(McpWindow as unknown as CompiledTemplate<Props>, {open: true, journalOnly, onClose() {}, load: async () => [record]})
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<Props>, {open: true, journalOnly, onClose() {}, load: async () => [record]})
     const frame = await host.settle()
     const input = editor(host, "input")
     const response = editor(host, "response")
@@ -55,7 +55,7 @@ test("длинные input и response прокручиваются отдель
   const host = createWindowHost()
   try {
     const record = {...command("long", "success", longJson), input: longJson, agentId: "agent-example", address: "/storybook/app/server"}
-    host.component.render(McpWindow as unknown as CompiledTemplate<Props>, {open: true, onClose() {}, load: async () => [record]})
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<Props>, {open: true, onClose() {}, load: async () => [record]})
     let frame = await host.settle()
     const input = editor(host, "input")
     const response = editor(host, "response")
@@ -105,7 +105,7 @@ test("длинные input и response прокручиваются отдель
 test("адрес и Обновить ответ образуют компактный фиксированный toolbar", async () => {
   const host = createWindowHost()
   try {
-    host.component.render(McpWindow as unknown as CompiledTemplate<Props>, {open: true, onClose() {}, initialState: {mode: "address"}, addressSource: {
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<Props>, {open: true, onClose() {}, initialState: {mode: "address"}, addressSource: {
       readAddress: () => "/storybook/example", async request() { return {input: {}, result: JSON.parse(longJson), failed: false} },
     }})
     await host.settle()

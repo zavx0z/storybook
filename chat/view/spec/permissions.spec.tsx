@@ -1,9 +1,9 @@
 /** Запрос исполнителя раскрывает только предоставленные им варианты решения. */
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive/headless"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import StorybookChatView from "./fixture/history"
 import {ChatPermission, ChatStatus} from "../src/feedback"
 
@@ -47,7 +47,7 @@ function permissionFixture() {
   const document = createDocument()
   const host = document.createElement("div")
   document.append(host)
-  const root = createRoot(host)
+  const root = createDomRoot(host)
   const settle = async () => {for (let turn = 0; turn < 5; turn++) {await Promise.resolve(); root.flush()}}
   return {host, root, settle}
 }
@@ -62,7 +62,7 @@ test("полная команда и условия каждого вариан�
     onPermission() {},
   }
   try {
-    f.root.render(ChatPermission as unknown as CompiledTemplate<typeof props>, props)
+    f.root.render(ChatPermission as unknown as DOMComponentConstructor<typeof props>, props)
     f.root.flush()
     expect(f.host.querySelector("[data-permission-action]")?.textContent).toBe(JSON.stringify({command, cwd: "/project"}, null, 2))
     expect(f.host.querySelector('[data-permission-option="rule"] [data-permission-description]')?.textContent).toBe(`Разрешить и больше не спрашивать для команд с префиксом ${command}`)
@@ -82,7 +82,7 @@ test("same-tick double click отправляет одно решение; от�
     onPermission(id, optionId) {calls.push([id, optionId]); return gate.promise},
   }
   try {
-    f.root.render(ChatPermission as unknown as CompiledTemplate<typeof props>, props)
+    f.root.render(ChatPermission as unknown as DOMComponentConstructor<typeof props>, props)
     f.root.flush()
     const buttons = [...f.host.querySelectorAll("button")] as HTMLButtonElement[]
     buttons[0]!.click()
@@ -105,7 +105,7 @@ test("ошибка решения показана рядом с запросо�
     async onPermission() {attempts++; if (attempts === 1) throw new Error("Соединение потеряно")},
   }
   try {
-    f.root.render(ChatPermission as unknown as CompiledTemplate<typeof props>, props)
+    f.root.render(ChatPermission as unknown as DOMComponentConstructor<typeof props>, props)
     f.root.flush()
     const button = f.host.querySelector("button") as HTMLButtonElement
     button.click()
@@ -121,7 +121,7 @@ test("ошибка решения показана рядом с запросо�
 
 test("waiting и cancelling не изображаются ответом модели", () => {
   const f = permissionFixture()
-  const template = ChatStatus as unknown as CompiledTemplate<Parameters<typeof ChatStatus>[0]>
+  const template = ChatStatus as unknown as DOMComponentConstructor<Parameters<typeof ChatStatus>[0]>
   try {
     f.root.render(template, {status: "running", activity: "waiting_for_approval"})
     f.root.flush()
@@ -138,7 +138,7 @@ test("компактная карточка читает action из единс�
     request: {sessionId: "native", toolCall: {toolCallId: "tool", rawInput: {command: "literal-command"}}, options: [{optionId: "once", name: "Yes, proceed", kind: "allow_once"}]},
     options: [{id: "once", name: "Yes, proceed", kind: "allow_once"}]}, onPermission() {}}
   try {
-    f.root.render(ChatPermission as unknown as CompiledTemplate<typeof props>, props)
+    f.root.render(ChatPermission as unknown as DOMComponentConstructor<typeof props>, props)
     f.root.flush()
     expect(f.host.querySelector("[data-permission-action]")?.textContent).toBe(JSON.stringify({command: "literal-command"}, null, 2))
     expect(f.host.querySelector("[data-permission-description]")?.textContent).toBe("Разрешить один раз")

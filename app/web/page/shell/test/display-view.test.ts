@@ -1,18 +1,18 @@
 import {expect, test} from "bun:test"
 import {createDocument} from "@zavx0z/immersive"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {DisplayElement} from "@zavx0z/immersive"
 import {readDisplayStyle, createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {StorybookDisplay} from "../src/display-view"
 
 test("прежний Display поддерживает размеры окна и миниатюры без замены содержимого", () => {
   const document = createDocument()
   const space = document.createElement("space")
   document.append(space)
-  const root = createRoot(space)
+  const root = createDomRoot(space)
   type Props = Parameters<typeof StorybookDisplay>[0]
-  const render = (props: Props) => root.render(StorybookDisplay as unknown as CompiledTemplate<Props>, props)
+  const render = (props: Props) => root.render(StorybookDisplay as unknown as DOMComponentConstructor<Props>, props)
   try {
     render({id: "display"})
     const display = document.getElementById("display") as DisplayElement
@@ -21,8 +21,8 @@ test("прежний Display поддерживает размеры окна и
     expect(readDisplayStyle(document, display).viewport).toEqual({width: 1280, height: 720})
   } finally { root.unmount() }
 
-  const spatial = createRoot(space)
-  const update = (width: number, height: number) => spatial.render(StorybookDisplay as unknown as CompiledTemplate<Props>, {
+  const spatial = createDomRoot(space)
+  const update = (width: number, height: number) => spatial.render(StorybookDisplay as unknown as DOMComponentConstructor<Props>, {
     id: "subject", viewport: {width, height}, surface: {x: 10, y: -.2, z: -12, width: 20, height: 20 * height / width},
   })
   try {
@@ -50,8 +50,8 @@ test("основной Display остаётся прозрачным, а CSS blu
   const document = createDocument()
   const space = document.createElement("space")
   document.append(space)
-  const root = createRoot(space)
-  root.render(StorybookDisplay as unknown as CompiledTemplate<{id: string}>, {id: "display"})
+  const root = createDomRoot(space)
+  root.render(StorybookDisplay as unknown as DOMComponentConstructor<{id: string}>, {id: "display"})
   const display = document.getElementById("display") as DisplayElement
   const renderer = createDocumentRenderer({document, root: display, viewport: {width: 960, height: 540}})
   const blur = () => renderer.flush().displayList.filter(item => item.kind === "rect" && item.backdropBlur !== undefined)

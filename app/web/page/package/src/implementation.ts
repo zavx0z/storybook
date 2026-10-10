@@ -8,12 +8,12 @@ import WebNavigationOwner from "@zavx0z/storybook-app-web-page-navigation"
 
 /** Вкладка структурного владельца с подготовленными сценариями. */
 
-import type {RootLinkedAuthorStyleSheet} from "@zavx0z/immersive/XReact/browser/integration"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {RootLinkedAuthorStyleSheet} from "@zavx0z/immersive"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {arrowDownIcon, arrowUpIcon} from "@zavx0z/immersive/ui/icons"
 
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
-type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
+type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends DOMComponentConstructor<infer Props> ? Props : never
 type WorkbenchInspectorCustomWidgetRegistration = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>
 
 import Revision from "@zavx0z/storybook-package-revision"
@@ -43,7 +43,7 @@ export const BUILTIN_INSPECTOR_WIDGETS = Object.freeze([
     label: "С",
     title: "Сценарии",
     wrapInPanel: false,
-    component: StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+    component: StorybookAppWebPagePackageScenarioInspector as unknown as DOMComponentConstructor<WorkbenchInspectorCustomWidgetProps>,
   }),
   Object.freeze({
     id: "storybook-contract-input",
@@ -52,7 +52,7 @@ export const BUILTIN_INSPECTOR_WIDGETS = Object.freeze([
     title: "Вход",
     wrapInPanel: false,
     iconSrc: arrowDownIcon,
-    component: StorybookContractOutline as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+    component: StorybookContractOutline as unknown as DOMComponentConstructor<WorkbenchInspectorCustomWidgetProps>,
   }),
   Object.freeze({
     id: "storybook-contract-output",
@@ -61,7 +61,7 @@ export const BUILTIN_INSPECTOR_WIDGETS = Object.freeze([
     title: "Выход",
     wrapInPanel: false,
     iconSrc: arrowUpIcon,
-    component: StorybookContractOutline as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+    component: StorybookContractOutline as unknown as DOMComponentConstructor<WorkbenchInspectorCustomWidgetProps>,
   }),
   Object.freeze({
     id: "storybook-contract-slots",
@@ -69,7 +69,7 @@ export const BUILTIN_INSPECTOR_WIDGETS = Object.freeze([
     label: "Сл",
     title: "Слоты",
     wrapInPanel: false,
-    component: StorybookContractOutline as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+    component: StorybookContractOutline as unknown as DOMComponentConstructor<WorkbenchInspectorCustomWidgetProps>,
   }),
 ] as const satisfies readonly WorkbenchInspectorCustomWidgetRegistration[])
 

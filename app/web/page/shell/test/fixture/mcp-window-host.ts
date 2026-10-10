@@ -1,5 +1,5 @@
 import {resolve} from "node:path"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
 import {createDocument, MouseEvent} from "@zavx0z/immersive"
 import type {Element} from "@zavx0z/immersive"
@@ -13,7 +13,7 @@ export function createWindowHost() {
   const document = createDocument()
   const container = document.createElement("div")
   document.append(container)
-  const component = createRoot(container)
+  const component = createDomRoot(container)
   const renderer = createDocumentRenderer({document, root: container, viewport: {width: 1000, height: 800}, styleSheets: [theme]})
   const input = createDocumentInteractionController({document})
   let disposed = false

@@ -1,4 +1,4 @@
-import type {Presentation as Root, RootLinkedAuthorStyleSheet, RootProjection} from "@zavx0z/immersive/XReact/browser/integration"
+import type {Presentation as Root, RootLinkedAuthorStyleSheet, RootProjection} from "@zavx0z/immersive"
 import type {loadDocumentDefaultFont} from "@zavx0z/immersive/engine"
 import type {DisplayElement} from "@zavx0z/immersive"
 import type {HUDElement} from "@zavx0z/immersive"

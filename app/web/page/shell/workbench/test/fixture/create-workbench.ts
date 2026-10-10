@@ -1,4 +1,4 @@
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import type {HTMLDivElement, Document} from "@zavx0z/immersive"
 import type {WorkbenchModel} from "../../src/model-contract"
 type CreateWorkbenchOptions = Omit<WorkbenchModel.Input, "document"> & {document: Document}
@@ -12,12 +12,12 @@ export {createWorkbenchModel}
 export function createWorkbench(options: CreateWorkbenchOptions) {
   const model = createWorkbenchModel(options)
   const staging = options.document.createDocumentFragment()
-  const componentRoot = createRoot(staging, {identifierPrefix: "storybook-workbench"})
+  const componentRoot = createDomRoot(staging)
   const render = () => componentRoot.render(WorkbenchView as any, model.getSnapshot())
   const unsubscribe = model.subscribe(render)
   render()
   const element = exactWorkbenchElement(staging, "[data-storybook-workbench]", "Workbench root") as HTMLDivElement
-  options.parent?.appendChild(element)
+  options.parent?.appendChild(staging)
   componentRoot.flush()
   const workbench = model.bind(element)
   return {
@@ -27,7 +27,6 @@ export function createWorkbench(options: CreateWorkbenchOptions) {
       unsubscribe()
       model.dispose()
       componentRoot.unmount()
-      element.parentNode?.removeChild(element)
     },
   }
 }

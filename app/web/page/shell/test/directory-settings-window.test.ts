@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {InputEvent, type HTMLInputElement} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import ExecutionSettings from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 import type {createDirectorySettingsClient, DirectorySettingsDraft} from "../src/directory-settings-client"
 import {createWindowHost} from "./fixture/mcp-window-host"
@@ -17,7 +17,7 @@ async function mount(client: Client) {
         : {schemaVersion: 1, revision: 0, connections: [], general: {}, types: {}},
     ), {preconnect() {}}),
   }
-  host.component.render(ExecutionSettings as unknown as CompiledTemplate<typeof props>, props)
+  host.component.render(ExecutionSettings as unknown as DOMComponentConstructor<typeof props>, props)
   await host.settle()
   return host
 }

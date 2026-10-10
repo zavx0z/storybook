@@ -1,10 +1,5 @@
-import {
-  component,
-  keyedComponents,
-  type KeyedComponentsValue,
-} from "@zavx0z/immersive/XReact"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
-import type {WorkbenchViewState} from "../../contract/workbench.ts"
+import type {DOMComponentConstructor, DOMConstruction} from "@zavx0z/immersive"
+import type {WorkbenchInspectorCustomWidgetProps, WorkbenchViewState} from "../../contract/workbench.ts"
 import {activeWorkbenchInspectorWidgets} from "./registry.ts"
 import {
   CustomWidgetPanel,
@@ -27,7 +22,7 @@ export function projectWorkbenchInspector(
 ): Readonly<{
   selectedId: string
   query: string
-  panels: KeyedComponentsValue
+  panels: readonly DOMConstruction<any>[]
 }> {
   const widgets = activeWorkbenchInspectorWidgets(state)
   const retained = retainedWorkbenchInspectorState(state, retainedBySubject)
@@ -45,28 +40,31 @@ export function projectWorkbenchInspector(
       onToggle,
     }
     if (widget.kind !== "custom") {
-      return component(
-        StandardWidgetPanel as unknown as CompiledTemplate<typeof panelProps>,
-        panelProps,
-        widget.id,
-      )
+      return {
+        type: StandardWidgetPanel as unknown as DOMComponentConstructor<typeof panelProps>,
+        props: panelProps,
+        key: widget.id,
+      }
     }
-    const child = component(widget.component, Object.freeze({
-      value: state["inspector.values"][widget.id],
-      expandedKeys: retained?.treeExpanded.get(widget.id) ?? Object.freeze([]),
-      onExpandedChange(keys) {
-        onExpandedChange(widget.id, keys)
-      },
-    }), `${widget.id}:value`)
-    return component(
-      (widget.wrapInPanel === false ? CustomWidgetContent : CustomWidgetPanel) as unknown as CompiledTemplate<
-        typeof panelProps & Readonly<{children: typeof child}>
-      >,
-      {...panelProps, children: child},
-      widget.id,
-    )
+    const child: DOMConstruction<WorkbenchInspectorCustomWidgetProps> = {
+      type: widget.component,
+      props: Object.freeze({
+        value: state["inspector.values"][widget.id],
+        expandedKeys: retained?.treeExpanded.get(widget.id) ?? Object.freeze([]),
+        onExpandedChange(keys) {
+          onExpandedChange(widget.id, keys)
+        },
+      }),
+      key: `${widget.id}:value`,
+    }
+    return {
+      type: (widget.wrapInPanel === false ? CustomWidgetContent : CustomWidgetPanel) as unknown as DOMComponentConstructor<typeof panelProps>,
+      props: panelProps,
+      key: widget.id,
+      content: {"": child},
+    }
   })
-  return Object.freeze({selectedId, query, panels: keyedComponents(panels)})
+  return Object.freeze({selectedId, query, panels})
 }
 
 export function retainedWorkbenchInspectorState(

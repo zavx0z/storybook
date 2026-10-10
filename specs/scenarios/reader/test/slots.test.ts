@@ -14,7 +14,7 @@ describe("Слоты варианта", async () => {
     expect(report.exitCode).toBe(0)
     expect(preview.variants[0]!.props).toEqual({label: "Панель"})
     expect(preview.variants[0]!.slots).toMatchObject({
-      header: {source: '<Badge slot="header" label="Заголовок" />'},
+      header: {source: '<Badge slot="header" label="Заголовок" />', contentSource: '<Badge label="Заголовок" />'},
       default: {source: '<Badge label="Содержимое" />'},
     })
     expect(preview.variants[1]!.slots).toEqual({})
@@ -27,12 +27,14 @@ describe("Слоты варианта", async () => {
     expect(preview.variants[2]!.source).toContain('  <Badge slot="header" label="Заголовок" />\n</SlotPanel>')
   })
 
-  test("браузерный модуль использует штатную передачу слотов Template", () => {
+  test("модуль content снимает внешнее назначение, уже переданное ключом слота", () => {
     expect(preview.module.source).toContain('<slot name="header" slot="header" />')
     expect(preview.module.source).toContain('<slot />')
     const modules = Loader.generateJsxModules([{...preview, nodeId: "slots"}])
     expect(modules).toHaveLength(3)
-    expect(modules[0]!.source).toContain('<slot name="header" />')
+    expect(modules[0]!.source).toContain('return <Badge label="Заголовок" />')
+    expect(modules[0]!.source).not.toContain('slot="header"')
+    expect(modules[0]!.source).not.toContain("ScenarioSlot")
   })
 
   test("повторный запуск меняет props, сохраняя слоты выбранного варианта", async () => {

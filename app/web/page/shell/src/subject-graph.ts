@@ -1,8 +1,7 @@
 import type {DisplayElement} from "@zavx0z/immersive"
 import type {Document} from "@zavx0z/immersive"
-import type {Presentation} from "@zavx0z/immersive/XReact/browser/integration"
-import {component} from "@zavx0z/immersive/XReact"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {Presentation} from "@zavx0z/immersive"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {createSpatialTreeController} from "@zavx0z/immersive/nodes/spatial/tree"
 import type {StorybookAppWebPageShell} from "../contract"
 import type {StorybookShellUserState} from "../contract/types"
@@ -64,7 +63,11 @@ export function createSubjectGraph(options: Readonly<{
       if (previous !== undefined) return previous
       const display = spatial.ensureDisplay(id)
       const view = options.createView(id, title, value => {
-        spatial.setContent(id, value === null ? null : component(StorybookSurface as unknown as CompiledTemplate<StorybookAppProps>, value, id))
+        spatial.setContent(id, value === null ? null : {
+          type: StorybookSurface as unknown as DOMComponentConstructor<StorybookAppProps>,
+          props: value,
+          key: id,
+        })
       }, display, () => {
         views.delete(id)
         spatial.release(id)

@@ -6,6 +6,7 @@ import {
   isParenthesizedExpression, isPropertyAssignment, isSatisfiesExpression, isStringLiteral,
 } from "typescript/unstable/ast/is"
 import type {StorybookAppWebPagePackageScenarioPreview} from "./types"
+import {slotContentSource} from "./slot-content-source"
 
 type Variant = Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "component"}>["variants"][number]
 export type JsxProp = NonNullable<Variant["jsxProps"]>[string]
@@ -27,7 +28,7 @@ function field(node: Node, name: string): Node | undefined {
 }
 
 /** Сохраняет JSX с импортированными компонентами и литеральными параметрами для штатной сборки. */
-function jsxProp(node: Node, file: SourceFile, imports: ReadonlyMap<string, Binding>): JsxProp | null {
+function jsxProp(node: Node, file: SourceFile, imports: ReadonlyMap<string, Binding>, content = false): JsxProp | null {
   const root = unwrap(node)
   if (!isJsxElement(root) && !isJsxSelfClosingElement(root) && !isJsxFragment(root)) return null
   const used = new Map<string, JsxProp["imports"][number]>()
@@ -59,7 +60,10 @@ function jsxProp(node: Node, file: SourceFile, imports: ReadonlyMap<string, Bind
     current.forEachChild(visit)
   }
   visit(root)
-  return supported ? {source: file.text.slice(root.getStart(file), root.end), imports: [...used.values()]} : null
+  if (!supported) return null
+  const source = file.text.slice(root.getStart(file), root.end)
+  const contentSource = content ? slotContentSource(root, file) : source
+  return {source, ...(contentSource === source ? {} : {contentSource}), imports: [...used.values()]}
 }
 
 /** Строки внешней таблицы сопоставляются с результатом выполнения по исходному индексу. */
@@ -103,7 +107,7 @@ export function readJsxSlots(table: Node, file: SourceFile, imports: ReadonlyMap
       }
       const source = file.text.slice(item.initializer.getStart(file), item.initializer.end)
       if (source === "null") return [item.name.text, null]
-      const jsx = jsxProp(item.initializer, file, imports)
+      const jsx = jsxProp(item.initializer, file, imports, true)
       if (!jsx) throw new Error(`${file.fileName}: слот ${item.name.text} содержит непосредственный JSX с импортами и литеральными параметрами либо null`)
       return [item.name.text, jsx]
     }))

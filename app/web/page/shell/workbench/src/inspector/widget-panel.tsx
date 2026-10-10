@@ -1,6 +1,5 @@
 import {Panel} from "@zavx0z/immersive/ui"
 import {useRef} from "@zavx0z/immersive/XReact"
-import type {JSX} from "@zavx0z/immersive/XReact"
 import type {WorkbenchInspectorWidgetRegistration} from "../../contract/workbench.ts"
 import {SourceWidget} from "./source-widget.tsx"
 import {ValueFields} from "./value-fields.tsx"
@@ -54,9 +53,7 @@ export function StandardWidgetPanel(props: WidgetPanelProps) {
 }
 
 /** Содержимое widget со своей шапкой, без дополнительной сворачиваемой панели. */
-export function CustomWidgetContent(props: WidgetPanelProps & Readonly<{
-  children: JSX.Element
-}>) {
+export function CustomWidgetContent(props: WidgetPanelProps) {
   return <div
     hidden={props.hidden}
     style={css`
@@ -73,13 +70,11 @@ export function CustomWidgetContent(props: WidgetPanelProps & Readonly<{
       }
     `}
   >
-    {props.children}
+    <slot />
   </div>
 }
 
-export function CustomWidgetPanel(props: WidgetPanelProps & Readonly<{
-  children: JSX.Element
-}>) {
+export function CustomWidgetPanel(props: WidgetPanelProps) {
   const onToggle = (expanded: boolean, _event: Event) => props.onToggle(props.widget.id, expanded)
   return <Panel
     label={props.widget.title}
@@ -88,6 +83,6 @@ export function CustomWidgetPanel(props: WidgetPanelProps & Readonly<{
     hidden={props.hidden}
     onToggle={onToggle}
   >
-    {props.children}
+    <slot />
   </Panel>
 }

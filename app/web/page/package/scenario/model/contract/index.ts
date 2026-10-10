@@ -1,5 +1,5 @@
 import type {StorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor, DOMComponentContent} from "@zavx0z/immersive"
 
 /** Подготовленные данные выбранного сценария принадлежат читателю Specs. */
 type Preview = NonNullable<StorybookSpecsScenariosReader.Output["preview"]>
@@ -10,8 +10,9 @@ export declare namespace StorybookAppWebPagePackageScenarioModel {
   Данные подготовленного сценария и операция его повторного выполнения.
 
   @property kind - Компонент либо сохранённые исходы вызовов функции.
-  @property template - Compiled template общей фикстуры, обязательный только для component.
+  @property template - Готовый DOM-конструктор общей фикстуры, обязательный только для component.
   @property [resolveProps] - Дополняет JSON-props JSX-значениями модулей той же ревизии.
+  @property [resolveContent] - Передаёт именованное содержимое слотов отдельно от JSON-props.
   @property variants - Непустой список вариантов с уникальными идентификаторами; первым выбирается первый.
   @property [run] - Получает вариант, сигнал отмены, обработчик прогресса и флаг явного повтора.
   Возвращает результат проверки. Смена выбора отменяет прежнее ожидание; поздний ответ не меняет снимок.
@@ -20,8 +21,9 @@ export declare namespace StorybookAppWebPagePackageScenarioModel {
   type Input = (
     | {
       readonly kind: "component"
-      readonly template: CompiledTemplate<Record<string, unknown>>
+      readonly template: DOMComponentConstructor<Record<string, unknown>>
       readonly resolveProps?: (variantId: string, props: Readonly<Record<string, unknown>>) => Readonly<Record<string, unknown>>
+      readonly resolveContent?: (variantId: string, props: Readonly<Record<string, unknown>>) => DOMComponentContent
       readonly variants: Extract<Preview, {kind: "component"}>["variants"]
     }
     | {readonly kind: "function"; readonly variants: Extract<Preview, {kind: "function"}>["variants"]}

@@ -1,8 +1,8 @@
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, type Element, type HTMLButtonElement} from "@zavx0z/immersive"
 import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
 import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@zavx0z/immersive/renderer/html"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {StorybookHud} from "../../src/hud"
 import type {StorybookAppProps} from "../../src/application-props"
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
@@ -14,13 +14,13 @@ export function createHudHost() {
   const document = createDocument()
   const space = document.createElement("space")
   document.append(space)
-  const component = createRoot(space)
+  const component = createDomRoot(space)
   return {
     document,
     render(application: StorybookAppProps, workbench: Pick<StorybookAppWebPageShellWorkbench.Output, "getSnapshot" | "subscribe">) {
       // HUD читает только модель каталога; Display и его View здесь не монтируются.
       const props = {application, workbench: workbench as StorybookAppWebPageShellWorkbench.Output}
-      component.render(StorybookHud as unknown as CompiledTemplate<typeof props>, props)
+      component.render(StorybookHud as unknown as DOMComponentConstructor<typeof props>, props)
       const container = space.querySelector("hud")!
       const renderer = createDocumentRenderer({document, root: container, viewport: {width: 1000, height: 800}, styleSheets: [theme]})
       const input = createDocumentInteractionController({document, hitTest: hitTestProjection})

@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {createDocument} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import createPresentation from "@zavx0z/storybook-app-web-page-presentation"
 import {PresentationExample, MultipleRoots} from "./fixture/view"
 
@@ -11,7 +11,7 @@ describe.each([
 ])("$name", ({props, expected}) => {
   const document = createDocument()
   test("Отказ вместо неоднозначного представления", () => {
-    expect(() => createPresentation(document, props.template as unknown as CompiledTemplate<{label: string}>, {label: "Пример"}, props.selector),
+    expect(() => createPresentation(document, props.template as unknown as DOMComponentConstructor<{label: string}>, {label: "Пример"}, props.selector),
       "Публичная factory отклоняет неверный selector или неправильное число выбранных корней").toThrow(expected)
   })
 })

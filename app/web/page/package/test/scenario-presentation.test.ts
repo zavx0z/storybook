@@ -1,7 +1,7 @@
-import {component, createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, Event, type HTMLElement} from "@zavx0z/immersive"
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
 type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
@@ -10,9 +10,18 @@ import {createScenarioPresentation} from "../src/scenario-presentation.ts"
 import StorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
 import {ChildrenFixture, Content, FixedSizeFixture, StatefulFixture} from "./fixture/scenario-presentation.tsx"
 
+/** Рабочее представление получает lifecycle после вставки в общий Document. */
+function connectPresentation(document: ReturnType<typeof createDocument>, presentation: ReturnType<typeof createScenarioPresentation>) {
+  const host = document.createElement("main")
+  document.append(host)
+  host.append(presentation.node)
+  return host
+}
+
 test("руководство Archetypes показывает файлы и код без JSON-упаковки", async () => {
   const code = 'describe.each([{name: "Пример", props: {value: 1}}])("$name", ({props}) => {\n  test("Значение", () => expect(props.value).toBe(1))\n})'
-  const presentation = createScenarioPresentation(createDocument(), {
+  const document = createDocument()
+  const presentation = createScenarioPresentation(document, {
     kind: "function",
     variants: [
       {id: "guide", title: "Руководство", source: "readScenarioGuide(input)", points: [], calls: [{
@@ -32,6 +41,7 @@ test("руководство Archetypes показывает файлы и ко�
       }]},
     ],
   })
+  connectPresentation(document, presentation)
   try {
     expect(presentation.element.querySelector("[data-scenario-guide]")).not.toBeNull()
     expect(presentation.element.textContent).toContain("Структура файлов")
@@ -51,9 +61,10 @@ test("руководство Archetypes показывает файлы и ко�
 test("Компонент монтируется только после успешного теста с проверенными props", async () => {
   type Run = NonNullable<ScenarioAppInput["run"]>
   const pending: {resolve: (result: Awaited<ReturnType<Run>>) => void, signal: AbortSignal}[] = []
-  const presentation = createScenarioPresentation(createDocument(), {
+  const document = createDocument()
+  const presentation = createScenarioPresentation(document, {
     kind: "component",
-    template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    template: StatefulFixture as unknown as DOMComponentConstructor<Record<string, unknown>>,
     variants: ["Первый", "Второй", "Третий"].map((title, index) => ({
       id: String(index), title, props: {name: title}, source: title, points: [],
     })),
@@ -62,6 +73,7 @@ test("Компонент монтируется только после успе
   const complete = (status: "passed" | "failed", name: string) => ({
     source: name, props: {name}, calls: [], points: [], execution: {status, tests: []},
   })
+  connectPresentation(document, presentation)
   const stage = presentation.element.querySelector("[data-scenario-stage]")!
   try {
     await Promise.resolve()
@@ -112,7 +124,8 @@ test("Живой вывод заменяется результатом толь
   type Run = NonNullable<Extract<ScenarioAppInput, {kind: "function"}>["run"]>
   let progress!: Parameters<Run>[2]
   let finish!: (result: Awaited<ReturnType<Run>>) => void
-  const presentation = createScenarioPresentation(createDocument(), {
+  const document = createDocument()
+  const presentation = createScenarioPresentation(document, {
     kind: "function",
     variants: [{id: "0", title: "Пример", source: "run()", calls: [], points: []}],
     run: (_, __, onProgress) => new Promise(resolve => {
@@ -120,6 +133,7 @@ test("Живой вывод заменяется результатом толь
       finish = resolve
     }),
   })
+  connectPresentation(document, presentation)
   try {
     await Promise.resolve()
     progress({phase: "running", text: "(pass) Первая проверка\n"})
@@ -141,18 +155,20 @@ test("выбор варианта сохраняет компонент и ег�
   const document = createDocument()
   const presentation = createScenarioPresentation(document, {
     kind: "component",
-    template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    template: StatefulFixture as unknown as DOMComponentConstructor<Record<string, unknown>>,
     variants: ["Первый", "Второй", "Третий"].map((title, index) => ({
       id: String(index), title, props: {name: title},
       source: `<StatefulFixture name=${JSON.stringify(title)} />`,
       points: [{title: `Описание ${title}`}],
     })),
   })
-  let inspector: ReturnType<typeof createRoot> | undefined
+  const host = connectPresentation(document, presentation)
+  let inspector: ReturnType<typeof createDomRoot> | undefined
   try {
     const inspectorHost = document.createElement("aside")
-    inspector = createRoot(inspectorHost)
-    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+    host.append(inspectorHost)
+    inspector = createDomRoot(inspectorHost)
+    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as DOMComponentConstructor<{value: unknown}>, {value: presentation.app})
     const button = presentation.element.querySelector("[data-fixture]")!
     expect(inspectorHost.querySelector('[title="Декларация компонента"]'), "Редактор декларации не перекрывается повторяющей его назначение подсказкой").toBeNull()
     button.dispatchEvent(new Event("click"))
@@ -178,7 +194,7 @@ test("Editor остаётся сверху, пока прокручиваетс�
   const document = createDocument()
   const presentation = createScenarioPresentation(document, {
     kind: "component",
-    template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    template: StatefulFixture as unknown as DOMComponentConstructor<Record<string, unknown>>,
     variants: [{
       id: "long",
       title: "Длинный сценарий",
@@ -193,8 +209,8 @@ test("Editor остаётся сверху, пока прокручиваетс�
   const inspectorHost = document.createElement("aside")
   inspectorHost.setAttribute("style", "display:flex;width:400px;height:600px")
   document.append(inspectorHost)
-  const inspector = createRoot(inspectorHost)
-  inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+  const inspector = createDomRoot(inspectorHost)
+  inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as DOMComponentConstructor<{value: unknown}>, {value: presentation.app})
   const renderer = createDocumentRenderer({
     document,
     root: inspectorHost,
@@ -233,11 +249,13 @@ test("снимки функции переключаются в редактор
   }
   const original = JSON.stringify(input)
   const presentation = createScenarioPresentation(document, input)
-  let inspector: ReturnType<typeof createRoot> | undefined
+  const host = connectPresentation(document, presentation)
+  let inspector: ReturnType<typeof createDomRoot> | undefined
   try {
     const inspectorHost = document.createElement("aside")
-    inspector = createRoot(inspectorHost)
-    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+    host.append(inspectorHost)
+    inspector = createDomRoot(inspectorHost)
+    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as DOMComponentConstructor<{value: unknown}>, {value: presentation.app})
     const editor = presentation.element.querySelector('[data-language-id="json"]')!
     expect(editor).not.toBeNull()
     expect(editor.getAttribute("title"), "Редактор результата не создаёт всплывающую подсказку").toBeNull()
@@ -270,17 +288,19 @@ test("снимки функции переключаются в редактор
 })
 
 test("JSX children добавляются после отчёта, выбор сохраняет родительский элемент", async () => {
-  const presentation = createScenarioPresentation(createDocument(), {
+  const document = createDocument()
+  const presentation = createScenarioPresentation(document, {
     kind: "component",
-    template: ChildrenFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    template: ChildrenFixture as unknown as DOMComponentConstructor<Record<string, unknown>>,
     variants: [
       {id: "label", title: "label", props: {label: "Подпись", children: null}, source: "label", points: []},
       {id: "children", title: "children", props: {label: null}, source: "children", points: []},
     ],
-    resolveProps: (id, props) => id === "children" ? {children: component(Content as unknown as CompiledTemplate, {}), ...props} : props,
+    resolveContent: id => id === "children" ? {"": {type: Content as unknown as DOMComponentConstructor<Record<string, never>>, props: {}}} : {},
     run: async variant => ({source: variant.source, props: variant.props ?? {}, calls: [], points: [],
       execution: {status: "passed", tests: [{label: "Контент", status: "passed", message: null}]}}),
   })
+  connectPresentation(document, presentation)
   const stage = presentation.element.querySelector("[data-scenario-stage]")!
   try {
     await Bun.sleep(0)
@@ -302,16 +322,17 @@ test("Inspector сохраняет два уровня describe.each и выби
   const document = createDocument()
   const presentation = createScenarioPresentation(document, {
     kind: "component",
-    template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    template: StatefulFixture as unknown as DOMComponentConstructor<Record<string, unknown>>,
     variants: ["label", "children"].flatMap((content, outer) => ["Слева", "Справа"].map((side, inner) => ({
       id: `${outer}:${inner}`, title: `${content} / ${side}`, path: [content, side], selection: [outer, inner],
       props: {name: `${content}:${side}`}, source: `<StatefulFixture name="${content}:${side}" />`, points: [],
     }))),
   })
   const host = document.createElement("aside")
-  const inspector = createRoot(host)
+  connectPresentation(document, presentation).append(host)
+  const inspector = createDomRoot(host)
   try {
-    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as DOMComponentConstructor<{value: unknown}>, {value: presentation.app})
     const headings = [...host.querySelectorAll("button")].filter(node => node.hasAttribute("aria-expanded"))
     expect(headings.map(node => node.textContent)).toEqual(["label", "Слева", "Справа", "children", "Слева", "Справа"])
     headings[5]!.dispatchEvent(new Event("click"))
@@ -334,10 +355,10 @@ test.each([false, true])("центрирование сохраняется пр
   document.append(host)
   const presentation = createScenarioPresentation(document, {
     kind: "component",
-    template: FixedSizeFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    template: FixedSizeFixture as unknown as DOMComponentConstructor<Record<string, unknown>>,
     variants: [{id: "fixed", title: "Фикстура", props: {absolute}, source: "<FixedSizeFixture />", points: []}],
   })
-  host.append(presentation.element)
+  host.append(presentation.node)
   const renderer = createDocumentRenderer({
     document,
     root: host,

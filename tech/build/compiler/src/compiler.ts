@@ -129,9 +129,11 @@ export function createStorybookOwnerSourcePath(input: Readonly<{
 type JsxPluginFactory = (
   options: Readonly<{
     cwd: string
-    persistent: false
+    persistent: boolean
     sourceRoots: readonly string[]
     styleSourceRootIds: readonly string[]
+    sourceTransform?: StorybookPackageCompilerInput["sourceTransform"]
+    onCompiled?: StorybookPackageCompilerInput["onCompiled"]
   }>,
 ) => unknown
 
@@ -141,6 +143,8 @@ type JsxPluginFactory = (
 Compiler выбирается только по owner source paths и effective `tsconfig`.
 JSX получает adapter через owner dependency graph; declaration не может
 внедрить plugin factory или executable callback.
+Runtime-интеграция вправе передать sourceTransform/onCompiled через Input;
+текст сохраняет исходный путь и прежние границы объявленного owner graph.
 */
 export async function createStorybookPackageCompilerPlugins(
   input: StorybookPackageCompilerInput,
@@ -155,9 +159,11 @@ export async function createStorybookPackageCompilerPlugins(
   try {
     candidate = factory({
       cwd: context.repo,
-      persistent: false,
+      persistent: input.persistent ?? false,
       sourceRoots: [...context.compilerRoots.sourceRoots, ...(input.generatedSourceRoot ? [input.generatedSourceRoot] : [])],
       styleSourceRootIds: [...context.compilerRoots.styleSourceRootIds, ...(input.generatedSourceRoot ? ["storybook-scenario-jsx"] : [])],
+      ...(input.sourceTransform === undefined ? {} : {sourceTransform: input.sourceTransform}),
+      ...(input.onCompiled === undefined ? {} : {onCompiled: input.onCompiled}),
     })
   } catch (error) {
     throw new Error(`JSX compiler factory failed: ${context.adapterPath}`, {cause: error})

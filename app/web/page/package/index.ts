@@ -347,7 +347,10 @@ async function startExternalStorybookPackage(
       : null
     const next = Object.freeze({
       label,
-      presentation: Object.freeze({node: presentationNode, projection: "display" as const}),
+      presentation: Object.freeze({
+        node: scenarioPresentation?.node ?? shell.workbench.getSnapshot().state.presentation.node ?? presentationNode,
+        projection: "display" as const,
+      }),
       inspectorSubject: scenarios && scenarioPresentation !== null
         ? Object.freeze({packageId, subjectId: node.id, workspaceId: `scenarios:${model.urlPath}`, widgetIds: Object.freeze(["storybook-scenarios"])})
         : contract

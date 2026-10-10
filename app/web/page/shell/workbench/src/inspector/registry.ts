@@ -1,4 +1,4 @@
-import {isCompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import {isDOMComponentConstructor} from "@zavx0z/immersive"
 import {
   breakpointIcon,
   databaseIcon,
@@ -17,7 +17,7 @@ import type {
   WorkbenchViewState,
 } from "../../contract/workbench.ts"
 import {requiredText} from "../validation.ts"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {AgentsWidget} from "./agents-widget"
 import {ChatWidget} from "./chat-widget.tsx"
 import type {WorkbenchChatContext} from "../../contract/workbench.ts"
@@ -34,13 +34,13 @@ export const WORKBENCH_CHAT_WIDGET = Object.freeze({
   title: "Чат",
   iconSrc: chatIcon,
   wrapInPanel: false,
-  component: ChatWidget as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+  component: ChatWidget as unknown as DOMComponentConstructor<WorkbenchInspectorCustomWidgetProps>,
 })
 
 /** Агентная организация принадлежит host; UI бесед остаётся общим Chat. */
 export const WORKBENCH_AGENTS_WIDGET = Object.freeze({
   id: "agents", kind: "custom" as const, label: "Агенты", title: "Агенты", iconSrc: settingsIcon, wrapInPanel: false,
-  component: AgentsWidget as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+  component: AgentsWidget as unknown as DOMComponentConstructor<WorkbenchInspectorCustomWidgetProps>,
 })
 
 /** Сохраняет owner widgets и добавляет первым чат канонического предметного адреса. */
@@ -95,8 +95,8 @@ export function validateWorkbenchWidgetRegistry(
       : requiredText(`Inspector widget ${index} iconSrc`, widget.iconSrc)
     const icon = iconSrc === undefined ? {} : {iconSrc}
     if (widget.kind !== "custom") return Object.freeze({id, kind: widget.kind, label, title, ...icon})
-    if (!isCompiledTemplate(widget.component)) {
-      throw new TypeError(`Custom Inspector widget component must be a governed compiled template: ${id}`)
+    if (!isDOMComponentConstructor(widget.component)) {
+      throw new TypeError(`Custom Inspector widget component must be a compiled DOM constructor: ${id}`)
     }
     if (widget.wrapInPanel !== undefined && typeof widget.wrapInPanel !== "boolean") {
       throw new TypeError(`Custom Inspector widget wrapInPanel must be boolean: ${id}`)

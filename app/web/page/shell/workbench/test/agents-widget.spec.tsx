@@ -1,8 +1,8 @@
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, registerDocumentGeometryReader, InputEvent, type HTMLButtonElement, type HTMLInputElement} from "@zavx0z/immersive"
 import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {AgentsWidget} from "../src/inspector/agents-widget"
 import type {WorkbenchInspectorCustomWidgetProps} from "../contract/workbench"
 import {readChatSelection} from "../src/inspector/chat-selection"
@@ -11,7 +11,7 @@ function fixture() {
   const document = createDocument()
   const host = document.createElement("div")
   document.append(host)
-  const component = createRoot(host)
+  const component = createDomRoot(host)
   let visible = true
   const release = registerDocumentGeometryReader(document, host, () => [], () => visible ? {x: 0, y: 0, width: 400, height: 600} : null)
   const snapshot = {id: "one", sessionId: "one", sessionLabel: "Первая", address: "/agents-test", executorId: "agent", executorLabel: "Главный", pending: [], label: "Project", history: {revision: 0, total: 0, lastSequence: 0}, status: "idle", error: null, permissions: [], version: 0}
@@ -41,7 +41,7 @@ function fixture() {
     if (operation === "create") return Response.json({error: "Не удалось создать"}, {status: 503})
     return Response.json(snapshot)
   }) as typeof fetch
-  component.render(AgentsWidget as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>, {value: {address: snapshot.address, label: "Project", fetcher}, expandedKeys: [], onExpandedChange() {}})
+  component.render(AgentsWidget as unknown as DOMComponentConstructor<WorkbenchInspectorCustomWidgetProps>, {value: {address: snapshot.address, label: "Project", fetcher}, expandedKeys: [], onExpandedChange() {}})
   const settle = async () => {for (let round = 0; round < 8; round++) {component.flush(); flushDocumentLayoutObservers(document); await Bun.sleep(0)}}
   return {host, calls, document, settle, hold() {hold = true}, late() {late?.(Response.json([snapshot]))}, hide() {visible = false}, dispose() {component.unmount(); release()}}
 }

@@ -5,7 +5,7 @@ type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[numbe
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {createHeadless} from "@zavx0z/immersive/headless"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {command} from "../spec/fixture/records"
 import createJournal from "@zavx0z/storybook-app-server-requests"
 
@@ -25,7 +25,7 @@ test.skipIf(process.env.MCP_WINDOW_GPU !== "1")("GPU: running → полный �
   const started = performance.now()
   console.info("GPU: подготовлен ответ", Buffer.byteLength(record!.result))
   try {
-    const template = JournalGpuContent as unknown as CompiledTemplate<{entries: readonly McpRequestRecord[]}>
+    const template = JournalGpuContent as unknown as DOMComponentConstructor<{entries: readonly McpRequestRecord[]}>
     const element = await headless.renderComponent(template, {entries})
     console.info("GPU: первый кадр", Math.round(performance.now() - started))
     entries = [{...record!, id: "gpu"}]

@@ -33,15 +33,14 @@ import {createMcpWindowPersistence} from "./src/mcp-window-persistence.ts"
 import {createStatusNotifications} from "./src/status-notifications"
 import {createMcpRequestSource} from "./src/mcp-requests"
 import {createNavigationExpansion} from "./src/navigation-persistence.ts"
-import {createRoot as createBrowserRoot, type Presentation as Root, type RootProjection} from "@zavx0z/immersive/XReact/browser/integration"
+import {createBrowserRoot, type Presentation as Root, type RootProjection} from "@zavx0z/immersive"
 import {loadDocumentDefaultFont} from "@zavx0z/immersive/engine"
 import {StorybookApp} from "./src/application.tsx"
 import type {StorybookAppProps} from "./src/application-props"
-import {component} from "@zavx0z/immersive/XReact"
 import {createSubjectGraphState} from "./src/subject-graph-state.ts"
 import {createSubjectGraph} from "./src/subject-graph.ts"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
-import {HTMLElement as SemanticHTMLElement, type Node as SemanticNode} from "@zavx0z/immersive"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
+import {HTMLElement as SemanticHTMLElement, type Node as SemanticNode, type DOMGroup} from "@zavx0z/immersive"
 import {HUDElement} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 type Workbench = StorybookAppWebPageShellWorkbench.Output
@@ -119,7 +118,7 @@ async function createExternalStorybookShell(
     },
   }
   // Новый ключ монтирует актуальную App даже при неизменившемся compiler chunk её шаблона.
-  application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
+  application.render(StorybookApp as unknown as DOMComponentConstructor<StorybookAppProps>, {
     title: options.title,
     subjectGraphState,
     statusNotifications,
@@ -148,7 +147,7 @@ async function createExternalStorybookShell(
     onReady(value) {
       workbench = value
     },
-  }, globalThis.crypto.randomUUID()))
+  }, {key: globalThis.crypto.randomUUID()})
   let root: Root
   try { root = await application.whenReady() } catch (error) {
     viewPointControls.dispose()
@@ -339,7 +338,7 @@ async function createExternalStorybookShell(
 
     const mountPreviewNode = (
       label: string,
-      node: SemanticNode,
+      node: SemanticNode | DOMGroup,
       projection: "display" | "hud" | "space" = "display",
     ): void => {
       assertActive(disposed)
@@ -450,7 +449,7 @@ async function createExternalStorybookShell(
       activeSpacePreview?.dispose()
       activeShellPresentation?.dispose()
       activeShellPresentation = presentation
-      mountPreviewNode(label, presentation.element)
+      mountPreviewNode(label, presentation.node)
       return presentation.element
     }
     const showMessage = (
@@ -477,7 +476,7 @@ async function createExternalStorybookShell(
       if (activeShellPresentation !== null && "update" in activeShellPresentation) {
         const presentation = activeShellPresentation as StorybookMarkdownPresentation
         presentation.update(props)
-        mountPreviewNode(label, presentation.element)
+        mountPreviewNode(label, presentation.node)
         return presentation.element
       }
       return mountShellPresentation(label, renderStorybookMarkdown({document, ...props}))

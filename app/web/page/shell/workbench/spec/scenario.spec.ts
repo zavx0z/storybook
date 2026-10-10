@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {WorkbenchFrame} from "./fixture/frame"
 import {createFrameEnvironment} from "./fixture/environment"
 
@@ -10,7 +10,7 @@ describe.each([
 ])("$name", ({props}) => {
   const frame = createFrameEnvironment()
   let ready: StorybookAppWebPageShellWorkbench.Output | undefined
-  frame.component.render(WorkbenchFrame as unknown as CompiledTemplate<StorybookAppWebPageShellWorkbench.Input>, {
+  frame.component.render(WorkbenchFrame as unknown as DOMComponentConstructor<StorybookAppWebPageShellWorkbench.Input>, {
     initial: props,
     displayId: "scenario-display",
     hudId: "scenario-hud",

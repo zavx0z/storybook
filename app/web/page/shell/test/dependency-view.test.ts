@@ -61,7 +61,7 @@ test("[DEPENDENCIES-FIT] большой граф вписывается в Displ
     ...Object.fromEntries(leaves.map(id => [id, {uses: [], elements: ["span"]}])),
   }}
   const presentation = createDependencyPresentation(document, [large, value])
-  owner.append(presentation.element)
+  owner.append(presentation.node)
   const flush = async () => {
     for (let pass = 0; pass < 30; pass += 1) {
       await Promise.resolve()

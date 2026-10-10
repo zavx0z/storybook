@@ -3,7 +3,7 @@ import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-m
 import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
 type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {StatefulFixture} from "./fixture"
 
 describe.each([
@@ -11,7 +11,7 @@ describe.each([
     name: "Компонент",
     props: {
       kind: "component",
-      template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+      template: StatefulFixture as unknown as DOMComponentConstructor<Record<string, unknown>>,
       variants: [
         {
           id: "first",

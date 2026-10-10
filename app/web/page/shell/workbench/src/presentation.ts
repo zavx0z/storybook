@@ -1,4 +1,4 @@
-import {type Document, Node} from "@zavx0z/immersive"
+import {type Document, DOMGroup, Node} from "@zavx0z/immersive"
 import type {
   WorkbenchElements,
   WorkbenchPresentation,
@@ -17,11 +17,11 @@ export function validateWorkbenchPresentation(
     candidate.projection !== "space") {
     throw new Error(`Unknown Workbench presentation projection: ${String(candidate.projection)}`)
   }
-  if (candidate.node !== null && !(candidate.node instanceof Node)) {
-    throw new TypeError("Workbench presentation node must be a Node from @zavx0z/immersive")
+  if (candidate.node !== null && !(candidate.node instanceof Node) && !(candidate.node instanceof DOMGroup)) {
+    throw new TypeError("Workbench presentation node must be a Node or DOMGroup from @zavx0z/immersive")
   }
   if (document !== undefined && candidate.node !== null) {
-    assertNodeInDocument(candidate.node, document, "Presentation node")
+    assertPresentationInDocument(candidate.node, document)
   }
   return Object.freeze({node: candidate.node, projection: candidate.projection})
 }
@@ -33,11 +33,9 @@ export function syncWorkbenchPresentation(
   document: Document,
   projectionHosts: WorkbenchProjectionHosts = Object.freeze({}),
 ): void {
-  if (next.node !== null) assertNodeInDocument(next.node, document, "Presentation node")
+  if (next.node !== null) assertPresentationInDocument(next.node, document)
   const previousNode = previous?.node ?? null
-  if (previousNode !== null && previousNode !== next.node && previousNode.parentNode !== null) {
-    previousNode.parentNode.removeChild(previousNode)
-  }
+  if (previousNode !== null && previousNode !== next.node) detachWorkbenchPresentation(previousNode)
   if (next.node === null) return
   const host = next.projection === "display"
     ? projectionHosts.display ?? elements.displayHost
@@ -67,4 +65,16 @@ export function assertNodeInDocument(node: Node, document: Document, label: stri
   if (node !== document && node.ownerDocument !== document) {
     throw new Error(`${label} belongs to another Document`)
   }
+}
+
+/** Отделяет тот же DOM-результат целиком, не разрушая границы фрагмента. */
+export function detachWorkbenchPresentation(node: Node | DOMGroup): void {
+  if (node instanceof DOMGroup) node.remove()
+  else node.parentNode?.removeChild(node)
+}
+
+function assertPresentationInDocument(node: Node | DOMGroup, document: Document): void {
+  if (node instanceof DOMGroup) {
+    if (node.ownerDocument !== document) throw new Error("Presentation range belongs to another Document")
+  } else assertNodeInDocument(node, document, "Presentation node")
 }

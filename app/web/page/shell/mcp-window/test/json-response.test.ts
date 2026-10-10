@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellMcpWindow} from "../contract"
 type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createWindowHost} from "../spec/fixture"
@@ -16,7 +16,7 @@ test("поле documentation остаётся частью полного JSON �
   }
   const entry = command("document", "success", JSON.stringify(payload, null, 2))
   try {
-    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {open: true, onClose() {}, load: async () => [entry]})
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {open: true, onClose() {}, load: async () => [entry]})
     await host.settle()
     expect(host.container.querySelectorAll("code")[1]?.textContent).toBe(entry.result)
     expect(host.container.querySelector("[data-markdown]")).toBeNull()
@@ -32,7 +32,7 @@ test("мягкие переносы обновляются при заверше
   let entry = command("updated", "running", "{}")
   const load = async () => [entry]
   try {
-    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {open: true, onClose() {}, load})
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {open: true, onClose() {}, load})
     await host.settle()
     const value = {description: "Длинное новое описание\nПродолжение ответа"}
     entry = command("updated", "success", JSON.stringify(value))
@@ -55,7 +55,7 @@ test("схемы показаны тем же полным JSON, который 
   }
   const entry = command("schema", "success", JSON.stringify(payload))
   try {
-    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {open: true, onClose() {}, load: async () => [entry]})
+    host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {open: true, onClose() {}, load: async () => [entry]})
     await host.settle()
     const codes = host.container.querySelectorAll("code")
     expect(codes).toHaveLength(2)

@@ -9,19 +9,21 @@ describe("external @zavx0z/storybook tool boundary", () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     expect(manifest.private).toBeTrue()
     expect(manifest.exports).toBeUndefined()
-    expect(manifest.bin).toBeUndefined()
+    expect(manifest.bin).toEqual({zavx0z: "./app/bin/zavx0z.ts"})
     expect(manifest.peerDependencies).toBeUndefined()
     expect(manifest.peerDependenciesMeta).toBeUndefined()
     expect(manifest.dependencies["@zavx0z/storybook-app"]).toBe("workspace:*")
-    expect(manifest.scripts.storybook).toContain('import createApp from "@zavx0z/storybook-app"')
-    expect(manifest.scripts.storybook).toContain("createApp().ensure(")
+    expect(manifest.scripts.storybook).toBe("bun app/bin/zavx0z.ts")
+    const launcher = await Bun.file(join(root, manifest.bin.zavx0z)).text()
+    expect(launcher).toContain('import createApp from "@zavx0z/storybook-app"')
+    expect(launcher).toContain("createApp().ensure(")
     expect(manifest.scripts.serve).toBe("bun run storybook")
   })
 
   test("runs multi-package isolation in its own explicit process", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     const script = manifest.scripts.test as string
-    expect(script).toContain("bun test --no-orphans --isolate --preload @zavx0z/immersive-headless/preload ./app ./tech ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc ./tests --max-concurrency=1")
+    expect(script).toContain("bun test --no-orphans --isolate --preload @zavx0z/immersive/headless/preload ./app ./tech ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc ./tests --max-concurrency=1")
     const ignored = script.match(/--path-ignore-patterns '([^']+)'/u)?.[1]
     expect(ignored, "Основной процесс явно исключает изолированную проверку и фикстуры").toBeDefined()
     const paths = new Bun.Glob(ignored!)
@@ -36,7 +38,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
   test("предметный прогон выбирает точные каталоги и изолирует состояние файлов", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     expect(manifest.scripts["subjects:check"]).toBe(
-      "bun test --no-orphans --isolate --preload @zavx0z/immersive-headless/preload ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc --path-ignore-patterns '**/{fixture,fixtures}/**' --max-concurrency=1",
+      "bun test --no-orphans --isolate --preload @zavx0z/immersive/headless/preload ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc --path-ignore-patterns '**/{fixture,fixtures}/**' --max-concurrency=1",
     )
   })
 
@@ -72,7 +74,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
       "app/web/src/browser-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
-    expect(combined).toContain('from "@zavx0z/immersive/XReact/browser/integration"')
+    expect(combined).toContain('from "@zavx0z/immersive"')
     expect(combined).toContain("createBrowserRoot")
     expect(combined).toContain("application.render(")
     expect(combined).toContain("root.document")

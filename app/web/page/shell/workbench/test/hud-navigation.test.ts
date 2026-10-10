@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, CustomEvent, type HTMLDivElement} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {createWorkbenchModel} from "../src/model"
 import {WORKBENCH_EVENTS} from "../src/events"
 import {WorkbenchView} from "../src/view.tsx"
@@ -16,8 +16,8 @@ test("HUD обновляет общую модель и доставляет с�
   root.append(display, hud)
   const item = {id: "component", label: "Компонент", route: "/component"}
   const model = createWorkbenchModel({document, initial: {"catalog.items": [item]}})
-  const component = createRoot(display)
-  component.render(WorkbenchView as unknown as CompiledTemplate<WorkbenchViewProps>, model.getSnapshot())
+  const component = createDomRoot(display)
+  component.render(WorkbenchView as unknown as DOMComponentConstructor<WorkbenchViewProps>, model.getSnapshot())
   const workbench = model.bind(display.firstElementChild as HTMLDivElement)
   const seen: unknown[] = []
   const unsubscribe = model.subscribe(() => seen.push(model.getSnapshot().state["catalog.active"]))

@@ -1,6 +1,6 @@
 /** Границы транспортных кусочков не становятся абзацами или разрывами Markdown. */
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot, type DOMComponentConstructor} from "@zavx0z/immersive"
 import {createDocument} from "@zavx0z/immersive"
 import {FixtureTimeline as ChatTimeline, type FixtureContract as Contract} from "./fixture/history"
 
@@ -8,7 +8,7 @@ test("потоковый и повторно открытый ответ пок�
   const document = createDocument()
   const element = document.createElement("section")
   document.append(element)
-  const component = createRoot(element)
+  const component = createDomRoot(element)
   const chunks = ["В", "иж", "у", " два", " наб", "ора", ".\n\n", "**", "В", " перед", "ан", "ном контексте", "**", " доступны инструменты."]
   type Timeline = NonNullable<Contract.Input["timeline"]>
   const reply = {id: "reply", kind: "message", origin: "live", sequence: 1, role: "assistant",
@@ -16,8 +16,8 @@ test("потоковый и повторно открытый ответ пок�
   } satisfies Timeline[number]
   let timeline: Timeline = [reply]
   const render = async () => {
-    // Штатный owner preload компилирует авторскую TSX-функцию в template ABI.
-    component.render(ChatTimeline as unknown as Parameters<typeof component.render>[0], {timeline, messages: []})
+    // Owner preload выпускает готовый constructor из авторской TSX-функции.
+    component.render(ChatTimeline as unknown as DOMComponentConstructor<Parameters<typeof ChatTimeline>[0]>, {timeline, messages: []})
     await Bun.sleep(0)
     component.flush()
   }

@@ -101,6 +101,9 @@ interface TraceCall {
 /** Авторский JSX и импорты для штатной компиляции содержимого варианта. */
 interface ScenarioJsx {
   readonly source: string
+  /** JSX для уже адресованного content: внешнее slot-назначение снято по AST,
+  вложенные назначения сохранены. Авторское отображение использует source. */
+  readonly contentSource?: string
   readonly imports: readonly {local: string; imported: string; specifier: string; path: string}[]
 }
 
@@ -131,7 +134,7 @@ render; значения выбранного варианта подставл�
 `slots` сохраняет JSX из отдельного объекта slots строки each; отсутствующие слоты не добавляются.
 Его ключи обозначают слоты; default — безымянный.
 Строка, содержащая только отсутствующий слот, удаляется из показываемого JSX. Слоты не входят в props компонента.
-Сборщик компилирует их штатным Template; снимки функций mount/render не исполняются.
+Сборщик компилирует их штатным JSX compiler в DOM-конструкторы; снимки функций mount/render не исполняются.
 Поддержаны парные теги компонента с прямым `{props.children}` и JSX в литерале строки
 внешнего describe.each с импортированными компонентами и литеральными параметрами.
 Выбор строки сохраняет исходный индекс; переданные JSON-overrides имеют приоритет.
@@ -150,7 +153,7 @@ interface ComponentScenarioPreview {
     readonly path?: readonly string[]
     readonly selection?: readonly number[]
     readonly props: Readonly<Record<string, unknown>>
-    /** JSX-поля собираются отдельно; compiled templates не сериализуются в props. */
+    /** JSX-поля собираются отдельно; готовые DOM-конструкторы не сериализуются в props. */
     readonly jsxProps?: Readonly<Record<string, ScenarioJsx>>
     /** Содержимое именованных слотов; default обозначает безымянный; пустые слоты не объявляются. */
     readonly slots?: Readonly<Record<string, ScenarioJsx | null>>

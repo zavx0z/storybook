@@ -1,10 +1,10 @@
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, Event, InputEvent, type HTMLTextAreaElement} from "@zavx0z/immersive"
 import {createSpaceElementFactories} from "@zavx0z/immersive/space"
 import {createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
 import {flushDocumentLayoutObservers} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import createViewPointControls from "@zavx0z/storybook-app-web-page-shell-viewpoint-controls"
 import type {ChatBrowserSnapshot} from "../src/inspector/chat-client"
 import {readChatSelection, selectChatSession} from "../src/inspector/chat-selection"
@@ -32,7 +32,7 @@ test.each([{settingsReady: true, small: false}, {settingsReady: false, small: fa
   const document = createDocument({elementFactories: createSpaceElementFactories()})
   const element = document.createElement("div")
   document.append(element)
-  const root = createRoot(element)
+  const root = createDomRoot(element)
   const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive/ui/theme.css"))).text()
   const renderer = createDocumentRenderer({document, root: element, viewport: {width: 354, height: 700}, styleSheets: [theme]})
   const camera = document.createElement("viewpoint")
@@ -81,7 +81,7 @@ test.each([{settingsReady: true, small: false}, {settingsReady: false, small: fa
   }
   try {
     selectChatSession(address, {})
-    root.render(ChatWidgetLifecycle as unknown as CompiledTemplate<ChatWidgetLifecycleProps>, props)
+    root.render(ChatWidgetLifecycle as unknown as DOMComponentConstructor<ChatWidgetLifecycleProps>, props)
     await settle()
     expect(readChatSelection(address)).toEqual({executorId: snapshot.executorId, sessionId: snapshot.id, title: "Беседа"})
     expect(calls.filter(call => call.operation === "prepare")).toHaveLength(settingsReady ? 0 : 1)
@@ -92,7 +92,7 @@ test.each([{settingsReady: true, small: false}, {settingsReady: false, small: fa
       // Padding обычной истории сохраняет 24 px даже в тесном родителе.
       // Проверяем именно нулевой viewport реальной раскладкой, без подмены geometry reader.
       const collapsed = {...props, collapseHistory: true}
-      root.render(ChatWidgetLifecycle as unknown as CompiledTemplate<ChatWidgetLifecycleProps>, collapsed)
+      root.render(ChatWidgetLifecycle as unknown as DOMComponentConstructor<ChatWidgetLifecycleProps>, collapsed)
       await settle()
       expect(element.querySelector("[data-chat-messages]")!.getBoundingClientRect().height).toBe(0)
       expect(element.querySelectorAll("[data-chat-permission]")).toHaveLength(1)
@@ -103,11 +103,11 @@ test.each([{settingsReady: true, small: false}, {settingsReady: false, small: fa
       expect(sockets[0]!.closed).toBe(false)
       expect(element.querySelectorAll("[data-chat-permission]")).toHaveLength(1)
       expect(calls).toHaveLength(reads)
-      root.render(ChatWidgetLifecycle as unknown as CompiledTemplate<ChatWidgetLifecycleProps>, {...collapsed, hidden: true})
+      root.render(ChatWidgetLifecycle as unknown as DOMComponentConstructor<ChatWidgetLifecycleProps>, {...collapsed, hidden: true})
       await settle()
       expect(sockets[0]!.closed).toBe(true)
       expect(calls.some(call => call.operation === "prepare")).toBe(false)
-      root.render(ChatWidgetLifecycle as unknown as CompiledTemplate<ChatWidgetLifecycleProps>, collapsed)
+      root.render(ChatWidgetLifecycle as unknown as DOMComponentConstructor<ChatWidgetLifecycleProps>, collapsed)
       await settle()
       expect(sockets).toHaveLength(2)
       expect(element.querySelectorAll("[data-chat-permission]")).toHaveLength(1)

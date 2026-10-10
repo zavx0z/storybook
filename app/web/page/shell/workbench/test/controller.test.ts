@@ -12,7 +12,7 @@ import {
 } from "@zavx0z/immersive"
 import {createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
 import uiIcons from "@zavx0z/immersive/ui/icons/set"
-import {isCompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import {isDOMComponentConstructor} from "@zavx0z/immersive"
 import {WORKBENCH_EVENTS, WORKBENCH_LAYOUT_PROTOCOL, WORKBENCH_REGIONS} from "../src/events"
 import type {Workbench} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"
@@ -147,7 +147,7 @@ describe("compiled Storybook Workbench", () => {
     }
   })
 
-  test("creates one ComponentRoot, five exact regions and one production Inspector", () => {
+  test("creates one DOMRoot, five exact regions and one production Inspector", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({
       document,
@@ -513,7 +513,7 @@ describe("compiled Storybook Workbench", () => {
 
   test("mounts a governed custom widget with only its value", async () => {
     const {CustomWorkbenchWidget} = await import("./fixture/custom-widget")
-    expect(isCompiledTemplate(CustomWorkbenchWidget)).toBeTrue()
+    expect(isDOMComponentConstructor(CustomWorkbenchWidget)).toBeTrue()
     const document = createDocument()
     const registry = [...WORKBENCH_STANDARD_WIDGET_REGISTRY, {
       id: "metrics",

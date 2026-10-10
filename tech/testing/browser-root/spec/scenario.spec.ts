@@ -7,9 +7,10 @@
 */
 import {describe, expect, mock, test} from "bun:test"
 import presentationRootFixture, {type StorybookTechTestingBrowserRoot} from "@zavx0z/storybook-tech-testing-browser-root"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 
 type Presentation = Awaited<ReturnType<StorybookTechTestingBrowserRoot.Input>>
-type Application = NonNullable<Parameters<ReturnType<StorybookTechTestingBrowserRoot.Output>["render"]>[0]>
+type Application = Parameters<StorybookTechTestingBrowserRoot.Input>[0]["app"]
 
 describe.each([
   {name: "Повторное использование готового Presentation", props: {canvas: {} as HTMLCanvasElement}},
@@ -44,4 +45,26 @@ describe.each([
     expect(unmount.mock.calls, "Завершение fixture освобождает готовый Presentation ровно один раз")
       .toEqual([[]])
   })
+})
+
+test("constructor render сохраняет props, key и content в plain descriptor", async () => {
+  const document = {} as Presentation["document"]
+  const frame = mock(() => {})
+  const presentation = {document, render: frame, unmount() {}} as unknown as Presentation
+  const factory = mock(async (_options: Parameters<StorybookTechTestingBrowserRoot.Input>[0]) => presentation)
+  const root = presentationRootFixture(factory)({} as HTMLCanvasElement)
+  const Constructor = function ReadyComponent() {} as unknown as DOMComponentConstructor<{label: string}>
+  const props = {label: "Готовый компонент"}
+  const content = {"": "Содержимое"}
+  try {
+    root.render(Constructor, props, {key: "retained", content})
+    await root.whenReady()
+    expect(factory.mock.calls[0]![0].app).toEqual({type: Constructor, props, key: "retained", content})
+    expect(root.document).toBe(document)
+    root.render()
+    expect(frame.mock.calls).toEqual([[]])
+  } finally {
+    root.unmount()
+    await Promise.resolve()
+  }
 })

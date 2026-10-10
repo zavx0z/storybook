@@ -33,8 +33,8 @@ const STORYBOOK_REVISION_PAYLOAD_FILE = "revision-payload.js" as const
 Генерирует загрузчики подготовленных структурных сценариев.
 Компонент получает буквальный импорт проверенного модуля; результат сценария
 функции передаётся как данные без импорта серверного кода в браузер.
-Слоты варианта компилируются отдельно и передаются через штатный slotContents
-Template; JSON props остаются свойствами описываемого компонента.
+Слоты варианта компилируются отдельно и передаются как content DOM-конструктора;
+JSON props остаются свойствами описываемого компонента.
 
 Карта по идентификаторам владельцев не допускает произвольного браузерного импорта.
 Bun связывает модули с неизменяемыми ресурсами конкретной ревизии. Следующая
@@ -87,13 +87,17 @@ function generateStorybookLoaderSource(
     `    Promise.all([import(${jsString(scenario.module.url)})${jsxEntries(scenario.variants, index).map(entry => `, import(${jsString(entry.path)})`).join("")}]).then(([namespace, ...jsxModules]) => Object.freeze({`,
     `      kind: "component",`,
     `      template: namespace[${jsString(scenario.module.export)}],`,
-    ...(jsxEntries(scenario.variants, index).length || scenario.variants.some(variant => variant.slots !== undefined) ? [
+    ...(scenario.variants.some(variant => variant.jsxProps !== undefined) ? [
       `      resolveProps: (id, props) => {`,
       `        const entries = ${JSON.stringify(jsxEntries(scenario.variants, index).map(({id, property, target}) => ({id, property, target})))}`,
-      `        const values = target => Object.fromEntries(entries.flatMap((entry, i) => entry.id === id && entry.target === target ? [[entry.property, bindStorybookJsx(jsxModules[i].ScenarioJsx, {})]] : []))`,
-      ...(scenario.variants.some(variant => variant.slots !== undefined) ? [
-        `        return {...values("props"), ...props, [storybookSlotContents]: Object.fromEntries(Object.entries(values("slots")).map(([name, value]) => [name === "default" ? "" : name, [value]]))}`,
-      ] : [`        return {...values("props"), ...props}`]),
+      `        const values = Object.fromEntries(entries.flatMap((entry, i) => entry.id === id && entry.target === "props" ? [[entry.property, {type: jsxModules[i].ScenarioJsx, props: {}}]] : []))`,
+      `        return {...values, ...props}`,
+      `      },`,
+    ] : []),
+    ...(scenario.variants.some(variant => variant.slots !== undefined) ? [
+      `      resolveContent: id => {`,
+      `        const entries = ${JSON.stringify(jsxEntries(scenario.variants, index).map(({id, property, target}) => ({id, property, target})))}`,
+      `        return Object.fromEntries(entries.flatMap((entry, i) => entry.id === id && entry.target === "slots" ? [[entry.property === "default" ? "" : entry.property, [{type: jsxModules[i].ScenarioJsx, props: {}}]]] : []))`,
       `      },`,
     ] : []),
     `      variants: scenarioVariants${index},`,
@@ -101,10 +105,6 @@ function generateStorybookLoaderSource(
   ].join("\n")).join("\n")
 
   return [
-    ...(scenarios.some(scenario => scenario.kind === "component" && scenario.variants.some(variant => variant.jsxProps || variant.slots !== undefined))
-      ? ['import {component as bindStorybookJsx} from "@zavx0z/immersive/XReact"'] : []),
-    ...(scenarios.some(scenario => scenario.kind === "component" && scenario.variants.some(variant => variant.slots !== undefined))
-      ? ['import {slotContents as storybookSlotContents} from "@zavx0z/immersive/XReact/compiled"'] : []),
     scenarioVariants,
     `export const storybookRevisionUrl = ${jsString(revisionUrl)}`,
     `export const STORYBOOK_PACKAGE_SCENARIO_LOADERS = new Map([`,
@@ -410,7 +410,7 @@ function jsxEntries(variants: readonly StorybookGeneratedScenarioVariant[], scen
   })))
 }
 
-/** JSX исходного сценария компилируется штатным Template вместе с fixture; Bun Test в браузер не импортируется. */
+/** JSX сценария компилируется штатным compiler вместе с fixture; Bun Test в браузер не импортируется. */
 function generateStorybookJsxModules(scenarios: readonly StorybookGeneratedScenario[]) {
   return [...scenarios].sort((left, right) => left.nodeId < right.nodeId ? -1 : left.nodeId > right.nodeId ? 1 : 0)
     .flatMap((scenario, index) => scenario.kind !== "component" ? [] : jsxEntries(scenario.variants, index).map(entry => ({
@@ -418,10 +418,8 @@ function generateStorybookJsxModules(scenarios: readonly StorybookGeneratedScena
       source: [...entry.value.imports.map(binding => binding.imported === "default"
         ? `import ${binding.local} from ${jsString(binding.path)}`
         : `import {${binding.imported}${binding.imported === binding.local ? "" : ` as ${binding.local}`}} from ${jsString(binding.path)}`),
-        ...(entry.target === "slots" && entry.property !== "default" ? [
-          `function ScenarioSlot() { return <slot name=${JSON.stringify(entry.property)} /> }`,
-          `export function ScenarioJsx() { return <ScenarioSlot>${entry.value.source}</ScenarioSlot> }`,
-        ] : [`export function ScenarioJsx() {\n  return ${entry.value.source}\n}`]), ""].join("\n"),
+        `export function ScenarioJsx() {\n  return ${entry.target === "slots" ? entry.value.contentSource ?? entry.value.source : entry.value.source}\n}`,
+        ""].join("\n"),
     })))
 }
 

@@ -2,7 +2,7 @@
 import {useLayoutEffect, useState} from "@zavx0z/immersive/XReact"
 import {TypeDoc} from "@zavx0z/immersive/typedoc"
 import type {Document} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookContractDocument} from "../contract/documents.ts"
 import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
 
@@ -58,7 +58,7 @@ export function createContractPresentation(
 ) {
   return createStorybookComponentPresentation(
     document,
-    StorybookContractView as unknown as CompiledTemplate<ContractViewProps>,
+    StorybookContractView as unknown as DOMComponentConstructor<ContractViewProps>,
     {documents, onReady, onScroll, selection},
     "[data-storybook-contract]",
   )

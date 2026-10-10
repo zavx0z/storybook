@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {RequestList} from "../mcp-window/src/request-list"
 import {createWindowHost} from "./fixture/mcp-window-host"
 
@@ -9,7 +9,7 @@ test("скрытие освобождает строки редактора и �
     input: "{}", result: JSON.stringify(Array.from({length: 100}, (_, index) => ({index, value: "Строка"})))}]
   const render = async (active: boolean) => {
     const props = {entries, error: "", active}
-    host.component.render(RequestList as unknown as CompiledTemplate<typeof props>, props)
+    host.component.render(RequestList as unknown as DOMComponentConstructor<typeof props>, props)
     await host.settle()
   }
   try {

@@ -3,7 +3,7 @@ import {describe, expect, test} from "bun:test"
 import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive"
 import {createSpaceElementFactories} from "@zavx0z/immersive/space"
 import {createDocumentRenderer, createDocumentInteractionController, readDisplayStyle} from "@zavx0z/immersive/renderer/html"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {StorybookDisplay} from "../src/display-view.tsx"
 import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
 import {renderStorybookMarkdown} from "../src/markdown.ts"
@@ -13,7 +13,7 @@ describe("safe compiled Storybook Markdown", () => {
     const document = createDocument({elementFactories: createSpaceElementFactories()})
     const display = createStorybookComponentPresentation<{id: string}, DisplayElement>(
       document,
-      StorybookDisplay as unknown as CompiledTemplate<{id: string}>,
+      StorybookDisplay as unknown as DOMComponentConstructor<{id: string}>,
       {id: "scroll-display"},
       "display",
     )
@@ -21,8 +21,8 @@ describe("safe compiled Storybook Markdown", () => {
       document,
       source: Array.from({length: 40}, (_, index) => `## Heading ${index}\n\nParagraph with enough content to fill the document.`).join("\n\n"),
     })
-    document.append(display.element)
-    display.element.append(markdown.element)
+    document.append(display.node)
+    display.element.append(markdown.node)
     const surface = readDisplayStyle(document, display.element)
     const renderer = createDocumentRenderer({
       document,
@@ -98,6 +98,7 @@ describe("safe compiled Storybook Markdown", () => {
       baseUrl: "http://127.0.0.1:3000/readme/",
       source,
     })
+    document.append(presentation.node)
     const root = presentation.element
     expect(root.localName).toBe("section")
     expect(root.querySelector("article")?.hasAttribute("data-markdown")).toBe(true)

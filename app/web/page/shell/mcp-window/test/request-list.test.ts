@@ -4,11 +4,11 @@ const readScenarios = McpRestScenariosOwner
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, MouseEvent} from "@zavx0z/immersive"
 import {createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
 import createJsxBunPlugin from "@zavx0z/immersive/compiler"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 
 const root = resolve(import.meta.dir, "../../../../../..")
 Bun.plugin(createJsxBunPlugin({cwd: root, persistent: true, sourceRoots: [resolve(root, "app/web/page/shell/mcp-window")]}))
@@ -18,14 +18,14 @@ test("журнал монтирует одну команду и сохраня�
   const document = createDocument()
   const container = document.createElement("div")
   document.append(container)
-  const component = createRoot(container)
+  const component = createDomRoot(container)
   const renderer = createDocumentRenderer({document, root: container, viewport: {width: 620, height: 400}})
   const response = JSON.stringify({lines: Array.from({length: 3100}, (_, index) => `Строка ${index}`), end: "КОНЕЦ ОТВЕТА"}, null, 2)
   const entries: McpRequestRecord[] = Array.from({length: 20}, (_, index) => ({
     id: String(index), tool: `storybook-${index}`, startedAt: 20 - index, durationMs: 1, status: "success", input: "{}", result: response,
   }))
   try {
-    component.render(RequestList as unknown as CompiledTemplate<{entries: readonly McpRequestRecord[], error: string}>, {entries, error: ""})
+    component.render(RequestList as unknown as DOMComponentConstructor<{entries: readonly McpRequestRecord[], error: string}>, {entries, error: ""})
     expect(container.querySelectorAll("article")).toHaveLength(1)
     expect(container.querySelectorAll("code")).toHaveLength(2)
     expect(container.querySelectorAll("code")[1]!.textContent).toBe(response)
@@ -56,10 +56,10 @@ test("журнал раскрывает реальный ответ руково
   const document = createDocument()
   const container = document.createElement("div")
   document.append(container)
-  const component = createRoot(container)
+  const component = createDomRoot(container)
   const renderer = createDocumentRenderer({document, root: container, viewport: {width: 620, height: 400}})
   try {
-    component.render(RequestList as unknown as CompiledTemplate<{entries: readonly McpRequestRecord[], error: string}>, {entries: [entry!], error: ""})
+    component.render(RequestList as unknown as DOMComponentConstructor<{entries: readonly McpRequestRecord[], error: string}>, {entries: [entry!], error: ""})
     expect(container.querySelectorAll("article")).toHaveLength(1)
     const rendered = container.querySelectorAll("code")[1]!.textContent
     expect(rendered, "JsonField форматирует весь исходный ответ без обрезки").toBe(JSON.stringify(response, null, 2))

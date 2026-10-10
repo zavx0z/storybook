@@ -35,19 +35,36 @@ describe("Storybook package identity", () => {
     for (const owner of legacyOwners) expect(dependencies[owner], owner).toBeUndefined()
   })
 
-  test("все публичные runtime входы разрешаются в готовые JS одного root owner", () => {
+  test("публичные browser входы и authoring tools разрешаются в готовые JS одного root owner", () => {
     const manifest = readManifest(immersiveRoot)
     const canonicalize = createStorybookOwnerSourcePath({repo: root, packageRoot: root})
     const entries = Object.entries(manifest.exports!)
     expect(entries.map(([subpath]) => subpath)).toEqual(expect.arrayContaining([
-      ".", "./XReact", "./XReact/compiled", "./XReact/browser", "./XReact/jsx-runtime", "./XReact/jsx-dev-runtime",
+      ".", "./XReact", "./XReact/browser", "./XReact/jsx-runtime", "./XReact/jsx-dev-runtime",
       "./compiler", "./headless", "./ui", "./engine", "./space", "./diagnostics", "./browser.json",
     ]))
+    expect(manifest.exports!["./XReact/compiled"]).toBeUndefined()
+    expect(manifest.exports!["./XReact/browser/integration"]).toBeUndefined()
+    const ready = JSON.parse(readFileSync(join(immersiveRoot, "dist/browser.json"), "utf8")) as {
+      entries: Readonly<Record<string, string>>
+    }
+    expect(ready.entries[manifest.name]).toBe("index.js")
+    expect(ready.entries[`${manifest.name}/ui`]).toBeDefined()
+    expect(Object.keys(ready.entries).filter(specifier => /\/XReact(?:\/|$)|\/compiler(?:\/|$)/u.test(specifier)))
+      .toEqual([])
     for (const [subpath, declaration] of entries) {
       const target = typeof declaration === "string" ? declaration : declaration.bun ?? declaration.default
       expect(target, `${subpath} имеет готовый публичный export`).toBeDefined()
       if (typeof declaration !== "string") {
         expect(target, `${subpath} не разрешается в TS/TSX исходник`).toMatch(/^\.\/dist\/.+\.js$/u)
+        if (subpath.startsWith("./XReact") || subpath.startsWith("./compiler")) {
+          expect(declaration.browser, `${subpath} принадлежит авторству и не входит в browser runtime`).toBeUndefined()
+        }
+        if (declaration.browser !== undefined) {
+          const specifier = `${manifest.name}${subpath === "." ? "" : subpath.slice(1)}`
+          expect(ready.entries[specifier], `${specifier} присутствует в готовой browser поставке`)
+            .toBe(declaration.browser.replace(/^\.\/dist\//u, ""))
+        }
       }
       const specifier = `${manifest.name}${subpath === "." ? "" : subpath.slice(1)}`
       const expected = realpathSync.native(resolve(immersiveRoot, target!))

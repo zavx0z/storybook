@@ -1,4 +1,4 @@
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import {Tree} from "@zavx0z/immersive/ui"
 import type {ImmersiveUiComponentWidgetTree} from "@zavx0z/immersive/ui"
 type TreeItem = ImmersiveUiComponentWidgetTree.Input["items"][number]
@@ -7,7 +7,7 @@ import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive/XReact"
 import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
 type StorybookContractDocument = Parameters<StorybookAppWebPageShell.Output["showContract"]>[1][number]
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
-type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
+type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends DOMComponentConstructor<infer Props> ? Props : never
 
 /** Точная декларация TypeDoc из transport контракта Storybook. */
 type ContractDeclaration = StorybookContractDocument["document"]["declarations"][number]

@@ -1,7 +1,7 @@
 import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {afterEach, beforeEach, describe, expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import type {StorybookAppWebPageShellMcpWindow} from "../contract"
 type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createWindowHost} from "../spec/fixture"
@@ -13,7 +13,7 @@ beforeEach(() => { host = createWindowHost() })
 afterEach(() => host.dispose())
 
 const render = async (props: McpWindowProps) => {
-  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
+  host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, props)
   return host.settle()
 }
 const resultText = () => host.container.querySelectorAll("code")[1]?.textContent ?? ""
@@ -45,7 +45,7 @@ describe("Открытие и завершение", () => {
   test("сворачивание скрывает содержимое и resize, восстановление сохраняет полный ответ", async () => {
     const entry = command("ready")
     const props: McpWindowProps = {open: true, onClose() {
-      host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {...props, open: false})
+      host.component.render(McpWindow as unknown as DOMComponentConstructor<McpWindowProps>, {...props, open: false})
     }, load: async () => [entry]}
     await render(props)
     const code = host.container.querySelector("code")!

@@ -1,8 +1,8 @@
 /** Семантические проверки без Renderer и GPU: lazy данные, подсветка и полный readonly source. */
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive"
-import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
+import type {DOMComponentConstructor} from "@zavx0z/immersive"
 import StorybookChatView, {type FixtureContract as Contract} from "./fixture/history"
 import {ChatContextContent, ChatData} from "../src/content"
 import {createDocumentRenderer, readRenderedSelectionText} from "@zavx0z/immersive/renderer/html"
@@ -21,7 +21,7 @@ test("закрытая tool запись не форматирует докум�
   const props: Contract.Input = {address: "/lazy", label: "Lazy", messages: [], timeline, draft: "", status: "idle",
     onDraftChange() {}, onSend() {}, onCancel() {}}
   try {
-    f.root.render(StorybookChatView as unknown as CompiledTemplate<Contract.Input>, props)
+    f.root.render(StorybookChatView as unknown as DOMComponentConstructor<Contract.Input>, props)
     f.root.flush()
     expect(serialized, "Закрытый внешний Panel не запускает сериализацию аргументов").toBe(0)
     expect(f.host.querySelector("[data-language-id]"), "Закрытые данные не держат редактор и токены").toBeNull()
@@ -33,7 +33,7 @@ test("закрытая tool запись не форматирует докум�
     expect(f.host.querySelector('[data-chat-data="Аргументы"] [data-language-id="json"]')).not.toBeNull()
     const editor = f.host.querySelector('[data-chat-data="Аргументы"] code')!
     expect(editor.textContent, "Readonly редактор содержит полный форматированный документ").toBe(JSON.stringify({argument: "полный текст"}, null, 2))
-    f.root.render(StorybookChatView as unknown as CompiledTemplate<Contract.Input>, {...props, draft: "Соседнее изменение"})
+    f.root.render(StorybookChatView as unknown as DOMComponentConstructor<Contract.Input>, {...props, draft: "Соседнее изменение"})
     f.root.flush()
     expect(serialized, "Неизменный документ не форматируется повторно при обновлении composer").toBe(1)
     expect(f.host.querySelector('[data-chat-data="Аргументы"] code')).toBe(editor)
@@ -52,7 +52,7 @@ test("служебный ресурс использует URI для подсв
   }, _meta: {provider: "agent"}}
   const previous = structuredClone(content)
   try {
-    f.root.render(ChatContextContent as unknown as CompiledTemplate<{content: typeof content}>, {content})
+    f.root.render(ChatContextContent as unknown as DOMComponentConstructor<{content: typeof content}>, {content})
     f.root.flush()
     const editor = f.host.querySelector('[data-language-id="typescript"]')!
     expect(editor, "Язык исходника выбирает штатный resolver по URI").not.toBeNull()
@@ -68,7 +68,7 @@ test("полный JSON результата получает подсветку
   const f = fixture()
   const props = {label: "Результат", value: {nested: {ok: true}, _meta: {provider: "agent"}}}
   try {
-    f.root.render(ChatData as unknown as CompiledTemplate<typeof props>, props)
+    f.root.render(ChatData as unknown as DOMComponentConstructor<typeof props>, props)
     f.root.flush()
     const editor = f.host.querySelector('[data-language-id="json"]')!
     expect(editor.getAttribute("aria-readonly")).toBe("true")
@@ -81,7 +81,7 @@ function fixture() {
   const document = createDocument()
   const host = document.createElement("div")
   document.append(host)
-  return {document, host, root: createRoot(host)}
+  return {document, host, root: createDomRoot(host)}
 }
 
 test("настоящее копирование служебного JSON сохраняет escapes и форматирование", async () => {
@@ -89,7 +89,7 @@ test("настоящее копирование служебного JSON сох
   const value = {text: "LEFT\nRIGHT\r\nКонец", nested: {ok: true}, literal: "\\n"}
   const source = JSON.stringify(value, null, 2)
   const props = {label: "Исходный JSON", value}
-  f.root.render(ChatData as unknown as CompiledTemplate<typeof props>, props)
+  f.root.render(ChatData as unknown as DOMComponentConstructor<typeof props>, props)
   f.root.flush()
   const renderer = createDocumentRenderer({document: f.document, root: f.host, viewport: {width: 600, height: 400}})
   let written = ""
@@ -113,7 +113,7 @@ test("большой служебный документ сохраняет ве
   const f = fixture()
   const source = Array.from({length: 13000}, (_, index) => `Строка ${index}: полный исходник`).join("\r\n")
   const props = {label: "Большой исходник", value: source}
-  f.root.render(ChatData as unknown as CompiledTemplate<typeof props>, props)
+  f.root.render(ChatData as unknown as DOMComponentConstructor<typeof props>, props)
   f.root.flush()
   const renderer = createDocumentRenderer({document: f.document, root: f.host, viewport: {width: 600, height: 400}})
   let written = ""

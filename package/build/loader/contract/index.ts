@@ -17,7 +17,9 @@ export declare namespace StorybookPackageBuildLoader {
   применённой ревизии данного package ID.
 
   @property generateJsxModules - Возвращает исходники TSX для slot-содержимого
-  подготовленных компонентных сценариев, сохраняя порядок node ID.
+  подготовленных компонентных сценариев, сохраняя порядок node ID. Slot entries
+  используют contentSource читателя, если оно задано: адрес уже находится в
+  resolveContent key. JSX props и отображаемый авторский source сохраняются.
   */
   type Output = Readonly<{
     payloadFile: "revision-payload.js"

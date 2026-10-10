@@ -1,11 +1,11 @@
 import {DisplayElement} from "@zavx0z/immersive"
 import presentationRootFixture, {type StorybookTechTestingBrowserRoot} from "@zavx0z/storybook-tech-testing-browser-root"
 type PresentationFixtureOptions = Parameters<StorybookTechTestingBrowserRoot.Input>[0]
-import {createRoot} from "@zavx0z/immersive/XReact"
+import {createDomRoot} from "@zavx0z/immersive"
 import {createDocumentClipboardController} from "@zavx0z/immersive"
 import {describe, expect, test} from "bun:test"
 import {ViewPoint, Vector3} from "@zavx0z/immersive/engine"
-import type {Presentation as Root, RootDocumentProjection, RootLinkedAuthorStyleSheet, RootProjection, RootSpaceProjection} from "@zavx0z/immersive/XReact/browser/integration"
+import type {Presentation as Root, RootDocumentProjection, RootLinkedAuthorStyleSheet, RootProjection, RootSpaceProjection} from "@zavx0z/immersive"
 import {createDocument, MouseEvent, PointerEvent, type Element, type Node} from "@zavx0z/immersive"
 import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/immersive/renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/immersive/space"
@@ -286,7 +286,7 @@ describe("external Storybook shared Browser Root", () => {
     } finally { shell.dispose() }
   })
 
-  test("passes exact linked author styles to createRoot", async () => {
+  test("passes exact linked author styles to createBrowserRoot", async () => {
     const state = createFakeRootState()
     const link = {} as HTMLLinkElement
     const shell = await createShell(state, {
@@ -607,7 +607,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
     const body = document.createElement("body")
     html.append(body)
     document.append(html)
-    const appRoot = createRoot(body)
+    const appRoot = createDomRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
     const space = body.querySelector("space") as SpaceElement
