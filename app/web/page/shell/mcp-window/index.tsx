@@ -66,38 +66,33 @@ export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input
       clearTimeout(timer)
     }
   }, [props.open, props.load, mode])
-  return <div
-    data-mcp-window=""
+  return <Window
+    id={props.id ?? "storybook-mcp-window"}
+    title={props.title ?? "Среда"}
+    open={props.open}
+    onOpenChange={open => { if (!open) props.onClose() }}
+    geometry={geometry}
+    onGeometryChange={(next, phase) => {if (phase === "end") setGeometry(next)}}
+    movable={true}
+    resizable={true}
+    minWidth={320}
+    minHeight={320}
     style={css`
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
+      border-radius: 6px;
+      backdrop-filter: blur(8px);
+      --space-node-navigation-background: rgb(var(--surface-900) / 0.72);
+      --editor-background: rgb(var(--surface-900) / 0.45);
+      --widget-toolbar-background: rgb(var(--surface-800) / 0.5);
     `}
   >
-    <Window
-      id={props.id ?? "storybook-mcp-window"}
-      title={props.title ?? "Среда"}
+    <McpContent
       open={props.open}
-      onOpenChange={open => { if (!open) props.onClose() }}
-      geometry={geometry}
-      onGeometryChange={next => setGeometry(next)}
-      movable={true}
-      resizable={true}
-      minWidth={320}
-      minHeight={320}
-    >
-      <McpContent
-        open={props.open}
-        mode={mode}
-        onMode={setMode}
-        entries={entries}
-        error={error}
-        addressSource={props.addressSource}
-        journalOnly={props.journalOnly}
-      />
-    </Window>
-  </div>
+      mode={mode}
+      onMode={setMode}
+      entries={entries}
+      error={error}
+      addressSource={props.addressSource}
+      journalOnly={props.journalOnly}
+    />
+  </Window>
 }

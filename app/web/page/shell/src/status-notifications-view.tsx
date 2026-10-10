@@ -30,6 +30,8 @@ export function StatusNotifications(props: Readonly<{source: ReturnType<typeof c
       style={css`
         max-width: 100%;
         flex-shrink: 0;
+        background: transparent;
+        backdrop-filter: blur(8px);
       `}
     />)}
   </div>

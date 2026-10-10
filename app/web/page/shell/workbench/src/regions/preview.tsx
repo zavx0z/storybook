@@ -18,7 +18,7 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
     style={css`
       position: relative;
       box-sizing: border-box;
-      background: rgb(var(--surface-925));
+      background: transparent;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -27,9 +27,6 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
       align-items: center;
       justify-content: center;
 
-      &[data-active-projection="space"] {
-        background: transparent;
-      }
     `}
   >
     <div

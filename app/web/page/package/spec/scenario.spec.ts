@@ -442,7 +442,7 @@ describe("Область выбранного пакета", () => {
         expect(controller.shell.workbench.controller.read("projectName")).toBe("Fixture Project")
         expect(controller.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Fixture Project")
         const content = controller.snapshot
-        const minimap = controller.shell.document.querySelector("[data-storybook-minimap] [data-window]")!
+        const minimap = controller.shell.document.querySelector("[data-storybook-minimap]")!.closest("[data-window]")!
         snapshot = {...snapshot, projectName: "Renamed Project"}
         socket.emit("message", {data: JSON.stringify({type: "registry.updated", graphDigest: snapshot.graphDigest})})
         for (let attempt = 0; attempt < 50 && controller.shell.workbench.controller.read("projectName") !== "Renamed Project"; attempt++) {

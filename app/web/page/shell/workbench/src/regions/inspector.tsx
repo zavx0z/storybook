@@ -30,6 +30,16 @@ export function InspectorRegion(props: InspectorRegionProps) {
       width: 400px;
       min-height: 0;
       overflow: clip;
+      --widget-surface-background: transparent;
+      --widget-toolbar-background: transparent;
+      --widget-text-background: transparent;
+      --widget-number-background-readonly: transparent;
+      --widget-box-background: transparent;
+      --widget-regular-outline: rgb(var(--surface-600) / 0.25);
+      --panel-header-background: transparent;
+      --panel-content-background: transparent;
+      --editor-background: transparent;
+      --editor-gutter-background: transparent;
     `}
   >
     <WorkbenchInspector

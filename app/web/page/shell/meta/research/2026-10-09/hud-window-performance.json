@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-09T11:31:56.500Z",
+  "samples": 20,
+  "warmup": 4,
+  "viewport": {
+    "width": 1000,
+    "height": 800
+  },
+  "metrics": {
+    "initialRenderElapsed": {
+      "rawMs": [
+        63.350623000005726,
+        53.636310999980196,
+        62.24183799995808,
+        55.417645999987144,
+        44.47144200000912,
+        64.17509799997788,
+        47.39355700003216,
+        57.48078699997859,
+        54.14038200001232,
+        43.475677000009455,
+        51.3728059999994,
+        50.667359000013676,
+        51.06172100000549,
+        47.001273999980185,
+        51.55637700000079,
+        42.99233899998944,
+        38.88181600003736,
+        52.688099000020884,
+        53.17682200000854,
+        43.023374999989755
+      ],
+      "medianMs": 51.4645915000001,
+      "p95Ms": 63.350623000005726
+    },
+    "activityAtoBtoAElapsed": {
+      "rawMs": [
+        64.47015599999577,
+        51.497191999980714,
+        53.41609400004381,
+        61.207406000001356,
+        56.08293700002832,
+        54.36419599998044,
+        51.1418330000015,
+        67.30835800000932,
+        52.227717000001576,
+        41.63534699997399,
+        51.71171100001084,
+        66.99316499999259,
+        44.57228999998188,
+        58.848990999977104,
+        47.68977699999232,
+        48.03261900000507,
+        40.949397999967914,
+        51.08169200003613,
+        46.6325380000053,
+        44.54986800003098
+      ],
+      "medianMs": 51.604451499995776,
+      "p95Ms": 66.99316499999259
+    },
+    "minimizeRestoreWithPointerElapsed": {
+      "rawMs": [
+        44.33284899999853,
+        41.10095100000035,
+        45.240356000023894,
+        39.05009999999311,
+        44.452705000003334,
+        42.85246000002371,
+        62.462215000006836,
+        47.31002199999057,
+        37.53252800001064,
+        35.21193200000562,
+        45.218577999970876,
+        43.21926199999871,
+        43.3383469999535,
+        36.30719800002407,
+        34.116519000031985,
+        34.32065100001637,
+        43.89472799998475,
+        34.32909999997355,
+        35.51441900001373,
+        33.176158000016585
+      ],
+      "medianMs": 41.97670550001203,
+      "p95Ms": 47.31002199999057
+    }
+  },
+  "baseline": {
+    "comparable": false,
+    "reason": "Предыдущая композиция трёх HUD Window имеет разных родителей и несовместима с общим Window activity layer"
+  },
+  "limitations": [
+    "Elapsed wall time включает создание semantic Document, настоящую compiled HUD-композицию, Workbench model, layout flush, scheduler и async settle с Bun.sleep(0); это не process CPU time, GPU не используется",
+    "A→B→A измеряет публичный keyboard focus с layout; восстановление использует настоящий pointer input и hit testing",
+    "Исходники импортированы до замера; компиляция, WebRTC, live Browser frame и backdrop GPU cost сюда не входят"
+  ],
+  "gpuEvidence": "https://github.com/zavx0z/immersive/blob/e68df867/webgpu/meta/research/2026-10-09/backdrop-main-integration-performance.json",
+  "provenance": {
+    "storybookBase": "d1713fcc26722bc63e872f6e89233d43ebc25ab6",
+    "immersive": "e0eb3cbc2601b531ec4dbae5ad04da3db6847dfa",
+    "files": {
+      "app/web/page/shell/src/hud.tsx": "1da7e75772d41f65823d09c1e44678b0ae2284c65053e7b01b4294f460f31f1e",
+      "app/web/page/shell/src/application.tsx": "e0749a062c142df7cec31ef85ac022c17048303ece2aaf76c992aded4c6ed57a",
+      "app/web/page/shell/src/global-mcp-window.tsx": "5353b4754f731c1a5da14f410e3a69edd8bf5aee299cde914bffd59f76161df8",
+      "app/web/page/shell/execution-settings/index.tsx": "8f041baac8ff99fb57848da4f7576dd38fb311f9237a3d03e3fe1276b756cc70",
+      "app/web/page/shell/minimap/index.tsx": "90ac5ddc9931ff8eb275d8a1b75bb7d399c5b5490cdd7d4b65476c981d5385ef",
+      "app/web/page/shell/mcp-window/index.tsx": "aa0ea9f97a01e1a50d4d9454b7610f527fddc6de597d88907c20744ac5b09db1",
+      "app/web/page/shell/test/hud-windows.test.ts": "0f0bf4f78393fd7027a4f8517faee9f011b688fb31671ce369ae25e4a4e01aee",
+      "app/web/page/shell/test/fixture/hud-host.ts": "6dfcbdbabcd851fc5faec3c2b85cbf173d1d9a3b7b73567d9826ad7407f20c2a"
+    }
+  }
+}

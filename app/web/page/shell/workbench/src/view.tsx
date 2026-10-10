@@ -24,14 +24,11 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       min-width: 0;
       min-height: 0;
       overflow: clip;
-      background: rgb(var(--surface-925));
+      background: transparent;
       color: var(--widget-regular-content);
       font-size: 11px;
       line-height: 16px;
 
-      &[data-storybook-content-preview="true"] {
-        background: transparent;
-      }
     `}
   >
     <div
@@ -46,11 +43,8 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         gap: 4px;
         padding: 4px;
         overflow: clip;
-        background: rgb(var(--surface-950));
+        background: transparent;
 
-        &[data-content="true"] {
-          background: transparent;
-        }
       `}
     >
       <div style={css`

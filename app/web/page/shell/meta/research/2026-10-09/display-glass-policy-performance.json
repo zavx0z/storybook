@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-09T14:40:06.209Z",
+  "samples": 20,
+  "warmup": 4,
+  "viewport": {
+    "width": 1000,
+    "height": 600
+  },
+  "metrics": {
+    "selectedDisplayPolicyElapsed": {
+      "rawMs": [
+        0.09487100000023929,
+        0.14988899999934802,
+        0.1866410000002361,
+        0.11131900000054884,
+        0.10700499999984459,
+        0.23096799999984796,
+        0.23452399999951012,
+        0.11395700000048237,
+        0.09658199999921635,
+        0.10747300000002724,
+        0.08831999999983964,
+        0.0746739999995043,
+        0.06622599999991508,
+        0.08106300000054034,
+        0.099250000000211,
+        0.07092300000022078,
+        0.06940699999995559,
+        0.08008500000050844,
+        0.06719500000053813,
+        0.06899599999997008
+      ],
+      "medianMs": 0.09572649999972782,
+      "p95Ms": 0.23096799999984796
+    }
+  },
+  "limitations": [
+    "Elapsed wall time публичных ViewPoint mutations, Document subscribers и microtask settle; это не process CPU time",
+    "Один цикл: выбор и fit URL /, zoom away, выбор и fit /repo, возвращение и fit /",
+    "Три semantic Display одного Document; fixture передаёт только selectedId/nodes через существующий subscribe contract",
+    "GPU, layout, SpatialTree animation и полный Workbench не измеряются; blur shader cost проверяется отдельно у Renderer"
+  ],
+  "sourceHashes": {
+    "app/web/page/shell/src/display-glass.ts": "c3dbf418dc88c5ae70ea3dbbf575e9e562281a7848cc3f313de4f9c570a47eeb",
+    "app/web/page/shell/src/display-view.tsx": "dd6d1a1b56c79c019db71f63427af7bae47ddd516b05d7adffa2fd2d9bcc2f20",
+    "app/web/page/shell/src/subject-graph.ts": "624cb678fcfb785c0bd71177e0f43621b77d044eaf391661a7716e705ffd1630",
+    "app/web/page/shell/src/application.tsx": "666a000c582665c9c293fe7abfdaac2374415ca17373fe38311170b8f04b816d"
+  }
+}

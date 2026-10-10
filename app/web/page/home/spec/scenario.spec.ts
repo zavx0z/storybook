@@ -61,7 +61,7 @@ describe("external Storybook landing frontend", () => {
     })
     try {
       expect(controller.shell.workbench.controller.read("projectName")).toBe("Fixture Project")
-      expect(controller.shell.document.querySelector("[data-storybook-minimap] [data-window-title]")?.textContent).toBe("Fixture Project")
+      expect(controller.shell.document.querySelector("[data-storybook-minimap]")?.closest("[data-window]")?.querySelector("[data-window-title]")?.textContent).toBe("Fixture Project")
       const home = controller.shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button')!
       expect(home.textContent).toBe("Fixture Project")
       expect(controller.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Fixture Project")
@@ -93,7 +93,7 @@ describe("external Storybook landing frontend", () => {
       expect(location.pathname).toBe("/")
       expect(controller.shell.workbench.controller.read("catalog.active")).toBeNull()
       expect(requests).toEqual(["/api/client", "/api/browser/registry-session", "/api/browser/registry-session", "/api/browser/registry-session"])
-      const minimap = controller.shell.document.querySelector("[data-storybook-minimap] [data-window]")!
+      const minimap = controller.shell.document.querySelector("[data-storybook-minimap]")!.closest("[data-window]")!
       const tree = minimap.querySelector('[role="tree"]')!
       snapshot = {...snapshot, projectName: "Renamed Project"}
       onMessage!({data: JSON.stringify({type: "registry.updated", graphDigest: snapshot.graphDigest})} as MessageEvent)
@@ -101,7 +101,7 @@ describe("external Storybook landing frontend", () => {
       expect(minimap.querySelector("[data-window-title]")?.textContent).toBe("Renamed Project")
       expect(home.textContent).toBe("Renamed Project")
       expect(controller.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Renamed Project")
-      expect(controller.shell.document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
+      expect(controller.shell.document.querySelector("[data-storybook-minimap]")!.closest("[data-window]") === minimap).toBeTrue()
       expect(minimap.querySelector('[role="tree"]') === tree).toBeTrue()
       expect(controller.snapshot.graphDigest).toBe(graph.digest)
       await waitUntil(() => requests.filter(request => request === "/api/browser/registry-session").length === 4)
@@ -173,7 +173,7 @@ describe("external Storybook landing frontend", () => {
     }] as never)
     const document = first.shell.document
     const space = first.shell.space
-    const minimap = document.querySelector("[data-storybook-minimap] [data-window]")!
+    const minimap = document.querySelector("[data-storybook-minimap]")!.closest("[data-window]")!
     const tree = minimap.querySelector('[role="tree"]')!
     const beforeState = first.shell.captureUserState()
     const second = await startExternalStorybookLanding({...options,
@@ -184,14 +184,14 @@ describe("external Storybook landing frontend", () => {
     })
     try {
       expect(workbench.controller.read("projectName")).toBe("Renamed Project")
-      expect(document.querySelector("[data-storybook-minimap] [data-window-title]")?.textContent).toBe("Renamed Project")
+      expect(document.querySelector("[data-storybook-minimap]")?.closest("[data-window]")?.querySelector("[data-window-title]")?.textContent).toBe("Renamed Project")
       const home = workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button')!
       expect(home.textContent).toBe("Renamed Project")
       expect(workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Renamed Project")
       expect([...home.querySelectorAll("img")].some(icon => !icon.hasAttribute("hidden"))).toBeFalse()
       expect(first.shell.document === document).toBeTrue()
       expect(first.shell.space === space).toBeTrue()
-      expect(document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
+      expect(document.querySelector("[data-storybook-minimap]")!.closest("[data-window]") === minimap).toBeTrue()
       expect(minimap.querySelector('[role="tree"]') === tree).toBeTrue()
       expect(first.shell.captureUserState().minimap).toEqual(beforeState.minimap)
       expect(workbench.controller.read("inspector.subject")).toEqual({subjectId: "/", workspaceId: "/", widgetIds: ["chat", "agents"]})

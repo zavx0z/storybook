@@ -51,17 +51,7 @@ export default function ExecutionSettings(props: StorybookAppWebPageShellExecuti
     {id: "defaults", label: "Модели по умолчанию", group: "execution"},
     {id: "connections", label: "Провайдеры", group: "execution"},
   ]
-  return <div
-    data-execution-settings-window=""
-    style={css`
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    `}
-  >
+  return <>
     <Window
       id="storybook-execution-settings"
       title="Настройки"
@@ -75,6 +65,16 @@ export default function ExecutionSettings(props: StorybookAppWebPageShellExecuti
       minHeight={320}
       message={directoryError ? {message: directoryError, tone: "error"} : undefined}
       onMessageDismiss={() => setDirectoryError("")}
+      style={css`
+        border-radius: 6px;
+        backdrop-filter: blur(8px);
+        --space-node-navigation-background: rgb(var(--surface-900) / 0.72);
+        --widget-surface-background: transparent;
+        --widget-toolbar-background: rgb(var(--surface-800) / 0.5);
+        --widget-regular-outline: rgb(var(--surface-600) / 0.35);
+        --panel-header-background: rgb(var(--surface-800) / 0.5);
+        --panel-content-background: transparent;
+      `}
     >
       <Settings
         sections={sections}
@@ -95,19 +95,37 @@ export default function ExecutionSettings(props: StorybookAppWebPageShellExecuti
         />
       </Settings>
     </Window>
-    {open ? null : <Tab
-      label="Настройки"
-      position={tab}
-      onPositionChange={(next, phase) => {if (phase === "end") setTab(next)}}
+    <div
+      data-execution-settings-tab=""
+      data-hud-window-dock=""
+      hidden={open}
+      style={css`
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+
+        &[hidden] {
+          display: none;
+        }
+      `}
     >
-      <WindowControl
-        windowId="storybook-execution-settings"
+      <Tab
         label="Настройки"
-        open={open}
-        onOpenChange={setOpen}
-      />
-    </Tab>}
-  </div>
+        position={tab}
+        onPositionChange={(next, phase) => {if (phase === "end") setTab(next)}}
+      >
+        <WindowControl
+          windowId="storybook-execution-settings"
+          label="Настройки"
+          open={open}
+          onOpenChange={setOpen}
+        />
+      </Tab>
+    </div>
+  </>
 }
 
 function SettingsPages(props: Readonly<{

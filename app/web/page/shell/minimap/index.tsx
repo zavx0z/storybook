@@ -52,17 +52,7 @@ export default function Minimap(props: StorybookAppWebPageShellMinimap.Input) {
     setState(next)
     props.onStateChange?.(next)
   }
-  return <div
-    data-storybook-minimap=""
-    style={css`
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    `}
-  >
+  return <>
     <Window
       id={id}
       title={props.projectName}
@@ -74,8 +64,16 @@ export default function Minimap(props: StorybookAppWebPageShellMinimap.Input) {
       }}
       movable={true}
       resizable={true}
+      style={css`
+        border-radius: 6px;
+        backdrop-filter: blur(8px);
+        --space-node-navigation-background: transparent;
+        --space-node-header-background: rgb(var(--surface-900) / 0.35);
+        --widget-text-background: transparent;
+        --widget-surface-background: transparent;
+      `}
     >
-      <CatalogPanel
+      <MinimapCatalog
         label={props.catalog.label}
         defaultCollapsed={true}
         search={props.catalog.search}
@@ -97,6 +95,7 @@ export default function Minimap(props: StorybookAppWebPageShellMinimap.Input) {
     <div
       hidden={!state.collapsed}
       data-minimap-tab=""
+      data-hud-window-dock=""
       style={css`
         position: absolute;
         left: 0;
@@ -125,5 +124,35 @@ export default function Minimap(props: StorybookAppWebPageShellMinimap.Input) {
         />
       </Tab>
     </div>
+  </>
+}
+
+/** Стабильный marker принадлежит содержимому каталога, а оболочка остаётся соседом других Window. */
+function MinimapCatalog(props: Parameters<typeof CatalogPanel>[0]) {
+  return <div
+    data-storybook-minimap=""
+    style={css`
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+    `}
+  >
+    <CatalogPanel
+      label={props.label}
+      defaultCollapsed={props.defaultCollapsed}
+      search={props.search}
+      items={props.items}
+      activeId={props.activeId}
+      management={props.management}
+      onAction={props.onAction}
+      onNavigate={props.onNavigate}
+      onSearch={props.onSearch}
+      onGroupToggle={props.onGroupToggle}
+      navigationExpansion={props.navigationExpansion}
+      webRebuild={props.webRebuild}
+    />
   </div>
 }

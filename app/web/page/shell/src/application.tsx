@@ -1,22 +1,23 @@
 import {SpatialTree} from "@zavx0z/immersive/nodes/spatial/tree"
-import {WorkbenchMinimap} from "./workbench-minimap.tsx"
-import ViewPointTab from "@zavx0z/storybook-app-web-page-shell-viewpoint-tab"
 import Workbench, {type StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 import {StorybookDisplay} from "./display-view.tsx"
 import {getDocumentClipboardController} from "@zavx0z/immersive"
 import type {Document as SemanticDocument} from "@zavx0z/immersive"
 import {ClipboardMenu} from "@zavx0z/immersive/ui"
 import {useState} from "@zavx0z/immersive/XReact"
-import {StatusNotifications} from "./status-notifications-view"
-import {GlobalMcpWindow} from "./global-mcp-window"
-import ExecutionSettings from "@zavx0z/storybook-app-web-page-shell-execution-settings"
+
+import {StorybookHud} from "./hud"
 
 import type {StorybookAppProps} from "./application-props"
 
 /** Одна сцена с правой системой координат, осью Z вверх и расстояниями в миллиметрах. */
 export function StorybookApp(props: StorybookAppProps) {
   const [workbench, setWorkbench] = useState<StorybookAppWebPageShellWorkbench.Output | null>(null)
-  return <space>
+  return <space style={css`
+    & [data-storybook-display-fitted="true"] {
+      backdrop-filter: blur(8px);
+    }
+  `}>
     <viewpoint
       x={0}
       y={-1000}
@@ -51,30 +52,17 @@ export function StorybookApp(props: StorybookAppProps) {
         navigationExpansion={props.navigationExpansion}
       />
     </StorybookDisplay>
-    {props.subjectGraphState === undefined ? null : <SpatialTree source={props.subjectGraphState} />}
-    <hud id={props.hudId}>
-      <ViewPointTab
-        controls={props.viewPointControls}
-        followEnvironment={props.followEnvironment}
-      />
-      <ExecutionSettings
-        directories={props.directorySettingsClient}
-        initialState={props.executionWindowState}
-        onStateChange={props.saveExecutionWindowState}
-      />
-      <GlobalMcpWindow
-        loadMcpRequests={props.loadMcpRequests}
-        mcpWindowState={props.mcpWindowState}
-        saveMcpWindowState={props.saveMcpWindowState}
-      />
-      {workbench === null ? null : <WorkbenchMinimap
-        workbench={workbench}
-        initialState={props.minimapState}
-        onStateChange={props.saveMinimapState}
-        onRebuildWeb={props.onRebuildWeb}
-      />}
-      {props.statusNotifications === undefined ? null : <StatusNotifications source={props.statusNotifications} />}
-    </hud>
+    {props.subjectGraphState === undefined ? null : <SpatialTree
+      source={props.subjectGraphState}
+      style={css`
+        background: transparent;
+        --spatial-node-surface-opacity: 0;
+      `}
+    />}
+    <StorybookHud
+      application={props}
+      workbench={workbench}
+    />
   </space>
 }
 

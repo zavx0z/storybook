@@ -188,7 +188,8 @@ describe("external Storybook shared Browser Root", () => {
     expect(shell.hud.parentElement).toBe(shell.space)
     expect(shell.workbench.element.parentElement).toBe(shell.display)
     expect(shell.hud.querySelector('[aria-label="Управление ViewPoint"]')).not.toBeNull()
-    expect(shell.display.querySelector("[data-mcp-window]"), "Display не содержит отдельный журнал агента").toBeNull()
+    expect(shell.display.querySelector('[id="storybook-mcp-window"]'), "Display не содержит отдельный журнал агента").toBeNull()
+    expect(shell.display.querySelector('[id="storybook-global-mcp-window"]'), "Общий журнал принадлежит HUD").toBeNull()
 
     const displayNode = shell.document.createElement("button")
     shell.mountPreview("Display", displayNode)

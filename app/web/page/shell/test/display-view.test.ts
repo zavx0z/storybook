@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {createDocument} from "@zavx0z/immersive"
 import {createRoot} from "@zavx0z/immersive/XReact"
 import {DisplayElement} from "@zavx0z/immersive"
-import {readDisplayStyle} from "@zavx0z/immersive/renderer/html"
+import {readDisplayStyle, createDocumentRenderer} from "@zavx0z/immersive/renderer/html"
 import type {CompiledTemplate} from "@zavx0z/immersive/XReact/compiled"
 import {StorybookDisplay} from "../src/display-view"
 
@@ -43,4 +43,27 @@ test("прежний Display поддерживает размеры окна и
     expect(readDisplayStyle(document, display).viewport).toEqual({width: 1600, height: 900})
     expect(display.width / display.height).toBeCloseTo(1600 / 900)
   } finally { spatial.unmount() }
+})
+
+
+test("основной Display остаётся прозрачным, а CSS blur включается только fitted marker", () => {
+  const document = createDocument()
+  const space = document.createElement("space")
+  document.append(space)
+  const root = createRoot(space)
+  root.render(StorybookDisplay as unknown as CompiledTemplate<{id: string}>, {id: "display"})
+  const display = document.getElementById("display") as DisplayElement
+  const renderer = createDocumentRenderer({document, root: display, viewport: {width: 960, height: 540}})
+  const blur = () => renderer.flush().displayList.filter(item => item.kind === "rect" && item.backdropBlur !== undefined)
+  try {
+    expect(blur()).toHaveLength(0)
+    display.setAttribute("data-storybook-display-fitted", "true")
+    expect(blur().map(item => item.kind === "rect" ? item.backdropBlur : null)).toEqual([8])
+    display.removeAttribute("data-storybook-display-fitted")
+    expect(blur()).toHaveLength(0)
+    expect(renderer.flush().displayList.filter(item => item.kind === "rect" && item.key === "background")).toHaveLength(0)
+  } finally {
+    renderer.dispose()
+    root.unmount()
+  }
 })

@@ -18,6 +18,7 @@ export function StorybookDisplay(props: Readonly<{
       style={css`
         box-sizing: border-box;
         background: transparent;
+        backdrop-filter: none;
         --workbench-resolution-width: ${props.viewport?.width ?? 960}px;
         --workbench-resolution-height: ${props.viewport?.height ?? 540}px;
         width: var(--workbench-resolution-width, 960px);
@@ -33,6 +34,10 @@ export function StorybookDisplay(props: Readonly<{
         overflow: hidden;
         align-items: center;
         justify-content: center;
+
+        &[data-storybook-display-fitted="true"] {
+          backdrop-filter: blur(8px);
+        }
       `}
     >
       {props.children}

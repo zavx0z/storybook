@@ -25,6 +25,7 @@ export function GlobalMcpWindow(props: Pick<StorybookAppProps, "mcpWindowState" 
     />
     <div
       data-global-mcp-tab=""
+      data-hud-window-dock=""
       hidden={open}
       style={css`
         position: absolute;

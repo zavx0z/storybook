@@ -28,6 +28,7 @@ export function StatusRegion(props: StatusRegionProps) {
       style={css`
         flex-grow: 1;
         width: 0;
+        --status-bar-background: transparent;
       `}
       title={props.status.owner}
       separator=""

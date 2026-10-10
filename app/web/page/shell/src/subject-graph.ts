@@ -8,6 +8,7 @@ import type {StorybookAppWebPageShell} from "../contract"
 import type {StorybookShellUserState} from "../contract/types"
 import type {StorybookAppProps} from "./application-props"
 import type {createSubjectGraphState} from "./subject-graph-state"
+import {bindStorybookDisplayGlass} from "./display-glass"
 import {StorybookSurface} from "./application.tsx"
 
 type Shell = StorybookAppWebPageShell.Output
@@ -34,11 +35,19 @@ export function createSubjectGraph(options: Readonly<{
     preserveViewPoint: options.preserveViewPoint ?? false,
   })
   const views = new Map<string, Shell>()
+  const glass = bindStorybookDisplayGlass({
+    document: options.document,
+    viewPoint: options.root.viewPoint,
+    baseDisplay: options.baseDisplay,
+    source: options.source,
+    displayFor: id => views.get(id)?.display ?? null,
+  })
   let disposed = false
   const releaseView = (id: string) => {
     views.get(id)?.dispose()
     views.delete(id)
     spatial.release(id)
+    glass.update()
   }
   return {
     get configured() { return spatial.configured },
@@ -47,6 +56,7 @@ export function createSubjectGraph(options: Readonly<{
       for (const id of [...views.keys()]) if (!ids.has(id)) releaseView(id)
       spatial.configure(items.map(({id, parentId, label}) => ({id, ...(parentId === undefined ? {} : {parentId}), label})), onSelect, onDemand)
       options.baseDisplay.hidden = true
+      glass.update()
     },
     createView({id, title, userState}: Readonly<{id: string; title: string; userState?: StorybookShellUserState}>) {
       if (disposed) throw new Error("Storybook subject adapter is disposed")
@@ -58,8 +68,10 @@ export function createSubjectGraph(options: Readonly<{
       }, display, () => {
         views.delete(id)
         spatial.release(id)
+        glass.update()
       }, userState)
       views.set(id, view)
+      glass.update()
       return view
     },
     releaseView,
@@ -70,9 +82,14 @@ export function createSubjectGraph(options: Readonly<{
       spatial.zoom(factor)
       return true
     },
-    updateViewport: spatial.updateViewport,
+    setBaseFit: glass.setBaseFit,
+    updateViewport(viewport: Readonly<{width: number; height: number}>) {
+      spatial.updateViewport(viewport)
+      glass.updateViewport(viewport)
+    },
     dispose() {
       if (disposed) return
+      glass.dispose()
       for (const view of [...views.values()]) view.dispose()
       views.clear()
       spatial.dispose()

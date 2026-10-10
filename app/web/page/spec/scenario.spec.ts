@@ -1050,7 +1050,7 @@ describe("Переходы и обновления одной страницы",
   test("Домашняя ссылка с именем Project передаёт переход page controller", async () => {
     const fixture = await pageFixture(false, false)
     const shell = fixture.page.shell
-    const minimap = shell.document.querySelector("[data-storybook-minimap] [data-window]")!
+    const minimap = shell.document.querySelector("[data-storybook-minimap]")!.closest("[data-window]")!
     const globalJournal = shell.hud.querySelector('[aria-label="Общий журнал вызовов"][data-window]')!
     const settings = shell.captureUserState().minimap
     try {
@@ -1075,7 +1075,7 @@ describe("Переходы и обновления одной страницы",
       expect(shell.display.isConnected).toBe(true)
       expect(fixture.page.shell.document === shell.document).toBeTrue()
       expect(fixture.page.shell.space === shell.space).toBeTrue()
-      expect(shell.document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
+      expect(shell.document.querySelector("[data-storybook-minimap]")!.closest("[data-window]") === minimap).toBeTrue()
       expect(shell.hud.querySelector('[aria-label="Общий журнал вызовов"][data-window]')).toBe(globalJournal)
       expect(shell.captureUserState().localMcpWindows, "Удалённый локальный журнал не создаёт сохраняемого состояния").toBeUndefined()
       expect(fixture.page.shell.captureUserState().localMcpWindows, "Навигация не восстанавливает локальный журнал").toBeUndefined()

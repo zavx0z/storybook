@@ -1,11 +1,16 @@
 /**
 Подключает Workbench и служебные окна к одному Browser Root страницы Storybook.
 Полный граф иерархии сохраняет отдельные Displays предметов и их Workbench в том
-же Document и Space. Наполнение ближайшей поверхности происходит при приближении
-общей камеры; CSS-разрешение её содержимого остаётся постоянным.
+же Document и Space. Наполнение связано с выбранным адресом; движение камеры
+меняет представление уже подготовленных поверхностей. CSS-разрешение содержимого постоянно.
 Тот же Document и Space принимают обзоры, контракты, зависимости и пространственное
 содержимое; Shell связывает выбор представления с кадрами и диагностикой.
 Настройки обзора, окон и навигации сохраняются между сессиями и заменами Web.
+Настройки, миникарта и общий журнал имеют один слой размещения целых Window в HUD.
+Фокус и нажатие поднимают выбранное окно; сворачивание сохраняет его содержимое
+и последнее место ввода. У каждого Display остаётся собственная активность окон.
+CSS backdrop-filter размывает фон под служебными окнами, сохраняя чёткое содержимое.
+Dock controls и управление ViewPoint остаются выше слоя окон.
 Статусы всех Displays показаны уведомлениями слева внизу общего HUD.
 В нижней строке остаётся навигационный путь; локальный журнал агента заменён чатом.
 Tab «Настройки» открывает каталоги проектов и репозиториев; незаданный каталог
@@ -263,7 +268,8 @@ async function createExternalStorybookShell(
     const fitWorkbench = (viewport: Readonly<{width: number; height: number}>, force = false): void => {
       if (viewport.width <= 0 || viewport.height <= 0) return
       latestViewport = viewport
-      if (graph.configured) { graph.updateViewport(viewport); return }
+      graph.updateViewport(viewport)
+      if (graph.configured) return
       const key = `${viewport.width}:${viewport.height}`
       if (!force && key === fittedViewport) return
       fittedViewport = key
@@ -274,13 +280,15 @@ async function createExternalStorybookShell(
         display.setAttribute("style", `--workbench-resolution-width: ${Math.round(viewport.width)}px; --workbench-resolution-height: ${Math.round(viewport.height)}px;`)
         if (activeSpacePreview !== null) return
         const distance = Math.max(viewPoint.near * 1.01, units * viewport.height / (2 * Math.tan(viewPoint.fov / 2)))
-        writeViewPointSnapshot(document, viewPoint, {
+        const fitted = {
           position: {x: 0, y: -distance, z: 0},
           target: {x: 0, y: 0, z: 0},
           fov: viewPoint.fov,
           near: viewPoint.near,
           far: Math.max(viewPoint.far, distance + 1000),
-        })
+        }
+        graph.setBaseFit(fitted)
+        writeViewPointSnapshot(document, viewPoint, fitted)
       })
       viewPointControls.restoreCamera()
     }
