@@ -100,6 +100,7 @@ export function createChatServer(options: Readonly<{
       if (!connection) throw new Error("Выбранное подключение недоступно")
       return (options.connect ?? createAcp)({
         ...providerTransport(options, connection),
+        // SSH запускается в локальном предмете; wire agentCwd задаёт transport.
         cwd: input.subject.cwd,
         signal: input.signal,
         ...(input.previousSessionId === undefined ? {} : {previousSessionId: input.previousSessionId}),

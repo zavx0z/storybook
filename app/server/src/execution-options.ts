@@ -28,6 +28,7 @@ export function createExecutionOptions(options: {project: string, toolRoot: stri
       try {
         connection = await options.connect({
           ...providerTransport(options, selected),
+          // Native cwd удалённого агента остаётся в отдельном agentCwd.
           cwd: options.project,
           signal: lifetime,
           mcpServers: [], onUpdate() {},

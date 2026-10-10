@@ -83,6 +83,10 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
   if (!isAbsolute(input.cwd)) throw new TypeError("ACP cwd должен быть абсолютным каталогом")
   const cwd = await realpath(input.cwd)
   if (!(await stat(cwd)).isDirectory()) throw new TypeError("ACP cwd должен быть каталогом")
+  if (input.agentCwd !== undefined && (!isAbsolute(input.agentCwd) || input.agentCwd.length > 4096 || /[\u0000-\u001f\u007f]/u.test(input.agentCwd))) {
+    throw new TypeError("ACP agentCwd должен быть абсолютным путём без управляющих символов")
+  }
+  const agentCwd = input.agentCwd ?? cwd
   if (input.previousSessionId !== undefined && !input.previousSessionId.trim()) {
     throw new TypeError("Восстанавливаемый ACP sessionId не может быть пустым")
   }
@@ -107,12 +111,20 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
   ]) delete env[name]
   if (input.mode !== undefined) env.INITIAL_AGENT_MODE = input.mode
   if (input.config !== undefined) env.CODEX_CONFIG = JSON.stringify(input.config)
+  const argsForEnv = () => {
+    const resolved = input.argsForEnv === undefined ? args : input.argsForEnv(Object.freeze({...env}))
+    if (!Array.isArray(resolved) || !resolved.every(value => typeof value === "string" && !value.includes("\0"))) {
+      throw new TypeError("ACP argsForEnv должен вернуть массив строк без NUL")
+    }
+    return [...resolved]
+  }
   const startupSignal = input.signal ?? new AbortController().signal
   const progress = (phase: Parameters<NonNullable<StorybookTechAcp.Input["onProgress"]>>[0]): void => {
     try { input.onProgress?.(phase) } catch { /* Наблюдатель не меняет выполнение. */ }
   }
   if (input.exclusiveMcp === true) {
     progress("registry")
+    delete env.PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS
     let config = input.config
     if (config === undefined && env.CODEX_CONFIG !== undefined) {
       const inherited: unknown = JSON.parse(env.CODEX_CONFIG)
@@ -123,7 +135,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     }
     const prepared = await prepareExclusiveMcp({
       command,
-      args,
+      args: argsForEnv(),
       cwd,
       env,
       signal: startupSignal,
@@ -132,7 +144,8 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
     })
     env.CODEX_CONFIG = JSON.stringify(prepared.config)
     env.DISABLE_MCP_CONFIG_FILTERING = "true"
-    if (input.command === undefined) {
+    env.PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS = JSON.stringify(prepared.bootstrapArgs)
+    if (input.command === undefined && input.adapter !== "@zavx0z/provider-app-codex") {
       const adapter = createRequire(installation).resolve("@agentclientprotocol/codex-acp")
       const nativeCommand = env.CODEX_PATH ?? process.execPath
       const nativeArgs = env.CODEX_PATH === undefined
@@ -148,7 +161,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
   startupSignal.throwIfAborted()
   input.signal?.throwIfAborted()
   progress("spawn")
-  const child = spawn(command, args, {
+  const child = spawn(command, argsForEnv(), {
     cwd,
     env,
     stdio: ["pipe", "pipe", "pipe"],
@@ -294,14 +307,14 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
       }
       const session = await connection.agent.request(resume ? methods.agent.session.resume : methods.agent.session.load, {
         sessionId: input.previousSessionId,
-        cwd,
+        cwd: agentCwd,
         mcpServers: input.mcpServers,
       }, {cancellationSignal: startupSignal})
       configOptions = session.configOptions ?? []
       replay = false
     } else {
       const session = await connection.agent.request(methods.agent.session.new, {
-        cwd,
+        cwd: agentCwd,
         mcpServers: input.mcpServers,
       }, {cancellationSignal: startupSignal})
       sessionId = session.sessionId

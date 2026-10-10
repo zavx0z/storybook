@@ -43,8 +43,12 @@ export function validateConnection(input: unknown): Execution["connections"][num
   const value = object(input, ["id", "provider", "label", "enabled", "endpoint", "ssh"])
   if (typeof value.id !== "string" || !value.id.trim() || value.id.length > 256 || typeof value.label !== "string" || !value.label.trim() || value.label.length > 128 || typeof value.enabled !== "boolean") throw new TypeError("Неизвестное подключение исполнения")
   if (value.provider === "codex") {
-    if (value.ssh !== undefined) throw new TypeError("Удалённое исполнение поддерживается для браузерных провайдеров")
     if (value.endpoint !== undefined) throw new TypeError("Codex не принимает endpoint подключения")
+    if (value.ssh !== undefined) {
+      const ssh = object(value.ssh, ["host", "user", "port", "providerRoot", "storageRoot"])
+      validateSsh(ssh)
+      validateProviderPaths(ssh)
+    }
     return structuredClone(value) as Execution["connections"][number]
   }
   if (value.provider === "capsule" || value.provider === "chrome-studio") {
@@ -58,10 +62,7 @@ export function validateConnection(input: unknown): Execution["connections"][num
     if (value.ssh !== undefined) {
       const ssh = object(value.ssh, ["host", "user", "port", "providerRoot", "storageRoot", ...(value.provider === "capsule" ? ["dockerContext"] : [])])
       validateSsh(ssh)
-      for (const field of ["providerRoot", "storageRoot"]) {
-        const path = ssh[field]
-        if (typeof path !== "string" || path.length > 4096 || /[\u0000-\u001f\u007f]/u.test(path) || !isAbsolute(path) || normalize(path) !== path) throw new TypeError("Укажите абсолютные нормализованные пути Provider на машине исполнения")
-      }
+      validateProviderPaths(ssh)
       if (ssh.dockerContext !== undefined && (typeof ssh.dockerContext !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,199}$/u.test(ssh.dockerContext))) throw new TypeError("Недопустимый контекст Docker")
     }
     return structuredClone(value) as Execution["connections"][number]
@@ -85,4 +86,11 @@ function validateSsh(ssh: Record<string, unknown>): void {
   if (typeof ssh.host !== "string" || ssh.host.length > 253 || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(ssh.host)) throw new TypeError("Недопустимый SSH host")
   if (ssh.user !== undefined && (typeof ssh.user !== "string" || ssh.user.length > 128 || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(ssh.user))) throw new TypeError("Недопустимый SSH user")
   if (ssh.port !== undefined && (typeof ssh.port !== "number" || !Number.isInteger(ssh.port) || ssh.port < 1 || ssh.port > 65535)) throw new TypeError("Недопустимый SSH port")
+}
+
+function validateProviderPaths(ssh: Record<string, unknown>): void {
+  for (const field of ["providerRoot", "storageRoot"]) {
+    const path = ssh[field]
+    if (typeof path !== "string" || path.length > 4096 || /[\u0000-\u001f\u007f]/u.test(path) || !isAbsolute(path) || normalize(path) !== path) throw new TypeError("Укажите абсолютные нормализованные пути Provider на машине исполнения")
+  }
 }

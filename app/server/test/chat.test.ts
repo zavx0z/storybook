@@ -59,7 +59,7 @@ async function fixture(
     },
   })
   releases.push(() => server.dispose())
-  return {server, connections, journal, prompts: () => prompts}
+  return {server, connections, journal, project, prompts: () => prompts}
 }
 
 async function assignmentKey(server: ReturnType<typeof createChatServer>, address: string) {
@@ -73,6 +73,24 @@ const scopedRequest = (key: string, input: object) => new Request("http://127.0.
 
 const chatRequest = (operation: string, input: object = {}) => new Request(`http://localhost/api/browser/chat/${operation}`, {
   method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(input),
+})
+
+test("чат Codex SSH сохраняет локальный предмет и отдельный cwd удалённого агента без prompt", async () => {
+  const {server, connections, project, prompts} = await fixture()
+  const initial = await (await server.request(chatRequest("execution-settings"))).json()
+  await server.request(chatRequest("execution-settings-save", {settings: {...initial,
+    connections: [...initial.connections, {id: "codex-codespace", provider: "codex", label: "Codespace", enabled: true,
+      ssh: {host: "capsule-codespace", providerRoot: "/workspaces/provider", storageRoot: "/workspaces/private"}}],
+    general: {connectionId: "codex-codespace"},
+  }}))
+  await server.chats.prepare("/repo/button")
+  expect(connections).toHaveLength(1)
+  expect(connections[0]!.cwd).toBe(project)
+  expect(connections[0]!.agentCwd).toStartWith("/workspaces/private/codex/")
+  expect(connections[0]!.command).toBe("ssh")
+  expect(connections[0]!.mcpServers).toEqual([])
+  expect(connections[0]!.exclusiveMcp).toBeTrue()
+  expect(prompts()).toBe(0)
 })
 
 test("HUD читает настройки без запуска модели, probe возвращает только реальные варианты без prompt", async () => {

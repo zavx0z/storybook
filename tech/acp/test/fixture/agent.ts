@@ -85,6 +85,10 @@ const connection = agent({name: "ACP process fixture"})
         ...(message === "content" ? {blocks: params.prompt} : {}),
         mode: process.env.INITIAL_AGENT_MODE,
         config: process.env.CODEX_CONFIG === undefined ? null : JSON.parse(process.env.CODEX_CONFIG),
+        ...(message !== "launch-context" ? {} : {
+          processCwd: process.cwd(),
+          bootstrapArguments: process.env.PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS === undefined ? undefined : JSON.parse(process.env.PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS),
+        }),
         ...(process.env.DISABLE_MCP_CONFIG_FILTERING === undefined ? {} : {filtering: process.env.DISABLE_MCP_CONFIG_FILTERING}),
         ...(message !== "env" ? {} : {
           parentContext: [

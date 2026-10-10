@@ -65,6 +65,61 @@ test("SDK передаёт cwd, MCP и native config отдельному про
   await expect(connection.prompt("closed")).rejects.toThrow("закрывается")
 })
 
+test.each(["new", "load", "resume"] as const)("%s передаёт agentCwd по ACP, сохраняя локальный cwd процесса", async operation => {
+  const updates: SessionUpdate[] = []
+  const agentCwd = "/remote-only/acp-fixture/project-and-connection"
+  const connection = await createAcp(options({
+    agentCwd,
+    ...(operation === "new" ? {} : {previousSessionId: "saved-session"}),
+    ...(operation === "resume" ? {preferResume: true, env: {ACP_FIXTURE_BEHAVIOR: "resume"}} : {}),
+    onUpdate(update) {updates.push(update)},
+  }))
+  try {
+    await connection.prompt("launch-context")
+    const observed = JSON.parse(message(updates.at(-1)!))
+    expect(observed.input.cwd).toBe(agentCwd)
+    expect(observed.processCwd).toBe(cwd)
+    expect(observed.input.mcpServers).toEqual(mcpServers)
+  } finally {await connection.dispose()}
+})
+
+test.each(["relative", "", "/remote/with\nnewline", "/remote/with\0nul"])("невалидный agentCwd отклоняется до запуска: %j", async agentCwd => {
+  await expect(createAcp(options({agentCwd}))).rejects.toThrow("agentCwd")
+})
+
+test("argv resolver получает initial env для probe и полный computed env для ACP", async () => {
+  const snapshots: {config: unknown, bootstrap: string | undefined}[] = []
+  const updates: SessionUpdate[] = []
+  const connection = await createAcp(options({
+    mcpServers: [], mode: "read-only", exclusiveMcp: true,
+    config: {"features.shell_tool": false},
+    env: {PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS: "inherited-value-must-not-reach-probe"},
+    argsForEnv(env) {
+      expect(Object.isFrozen(env)).toBeTrue()
+      snapshots.push({config: JSON.parse(env.CODEX_CONFIG!), bootstrap: env.PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS})
+      return [fixture]
+    },
+    onUpdate(update) {updates.push(update)},
+  }))
+  try {
+    await connection.prompt("launch-context")
+    expect(snapshots).toHaveLength(2)
+    expect(snapshots[0]).toEqual({config: {"features.shell_tool": false}, bootstrap: undefined})
+    expect(snapshots[1]!.config).toMatchObject({"features.shell_tool": false, "features.plugins": false, "features.apps": false,
+      "mcp_servers.global-fixture.enabled": false, "mcp_servers.scope-fixture.enabled": false})
+    const prepared = JSON.parse(snapshots[1]!.bootstrap!)
+    expect(prepared).toContain("features.plugins=false")
+    expect(prepared).toContain("features.apps=false")
+    expect(prepared).toContain("mcp_servers.global-fixture.enabled=false")
+    expect(JSON.parse(message(updates.at(-1)!)).bootstrapArguments).toEqual(prepared)
+  } finally {await connection.dispose()}
+})
+
+test("сломанный argv resolver не заменяется исходным argv без prepared policy", async () => {
+  await expect(createAcp(options({argsForEnv: (() => undefined) as unknown as NonNullable<StorybookTechAcp.Input["argsForEnv"]>})))
+    .rejects.toThrow("argsForEnv")
+})
+
 test("permission возвращает явный ответ callback без автоматического разрешения", async () => {
   const updates: SessionUpdate[] = []
   let requested = false
@@ -336,7 +391,7 @@ test("Codex launcher передаёт bootstrap overrides до app-server без
   expect(JSON.parse(stdout)).toEqual([...args, "app-server"])
 })
 
-test("provider Codex entry сохраняет CLI probe и native bootstrap overrides установленного Codex", async () => {
+test("provider Codex entry получает prepared bootstrap overrides без локального Storybook shim", async () => {
   const directory = mkdtempSync(join(tmpdir(), "storybook-provider-codex-"))
   const adapter = join(directory, "node_modules/@agentclientprotocol/codex-acp")
   const composition = join(directory, "node_modules/@zavx0z/provider-app-codex")
@@ -353,7 +408,8 @@ test("provider Codex entry сохраняет CLI probe и native bootstrap over
     import {writeFileSync} from "node:fs"
     if (!process.argv.includes("cli")) writeFileSync(${JSON.stringify(observed)}, JSON.stringify({
       path: process.env.CODEX_PATH, command: process.env.STORYBOOK_ACP_NATIVE_COMMAND,
-      args: JSON.parse(process.env.STORYBOOK_ACP_NATIVE_ARGUMENTS),
+      legacyArgs: process.env.STORYBOOK_ACP_NATIVE_ARGUMENTS,
+      args: JSON.parse(process.env.PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS),
     }))
     await import(${JSON.stringify(pathToFileURL(fixture).href)})
   `)
@@ -364,9 +420,9 @@ test("provider Codex entry сохраняет CLI probe и native bootstrap over
       async onPermission() {return {outcome: {outcome: "cancelled"}}},
     })
     const value = JSON.parse(await Bun.file(observed).text())
-    expect(value.path).toBe(join(directory, "tech/acp/src/codex.ts"))
-    expect(value.command).toBe(process.execPath)
-    expect(value.args[0]).toBe(join(native, "codex.js"))
+    expect(value.path).toBeUndefined()
+    expect(value.command).toBeUndefined()
+    expect(value.legacyArgs).toBeUndefined()
     expect(value.args).toContain("features.plugins=false")
     expect(value.args).toContain("features.apps=false")
     expect(value.args).toContain("mcp_servers.global-fixture.enabled=false")

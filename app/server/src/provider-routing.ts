@@ -1,7 +1,7 @@
 import {createHash} from "node:crypto"
 import {createRequire} from "node:module"
 import {homedir} from "node:os"
-import {join, resolve} from "node:path"
+import {join, posix, resolve} from "node:path"
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
@@ -20,14 +20,33 @@ export const internalCodexPolicy = {
 type Resolution = NonNullable<Awaited<ReturnType<NonNullable<StorybookChatSession.Input["resolveExecution"]>>>>
 type Connection = Resolution["connections"][number]
 
-/** Выбирает native процесс; удалённый Capsule исполняет тот же ACP entry через SSH. История сохраняет identity Project и подключения, а каталог принадлежит машине исполнения. */
+/** Выбирает native процесс; SSH доставляет тот же ACP entry и явный env. Каталог процесса локален, agentCwd принадлежит машине агента. */
 export function providerTransport(options: {project: string, toolRoot: string}, connection: Connection): Partial<StorybookTechAcp.Input> {
   if (!connection.enabled) throw new Error("Подключение недоступно или отключено")
+  const identity = createHash("sha256").update(JSON.stringify([resolve(options.project), connection.id])).digest("hex")
+  if (connection.provider === "codex" && connection.ssh) {
+    const ssh = connection.ssh
+    const agentCwd = posix.join(ssh.storageRoot, "codex", identity)
+    const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
+    const argsForEnv: NonNullable<StorybookTechAcp.Input["argsForEnv"]> = env => {
+      const forwarded = ["CODEX_CONFIG", "INITIAL_AGENT_MODE", "DISABLE_MCP_CONFIG_FILTERING", "PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS"]
+        .flatMap(name => env[name] === undefined ? [] : [quote(`${name}=${env[name]}`)])
+      const remote = `umask 077; mkdir -p ${quote(agentCwd)} && cd ${quote(agentCwd)} && exec env ${forwarded.join(" ")} bun ${quote(posix.join(ssh.providerRoot, "app/codex/index.ts"))}`
+      return ["-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=30",
+        "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=2",
+        ...(ssh.port === undefined ? [] : ["-p", String(ssh.port)]),
+        ...(ssh.user === undefined ? [] : ["-l", ssh.user]), "--", ssh.host, remote]
+    }
+    return {
+      command: "ssh", agentCwd, argsForEnv,
+      args: argsForEnv({INITIAL_AGENT_MODE: "read-only", CODEX_CONFIG: JSON.stringify(internalCodexPolicy)}),
+      mode: "read-only", exclusiveMcp: true, config: internalCodexPolicy,
+    }
+  }
   if (connection.provider === "codex") return {
     installation: options.toolRoot, adapter: "@zavx0z/provider-app-codex", mode: "read-only", exclusiveMcp: true, config: internalCodexPolicy,
   }
   const provider = connection.provider
-  const identity = createHash("sha256").update(JSON.stringify([resolve(options.project), connection.id])).digest("hex")
   if ((connection.provider === "capsule" || connection.provider === "chrome-studio") && connection.ssh) {
     const ssh = connection.ssh
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`

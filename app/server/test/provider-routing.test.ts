@@ -152,3 +152,60 @@ test("Chrome Studio через SSH использует собственный A
   expect(command).toContain("/remote/data/chrome-studio/")
   expect(command).not.toContain("DOCKER_CONTEXT")
 })
+
+test("Codex SSH разделяет cwd и явно доставляет только prepared policy env с безопасным quoting", async () => {
+  const f = await fixture()
+  try {
+    const ssh = {host: "capsule-codespace", user: "codespace", port: 2222,
+      providerRoot: join(f.toolRoot, "Provider ' $(touch hacked) $HOME"),
+      storageRoot: join(f.toolRoot, "Remote Data ' $(touch hacked) $HOME")}
+    const selected = {...codex, id: "codex-codespace", ssh}
+    const route = providerTransport(f, selected)
+    expect(route.command).toBe("ssh")
+    expect(route.mode).toBe("read-only")
+    expect(route.exclusiveMcp).toBeTrue()
+    expect(route.config?.["features.shell_tool"]).toBeFalse()
+    expect(route.agentCwd).toStartWith(join(ssh.storageRoot, "codex/"))
+    expect(providerTransport(f, {...selected, label: "Новое имя"}).agentCwd).toBe(route.agentCwd)
+    expect(providerTransport(f, {...selected, id: "other"}).agentCwd).not.toBe(route.agentCwd)
+    expect(providerTransport({...f, project: join(f.project, "another")}, selected).agentCwd).not.toBe(route.agentCwd)
+    const config = {"features.shell_tool": false, "features.plugins": false, "features.apps": false,
+      "mcp_servers.remote-only.enabled": false}
+    const bootstrap = ["-c", "features.plugins=false", "-c", "features.apps=false", "-c", "mcp_servers.remote-only.enabled=false"]
+    const args = route.argsForEnv!({CODEX_CONFIG: JSON.stringify(config), INITIAL_AGENT_MODE: "read-only",
+      DISABLE_MCP_CONFIG_FILTERING: "true", PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS: JSON.stringify(bootstrap),
+      CODEX_PATH: "/local-only/shim", OPENAI_API_KEY: "LOCAL_SECRET_NOT_FOR_SSH"})
+    expect(args.slice(-7, -1)).toEqual(["-p", "2222", "-l", "codespace", "--", ssh.host])
+    expect(args).toContain("ConnectTimeout=30")
+    expect(args.at(-1)).not.toContain("LOCAL_SECRET_NOT_FOR_SSH")
+    expect(args.at(-1)).not.toContain("/local-only/shim")
+    await writeFile(join(f.toolRoot, "bun"), `#!${process.execPath}\nconsole.log(JSON.stringify({cwd:process.cwd(),args:process.argv.slice(2),config:JSON.parse(process.env.CODEX_CONFIG),mode:process.env.INITIAL_AGENT_MODE,filtering:process.env.DISABLE_MCP_CONFIG_FILTERING,bootstrap:JSON.parse(process.env.PROVIDER_CODEX_BOOTSTRAP_ARGUMENTS)}))\n`, {mode: 0o700})
+    const shell = spawnSync("/bin/sh", ["-c", args.at(-1)!], {cwd: f.toolRoot,
+      env: {...process.env, PATH: `${f.toolRoot}:${process.env.PATH}`}, encoding: "utf8"})
+    expect(shell.status).toBe(0)
+    expect(JSON.parse(shell.stdout)).toEqual({cwd: await realpath(route.agentCwd!),
+      args: [join(ssh.providerRoot, "app/codex/index.ts")], config, mode: "read-only", filtering: "true", bootstrap})
+    expect(await Bun.file(join(f.toolRoot, "hacked")).exists()).toBeFalse()
+    expect(providerTransport({...f, toolRoot: "/absent/local/installation"}, selected).command).toBe("ssh")
+  } finally {await f.dispose()}
+})
+
+test("Codex remote model probe сохраняет локальный cwd Project и отдельный native agentCwd без prompt", async () => {
+  const f = await fixture()
+  let input: StorybookTechAcp.Input | undefined
+  let prompts = 0
+  const selected = {...codex, id: "codex-codespace", ssh: {host: "capsule-codespace", providerRoot: "/workspaces/provider", storageRoot: "/workspaces/private"}}
+  const options = createExecutionOptions({...f, async connect(value) {
+    input = value
+    return {sessionId: "remote-probe", capabilities: {}, configOptions: [], async setConfigOption() {return []},
+      async prompt() {prompts++; return {stopReason: "end_turn"}}, async cancel() {}, async dispose() {}}
+  }})
+  try {
+    await options.read(selected, undefined, new AbortController().signal)
+    expect(input!.cwd).toBe(f.project)
+    expect(input!.agentCwd).toBe(providerTransport(f, selected).agentCwd)
+    expect(input!.agentCwd).toStartWith("/workspaces/private/codex/")
+    expect(input!.mcpServers).toEqual([])
+    expect(prompts).toBe(0)
+  } finally {await options.dispose(); await f.dispose()}
+})

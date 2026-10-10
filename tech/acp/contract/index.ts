@@ -14,8 +14,12 @@ export declare namespace StorybookTechAcp {
   /**
   Подключение к агенту со штатными типами ACP SDK.
 
-  @property cwd - Абсолютный существующий каталог исполнения данной сессии.
+  @property cwd - Абсолютный существующий локальный каталог дочернего процесса.
   Не является самостоятельным ограничением файлового доступа агента.
+
+  @property [agentCwd] - Абсолютный каталог на машине агента для session/new,
+  session/load и session/resume. Локальный transport не читает этот путь;
+  его существование обеспечивает владелец запуска. Без значения используется cwd.
 
   @property mcpServers - Только MCP-серверы, подготовленные вызывающим владельцем.
   Транспорт передаёт их без изменения предметных адресов и полномочий.
@@ -39,6 +43,11 @@ export declare namespace StorybookTechAcp {
   Не применяется вместе с подставленным command.
 
   @property [args] - Аргументы подставленного executable без shell-интерпретации.
+
+  @property [argsForEnv] - Вычисляет полный argv из снимка environment процесса.
+  Для registry probe получает исходный env, для ACP — окончательный prepared env.
+  Позволяет владельцу SSH явно доставить разрешённые переменные удалённому
+  executable; transport не предполагает, что локальный env пересекает SSH.
 
   @property [env] - Дополнительные переменные только дочернего процесса.
   Переменные текущего процесса и его credentials не изменяются; transient
@@ -70,6 +79,7 @@ export declare namespace StorybookTechAcp {
   */
   type Input = Readonly<{
     cwd: string
+    agentCwd?: string
     mcpServers: NewSessionRequest["mcpServers"]
     previousSessionId?: string
     /** При полной локальной истории использует advertised session/resume без replay; иначе session/load. */
@@ -83,6 +93,7 @@ export declare namespace StorybookTechAcp {
     command?: string
     adapter?: string
     args?: readonly string[]
+    argsForEnv?(env: Readonly<Record<string, string | undefined>>): readonly string[]
     env?: Readonly<Record<string, string | undefined>>
     mode?: "read-only" | "workspace-write"
     config?: Readonly<Record<string, unknown>>

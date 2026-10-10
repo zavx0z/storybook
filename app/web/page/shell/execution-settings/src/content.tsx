@@ -142,11 +142,15 @@ function Connections(props: ConnectionsProps) {
     ...props.document,
     connections: props.document.connections.map(item => item.id === connection.id ? connection : item),
   })
-  const add = (provider: "ollama" | "capsule" | "chrome-studio") => {
+  const add = (provider: Connection["provider"]) => {
     let suffix = 1
-    let id: string = provider
-    while (props.document.connections.some(item => item.id === id)) id = `${provider}-${++suffix}`
-    const connection: Connection = provider !== "ollama" ? {
+    const base = provider === "codex" ? "codex-codespace" : provider
+    let id: string = base
+    while (props.document.connections.some(item => item.id === id)) id = `${base}-${++suffix}`
+    const connection: Connection = provider === "codex" ? {
+      id, provider, label: "Codex · SSH", enabled: true,
+      ssh: {host: "", providerRoot: "", storageRoot: ""},
+    } : provider !== "ollama" ? {
       id, provider, label: provider === "capsule" ? "Capsule" : "Chrome Studio", enabled: true,
       endpoint: {url: provider === "capsule" ? "http://127.0.0.1:17777" : "http://127.0.0.1:17778", profile: "", service: provider === "capsule" ? "qwen" : "deepseek"},
     } : {
@@ -187,16 +191,17 @@ function ProviderGroup(props: Readonly<{
   busy: boolean
   client: ReturnType<typeof createSettingsClient>
   onChange(value: Connection): void
-  onAdd(provider: "ollama" | "capsule" | "chrome-studio"): void
+  onAdd(provider: Connection["provider"]): void
 }>) {
   const [open, setOpen] = useState(false)
   const label = {codex: "Codex", ollama: "Ollama", capsule: "Capsule", "chrome-studio": "Chrome Studio"}[props.provider]
   return <Panel
-    actions={props.provider === "codex" ? [] : [{
+    actions={[{
       id: "add", label: `Добавить ${label}`, title: `Добавить ${label}`, iconSrc: plusIcon,
       disabled: props.busy,
       action: () => {
-        if (props.provider !== "codex") {setOpen(true); props.onAdd(props.provider)}
+        setOpen(true)
+        props.onAdd(props.provider)
       },
     }]}
     label={label}
@@ -326,6 +331,11 @@ function ConnectionFields(props: Readonly<{
         disabled={props.busy || props.probing}
         onInput={label => props.onChange({...connection, label})}
       />
+      {connection.provider === "codex" ? <CodexFields
+        connection={connection}
+        busy={props.busy || props.probing}
+        onChange={props.onChange}
+      /> : null}
       {connection.provider === "ollama" ? <OllamaFields
         connection={connection}
         busy={props.busy || props.probing}
@@ -341,6 +351,60 @@ function ConnectionFields(props: Readonly<{
       {props.result ? <SettingsNotice text={props.result} /> : null}
       {props.error ? <SettingsError text={props.error} /> : null}
     </section>
+}
+function CodexFields(props: Readonly<{
+  connection: Extract<Connection, {provider: "codex"}>
+  busy: boolean
+  onChange(value: Connection): void
+}>) {
+  const [remoteOpen, setRemoteOpen] = useState(!!props.connection.ssh)
+  const ssh = props.connection.ssh
+  return <Panel
+    label="SSH"
+    checked={!!ssh}
+    checkDisabled={props.busy}
+    onCheckedChange={enabled => {
+      const {ssh: previous, ...local} = props.connection
+      props.onChange(enabled ? {...local, ssh: {host: "", providerRoot: "", storageRoot: ""}} : local)
+    }}
+    expanded={remoteOpen}
+    onToggle={setRemoteOpen}
+  >
+    {ssh ? <CodexRemoteFields
+      ssh={ssh}
+      busy={props.busy}
+      onChange={value => props.onChange({...props.connection, ssh: value})}
+    /> : null}
+  </Panel>
+}
+function CodexRemoteFields(props: Readonly<{
+  ssh: NonNullable<Extract<Connection, {provider: "codex"}>["ssh"]>
+  busy: boolean
+  onChange(value: NonNullable<Extract<Connection, {provider: "codex"}>["ssh"]>): void
+}>) {
+  const ssh = props.ssh
+  return <section aria-label="Удалённое исполнение Codex">
+    <SSHFields
+      ssh={ssh}
+      busy={props.busy}
+      onChange={value => {
+        const {host, user, port, ...paths} = ssh
+        props.onChange({...paths, ...value})
+      }}
+    />
+    <TextField
+      label="Provider"
+      value={ssh.providerRoot}
+      disabled={props.busy}
+      onInput={providerRoot => props.onChange({...ssh, providerRoot})}
+    />
+    <TextField
+      label="Данные"
+      value={ssh.storageRoot}
+      disabled={props.busy}
+      onInput={storageRoot => props.onChange({...ssh, storageRoot})}
+    />
+  </section>
 }
 function BrowserProfileFields(props: Readonly<{
   connection: Extract<Connection, {provider: "capsule" | "chrome-studio"}>

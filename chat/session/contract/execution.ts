@@ -16,6 +16,17 @@ export type OllamaEndpoint = ProviderConnection.Input
 /** Capsule Studio на машине ACP-исполнителя и уже запущенный профиль выбранного сервиса. */
 export type CapsuleEndpoint = ProviderConnectionCapsule.Input
 
+/** Машина исполнения Codex ACP; рабочий каталог предмета назначает маршрутизация среды. */
+export type CodexSsh = Readonly<{
+  host: string
+  user?: string
+  port?: number
+  /** Абсолютный каталог установленного Repo Provider на машине исполнения. */
+  providerRoot: string
+  /** Постоянный каталог Codex и рабочих областей; identity Project и предмета назначает среда. */
+  storageRoot: string
+}>
+
 /** Машина исполнения Capsule: Studio, Docker и ACP работают вместе. Пути относятся к удалённой машине. */
 export type CapsuleSsh = Readonly<{
   host: string
@@ -31,7 +42,7 @@ export type CapsuleSsh = Readonly<{
 
 /** Реальное подключение среды; credentials и команды запуска в каталог не входят. */
 export type ExecutionConnection = Readonly<{id: string, label: string, enabled: boolean}> & (
-  Readonly<{provider: "codex"}> | Readonly<{provider: "ollama", endpoint: OllamaEndpoint}> |
+  Readonly<{provider: "codex", ssh?: CodexSsh}> | Readonly<{provider: "ollama", endpoint: OllamaEndpoint}> |
   Readonly<{provider: "capsule", endpoint: CapsuleEndpoint, ssh?: CapsuleSsh}> |
   Readonly<{provider: "chrome-studio", endpoint: ProviderConnectionChromeStudio.Input, ssh?: Omit<CapsuleSsh, "dockerContext">}>
 )
