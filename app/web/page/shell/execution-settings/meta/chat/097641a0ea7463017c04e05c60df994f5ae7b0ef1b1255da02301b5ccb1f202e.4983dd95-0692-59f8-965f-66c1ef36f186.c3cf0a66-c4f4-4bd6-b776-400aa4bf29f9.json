@@ -11,7 +11,7 @@
     "historyComplete": false,
     "status": "idle",
     "error": null,
-    "controlVersion": 77,
+    "controlVersion": 377,
     "executionSelection": {
       "connectionId": "capsule"
     },
@@ -26,16 +26,16 @@
     "pendingPermissions": []
   },
   "history": {
-    "revision": 66,
-    "total": 26,
-    "lastSequence": 42
+    "revision": 295,
+    "total": 30,
+    "lastSequence": 237
   },
   "journal": "097641a0ea7463017c04e05c60df994f5ae7b0ef1b1255da02301b5ccb1f202e.4983dd95-0692-59f8-965f-66c1ef36f186.c3cf0a66-c4f4-4bd6-b776-400aa4bf29f9.json.journal.ef40e75b-bac3-4c90-86f1-8754569cc9b4.ndjson",
-  "committedBytes": 244748,
-  "hash": "b34801ac724aaf2e509137e1650eebb6887ad6d6eed2ed7a8936d064fa05bfe2",
+  "committedBytes": 1057648,
+  "hash": "5d5e8d349060be73134c8de479c667f99cad412be41ecf95d66be801d51bf3bb",
   "displayHistory": {
-    "revision": 66,
-    "total": 13,
-    "lastSequence": 42
+    "revision": 295,
+    "total": 15,
+    "lastSequence": 237
   }
 }

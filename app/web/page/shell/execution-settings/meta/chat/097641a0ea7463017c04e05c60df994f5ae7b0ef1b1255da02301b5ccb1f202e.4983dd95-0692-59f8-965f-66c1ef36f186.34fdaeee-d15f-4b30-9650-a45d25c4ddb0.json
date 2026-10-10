@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 3,
+  "metadata": {
+    "id": "34fdaeee-d15f-4b30-9650-a45d25c4ddb0",
+    "executorId": "4983dd95-0692-59f8-965f-66c1ef36f186",
+    "executorLabel": "Основной",
+    "sessionLabel": "Привет!",
+    "sessionLabelSource": "auto",
+    "address": "/storybook/app/web/page/shell/execution-settings",
+    "pending": [],
+    "historyComplete": true,
+    "status": "idle",
+    "error": null,
+    "controlVersion": 22,
+    "executionSelection": {
+      "connectionId": "chrome-studio"
+    },
+    "preserveNativeSettings": false,
+    "sessionLabelAssigned": true,
+    "executionBaseline": {},
+    "sessionId": "00080b8f-7596-4c58-8057-64040647750f",
+    "connectionId": "chrome-studio",
+    "provider": "chrome-studio",
+    "cwd": ".",
+    "environmentContext": "60ac8083ea2a356f156dcfcf636da79676db5294ae3906f68c5cbf680f4cde43"
+  },
+  "history": {
+    "revision": 11,
+    "total": 5,
+    "lastSequence": 5
+  },
+  "journal": "097641a0ea7463017c04e05c60df994f5ae7b0ef1b1255da02301b5ccb1f202e.4983dd95-0692-59f8-965f-66c1ef36f186.34fdaeee-d15f-4b30-9650-a45d25c4ddb0.json.journal.17e7934c-63ed-40e9-b8e2-e689d9b8e8c1.ndjson",
+  "committedBytes": 43043,
+  "hash": "99714db21fa334390be2db12d5afae0dcb5ff7a4a96fe5e0f7fa06ba0729d9dd",
+  "displayHistory": {
+    "revision": 11,
+    "total": 3,
+    "lastSequence": 5
+  }
+}
