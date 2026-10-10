@@ -36,7 +36,8 @@ test("кадр RGBA переносится одним двоичным знач�
   bytes[bytes.length - 1] = 255
   const snapshot = JSON.parse(JSON.stringify(await serialize(bytes)))
   const restored = Buffer.from(snapshot.data, "base64")
-  expect(Object.keys(snapshot)).toEqual(["$type", "name", "data"])
+  expect(Object.keys(snapshot)).toEqual(["$type", "name", "data", "properties"])
+  expect(snapshot.properties).toEqual({$type: "truncated", kind: "object", reason: "binary-property-budget"})
   expect(restored.byteLength).toBe(bytes.byteLength)
   expect(restored[restored.length - 1]).toBe(255)
 })

@@ -1,5 +1,5 @@
 import {currentContext} from "./context"
-import {serialize} from "./serialize"
+import {serialize, serializeArguments} from "./serialize"
 import {queue} from "./pending"
 import type {ScenarioAssertion, TraceLocation} from "./types"
 
@@ -17,7 +17,7 @@ export function observeExpect(site: string, location: TraceLocation, original: (
         if (typeof key !== "string" || !key.startsWith("to") || typeof value !== "function") return value
         return (...expected: unknown[]) => {
           const id = records.length
-          const expectedValues = serialize(expected)
+          const expectedValues = serializeArguments(expected)
           let finish!: (outcome: {status: "passed" | "failed", error: unknown}) => void
           const completed = new Promise<{status: "passed" | "failed", error: unknown}>(resolve => { finish = resolve })
           records.push(completed.then(async outcome => ({

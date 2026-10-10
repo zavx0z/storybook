@@ -5,7 +5,7 @@
 @packageDocumentation
 */
 import {currentContext} from "./context"
-import {serialize} from "./serialize"
+import {serialize, serializeArguments} from "./serialize"
 import {callLocation} from "./call-location"
 import {queue} from "./pending"
 import type {TraceCall, TraceOutcome, TraceValue} from "./types"
@@ -55,7 +55,7 @@ export function observe(module: string, name: string, original: Registrar, metho
       test: active.test,
       location: callLocation(new Error().stack),
     }
-    const serializedArgs = serialize(args) as Promise<readonly TraceValue[]>
+    const serializedArgs = serializeArguments(args)
     try {
       const result = newTarget === undefined
         ? Reflect.apply(original, receiver, args)

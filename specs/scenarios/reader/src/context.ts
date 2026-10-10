@@ -32,16 +32,22 @@ export function setRunProps(props: Readonly<Record<string, unknown>> | undefined
 }
 
 /** Подставляет поля строки each в шаблон названия без изменения таблицы. */
-function renderName(template: unknown, values: readonly unknown[]): string {
+function renderName(template: unknown, values: readonly unknown[], rowIndex: number): string {
   const first = values[0]
   const arguments_ = Array.isArray(first) ? first : values
   let argument = 0
-  // Bun подставляет в %s только строки; остальные значения оставляют маркер.
+  // Повторяет фактические Bun each titles; отсутствие аргумента сохраняет marker.
   const name = String(template).replace(/%%|%[sdifjop#]/g, marker => {
     if (marker === "%%") return "%"
-    if (marker === "%#") return marker
+    if (argument >= arguments_.length) return marker
     const value = arguments_[argument++]
-    return marker === "%s" && typeof value === "string" ? value : marker
+    if (marker === "%#") return String(rowIndex)
+    if (marker === "%s") return typeof value === "string" ? value : marker
+    if (marker === "%i") return typeof value === "number" && Number.isInteger(value) ? String(value) : marker
+    if (marker === "%d" || marker === "%f") return typeof value === "number" ? String(value) : marker
+    if (marker === "%p") return Bun.inspect(value, {colors: false})
+    if (marker === "%o" || marker === "%j") return JSON.stringify(value) ?? ""
+    return marker
   })
   if (typeof first !== "object" || first === null) return name
   return name.replace(/\$([\w.]+)/g, (_, path: string) => {
@@ -78,7 +84,7 @@ function takeEachCase(site: string, name: unknown, parent: TraceContext) {
   if (!table) throw new Error(`Не зарегистрирована each table ${site}`)
   const index = table.index++
   const row = table.rows[index]
-  return {label: renderName(name, [row]), row, index: table.indices[index]!}
+  return {label: renderName(name, [row], index), row, index: table.indices[index]!}
 }
 
 /** Методы, вызываемые вставками AST; исходные registrars Bun остаются без подмены. */
@@ -120,9 +126,9 @@ export const runtime: TraceRuntime = {
       const [label, callback, ...options] = args
       if (typeof callback !== "function") return Reflect.apply(original, undefined, args)
       const rows = declaration.each ? eachTables.get(tableKey(declaration.site, parent))?.rows ?? [] : [undefined]
-      const candidates = rows.map(row => ({
+      const candidates = rows.map((row, index) => ({
         args: declaration.each ? (Array.isArray(row) ? row : [row]) : [],
-        test: addTest(declaration, declaration.each ? renderName(label, [row]) : String(label), parent),
+        test: addTest(declaration, declaration.each ? renderName(label, [row], index) : String(label), parent),
         used: false,
       }))
       const wrapped = function(this: unknown, ...values: unknown[]) {

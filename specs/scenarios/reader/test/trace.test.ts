@@ -8,10 +8,16 @@ import {resolve} from "node:path"
 import readScenario from "../index"
 import type {StorybookSpecsScenariosReader} from "../index"
 import {snapshotPath} from "../../../../tests/fixture/snapshot-paths"
+import {readImports} from "../src/imports"
 
 const fixturePath = resolve(import.meta.dir, "fixture/trace-scenario.test.ts")
 const fixtureModule = resolve(import.meta.dir, "fixture/trace-functions.ts")
 const packageScenarioPath = resolve(import.meta.dir, "../../../../package/reader/spec/scenario.spec.ts")
+const packageModule = resolve(import.meta.dir, "../../../../package/reader/index.ts")
+const manifestModule = resolve(import.meta.dir, "../../../../package/package-json/index.ts")
+const contractModule = resolve(import.meta.dir, "../../../../contracts/index.ts")
+const ignoredModule = resolve(import.meta.dir, "../../../../package/route/ignored/index.ts")
+const readerModule = resolve(import.meta.dir, "../index.ts")
 let fixture: StorybookSpecsScenariosReader.Output
 let packageScenario: StorybookSpecsScenariosReader.Output
 
@@ -71,16 +77,46 @@ test("ошибки содержат завершённые значения", ()
   ])
 })
 
-test("package scenario сохраняет вызов и данные выбранного пакета", () => {
-  expect(packageScenario.calls).toMatchObject([
-    {
+test("package scenario сохраняет прямой вызов выбранного owner и его структурные данные", () => {
+  const direct = packageScenario.calls.filter(call => call.module === packageModule && call.location?.path === packageScenarioPath)
+  expect(direct).toHaveLength(1)
+  expect(direct[0]).toMatchObject({
       name: "default",
       describe: ["Архетип пакета"],
       test: null,
       args: [{path: resolve(import.meta.dir, "../../../../package/reader")}],
       outcome: {type: "resolve", value: {packageJson: {name: "@zavx0z/storybook-package-reader"}, index: {unchecked: []}}},
-    },
-  ])
+  })
+  const nested = packageScenario.calls.filter(call => call.module === packageModule && call.location?.path === contractModule)
+  expect(nested).toHaveLength(1)
+  expect(nested[0]).toMatchObject({describe: ["Архетип пакета"], test: null, args: direct[0]!.args,
+    outcome: {type: "resolve", value: {packageJson: {name: "@zavx0z/storybook-package-reader"}, index: {unchecked: []}}}})
+})
+
+test("package trace относит dependency calls только к импортированным public owners и сохраняет фактический порядок", async () => {
+  const imports = await readImports(packageScenarioPath)
+  const allowed = new Map(imports.map(selection => [selection.module, selection.names]))
+  for (const call of packageScenario.calls) {
+    expect(allowed.has(call.module), `Owner явно импортирован сценарием: ${snapshotPath(call.module)}`).toBe(true)
+    expect(allowed.get(call.module) === null || allowed.get(call.module)!.includes(call.name), `Наблюдаемое имя ${call.name} экспортирует этот owner`).toBe(true)
+    expect(Array.isArray(call.args)).toBe(true)
+    expect(call.outcome.type).toBe("resolve")
+  }
+  const root = packageScenario.calls.find(call => call.module === packageModule && call.location?.path === packageScenarioPath)!
+  const manifest = packageScenario.calls.find(call => call.module === manifestModule && call.location?.path === packageModule)!
+  expect(manifest.args).toEqual([{path: resolve(import.meta.dir, "../../../../package/reader/package.json")}])
+  expect(manifest.outcome).toMatchObject({type: "resolve", value: {name: "@zavx0z/storybook-package-reader"}})
+  expect(manifest.id).toBeGreaterThan(root.id)
+  expect(manifest.completed).toBeLessThan(root.completed)
+  expect(packageScenario.calls.some(call => call.module === contractModule && call.test === null && call.describe[0] === "Архетип пакета")).toBe(true)
+  expect(packageScenario.calls.some(call => call.module === ignoredModule && call.outcome.type === "resolve")).toBe(true)
+  const names = packageScenario.calls.filter(call => call.module === readerModule)
+  expect(names.map(call => call.test)).toEqual(["Имя директории", "Имя пакета"])
+  for (const call of names) {
+    expect(call.args[0]).toMatchObject({path: resolve(import.meta.dir, "../../../../package/name/spec/scenario.spec.ts"), variant: 0})
+    expect(call.outcome).toMatchObject({type: "resolve", value: {exitCode: 0}})
+    expect(call.describe).toEqual(["Архетип пакета", "Именование"])
+  }
 })
 
 test("Promise identity и this не изменяются обёрткой", () => {
@@ -108,21 +144,10 @@ test("быстрый concurrent test завершается раньше нач�
   expect((calls[0]?.id ?? 0) < (calls[1]?.id ?? 0) && (calls[0]?.completed ?? 0) > (calls[1]?.completed ?? 0)).toBeTrue()
 })
 
-test("полная история имеет читаемый snapshot", async () => {
+test("полная история управляемой фикстуры имеет читаемый snapshot", async () => {
   const localPath = snapshotPath
   const snapshot = {
     fixture: fixture.calls.map(({id, location, ...call}) => ({...call, module: localPath(call.module), location: location && {
-      path: localPath(location.path),
-      line: location.line,
-      column: location.column,
-    }})),
-    packageScenario: packageScenario.calls.map(({id, location, ...call}) => ({...call, module: localPath(call.module),
-      args: JSON.parse(JSON.stringify(call.args, (_key, value: unknown) => typeof value === "string" ? localPath(value) : value)),
-      // Строки TSDoc сохраняются целиком; массив избегает хвостовых пробелов сериализатора Bun.
-      outcome: JSON.parse(JSON.stringify(call.outcome, (key, value: unknown) =>
-        key === "markdown" && typeof value === "string" ? value.split("\n")
-          : typeof value === "string" ? localPath(value) : value)),
-      location: location && {
       path: localPath(location.path),
       line: location.line,
       column: location.column,
