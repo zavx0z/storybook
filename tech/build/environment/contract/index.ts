@@ -21,7 +21,7 @@ export declare namespace StorybookTechBuildEnvironment {
     owners: readonly string[]
     createModuleEntries(toolRoot: string): readonly StorybookSharedBrowserModuleEntry[]
     validate(value: StorybookSharedBrowserIdentity): StorybookSharedBrowserIdentity
-    /** Source linkage подтверждает происхождение; запрошенные авторские модули сохраняет в компиляции. */
+    /** Source/ready linkage подтверждает происхождение и связывает exact готовые файлы с frozen URL; запрошенные авторские модули сохраняет в компиляции. */
     externalPlugin(identity: StorybookSharedBrowserIdentity, options?: Readonly<{moduleSourcePaths?: readonly string[]}>): Bun.BunPlugin
     identity(
       packageEntryUrl: string,

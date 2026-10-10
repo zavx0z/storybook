@@ -19,15 +19,26 @@ test("исходный CycleField использует hooks и DOM одной �
     const entry = join(directory, "preview.ts")
     await Bun.write(entry, `
 import CycleField from ${JSON.stringify(source)}
-import {createDocument} from "@zavx0z/immersive"
-import {createRoot} from "@zavx0z/immersive/XReact"
+import ReadyButton from ${JSON.stringify(Bun.resolveSync("@zavx0z/immersive-ui-component-button-basic", packageRoot))}
+import {Button as SharedButton} from "@zavx0z/immersive/ui"
+import {createDocument, createDomRoot, HTMLButtonElement, Event} from "@zavx0z/immersive"
 export function verify() {
   const document = createDocument()
   const host = document.createElement("div")
   document.append(host)
-  const root = createRoot(host)
+  const root = createDomRoot(host)
   const options = [{key: "a", value: "a", label: "Первый"}, {key: "b", value: "b", label: "Второй"}]
   try {
+    if (ReadyButton !== SharedButton) throw new Error("Absolute ready facade lost its shared constructor identity")
+    let clicks = 0
+    const onClick = () => { clicks++ }
+    root.render(ReadyButton, {label: "Готовая кнопка", onClick})
+    const readyButton = host.querySelector("button")
+    if (!(readyButton instanceof HTMLButtonElement) || readyButton.ownerDocument !== document) throw new Error("Ready Button uses another DOM identity")
+    root.render(ReadyButton, {label: "Обновлённая кнопка", onClick})
+    if (host.querySelector("button") !== readyButton || !readyButton.textContent.includes("Обновлённая кнопка")) throw new Error("Ready Button did not retain its native node")
+    readyButton.dispatchEvent(new Event("click", {bubbles: true}))
+    if (clicks !== 1) throw new Error("Ready Button did not accept an event from the shared DOM")
     root.render(CycleField, {value: "a", options})
     const button = host.querySelector("button")!
     if (!button.textContent.includes("Первый")) throw new Error("Source CycleField did not mount with ready hooks")
@@ -47,9 +58,14 @@ export function verify() {
     expect(inputs).not.toContain("component/src/runtime.ts")
     expect(inputs).not.toContain("dom/src/document.ts")
     expect(inputs).not.toContain("template/compiled.ts")
+    const embeddedReadyCore = Object.keys(result.metafile!.inputs).filter(path => /\/immersive\/dist\/(?:chunks|dom)\//u.test(path))
+    expect(embeddedReadyCore).toEqual([])
+    expect(await result.outputs[0]!.text()).not.toContain('Symbol("requestDOMWork")')
     let code = await result.outputs[0]!.text()
-    const component = identity.modules.flatMap(module => module.sources ?? []).find(source => source.specifier === "@zavx0z/immersive-component")!
-    expect(code).toContain(component.url)
+    const core = identity.modules.find(module => module.specifier === "@zavx0z/immersive")!
+    expect(code).toContain(core.url)
+    const button = identity.modules.find(module => module.specifier === "@zavx0z/immersive/ui/button/basic")!
+    expect(code).toContain(button.url)
     for (const module of identity.modules) {
       for (const url of [module.url, ...(module.sources ?? []).map(source => source.url)]) {
         code = code.replaceAll(JSON.stringify(url), JSON.stringify(pathToFileURL(join(published, url.slice("/__storybook/shared/".length))).href))

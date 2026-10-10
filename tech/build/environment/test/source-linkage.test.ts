@@ -15,6 +15,15 @@ test("source export связывается с exact ready URL после про�
   } finally { await fixture.dispose() }
 })
 
+test("ready path не допускает неоднозначные immutable URL", () => {
+  const sourcePath = "/published/ready.js"
+  const identity = Environment.identity("/__storybook/shared/entry.js", [
+    {specifier: "@fixture/first", sourcePath, url: "/__storybook/shared/first.js"},
+    {specifier: "@fixture/second", sourcePath, url: "/__storybook/shared/second.js"},
+  ], "a".repeat(64))
+  expect(() => Environment.externalPlugin(identity)).toThrow("Ambiguous shared Storybook ready binding")
+})
+
 test("source linkage отклоняет чужой одноимённый package owner", async () => {
   const fixture = await sourceFixture(true)
   try {

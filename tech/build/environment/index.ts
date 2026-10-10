@@ -114,8 +114,16 @@ function createStorybookSharedBrowserExternalPlugin(
 ): Bun.BunPlugin {
   const validated = validateStorybookSharedBrowserIdentity(identity)
   const urls = new Map(validated.modules.map(({specifier, url}) => [specifier, url]))
+  const readyUrlsByPath = new Map<string, string>()
+  for (const {sourcePath, url} of validated.modules) {
+    const path = resolve(sourcePath)
+    const previous = readyUrlsByPath.get(path)
+    if (previous !== undefined && previous !== url) throw new Error(`Ambiguous shared Storybook ready binding: ${path}`)
+    readyUrlsByPath.set(path, url)
+  }
   const sourceBindings = new Map<string, StorybookSharedBrowserSource>()
   const sourcesByPath = new Map<string, StorybookSharedBrowserSource>()
+  const sourcesByOwner = new Map<string, StorybookSharedBrowserSource[]>()
   for (const module of validated.modules) {
     for (const source of module.sources ?? []) {
       const previous = sourceBindings.get(source.specifier)
@@ -124,6 +132,10 @@ function createStorybookSharedBrowserExternalPlugin(
       }
       sourceBindings.set(source.specifier, source)
       sourcesByPath.set(source.sourcePath, source)
+      const name = source.specifier.startsWith("@") ? source.specifier.split("/").slice(0, 2).join("/") : source.specifier.split("/")[0]!
+      const owned = sourcesByOwner.get(name) ?? []
+      if (!owned.some(binding => binding.specifier === source.specifier)) owned.push(source)
+      sourcesByOwner.set(name, owned)
     }
   }
   const requested = new Set((options.moduleSourcePaths ?? []).map(path => fileIdentity(canonicalExactFile(path))))
@@ -137,7 +149,7 @@ function createStorybookSharedBrowserExternalPlugin(
         return undefined
       })
       builder.onResolve({filter: /^\/__storybook\/shared\//u}, ({path}) => ({path, external: true}))
-      if (sourceBindings.size > 0) builder.onResolve({filter: /.*/u}, ({path, importer, resolveDir}) => {
+      builder.onResolve({filter: /.*/u}, ({path, importer, resolveDir}) => {
         const bySpecifier = sourceBindings.get(path)
         if (bySpecifier === undefined && !path.startsWith(".") && !isAbsolute(path)) return undefined
         const directory = resolveDir || (importer ? dirname(importer) : process.cwd())
@@ -148,7 +160,20 @@ function createStorybookSharedBrowserExternalPlugin(
           return undefined
         }
         if (requested.has(fileIdentity(resolved))) return undefined
-        const binding = bySpecifier ?? sourcesByPath.get(resolved)
+        const readyUrl = readyUrlsByPath.get(resolved)
+        if (readyUrl !== undefined) return {path: readyUrl, external: true}
+        let binding = bySpecifier ?? sourcesByPath.get(resolved)
+        if (binding === undefined) {
+          const owner = readStorybookPackageOwner(resolved)
+          for (const candidate of owner === null ? [] : sourcesByOwner.get(owner.name) ?? []) {
+            const metadata = parseObject(readFileSync(candidate.manifestPath, "utf8"), candidate.manifestPath)
+            const ready = sourceFacets(candidate, metadata).ready
+            if (ready?.startsWith("./") && resolve(dirname(candidate.manifestPath), ready) === resolved) {
+              binding = candidate
+              break
+            }
+          }
+        }
         if (binding === undefined) return undefined
         attestSource(binding, resolved)
         return {path: binding.url, external: true}
@@ -223,11 +248,28 @@ function attestSource(binding: StorybookSharedBrowserSource, resolved: string): 
   }
   const digest = createHash("sha256").update(readFileSync(manifest)).digest("hex")
   if (digest !== binding.manifestDigest) throw new Error(`Shared Storybook source manifest changed: ${binding.specifier}`)
+  const metadata = parseObject(readFileSync(manifest, "utf8"), manifest)
+  // У того же публичного адреса source и ready — два явных воплощения.
+  // Готовый facet связывается с frozen URL, не затягивая его DOM closure.
+  const {source, ready} = sourceFacets(binding, metadata)
+  if (source?.startsWith("./") && ready?.startsWith("./") &&
+    resolve(expectedRoot, source) === resolve(binding.sourcePath) &&
+    fileIdentity(canonicalOwnerTarget(expectedRoot, ready, binding.specifier)) === fileIdentity(resolved)) return
   const expectedSource = Compiler.canonicalizeStorybookPackageFile(expectedRoot, canonicalExactFile(binding.sourcePath))
   const actualSource = Compiler.canonicalizeStorybookPackageFile(expectedRoot, resolved)
   if (fileIdentity(expectedSource) !== fileIdentity(actualSource)) {
     throw new Error(`Shared Storybook source export changed identity: ${binding.specifier}`)
   }
+}
+
+function sourceFacets(binding: StorybookSharedBrowserSource, metadata: Record<string, unknown>): Readonly<{source: string | null; ready: string | null}> {
+  const name = String(metadata.name)
+  const subpath = binding.specifier === name ? "." : `.${binding.specifier.slice(name.length)}`
+  const exports = metadata.exports
+  const declaration = exports && typeof exports === "object" && !Array.isArray(exports)
+    && Object.keys(exports).some(key => key.startsWith(".")) ? Reflect.get(exports, subpath) : subpath === "." ? exports : undefined
+  if (!declaration || typeof declaration !== "object" || Array.isArray(declaration) || !Object.hasOwn(declaration, "source")) return {source: null, ready: null}
+  return {source: Compiler.conditionalExportTarget(Reflect.get(declaration, "source")), ready: Compiler.conditionalExportTarget(declaration)}
 }
 
 function fileIdentity(path: string): string {
