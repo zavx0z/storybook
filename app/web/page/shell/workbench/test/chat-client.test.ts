@@ -1,6 +1,128 @@
 import {expect, test} from "bun:test"
 import {canonicalChatAddress, createChatBrowserClient, type ChatBrowserSnapshot} from "../src/inspector/chat-client.ts"
 import {filesToMedia, type MediaDraftAttachment} from "@zavx0z/chat/media"
+import {readChatSelection, selectChatSession} from "../src/inspector/chat-selection.ts"
+
+test("отсутствующая persisted беседа сохраняет выбор и draft, не запрашивает session и не повторяется", async () => {
+  const fixture = browserChatFixture("/missing-persisted-choice")
+  const timers = retryTimers()
+  const selected = {executorId: fixture.snapshot.executorId, sessionId: "absent-session", title: "Сохранённая беседа"}
+  selectChatSession(fixture.snapshot.address, selected)
+  const catalogs: RequestInit[] = []
+  const selectedDraftKey = `storybook.chat.draft.v1:${selected.sessionId}`
+  const otherDraftKey = `storybook.chat.draft.v1:${fixture.snapshot.sessionId}`
+  const stored = new Map([[selectedDraftKey, "Сохранённый draft"], [otherDraftKey, "Другая беседа"]])
+  const beforeStorage = [...stored]
+  const fetcher = (async (url, init) => {
+    if (String(url).endsWith("/sessions")) {catalogs.push(init!); return Response.json([])}
+    return fixture.fetcher(url, init)
+  }) as typeof fetch
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Subject", ...readChatSelection(fixture.snapshot.address),
+    fetcher, createSocket: fixture.createSocket, scheduleRetry: timers.schedule,
+    storage: () => ({getItem: key => stored.get(key) ?? null, setItem: (key, value) => {stored.set(key, value)}})})
+  try {
+    expect(client.getSnapshot().draft).toBe("Сохранённый draft")
+    client.start()
+    await until(() => client.getSnapshot().status === "failed")
+    expect(client.getSnapshot().error).toContain("во вкладке «Агенты»")
+    expect(client.getSnapshot().draft).toBe("Сохранённый draft")
+    expect(readChatSelection(fixture.snapshot.address)).toEqual(selected)
+    expect([...stored]).toEqual(beforeStorage)
+    expect(JSON.parse(String(catalogs[0]!.body))).toEqual({address: fixture.snapshot.address, executorId: selected.executorId})
+    expect(new Headers(catalogs[0]!.headers).get("x-storybook-session")).toBe("browser-grant")
+    expect(fixture.calls.map(call => call.url)).toEqual(["/api/browser/registry-session"])
+    expect(timers.pending()).toBe(0)
+    client.setVisible(false)
+    client.setVisible(true)
+    client.start()
+    timers.runCancelled()
+    await client.prepare()
+    await tick()
+    expect(catalogs).toHaveLength(1)
+    expect(fixture.sockets).toHaveLength(0)
+    expect(fixture.calls.map(call => call.url)).toEqual(["/api/browser/registry-session"])
+    client.setDraft("Текущий draft")
+    await new Promise(resolve => setTimeout(resolve, 230))
+    expect(client.getSnapshot().draft).toBe("Текущий draft")
+    expect(stored.get(selectedDraftKey)).toBe("Текущий draft")
+    expect(stored.get(otherDraftKey)).toBe("Другая беседа")
+    expect(readChatSelection(fixture.snapshot.address)).toEqual(selected)
+  } finally {client.dispose()}
+
+  // Реальный выбор меняет immutable options; ChatWidget создаёт новый client для него.
+  selectChatSession(fixture.snapshot.address, {executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.sessionId})
+  const recovered = createChatBrowserClient({address: fixture.snapshot.address, label: "Subject", ...readChatSelection(fixture.snapshot.address),
+    storage: () => ({getItem: key => stored.get(key) ?? null, setItem: (key, value) => {stored.set(key, value)}}),
+    createSocket: fixture.createSocket, fetcher: (async (url, init) => String(url).endsWith("/sessions")
+      ? Response.json([fixture.snapshot]) : fixture.fetcher(url, init)) as typeof fetch})
+  try {
+    recovered.start()
+    await until(() => fixture.sockets[0]?.sent.length === 1)
+    expect(recovered.getSnapshot().sessionId).toBe(fixture.snapshot.sessionId)
+    expect(recovered.getSnapshot().error).toBeUndefined()
+    expect(recovered.getSnapshot().draft).toBe("Другая беседа")
+    expect(stored.get(selectedDraftKey)).toBe("Текущий draft")
+    expect(stored.get(otherDraftKey)).toBe("Другая беседа")
+  } finally {recovered.dispose()}
+})
+
+test("валидная explicit беседа проверяется agent scope один раз и затем восстанавливает обычный поток", async () => {
+  const fixture = browserChatFixture("/valid-persisted-choice")
+  const timers = retryTimers()
+  const catalogs: RequestInit[] = []
+  const fetcher = (async (url, init) => {
+    if (String(url).endsWith("/sessions")) {catalogs.push(init!); return Response.json([fixture.snapshot])}
+    return fixture.fetcher(url, init)
+  }) as typeof fetch
+  const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Subject", executorId: fixture.snapshot.executorId,
+    sessionId: fixture.snapshot.sessionId, fetcher, createSocket: fixture.createSocket, scheduleRetry: timers.schedule})
+  try {
+    client.start()
+    await until(() => fixture.sockets[0]?.sent.length === 1)
+    expect(catalogs).toHaveLength(1)
+    expect(JSON.parse(String(catalogs[0]!.body))).toEqual({address: fixture.snapshot.address, executorId: fixture.snapshot.executorId})
+    const sessionRequest = fixture.calls.find(call => call.url.endsWith("/session"))!
+    expect(JSON.parse(String(sessionRequest.init!.body))).toEqual({address: fixture.snapshot.address,
+      executorId: fixture.snapshot.executorId, sessionId: fixture.snapshot.sessionId})
+    expect(new Headers(sessionRequest.init!.headers).get("x-storybook-session")).toBe(new Headers(catalogs[0]!.headers).get("x-storybook-session"))
+    fixture.sockets[0]!.close()
+    await until(() => timers.pending() === 1)
+    timers.run()
+    await until(() => fixture.sockets[1]?.sent.length === 1)
+    expect(catalogs).toHaveLength(1)
+    expect(client.getSnapshot().sessionId).toBe(fixture.snapshot.sessionId)
+  } finally {client.dispose()}
+})
+
+for (const failure of ["network", "partial", "foreign"] as const) {
+  test(`ошибка каталога ${failure} не доказывает отсутствие и допускает восстановление`, async () => {
+    const fixture = browserChatFixture(`/catalog-failure-${failure}`)
+    const timers = retryTimers()
+    let reads = 0
+    const fetcher = (async (url, init) => {
+      if (String(url).endsWith("/sessions")) {
+        if (++reads !== 1) return Response.json([fixture.snapshot])
+        if (failure === "network") return Response.json({error: "Временный отказ каталога"}, {status: 503})
+        if (failure === "partial") return Response.json({items: [], nextCursor: "later"})
+        return Response.json([fixture.snapshot, {...fixture.snapshot, executorId: "foreign-agent"}])
+      }
+      return fixture.fetcher(url, init)
+    }) as typeof fetch
+    const client = createChatBrowserClient({address: fixture.snapshot.address, label: "Subject", executorId: fixture.snapshot.executorId,
+      sessionId: fixture.snapshot.sessionId, fetcher, createSocket: fixture.createSocket, scheduleRetry: timers.schedule})
+    try {
+      client.start()
+      await until(() => timers.pending() === 1)
+      expect(client.getSnapshot().error).not.toContain("Выбранная беседа недоступна")
+      expect(fixture.calls.some(call => call.url.endsWith("/session"))).toBe(false)
+      timers.run()
+      await until(() => fixture.sockets[0]?.sent.length === 1)
+      expect(reads).toBe(2)
+      expect(client.getSnapshot().sessionId).toBe(fixture.snapshot.sessionId)
+      expect(client.getSnapshot().error).toBeUndefined()
+    } finally {client.dispose()}
+  })
+}
 
 test("адрес беседы сохраняет предмет и исключает выбор представления", () => {
   expect(canonicalChatAddress("/storybook/component?view=scenarios&variant=Первый&inspector=chat&preview=revision#node"))

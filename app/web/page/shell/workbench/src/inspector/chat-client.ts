@@ -83,6 +83,9 @@ export function canonicalChatAddress(address: string): string {
 Подготавливает источник UI. WebSocket не удерживает HTTP-поток вкладки.
 Обрыв соединения восстанавливает grant, исходный снимок
 и подписку с ограниченным backoff; prompt при этом не повторяется.
+Явный сохранённый выбор сначала проверяется по полному каталогу бесед агента.
+Отсутствующая беседа останавливает автоматическое подключение до нового выбора,
+не заменяя identity, историю или черновик; отказ чтения каталога допускает retry.
 */
 export function createChatBrowserClient(options: ChatClientOptions) {
   const address = canonicalChatAddress(options.address)
@@ -93,12 +96,14 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   const images = createMediaImageCache()
   const listeners = new Set<() => void>()
   let visible = true
+  let selectionUnavailable = false
+  let selectionVerified = false
   let historyVisible = true
   const pageDocument = globalThis.document
   let pageActive = true
   const pageHidden = () => {saveDraft(); pageActive = false; visibilityChanged()}
   const pageShown = () => {pageActive = true; visibilityChanged()}
-  const wantsConnection = () => visible && pageActive && pageDocument?.visibilityState !== "hidden"
+  const wantsConnection = () => !selectionUnavailable && visible && pageActive && pageDocument?.visibilityState !== "hidden"
   const visibilityChanged = () => {
     if (pageDocument?.visibilityState === "hidden") saveDraft()
     history.setActive(wantsConnection() && historyVisible && media === null)
@@ -128,6 +133,15 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   let mediaRestoring: Promise<void> | null = null
   let media: MediaPreview | null = null
   let draft = ""
+  // Тот же session ID уже изолирует черновики бесед; отсутствие archive не переносит текст к default.
+  const draftIdentity = () => session?.id ?? (options.executorId === undefined ? undefined : options.sessionId)
+  const initialDraftId = draftIdentity()
+  if (initialDraftId !== undefined) {
+    draft = drafts.get(initialDraftId) ?? ""
+    if (!drafts.has(initialDraftId)) {
+      try { draft = storage().getItem(draftStorageKey(initialDraftId)) ?? "" } catch {}
+    }
+  }
   let draftTimer: ReturnType<typeof setTimeout> | undefined
   let persistedDraft: {id: string, text: string} | undefined
   let draftChanged = false
@@ -186,15 +200,17 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   const saveDraft = (): void => {
     clearTimeout(draftTimer)
     draftTimer = undefined
-    const value = session === null ? undefined : {id: session.id, text: draft}
+    const id = draftIdentity()
+    const value = id === undefined ? undefined : {id, text: draft}
     if (!value) return
     if (persistedDraft?.id === value.id && persistedDraft.text === value.text) return
     rememberDraft(value.id, value.text)
     try { storage().setItem(draftStorageKey(value.id), value.text); persistedDraft = value } catch {}
   }
   const scheduleDraft = (): void => {
-    if (!session) return
-    rememberDraft(session.id, draft)
+    const id = draftIdentity()
+    if (id === undefined) return
+    rememberDraft(id, draft)
     // Не откладывать бесконечно при непрерывном вводе: максимум 200 мс до записи.
     draftTimer ??= setTimeout(saveDraft, 200)
   }
@@ -355,6 +371,15 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     }
     return response.json()
   }
+  /** /sessions возвращает полный массив без cursor/filter; только валидный массив доказывает отсутствие. */
+  const readSessionCatalog = (value: unknown, executorId: string): readonly ChatBrowserSnapshot[] => {
+    if (!Array.isArray(value)) throw new Error("Некорректный список сессий")
+    return value.map(item => {
+      const snapshot = readChatBrowserSnapshot(item, address)
+      if (snapshot.executorId !== executorId) throw new Error("Сессия другого агента")
+      return snapshot
+    })
+  }
   const stream = (token: string, onSnapshot: () => void): Promise<void> => {
     const path = `/api/events?session=${encodeURIComponent(token)}`
     const subscription = {type: "subscribe", topic: `chat:${address}`,
@@ -436,6 +461,17 @@ export function createChatBrowserClient(options: ChatClientOptions) {
         try {
           const token = await grant(controller.signal)
           if (disposed || controller.signal.aborted || epoch !== connectionEpoch) return
+          if (!selectionVerified && options.executorId !== undefined && options.sessionId !== undefined) {
+            const catalog = readSessionCatalog(await post("sessions", {}, token, controller.signal, "agent"), options.executorId)
+            if (disposed || controller.signal.aborted || epoch !== connectionEpoch) return
+            if (!catalog.some(item => item.sessionId === options.sessionId)) {
+              selectionUnavailable = true
+              connectionError = "Выбранная беседа недоступна у этого агента. Выберите существующую беседу во вкладке «Агенты»; сохранённый выбор и черновик оставлены без изменений"
+              notify()
+              return
+            }
+            selectionVerified = true
+          }
           const snapshot = await post("session", {}, token, controller.signal)
           if (disposed || controller.signal.aborted || epoch !== connectionEpoch) return
           accept(snapshot, true)
@@ -607,12 +643,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     },
     async listSessions(executorId: string, signal = lifetime.signal): Promise<readonly Readonly<{id: string, title: string}>[]> {
       const value = await post("sessions", {executorId}, undefined, signal, "agent")
-      if (!Array.isArray(value)) throw new Error("Некорректный список сессий")
-      return value.map(item => {
-        const snapshot = readChatBrowserSnapshot(item, address)
-        if (snapshot.executorId !== executorId) throw new Error("Сессия другого агента")
-        return {id: snapshot.sessionId, title: snapshot.sessionLabel}
-      })
+      return readSessionCatalog(value, executorId).map(snapshot => ({id: snapshot.sessionId, title: snapshot.sessionLabel}))
     },
     async createSession(executorId: string): Promise<ChatBrowserSnapshot> {
       return readChatBrowserSnapshot(await post("session-create", {executorId}, undefined, lifetime.signal, "agent"), address)
@@ -718,7 +749,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       }
     },
     async prepare() {
-      if (disposed || configuring) return
+      if (disposed || configuring || selectionUnavailable) return
       const identity = metadataIdentity(session)
       if (identity === undefined) {
         configuring = true
