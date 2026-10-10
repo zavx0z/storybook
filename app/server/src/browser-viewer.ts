@@ -2,14 +2,13 @@ import {createHash, randomBytes} from "node:crypto"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import state from "@zavx0z/storybook-app-server-state"
 import type {ProviderTechSsh} from "@zavx0z/provider-tech-ssh"
+import type {BrowserViewerClient as Client} from "../contract/browser-viewer-client"
+import type {BrowserViewerRelay} from "../contract/browser-viewer-relay"
 
 type Connection = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>["connections"][number]
 type BrowserConnection = Extract<Connection, {provider: "capsule" | "chrome-studio"}>
 export type BrowserViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean}>
-type Client = Readonly<{send(value: string): unknown, close(code?: number, reason?: string): void, getBufferedAmount(): number}>
 type Socket = Pick<WebSocket, "readyState" | "bufferedAmount" | "send" | "close" | "addEventListener">
-/** Приватный relay передаёт signaling выбранного владельца; медиа остаётся прямым WebRTC. */
-export type BrowserViewerRelay = Readonly<{attach(client: Client): void, message(value: string | Uint8Array): void, close(): Promise<void>}>
 const FRAME_BYTES = 65_536
 const BUFFER_BYTES = 262_144
 const STATE_BYTES = 262_144

@@ -1,4 +1,4 @@
-import type {BrowserViewerRelay} from "../src/browser-viewer"
+import type {BrowserViewerRelay} from "./browser-viewer-relay"
 
 /** Grant одного браузерного подключения внутри server instance. */
 export type BrowserSessionGrant = Readonly<{
