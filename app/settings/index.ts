@@ -3,6 +3,9 @@
 Каталог подключений сохраняется только в `.local/` текущей машины.
 Локальный Codex остаётся начальным подключением; отдельный Codex через SSH хранит
 адрес машины и пути Provider. Рабочий каталог удалённого предмета назначает среда.
+Peer-подключение хранит identity участника и разрешённого executor в локальном
+каталоге машины, сохраняя выбранный provider и identity существующей беседы.
+Хост приложения предоставляет транспорт и проверяет доступ к executor.
 Capsule использует Studio на машине ACP-исполнителя и явно выбранный готовый профиль
 Qwen, DeepSeek или ChatGPT; состояние профиля принадлежит Capsule.
 Необязательное SSH-подключение переносит ACP-процесс на машину Studio и Docker.
@@ -45,7 +48,7 @@ export default function createSettings(input: StorybookAppSettings.Input): Story
   const base = async (): Promise<Document> => {
     const [saved, local] = await Promise.all([readJson(file), readJson(connectionsFile)])
     const value = saved === undefined ? initial() : object(saved, ["schemaVersion", "revision", "connections", "general", "types"])
-    if (Array.isArray(value.connections) && value.connections.some(connection => connection?.provider !== "codex" || connection?.endpoint !== undefined || connection?.ssh !== undefined)) throw new TypeError("Адреса подключений должны храниться только в локальном каталоге машины")
+    if (Array.isArray(value.connections) && value.connections.some(connection => connection?.provider !== "codex" || connection?.endpoint !== undefined || connection?.ssh !== undefined || connection?.peer !== undefined)) throw new TypeError("Адреса подключений должны храниться только в локальном каталоге машины")
     let connections = local
     if (local !== undefined && !Array.isArray(local)) {
       const record = object(local, ["schemaVersion", "current", "previous"])
@@ -123,7 +126,7 @@ export default function createSettings(input: StorybookAppSettings.Input): Story
       const trustedExecutor = await readExecutor(value, policy)
       const executorSelection = value.executorSelection === undefined ? trustedExecutor : withMode(selection(value.executorSelection), trustedExecutor.approvalMode)
       const confirmed = entityTypes.includes(value.subject.type as EntityType) ? current.types[value.subject.type!] : undefined
-      const effective: {connectionId: string, model?: string, thoughtLevel?: string, approvalMode?: NonNullable<Selection["approvalMode"]>} = {connectionId: current.connections.find(connection => connection.provider === "codex" && connection.ssh === undefined)?.id
+      const effective: {connectionId: string, model?: string, thoughtLevel?: string, approvalMode?: NonNullable<Selection["approvalMode"]>} = {connectionId: current.connections.find(connection => connection.provider === "codex" && connection.ssh === undefined && connection.peer === undefined)?.id
         ?? current.connections.find(connection => connection.provider === "codex")?.id ?? current.connections[0]!.id}
       const sources: {connectionId: Execution["sources"]["connectionId"], model?: Execution["sources"]["connectionId"], thoughtLevel?: Execution["sources"]["connectionId"], approvalMode?: Execution["sources"]["connectionId"]} = {connectionId: "general"}
       const provider = (id: string) => {

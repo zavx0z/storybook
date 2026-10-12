@@ -9,6 +9,9 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@capsule/webrtc": "link:@capsule/webrtc",
+    "@metafor/tech-peer": "^0.1.0",
+    "@zavx0z/provider-tech-peer": "0.0.0",
     "@zavx0z/storybook-app-environment": "workspace:*",
     "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
     "@zavx0z/ai-filesystem-stat": "link:@zavx0z/ai-filesystem-stat",

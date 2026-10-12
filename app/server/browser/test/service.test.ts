@@ -275,6 +275,23 @@ describe("Storybook browser lifecycle service", () => {
     }
   })
 
+  test.each([false, true])("открытие другого пакета проверяет новые ошибки перехода, newError=%s", async newError => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const initial = await controller.openPackage(openInput(chrome))
+    chrome.consoleEntries = async () => [
+      {source: "console", type: "error", level: "error", text: "Ошибка до перехода", timestamp: 1},
+      ...(newError && chrome.bridgeNavigations > 0
+        ? [{source: "console" as const, type: "error", level: "error" as const, text: "Ошибка кандидата", timestamp: 2}]
+        : []),
+    ]
+    const opened = await controller.openPackage({...openInput(chrome), packageId: "@fixture/b", route: "", url: `${chrome.origin}/pkg-fixture-b/`})
+    expect(opened.identity.timeOrigin, "Переход сохраняет realm с историей прежнего предмета").toBe(initial.identity.timeOrigin)
+    expect(opened.consoleErrors?.map(entry => entry.text), "История не заменяет новые ошибки показанного кандидата").toEqual(newError ? ["Ошибка кандидата"] : [])
+    const repeated = await controller.openPackage({...openInput(chrome), packageId: "@fixture/b", route: "", url: `${chrome.origin}/pkg-fixture-b/`})
+    expect(repeated.consoleErrors, "Повторное открытие того же кандидата не скрывает уже возникшие ошибки").toBeUndefined()
+  })
+
   test.each([false, true])("история консоли отделяется от ошибок обновления, newError=%s", async newError => {
     const chrome = new FakeChrome()
     const original = chrome.callBridge.bind(chrome)

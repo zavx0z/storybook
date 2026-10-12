@@ -1,6 +1,7 @@
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
+import type {CapsuleRtcIceConfiguration} from "@capsule/webrtc/ice"
 
-export type BrowserViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean}>
+export type BrowserViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean, audio?: boolean}>
 
 type SettingsDocument = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
@@ -24,6 +25,12 @@ export function createSettingsClient(fetcher: typeof fetch, signal: AbortSignal)
   }
   return {
     openBrowserViewer: (connectionId: string, viewerSignal: AbortSignal) => post<BrowserViewerDescriptor>("browser-viewer-open", {connectionId}, AbortSignal.any([signal, viewerSignal])),
+    browserViewerConfiguration(descriptor: BrowserViewerDescriptor, viewerSignal: AbortSignal) {
+      const path = new URL(descriptor.socketPath, "http://storybook")
+      const ticket = path.searchParams.get("ticket")
+      if (path.origin !== "http://storybook" || path.pathname !== "/api/browser/browser-viewer" || !ticket) throw new Error("Некорректный билет viewer")
+      return post<CapsuleRtcIceConfiguration>("browser-viewer-config", {ticket}, AbortSignal.any([signal, viewerSignal]))
+    },
     read: () => post<SettingsDocument>("execution-settings", {}),
     async save(settings: SettingsDocument) {
       const saved = await post<SettingsDocument>("execution-settings-save", {settings})

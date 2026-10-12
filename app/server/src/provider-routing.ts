@@ -20,9 +20,53 @@ export const internalCodexPolicy = {
 type Resolution = NonNullable<Awaited<ReturnType<NonNullable<StorybookChatSession.Input["resolveExecution"]>>>>
 type Connection = Resolution["connections"][number]
 
+/**
+Доверенный consumer предоставляет ready ACP stream для точного подключения.
+Все поля локальны вызову factory; handshake отправляет только разрешённые
+identity, а путь, endpoint, command и env остаются у удалённого executor host.
+*/
+export type OpenProviderPeer = (input: Readonly<{
+  connectionId: string
+  peerId: string
+  executorId: string
+  assignmentId: string
+  previousSessionId?: string
+  signal: AbortSignal
+}>) => Promise<NonNullable<StorybookTechAcp.Input["ownedStream"]>>
+
+/** Точное назначение и native identity приходят от сохраняемой сессии, а не из каталога соединений. */
+export type ProviderPeerContext = Readonly<{assignmentId: string, previousSessionId?: string, signal: AbortSignal}>
+
+/**
+Открывает явно выбранный peer transport либо использует прежний process route.
+Peer отказ не заменяется локальным запуском или SSH. Factory вызывается только
+после проверки route, а получает отмену, assignment и прежнюю native identity.
+*/
+export async function resolveProviderTransport(
+  options: {project: string, toolRoot: string, openPeer?: OpenProviderPeer},
+  connection: Connection,
+  context: ProviderPeerContext,
+): Promise<Partial<StorybookTechAcp.Input>> {
+  context.signal.throwIfAborted()
+  if (!connection.enabled) throw new Error("Подключение недоступно или отключено")
+  if (connection.peer === undefined) return providerTransport(options, connection)
+  const validId = (value: unknown) => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(value)
+  if (!validId(connection.peer.peerId) || !validId(connection.peer.executorId) || !validId(context.assignmentId)) throw new TypeError("Недопустимая identity peer назначения")
+  if ("ssh" in connection && connection.ssh !== undefined || connection.provider === "ollama" && connection.endpoint.ssh !== undefined) throw new TypeError("Peer и SSH не могут использоваться в одном подключении")
+  if (!options.openPeer) throw new Error("Peer transport не настроен хостом для выбранного подключения")
+  const ownedStream = await options.openPeer({connectionId: connection.id, ...connection.peer, assignmentId: context.assignmentId,
+    ...(context.previousSessionId === undefined ? {} : {previousSessionId: context.previousSessionId}), signal: context.signal})
+  if (context.signal.aborted) {
+    await ownedStream.dispose()
+    context.signal.throwIfAborted()
+  }
+  return {ownedStream}
+}
+
 /** Выбирает native процесс; SSH доставляет тот же ACP entry и явный env. Каталог процесса локален, agentCwd принадлежит машине агента. */
 export function providerTransport(options: {project: string, toolRoot: string}, connection: Connection): Partial<StorybookTechAcp.Input> {
   if (!connection.enabled) throw new Error("Подключение недоступно или отключено")
+  if (connection.peer !== undefined) throw new Error("Peer transport требует resolveProviderTransport и явный openPeer хоста")
   const identity = createHash("sha256").update(JSON.stringify([resolve(options.project), connection.id])).digest("hex")
   if (connection.provider === "codex" && connection.ssh) {
     const ssh = connection.ssh
@@ -56,7 +100,7 @@ export function providerTransport(options: {project: string, toolRoot: string}, 
     const remote = `exec env ${quote(`${configVariable}=${config}`)}${dockerContext === undefined ? "" : ` ${quote(`DOCKER_CONTEXT=${dockerContext}`)}`} bun ${quote(join(ssh.providerRoot, `app/${provider}/index.ts`))}`
     return {
       command: "ssh",
-      args: ["-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=10",
+      args: ["-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=30",
         "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=2",
         ...(ssh.port === undefined ? [] : ["-p", String(ssh.port)]),
         ...(ssh.user === undefined ? [] : ["-l", ssh.user]), "--", ssh.host, remote],

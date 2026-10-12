@@ -7,6 +7,8 @@ Web-выпуск, browser lifecycle и авторизованный HTTP/WebSock
 `environment`; наблюдение Storybook не запускает следование. Проверка применяет
 кандидат выбранного адреса; «Следовать» разрешает переход в том же workspace.
 В остальных случаях готовая ревизия сохраняется как pending без загрузки содержимого.
+Сессия с `events: true` восстанавливает подписку сохранённого preview после утраты
+его ревизии; выданный обычный reader не разрешает загрузку исчезнувшего preview.
 
 @packageDocumentation
 */
@@ -72,6 +74,7 @@ import {streamScenarioRun} from "./src/scenario-stream"
 import storybookMcpEntries from "@zavx0z/storybook-app-knowledge-catalog"
 import {readMcpEntityType} from "./src/mcp-type"
 import {createChatServer} from "./src/chat"
+import {createPeerExecution, loadPeerConfiguration} from "./src/peer"
 import proxyContent from "@zavx0z/storybook-app-response"
 const errorContent = proxyContent.error
 import {createCatalogRefresh} from "./src/catalog-refresh.ts"
@@ -139,6 +142,8 @@ export default async function startExternalStorybookServer(
   const toolRoot = realpathSync(options.toolRoot ?? fileURLToPath(new URL("../..", import.meta.url)))
   const createWeb = options.createWeb
   const statePath = resolve(options.statePath ?? externalStorybookServerStatePath())
+  const peerExecution = createPeerExecution(await loadPeerConfiguration({statePath,
+    ...(options.peer === undefined ? {} : {peer: options.peer})}))
   const artifactRoot = resolve(options.artifactRoot ?? externalStorybookArtifactRoot())
   const writeServerRecord = options.writeServerRecord ?? writeExternalStorybookServerRecord
   const browserLifecycle = options.browserLifecycle ?? createStorybookBrowserLifecycle({
@@ -207,6 +212,7 @@ export default async function startExternalStorybookServer(
   } catch (error) {
     await registry.dispose()
     await web.dispose()
+    await peerExecution.close()
     browserSessions.dispose()
     eventHub.close()
     stoppedResolve!()
@@ -427,6 +433,7 @@ export default async function startExternalStorybookServer(
       presented: opened.identity.presented,
       frameSequence: opened.identity.frameSequence ?? 0,
       reused: opened.reused,
+      ...(opened.consoleErrors === undefined ? {} : {consoleErrors: opened.consoleErrors}),
       ...(expectedRevision === undefined ? {} : {candidateRevision: expectedRevision}),
       workingFallback: opened.identity.ready && !candidateMatches,
       package: sessions.session(input.packageId).snapshot(),
@@ -450,16 +457,17 @@ export default async function startExternalStorybookServer(
       throw new Error(`Package candidate did not open with exact identity: ${candidate.packageId}`)
     }
     const viewId = String(opened.viewId)
+    const hasConsoleEvidence = Array.isArray(opened.consoleErrors)
     await activateRevision({
       expected: {packageId: candidate.packageId, revision: candidate.revision, route, graphDigest: revisionGraph.packageGraphDigest},
       signal,
       async inspect() {
         const inspected = await browserLifecycle.inspect(
           viewId,
-          {include: opened.inPageApplied === true ? ["state", "diagnostics"] : ["state", "diagnostics", "console"]},
+          {include: hasConsoleEvidence ? ["state", "diagnostics"] : ["state", "diagnostics", "console"]},
           signal,
         )
-        return opened.inPageApplied === true ? {...inspected, consoleErrors: opened.consoleErrors} : inspected
+        return hasConsoleEvidence ? {...inspected, consoleErrors: opened.consoleErrors} : inspected
       },
       ...(apply ? {commit({frameSequence}: ActivationOutput) {
         if (session.snapshot().builtRevision !== candidate.revision) {
@@ -513,6 +521,10 @@ export default async function startExternalStorybookServer(
     authorityDirectory: join(dirname(statePath), "chat-policy"),
     projectName: () => project.name,
     toolRoot,
+    ...(peerExecution.openPeer === undefined ? {} : {openPeer: peerExecution.openPeer}),
+    ...(peerExecution.describeBrowser === undefined || peerExecution.createBrowserSocket === undefined ? {} : {
+      peerPreview: {describe: peerExecution.describeBrowser, socket: peerExecution.createBrowserSocket},
+    }),
     graph: () => registry.snapshot().graph,
     entries: mcpEntries,
     ...(options.extensions === undefined ? {} : {extensions: options.extensions}),
@@ -977,7 +989,7 @@ export default async function startExternalStorybookServer(
         if (url.pathname === "/api/browser/session" && request.method === "POST") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
           const body = await requestObject(request)
-          assertExactRequestKeys(body, ["packageId", "preview", "revision"])
+          assertExactRequestKeys(body, ["events", "packageId", "preview", "revision"])
           const packageId = requiredText("session packageId", body.packageId)
           const session = sessions.session(packageId)
           const requested = typeof body.revision === "string" ? body.revision : null
@@ -986,7 +998,12 @@ export default async function startExternalStorybookServer(
           if (body.preview !== undefined && typeof body.preview !== "boolean") {
             throw new Error("Package browser session preview flag must be boolean")
           }
-          const preview = body.preview === true
+          if (body.events !== undefined && typeof body.events !== "boolean") {
+            throw new Error("Package browser session events flag must be boolean")
+          }
+          // Подписка наблюдает пакет независимо от доступности уже показанного preview.
+          // Она не выдаёт разрешение читать отсутствующую ревизию и не применяет другую.
+          const preview = body.preview === true && !(body.events === true && revision !== requested)
           if (preview && (requested === null || revision !== requested)) {
             throw new Error("Package preview session requires its exact retained revision")
           }
@@ -1385,7 +1402,7 @@ export default async function startExternalStorybookServer(
     },
     })
   } catch (error) {
-    await Promise.allSettled([registry.dispose(), chat.dispose(), runScenario.dispose(), web.dispose()])
+    await Promise.allSettled([registry.dispose(), chat.dispose(), runScenario.dispose(), web.dispose(), peerExecution.close()])
     await sessions.dispose().catch(() => {})
     unsubscribeBuildProgress()
     browserSessions.dispose()
@@ -1410,7 +1427,7 @@ export default async function startExternalStorybookServer(
     serverRecordCreated = true
     options.onStartupPhase?.("ready")
   } catch (error) {
-    await Promise.allSettled([registry.dispose(), chat.dispose(), runScenario.dispose(), web.dispose()])
+    await Promise.allSettled([registry.dispose(), chat.dispose(), runScenario.dispose(), web.dispose(), peerExecution.close()])
     await sessions.dispose().catch(() => {})
     unsubscribeBuildProgress()
     browserSessions.dispose()
@@ -1425,21 +1442,27 @@ export default async function startExternalStorybookServer(
   const close = (): Promise<void> => {
     if (closePromise !== null) return closePromise
     closePromise = (async () => {
-      await registry.dispose()
-      let chatFailure: unknown
-      try { await chat.dispose() } catch (error) { chatFailure = error }
-      await runScenario.dispose()
-      await web.dispose()
-      for (const client of clients) client.close(1001, "Storybook server stopped")
-      clients.clear()
-          browserSessions.dispose()
-      eventHub.close()
-      await sessions.dispose()
-      unsubscribeBuildProgress()
-      server.stop(true)
-      removeOwnedState(statePath, serverRecord)
-      stoppedResolve!()
-      if (chatFailure !== undefined) throw chatFailure
+      let released = false
+      try {
+        await registry.dispose()
+        let chatFailure: unknown
+        try { await chat.dispose() } catch (error) { chatFailure = error }
+        await runScenario.dispose()
+        await web.dispose()
+        for (const client of clients) client.close(1001, "Storybook server stopped")
+        clients.clear()
+        browserSessions.dispose()
+        eventHub.close()
+        await sessions.dispose()
+        unsubscribeBuildProgress()
+        server.stop(true)
+        removeOwnedState(statePath, serverRecord)
+        released = true
+        if (chatFailure !== undefined) throw chatFailure
+      } finally {
+        try {await peerExecution.close()}
+        finally {if (released) stoppedResolve!()}
+      }
     })()
     return closePromise
   }

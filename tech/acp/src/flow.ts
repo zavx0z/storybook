@@ -1,4 +1,4 @@
-/** Ограничивает опережение входящего stdio относительно durable обработки updates. */
+/** Ограничивает опережение входящего ACP stream относительно durable обработки updates. */
 export function notificationFlow() {
   let count = 0
   let bytes = 0
@@ -29,8 +29,8 @@ export function notificationFlow() {
   }
 }
 
-/** SDK декодирует NDJSON; получение следующей порции байтов ждёт освобождения окна. */
-export function gatedInput(input: ReadableStream<Uint8Array>, wait: () => Promise<void>): ReadableStream<Uint8Array> {
+/** Получение следующего сообщения или порции байтов ждёт освобождения окна обработки. */
+export function gatedInput<T>(input: ReadableStream<T>, wait: () => Promise<void>): ReadableStream<T> {
   const reader = input.getReader()
   let cancelled = false
   return new ReadableStream({

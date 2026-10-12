@@ -3,9 +3,12 @@ import {spawnSync} from "node:child_process"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {basename, join} from "node:path"
-import {providerTransport} from "../src/provider-routing"
+import {providerTransport, resolveProviderTransport, type OpenProviderPeer} from "../src/provider-routing"
 import {createExecutionOptions} from "../src/execution-options"
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
+import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
+import createSettings from "@zavx0z/storybook-app-settings"
+import {createChatServer} from "../src/chat"
 
 const ollama = {id: "gpu", provider: "ollama" as const, label: "Ollama GPU", enabled: true,
   endpoint: {url: "http://localhost:11434", ssh: {host: "gpu", port: 22}}}
@@ -208,4 +211,116 @@ test("Codex remote model probe сохраняет локальный cwd Project
     expect(input!.mcpServers).toEqual([])
     expect(prompts).toBe(0)
   } finally {await options.dispose(); await f.dispose()}
+})
+
+test("peer routing passes exact assignment and resume IDs without process options for every provider", async () => {
+  const peer = {peerId: "codespace", executorId: "configured-executor"}
+  const ownedStream: NonNullable<StorybookTechAcp.Input["ownedStream"]> = {
+    stream: {readable: new ReadableStream(), writable: new WritableStream()}, closed: new Promise(() => {}), async dispose() {},
+  }
+  const opened: Parameters<OpenProviderPeer>[0][] = []
+  const signal = new AbortController().signal
+  const options = {project: "/project", toolRoot: "/absent-no-native-resolution", async openPeer(input: Parameters<OpenProviderPeer>[0]) {
+    opened.push(input)
+    return ownedStream
+  }}
+  const {ssh: _ssh, ...ollamaEndpoint} = ollama.endpoint
+  const selected = [{...codex, peer}, {...ollama, endpoint: ollamaEndpoint, peer}, {...capsule, peer}, {...capsule, provider: "chrome-studio" as const, peer}]
+  for (const connection of selected) {
+    expect(await resolveProviderTransport(options, connection, {assignmentId: "worker-1", previousSessionId: "native-existing", signal})).toEqual({ownedStream})
+    expect(opened.at(-1)).toEqual({connectionId: connection.id, ...peer, assignmentId: "worker-1", previousSessionId: "native-existing", signal})
+  }
+})
+
+test("peer routing never falls back without a configured factory or on factory failure", async () => {
+  const selected = {...codex, peer: {peerId: "codespace", executorId: "configured-executor"}}
+  const options = {project: "/project", toolRoot: "/absent"}
+  const context = {assignmentId: "worker", signal: new AbortController().signal}
+  await expect(resolveProviderTransport(options, selected, context)).rejects.toThrow("не настроен хостом")
+  expect(() => providerTransport(options, selected)).toThrow("resolveProviderTransport")
+  const failure = new Error("peer unavailable")
+  let count = 0
+  const result = await resolveProviderTransport({...options, async openPeer() {
+    count++
+    throw failure
+  }}, selected, context).catch(error => error)
+  expect(result).toBe(failure)
+  expect(count).toBe(1)
+})
+
+test("disabled, ambiguous and invalid peer routes are rejected before opening", async () => {
+  const selected = {...codex, peer: {peerId: "codespace", executorId: "configured-executor"}}
+  let opened = 0
+  const options = {project: "/project", toolRoot: "/absent", async openPeer(): Promise<NonNullable<StorybookTechAcp.Input["ownedStream"]>> {
+    opened++
+    throw new Error("must not open")
+  }}
+  const context = {assignmentId: "worker", signal: new AbortController().signal}
+  await expect(resolveProviderTransport(options, {...selected, enabled: false}, context)).rejects.toThrow("отключено")
+  await expect(resolveProviderTransport(options, {...selected, ssh: {host: "remote", providerRoot: "/provider", storageRoot: "/storage"}}, context)).rejects.toThrow("Peer и SSH")
+  await expect(resolveProviderTransport(options, {...ollama, peer: selected.peer}, context)).rejects.toThrow("Peer и SSH")
+  await expect(resolveProviderTransport(options, {...selected, peer: {...selected.peer, peerId: "../remote"}}, context)).rejects.toThrow("identity")
+  expect(opened).toBe(0)
+})
+
+test("aborted peer opening releases a late owned stream before returning it", async () => {
+  const controller = new AbortController()
+  let disposed = 0
+  const result = resolveProviderTransport({project: "/project", toolRoot: "/absent", async openPeer() {
+    controller.abort()
+    return {stream: {readable: new ReadableStream(), writable: new WritableStream()}, closed: new Promise<void>(() => {}), async dispose() {disposed++}}
+  }}, {...codex, peer: {peerId: "remote", executorId: "configured"}}, {assignmentId: "worker", signal: controller.signal})
+  await expect(result).rejects.toThrow()
+  expect(disposed).toBe(1)
+})
+
+test("chat peer route preserves environment assignment and native identity after reopening", async () => {
+  const project = await mkdtemp(join(tmpdir(), "peer-chat-route-"))
+  const opened: Parameters<OpenProviderPeer>[0][] = []
+  const acp: StorybookTechAcp.Input[] = []
+  const settings = createSettings({project})
+  const connection = {...codex, id: "stable-connection", peer: {peerId: "remote-host", executorId: "remote-codex"}}
+  const serverOptions = {
+    project, projectName: () => "Project", toolRoot: project,
+    graph: () => ({nodes: []} as unknown as StorybookPackageGraphRead.Input), entries: () => [],
+    async openPeer(input: Parameters<OpenProviderPeer>[0]) {
+      opened.push(input)
+      return {stream: {readable: new ReadableStream(), writable: new WritableStream()}, closed: new Promise<void>(() => {}), async dispose() {}}
+    },
+    async connect(input: StorybookTechAcp.Input): Promise<StorybookTechAcp.Output> {
+      acp.push(input)
+      return {sessionId: input.previousSessionId ?? "native-existing", capabilities: {}, configOptions: [],
+        async setConfigOption() {return []}, async prompt() {return {stopReason: "end_turn"}}, async cancel() {},
+        async dispose() {await input.ownedStream?.dispose()},
+      }
+    },
+  }
+  let server = createChatServer(serverOptions)
+  try {
+    await settings.update({...await settings.read(), connections: [connection], general: {connectionId: connection.id}})
+    const prepared = await server.chats.prepare("/")
+    expect(opened[0]?.assignmentId).toBe(prepared.executorId)
+    expect(opened[0]?.connectionId).toBe(connection.id)
+    expect(acp[0]?.cwd).toBe(project)
+    expect(acp[0]?.ownedStream).toBeDefined()
+    expect(acp[0]?.command).toBeUndefined()
+    expect(acp[0]?.exclusiveMcp).toBeUndefined()
+    await server.chats.prompt("/", "first turn", "request-one")
+    const completed = Promise.withResolvers<void>()
+    const unsubscribe = await server.chats.subscribe("/", snapshot => {
+      if (snapshot.status === "idle" && snapshot.pending.length === 0) completed.resolve()
+    })
+    await completed.promise
+    unsubscribe()
+    await server.dispose()
+    server = createChatServer(serverOptions)
+    const restored = await server.chats.prepare("/")
+    expect(opened.at(-1)?.assignmentId).toBe(prepared.executorId)
+    expect(opened.at(-1)?.previousSessionId).toBe("native-existing")
+    expect(restored.execution?.pinnedConnectionId).toBe(connection.id)
+    expect(acp.at(-1)?.previousSessionId).toBe("native-existing")
+  } finally {
+    await server.dispose()
+    await rm(project, {recursive: true, force: true})
+  }
 })

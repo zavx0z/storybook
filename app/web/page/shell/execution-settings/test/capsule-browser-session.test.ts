@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {createBrowserPreviewSession} from "../src/browser-preview-session"
-import type {CapsuleRtcViewerOptions} from "@capsule/webrtc/viewer"
+import type {CapsuleRtcViewerOptions, CapsuleRtcViewerPeerConnectionLike} from "@capsule/webrtc/viewer"
 import {parseInputCommand, type InputCommand} from "@capsule/input/protocol"
 
 class Video extends EventTarget {
@@ -194,4 +194,38 @@ test("Chrome Studio video keeps the control DataChannel disabled", async () => {
   expect(f.session.pointer("pointerDown", pointer())).toBe(false)
   expect(f.session.key("keyDown", key("a"))).toBe(false)
   f.session.close()
+})
+
+test("ICE передаётся host callback при каждом новом peer, без fetch по origin Storybook", async () => {
+  const descriptor = {instanceId: "instance-1", profile: "work", socketPath: "/api/browser/browser-viewer?ticket=private", controlEnabled: true}
+  let viewerOptions!: CapsuleRtcViewerOptions
+  let reads = 0
+  const session = createBrowserPreviewSession({origin: "http://storybook", video: new Video(), open: async () => descriptor, onState() {},
+    configuration: async (value, scope) => {
+      expect(value).toBe(descriptor)
+      scope.throwIfAborted()
+      return {iceServers: [{urls: "turn:relay.example:3478", username: "u", credential: `c-${++reads}`}], iceTransportPolicy: "relay"}
+    },
+    viewerFactory: options => {viewerOptions = options; return {connect() {}, close() {}, sendControl() {return true}}},
+  })
+  await session.start()
+  expect((await viewerOptions.loadIceConfiguration!("http://storybook/api/rtc/config")).iceServers[0]?.credential).toBe("c-1")
+  expect((await viewerOptions.loadIceConfiguration!("http://storybook/api/rtc/config")).iceServers[0]?.credential).toBe("c-2")
+  session.close()
+  await expect(viewerOptions.loadIceConfiguration!("unused")).rejects.toThrow()
+  expect(reads).toBe(2)
+})
+
+
+test("audio runtime предлагает один receive-only канал без захвата микрофона; video-only не меняется", async () => {
+  for (const audio of [true, false]) {
+    const f = fixture(async () => ({instanceId: "instance-1", profile: "work", socketPath: "/api/browser/browser-viewer?ticket=private", controlEnabled: true, audio}))
+    await f.session.start()
+    const offered: unknown[] = []
+    const peer = {addTransceiver(kind: string, init: unknown) {offered.push({kind, init})}} as unknown as CapsuleRtcViewerPeerConnectionLike
+    await f.callbacks().preparePeer?.(peer)
+    expect(offered).toEqual(audio ? [{kind: "audio", init: {direction: "recvonly"}}] : [])
+    expect(f.video.muted).toBeTrue()
+    f.session.close()
+  }
 })

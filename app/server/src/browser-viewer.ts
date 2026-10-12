@@ -1,14 +1,16 @@
 import {createHash, randomBytes} from "node:crypto"
+import {loadCapsuleRtcIceConfiguration, type CapsuleRtcIceConfiguration} from "@capsule/webrtc/ice"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import state from "@zavx0z/storybook-app-server-state"
 import type {ProviderTechSsh} from "@zavx0z/provider-tech-ssh"
 import type {BrowserViewerClient as Client} from "../contract/browser-viewer-client"
 import type {BrowserViewerRelay} from "../contract/browser-viewer-relay"
+import type {BrowserViewerPeerAdapter} from "./browser-viewer-peer"
 
 type Connection = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>["connections"][number]
 type BrowserConnection = Extract<Connection, {provider: "capsule" | "chrome-studio"}>
-export type BrowserViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean}>
-type Socket = Pick<WebSocket, "readyState" | "bufferedAmount" | "send" | "close" | "addEventListener">
+export type BrowserViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean, audio?: boolean}>
+type Socket = ReturnType<BrowserViewerPeerAdapter["socket"]>
 const FRAME_BYTES = 65_536
 const BUFFER_BYTES = 262_144
 const STATE_BYTES = 262_144
@@ -19,6 +21,8 @@ type Entry = {
   connection: BrowserConnection
   fingerprint: string
   instanceId?: string
+  controlEnabled?: boolean
+  audio?: boolean
   origin?: string
   tunnel?: ProviderTechSsh.Output
   timer?: ReturnType<typeof setTimeout>
@@ -33,12 +37,18 @@ type Entry = {
   cleanup?: Promise<void>
 }
 
-/** Билеты относятся только к сохранённому подключению и существующему active instance. */
+/**
+Билеты относятся только к сохранённому подключению и существующему active instance.
+Для peer-подключения описание и signaling предоставляет его Provider executor;
+локальные HTTP/SSH transports не используются. Ticket сохраняет профиль,
+instance, peer identity и capability управления до повторной проверки при upgrade.
+*/
 export function createBrowserViewerAccess(options: Readonly<{
   connections(): Promise<readonly Connection[]>
   fetch?: (input: string | URL, init?: RequestInit) => Promise<Response>
   tunnel?: (input: ProviderTechSsh.Input) => Promise<ProviderTechSsh.Output>
   socket?: (url: string) => Socket
+  peerPreview?: BrowserViewerPeerAdapter
   now?: () => number
   ticketTtlMs?: number
   maximum?: number
@@ -82,9 +92,23 @@ export function createBrowserViewerAccess(options: Readonly<{
     const url = new URL(selected.endpoint.url)
     if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new TypeError("Для браузера нужен сохранённый loopback origin")
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u.test(selected.endpoint.profile) || !["qwen", "deepseek", "chatgpt"].includes(selected.endpoint.service)) throw new TypeError("Некорректный профиль браузера")
+    if (selected.peer !== undefined) {
+      if (!token(selected.peer.peerId, 256) || !token(selected.peer.executorId, 256)) throw new TypeError("Некорректный peer браузера")
+      if (selected.ssh !== undefined) throw new TypeError("Peer и SSH не могут использоваться в одном подключении viewer")
+      if (!options.peerPreview) throw new Error("Peer preview не настроен хостом для выбранного подключения")
+    }
     return selected
   }
   async function active(entry: Entry, signal: AbortSignal): Promise<string> {
+    if (entry.connection.peer !== undefined) {
+      if (!options.peerPreview) throw new Error("Peer preview не настроен хостом")
+      const value = await options.peerPreview.describe({...entry.connection.peer, signal})
+      signal.throwIfAborted()
+      if (!object(value) || !token(value.instanceId, 128) || value.profile !== entry.connection.endpoint.profile || typeof value.controlEnabled !== "boolean") throw new Error("Peer не подтвердил выбранный профиль браузера")
+      if (entry.controlEnabled !== undefined && value.controlEnabled !== entry.controlEnabled) throw new Error("Возможность управления peer браузером изменилась")
+      entry.controlEnabled = value.controlEnabled
+      return value.instanceId
+    }
     const path = entry.connection.provider === "capsule" ? "/api/studio/lifecycle/state"
       : `/api/profiles/browser-control?name=${encodeURIComponent(entry.connection.endpoint.profile)}`
     const response = await (options.fetch ?? fetch)(new URL(path, entry.origin), {signal, redirect: "error"})
@@ -122,6 +146,10 @@ export function createBrowserViewerAccess(options: Readonly<{
     if (!object(value) || value.ok !== true || !Array.isArray(value.sessions) || !value.sessions.every(object)) throw new Error("Некорректное состояние Capsule")
     const matches = value.sessions.filter(session => session.profileName === entry.connection.endpoint.profile && session.active === true)
     if (matches.length !== 1 || matches[0]!.containerState !== "running" || !token(matches[0]!.instanceId, 128)) throw new Error("Нужен единственный запущенный экземпляр выбранного профиля Capsule")
+    const runtime = matches[0]!.runtime
+    const audio = object(runtime) && object(runtime.capabilities) && runtime.capabilities.audio === true
+    if (entry.audio !== undefined && entry.audio !== audio) throw new Error("Возможность аудио выбранного профиля изменилась")
+    entry.audio = audio
     return matches[0]!.instanceId
   }
   async function open(id: unknown, signal: AbortSignal): Promise<BrowserViewerDescriptor> {
@@ -139,18 +167,24 @@ export function createBrowserViewerAccess(options: Readonly<{
     entry.abort = () => signal.removeEventListener("abort", cancel)
     const preparation = (async () => {
       try {
-        let origin = new URL(selected.endpoint.url)
-        if (selected.ssh) {
-          const {host, user, port} = selected.ssh
-          const tunnel = await (options.tunnel ?? (async input => (await import("@zavx0z/provider-tech-ssh")).default(input)))({host,
-            ...(user === undefined ? {} : {user}), ...(port === undefined ? {} : {port}),
-            destination: {host: origin.hostname.replace(/^\[|\]$/gu, ""), port: Number(origin.port || (origin.protocol === "https:" ? 443 : 80))}})
-          if (entry.closed) {await tunnel.dispose(); throw new Error("Подключение viewer отменено")}
-          entry.tunnel = tunnel
-          origin.hostname = "127.0.0.1"
-          origin.port = String(tunnel.port)
+        if (selected.peer === undefined) {
+          let origin = new URL(selected.endpoint.url)
+          if (selected.ssh) {
+            const {host, user, port} = selected.ssh
+            const tunnel = await (options.tunnel ?? (async input => (await import("@zavx0z/provider-tech-ssh")).default(input)))({host,
+              ...(user === undefined ? {} : {user}), ...(port === undefined ? {} : {port}),
+              destination: {host: origin.hostname.replace(/^\[|\]$/gu, ""), port: Number(origin.port || (origin.protocol === "https:" ? 443 : 80))}})
+            if (entry.closed) {
+              await tunnel.dispose()
+              throw new Error("Подключение viewer отменено")
+            }
+            entry.tunnel = tunnel
+            origin.hostname = "127.0.0.1"
+            origin.port = String(tunnel.port)
+          }
+          entry.origin = origin.origin
+          entry.controlEnabled = selected.provider === "capsule"
         }
-        entry.origin = origin.origin
         entry.instanceId = await active(entry, AbortSignal.any([signal, entry.controller.signal, AbortSignal.timeout(20_000)]))
         signal.throwIfAborted()
         if (entry.closed || disposed) throw new Error("Подключение viewer отменено")
@@ -160,7 +194,7 @@ export function createBrowserViewerAccess(options: Readonly<{
         entry.expiresAt = now() + ttl
         entry.timer = setTimeout(cancel, ttl)
         entry.timer.unref()
-        return {instanceId: entry.instanceId, profile: selected.endpoint.profile, controlEnabled: selected.provider === "capsule", socketPath: `/api/browser/browser-viewer?ticket=${ticket}`}
+        return {instanceId: entry.instanceId, profile: selected.endpoint.profile, controlEnabled: entry.controlEnabled === true, ...(entry.audio ? {audio: true} : {}), socketPath: `/api/browser/browser-viewer?ticket=${ticket}`}
       } catch (error) {await close(ticket, entry); throw error}
     })()
     preparing.add(preparation)
@@ -189,19 +223,55 @@ export function createBrowserViewerAccess(options: Readonly<{
       if (current !== entry.instanceId) throw new Error("Экземпляр Capsule изменился")
       signal.throwIfAborted()
       if (entry.closed) throw new Error("Подключение viewer отменено")
-      const url = new URL("/rtc/signaling", entry.origin)
-      url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
-      url.searchParams.set("profile", entry.connection.provider === "capsule" ? entry.instanceId : entry.connection.endpoint.profile)
-      url.searchParams.set("role", "viewer")
-      url.searchParams.set("peer", peer)
-      const relay = signalingRelay(url.toString(), options.socket ?? (url => new WebSocket(url)), cancel,
+      let socket: () => Socket
+      if (entry.connection.peer !== undefined) {
+        if (!options.peerPreview) throw new Error("Peer preview не настроен хостом")
+        const input = {...entry.connection.peer, instanceId: entry.instanceId, viewerPeerId: peer}
+        socket = () => options.peerPreview!.socket(input)
+      } else {
+        const url = new URL("/rtc/signaling", entry.origin)
+        url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+        url.searchParams.set("profile", entry.connection.provider === "capsule" ? entry.instanceId : entry.connection.endpoint.profile)
+        url.searchParams.set("role", "viewer")
+        url.searchParams.set("peer", peer)
+        socket = () => (options.socket ?? (url => new WebSocket(url)))(url.toString())
+      }
+      const relay = signalingRelay(socket, cancel,
         () => {clearTimeout(entry.timer); entry.abort?.(); delete entry.timer})
       entry.relay = relay
       return {attach: relay.attach, message: relay.message, close: () => close(ticket, entry)}
     } catch (error) {await close(ticket, entry); throw error}
   }
+  /** Свежие ICE credentials выдаются только владельцу живого viewer ticket через тот же transport. */
+  async function configuration(ticket: unknown, signal: AbortSignal): Promise<CapsuleRtcIceConfiguration> {
+    if (typeof ticket !== "string" || !/^[A-Za-z0-9_-]{43}$/u.test(ticket)) throw new state.ExternalStorybookSecurityError("invalid-browser-session", 401, "Некорректный билет viewer")
+    const entry = entries.get(ticket)
+    if (!entry || entry.closed || !entry.instanceId || disposed || !entry.used && entry.expiresAt <= now()) {
+      throw new state.ExternalStorybookSecurityError("invalid-browser-session", 401, "Билет viewer истёк или недоступен")
+    }
+    const scope = AbortSignal.any([signal, entry.controller.signal, AbortSignal.timeout(10_000)])
+    scope.throwIfAborted()
+    if (fingerprint(await connection(entry.connection.id)) !== entry.fingerprint) throw new Error("Подключение браузера изменилось")
+    if (await active(entry, scope) !== entry.instanceId) throw new Error("Экземпляр браузера изменился")
+    let result: CapsuleRtcIceConfiguration
+    if (entry.connection.peer !== undefined) {
+      // Старые peer adapters используют direct ICE; TURN выдаёт только их собственный executor.
+      result = options.peerPreview?.configuration
+        ? await options.peerPreview.configuration({...entry.connection.peer, instanceId: entry.instanceId, signal: scope})
+        : {iceServers: [{urls: "stun:stun.l.google.com:19302"}], iceTransportPolicy: "all"}
+    } else {
+      const url = new URL("/api/rtc/config", entry.origin)
+      url.searchParams.set("profile", entry.connection.provider === "capsule" ? entry.instanceId : entry.connection.endpoint.profile)
+      result = await loadCapsuleRtcIceConfiguration(url.href, (input, init) => (options.fetch ?? fetch)(String(input), {
+        ...init, redirect: "error", signal: AbortSignal.any([scope, ...(init?.signal ? [init.signal] : [])]),
+      }))
+    }
+    scope.throwIfAborted()
+    if (fingerprint(await connection(entry.connection.id)) !== entry.fingerprint) throw new Error("Подключение браузера изменилось")
+    return result
+  }
   return {
-    open, consume,
+    open, consume, configuration,
     async invalidate() {
       const current = await options.connections()
       await Promise.all([...entries].filter(([, entry]) => !current.some(value => value.id === entry.connection.id && value.enabled && fingerprint(value) === entry.fingerprint)).map(([ticket, entry]) => close(ticket, entry)))
@@ -216,10 +286,11 @@ export function createBrowserViewerAccess(options: Readonly<{
 }
 
 function fingerprint(connection: Connection): string {
-  return JSON.stringify((connection.provider === "capsule" || connection.provider === "chrome-studio") ? [connection.id, connection.provider, connection.enabled, connection.endpoint, connection.ssh] : [connection.id, connection.provider])
+  return JSON.stringify((connection.provider === "capsule" || connection.provider === "chrome-studio") ? [connection.id, connection.provider, connection.enabled, connection.endpoint, connection.ssh, connection.peer] : [connection.id, connection.provider])
 }
 
-function signalingRelay(url: string, factory: (url: string) => Socket, release: () => void, connected: () => void): BrowserViewerRelay {
+/** Одна bounded signaling линия принимает ready socket от своего transport owner. */
+function signalingRelay(factory: () => Socket, release: () => void, connected: () => void): BrowserViewerRelay {
   let client: Client | undefined
   let upstream: Socket | undefined
   let closed = false
@@ -243,7 +314,7 @@ function signalingRelay(url: string, factory: (url: string) => Socket, release: 
       client = value
       connected()
       try {
-        upstream = factory(url)
+        upstream = factory()
         opening = setTimeout(() => stop(1013, "Capsule не подключилась"), 10_000)
         opening.unref()
         upstream.addEventListener("open", () => {

@@ -8,9 +8,10 @@ import createServerEnvironment, {type EnvironmentActivity} from "./environment"
 import createTeamTools from "./team"
 import createSettings from "@zavx0z/storybook-app-settings"
 import {createExecutionOptions} from "./execution-options"
-import {providerTransport} from "./provider-routing"
+import {resolveProviderTransport, type OpenProviderPeer} from "./provider-routing"
 import {createBrowserViewerAccess} from "./browser-viewer"
 import type {StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
+import type {BrowserViewerPeerAdapter} from "./browser-viewer-peer"
 
 type Graph = StorybookPackageGraphRead.Input
 type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
@@ -45,6 +46,9 @@ export function createChatServer(options: Readonly<{
   graph(): Graph
   entries(): StorybookAppKnowledge.Input[1]["entries"]
   connect?: typeof createAcp
+  /** Готовые peer streams предоставляет хост приложения; отсутствие factory запрещает peer route. */
+  openPeer?: OpenProviderPeer
+  peerPreview?: BrowserViewerPeerAdapter
   recordRequest?: (entry: Record<string, unknown>) => void
   onActivity?: (event: EnvironmentActivity) => void
   extensions?: StorybookAppEnvironment.Input["extensions"]
@@ -57,7 +61,8 @@ export function createChatServer(options: Readonly<{
     ],
   })
   const settings = createSettings({project: options.project, ...(options.authorityDirectory === undefined ? {} : {authorityDirectory: options.authorityDirectory})})
-  const browserViewer = createBrowserViewerAccess({connections: async () => (await settings.read()).connections})
+  const browserViewer = createBrowserViewerAccess({connections: async () => (await settings.read()).connections,
+    ...(options.peerPreview === undefined ? {} : {peerPreview: options.peerPreview})})
   const executionOptions = createExecutionOptions({...options, connect: options.connect ?? createAcp})
   const subscriptions = new Set<() => void>()
   const chats = createChatSessions({
@@ -99,7 +104,11 @@ export function createChatServer(options: Readonly<{
       const connection = input.execution.connections.find(item => item.id === input.execution.effective.connectionId)
       if (!connection) throw new Error("Выбранное подключение недоступно")
       return (options.connect ?? createAcp)({
-        ...providerTransport(options, connection),
+        ...await resolveProviderTransport(options, connection, {
+          assignmentId: input.executorId,
+          ...(input.previousSessionId === undefined ? {} : {previousSessionId: input.previousSessionId}),
+          signal: input.signal,
+        }),
         // SSH запускается в локальном предмете; wire agentCwd задаёт transport.
         cwd: input.subject.cwd,
         signal: input.signal,
@@ -152,6 +161,10 @@ export function createChatServer(options: Readonly<{
       if (path === "/api/browser/chat/browser-viewer-open") {
         if (Object.keys(body).some(key => key !== "connectionId")) throw new TypeError("Viewer принимает только сохранённое connectionId")
         return Response.json(await browserViewer.open(body.connectionId, request.signal), {headers: {"cache-control": "no-store"}})
+      }
+      if (path === "/api/browser/chat/browser-viewer-config") {
+        if (Object.keys(body).some(key => key !== "ticket")) throw new TypeError("ICE принимает только билет viewer")
+        return Response.json(await browserViewer.configuration(body.ticket, request.signal), {headers: {"cache-control": "no-store"}})
       }
       if (path.endsWith("/execution-settings-save")) {
         const saved = await settings.update(body.settings as Parameters<typeof settings.update>[0])

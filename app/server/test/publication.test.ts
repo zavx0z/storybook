@@ -89,7 +89,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     async close() { return {closed: false, viewId} },
     readCapture() { throw new Error("unused") },
   }
-  const options = {project: createProjectFixture(root, [owner, other]), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts"),
+  const options = {project: createProjectFixture(join(root, "project"), [owner, other]), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts"),
     browserLifecycle: browser}
   server = await startExternalStorybookServer({createWeb, ...options})
   const tabs: WebSocket[] = []
@@ -202,6 +202,19 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBe(applied)
     expect(await readPage()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${applied}/`)
     expect(server.sessions.session("@fixture/applied").snapshot().builds).toBe(0)
+    expect(server.sessions.session("@fixture/applied").revisionDirectory(second), "После restart неприменённый preview больше не удерживается сессией").toBeNull()
+    const previewReader = (events = false) => fetch(new URL("/api/browser/session", server.origin), {
+      method: "POST", headers: {origin: server.origin, "content-type": "application/json"},
+      body: JSON.stringify({packageId: "@fixture/applied", revision: second, preview: true, ...(events ? {events: true} : {})}),
+    })
+    expect((await previewReader()).status, "Загрузка исчезнувшего exact preview остаётся запрещённой").toBe(400)
+    const eventReader = await previewReader(true)
+    expect(eventReader.status, "Сохранённый preview может восстановить подписку без загрузки утраченной ревизии").toBe(200)
+    const {token: eventToken} = await eventReader.json() as {token: string}
+    const restoredPreviewEvents = await connect(`<meta name="external-storybook-browser-session" content="${eventToken}">`)
+    await waitFor(() => restoredPreviewEvents.some(event => event.type === "package.applied-state" && event.revision === applied))
+    expect(server.sessions.session("@fixture/applied").snapshot().activeRevision, "Восстановление подписки не применяет сохранённый preview").toBe(applied)
+    expect(server.sessions.session("@fixture/applied").snapshot().builds, "Восстановление подписки не собирает ревизию заново").toBe(0)
     const synced = await connect(await readPage())
     await waitFor(() => synced.some(event => event.type === "package.applied-state" && event.revision === applied))
     // Seed an older applied snapshot to exercise URL migration without replacing its working artifact.

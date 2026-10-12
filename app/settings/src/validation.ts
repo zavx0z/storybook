@@ -40,8 +40,17 @@ export function validateSelectionConnection(layer: Selection, connections: Execu
 }
 
 export function validateConnection(input: unknown): Execution["connections"][number] {
-  const value = object(input, ["id", "provider", "label", "enabled", "endpoint", "ssh"])
+  const value = object(input, ["id", "provider", "label", "enabled", "endpoint", "ssh", "peer"])
   if (typeof value.id !== "string" || !value.id.trim() || value.id.length > 256 || typeof value.label !== "string" || !value.label.trim() || value.label.length > 128 || typeof value.enabled !== "boolean") throw new TypeError("Неизвестное подключение исполнения")
+  if (value.peer !== undefined) {
+    const peer = object(value.peer, ["peerId", "executorId"])
+    for (const key of ["peerId", "executorId"]) {
+      if (typeof peer[key] !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(peer[key])) throw new TypeError("Недопустимый peerId или executorId подключения")
+    }
+    if (value.ssh !== undefined || value.provider === "ollama" && value.endpoint !== null && typeof value.endpoint === "object" && Object.hasOwn(value.endpoint, "ssh")) {
+      throw new TypeError("Peer и SSH не могут использоваться в одном подключении")
+    }
+  }
   if (value.provider === "codex") {
     if (value.endpoint !== undefined) throw new TypeError("Codex не принимает endpoint подключения")
     if (value.ssh !== undefined) {

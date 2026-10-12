@@ -1,3 +1,4 @@
+import type {PeerConfiguration} from "./peer"
 import type {StorybookAppWeb} from "@zavx0z/storybook-app-web"
 import type {StorybookAppEnvironment} from "@zavx0z/storybook-app-environment"
 import {type StorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-app-server-browser"
@@ -14,6 +15,7 @@ import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
 /** Контракт серверного исполнения приложения Storybook. */
 export declare namespace StorybookAppServer {
+
   /**
   Источники и параметры запуска единственного HTTP/WebSocket-сервера.
   Отсутствующие источники берутся из действующих владельцев приложения.
@@ -38,6 +40,14 @@ export declare namespace StorybookAppServer {
   @property [toolRoot] - Канонический checkout Storybook для ресурсов и digest.
 
   @property [statePath] - Приватный файл identity daemon.
+
+  @property [peer] - Приватная конфигурация исходящих ACP peer connections.
+  При отсутствии читается необязательный приватный peer.json рядом со statePath;
+  отсутствие файла сохраняет прежние process/SSH providers. false явно выключает
+  peer и чтение этого файла. Настройки Project не задают signaling credentials.
+  Сеть создаётся лениво для ACP или browser preview; обе возможности используют
+  выбранный executor без remote URL в peer запросе. Server освобождает клиентов
+  и сеть при startup failure и stop.
 
   @property [artifactRoot] - Корень опубликованных и временных артефактов.
 
@@ -84,6 +94,7 @@ export declare namespace StorybookAppServer {
     /** App предоставляет дополнительные команды назначению; Server сохраняет общую проверку grant. */
     extensions?: StorybookAppEnvironment.Input["extensions"]
     statePath?: string
+    peer?: PeerConfiguration | false
     artifactRoot?: string
     landingEntryPath?: string
     fallbackEntryPath?: string

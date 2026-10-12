@@ -81,6 +81,7 @@ function BrowserPreviewView(props: Omit<Props, "available"> & Readonly<{onReconn
     let alive = true
     const value = (props.sessionFactory ?? createBrowserPreviewSession)({origin: globalThis.location?.origin ?? "http://localhost", video: element,
       open: signal => props.client.openBrowserViewer(props.connectionId, signal),
+      configuration: (descriptor, signal) => props.client.browserViewerConfiguration(descriptor, signal),
       onState: value => {if (alive) setState(value)},
       onBoundary: release,
     })

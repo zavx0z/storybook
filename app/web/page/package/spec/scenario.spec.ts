@@ -363,6 +363,7 @@ describe("Область выбранного пакета", () => {
   test.each([
     {intent: "navigation-candidate" as const, retained: false, preview: false},
     {intent: "preview" as const, retained: true, preview: true},
+    {intent: "preview" as const, retained: false, preview: true},
   ])("переподключение $intent сохраняет назначение сессии", async ({intent, retained, preview}) => {
     const graph = await fixtureGraph()
     const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
@@ -386,7 +387,7 @@ describe("Область выбранного пакета", () => {
           requested.resolve()
           // После restart server не восстанавливает неприменённого кандидата.
           // Только явный preview требует его exact retained revision.
-          return body.preview && !retained
+          return body.preview && !retained && body.events !== true
             ? Response.json({error: "Package preview session requires its exact retained revision"}, {status: 400})
             : Response.json({token: "renewed-reader"})
         }, {preconnect: fetch.preconnect}),
@@ -407,7 +408,7 @@ describe("Область выбранного пакета", () => {
       expect(sockets.length, "Связь обновлений восстанавливается после выдачи допустимой сессии").toBe(2)
       sockets[1]!.emit("open", {})
       expect(requests, "Навигационный кандидат получает обычную сессию; явный preview сохраняет точную ревизию").toEqual([
-        {packageId: "@fixture/components", revision: "revision-a", preview},
+        {packageId: "@fixture/components", revision: "revision-a", preview, events: true},
       ])
       expect(sockets[1]!.sent.map(value => JSON.parse(value)), "Восстановленная связь подписывается на пакет и обновления оболочки").toEqual([
         {type: "subscribe", topic: "package:@fixture/components"},

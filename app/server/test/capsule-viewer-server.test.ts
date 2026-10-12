@@ -21,6 +21,7 @@ test("HTTP viewer требует registry grant, Origin и сохранённы�
       observed.push(url.pathname + url.search)
       if (url.pathname === "/api/studio/lifecycle/state") return Response.json({ok: true,
         sessions: [{instanceId: "already-running", profileName: "work", active: running, containerState: running ? "running" : "stopped"}]})
+      if (url.pathname === "/api/rtc/config") return Response.json({ok: true, iceServers: [{urls: "turn:relay.example:3478", username: "temporary", credential: "temporary-password"}], iceTransportPolicy: "relay"})
       if (url.pathname === "/rtc/signaling" && server.upgrade(request)) return
       return new Response(null, {status: 404})
     }, websocket: {open(socket) {socket.send(' {"type":"hello","peers":[]} ')}, message(socket, value) {socket.send(value)}, close() {upstreamClosed++}},
@@ -46,6 +47,12 @@ test("HTTP viewer требует registry grant, Origin и сохранённы�
     expect(observed).toHaveLength(0)
     const descriptor = await (await command("browser-viewer-open", {connectionId: "qwen"})).json()
     expect(descriptor).toMatchObject({instanceId: "already-running", profile: "work"})
+    const iceTicket = new URL(descriptor.socketPath, server.origin).searchParams.get("ticket")
+    expect((await command("browser-viewer-config", {ticket: iceTicket}, {...headers, "x-storybook-session": ""})).status).toBe(401)
+    expect((await command("browser-viewer-config", {ticket: iceTicket}, {...headers, Origin: "http://elsewhere"})).status).toBe(403)
+    const ice = await command("browser-viewer-config", {ticket: iceTicket})
+    expect(ice.headers.get("cache-control")).toBe("no-store")
+    expect(await ice.json()).toMatchObject({iceTransportPolicy: "relay", iceServers: [{credential: "temporary-password"}]})
     const endpoint = new URL(descriptor.socketPath, server.origin)
     endpoint.protocol = "ws:"
     endpoint.searchParams.set("peer", "viewer-test")
@@ -59,7 +66,7 @@ test("HTTP viewer требует registry grant, Origin и сохранённы�
     socket.send(offer)
     await waitFor(() => messages.length === 2)
     expect(messages[1]).toBe(offer)
-    expect(observed).toEqual(["/api/studio/lifecycle/state", "/api/studio/lifecycle/state",
+    expect(observed).toEqual(["/api/studio/lifecycle/state", "/api/studio/lifecycle/state", "/api/rtc/config?profile=already-running", "/api/studio/lifecycle/state",
       "/rtc/signaling?profile=already-running&role=viewer&peer=viewer-test"])
     const reused = new WebSocket(endpoint, {headers: {Origin: server.origin}} as never)
     sockets.push(reused)
@@ -68,7 +75,7 @@ test("HTTP viewer требует registry grant, Origin и сохранённы�
     await waitFor(() => upstreamClosed === 1)
     running = false
     expect((await command("browser-viewer-open", {connectionId: "qwen"})).ok).toBeFalse()
-    expect(observed.every(value => value.startsWith("/api/studio/lifecycle/state") || value.startsWith("/rtc/signaling?"))).toBeTrue()
+    expect(observed.every(value => value.startsWith("/api/studio/lifecycle/state") || value.startsWith("/rtc/signaling?") || value.startsWith("/api/rtc/config?"))).toBeTrue()
   } finally {
     for (const socket of sockets) socket.close()
     await server.stop()

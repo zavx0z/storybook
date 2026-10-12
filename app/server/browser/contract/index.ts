@@ -8,6 +8,7 @@ import type {
   StorybookProcessStart,
   StorybookPublicView,
   StorybookBridgeIdentity,
+  StorybookChromeConsoleEntry,
   StoredStorybookCapture,
 } from "./types"
 
@@ -60,6 +61,8 @@ export declare namespace StorybookAppServerBrowser {
       view: StorybookPublicView
       identity: StorybookBridgeIdentity
       reused: boolean
+      /** Новые ошибки выполненного перехода; без перехода проверяется полная консоль кандидата. */
+      consoleErrors?: readonly StorybookChromeConsoleEntry[]
     }>>
     /** Читает единственное выбранное пространство, не открывая браузер. */
     currentWorkspace(origin: string, signal?: AbortSignal, packages?: readonly StorybookBrowserPackage[]): Promise<Readonly<{

@@ -77,7 +77,8 @@ describe.each([{name: "Настройки среды", props: {
     ;(element.querySelector('button[aria-label="Добавить Ollama"]') as HTMLButtonElement).click()
     await headless.capture(element)
     const card = element.querySelector('[data-provider-connection="ollama"]')!
-    const api = card.querySelectorAll("input")[1] as HTMLInputElement
+    const api = card.querySelector('[aria-label="Подключение Ollama"] input[type="url"]') as HTMLInputElement
+    expect(api.type, "Выбранное поле является адресом API, а не переключателем транспорта").toBe("url")
     api.value = "http://ai-srv:11434"
     api.dispatchEvent(new InputEvent("input", {bubbles: true}))
     await headless.capture(element)
@@ -102,7 +103,7 @@ describe.each([{name: "Настройки среды", props: {
   })
   test("SSH-подключение", async () => {
     const card = element.querySelector('[data-provider-connection="ollama"]')!
-    const toggle = card.querySelector('input[type="checkbox"]') as HTMLInputElement
+    const toggle = card.querySelector('[title="Использовать SSH"] input[type="checkbox"]') as HTMLInputElement
     toggle.click()
     await headless.capture(element)
     ;([...card.querySelectorAll("button")].find(item => item.textContent === "SSH") as HTMLButtonElement).click()
@@ -167,7 +168,7 @@ describe.each([{name: "Настройки среды", props: {
 
   test("Capsule на другой машине", async () => {
     const card = element.querySelector('[data-provider-connection="capsule"]')!
-    const toggle = card.querySelector('input[type="checkbox"]') as HTMLInputElement
+    const toggle = card.querySelector('[title="Использовать SSH"] input[type="checkbox"]') as HTMLInputElement
     toggle.click()
     await headless.capture(element)
     ;([...card.querySelectorAll("button")].find(item => item.textContent === "SSH") as HTMLButtonElement).click()
@@ -208,7 +209,7 @@ describe.each([{name: "Настройки среды", props: {
     profile.value = "deepseek-profile"
     profile.dispatchEvent(new InputEvent("input", {bubbles: true}))
     await headless.capture(element)
-    ;(fields.querySelector('input[type="checkbox"]') as HTMLInputElement).click()
+    ;(fields.querySelector('[title="Использовать SSH"] input[type="checkbox"]') as HTMLInputElement).click()
     ;([...fields.querySelectorAll("button")].find(item => item.textContent === "SSH") as HTMLButtonElement).click()
     await headless.capture(element)
     const remote = card.querySelector('[aria-label="Удалённое исполнение Chrome Studio"]')!

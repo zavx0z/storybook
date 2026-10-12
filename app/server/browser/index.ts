@@ -2,6 +2,8 @@
 Общее пространство внешнего Storybook: выбранный предмет, инспекция, ввод
 и снимки в одной браузерной странице. Смена адреса сохраняет пространство
 и проверяет принадлежность каждого последующего действия.
+Открытие с переходом отделяет новые ошибки от истории сохранённой страницы;
+повторное открытие уже показанного кандидата сохраняет полную проверку консоли.
 
 @packageDocumentation
 */
@@ -83,6 +85,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     view: StorybookPublicView
     identity: StorybookBridgeIdentity
     reused: boolean
+    consoleErrors?: readonly StorybookChromeConsoleEntry[]
   }>> {
     const origin = loopbackOrigin(input.origin)
     const packageId = input.packageId === null ? null : exactPackageId(input.packageId)
@@ -116,7 +119,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     input: StorybookBrowserOpenInput & Readonly<{origin: string; route: string; url: string; timeoutMs: number}>,
     signal: AbortSignal,
     reportPhase: (phase: string) => void,
-  ): Promise<Readonly<{view: StorybookPublicView; identity: StorybookBridgeIdentity; reused: boolean}>> {
+  ): Promise<Readonly<{view: StorybookPublicView; identity: StorybookBridgeIdentity; reused: boolean; consoleErrors?: readonly StorybookChromeConsoleEntry[]}>> {
     const {origin, packageId, route, url, timeoutMs} = input
     reportPhase("Chrome connection")
     await this.#chrome.ensure(signal)
@@ -181,6 +184,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
       viewName: typeof workspace?.raw?.viewName === "string" ? workspace.raw.viewName : undefined})
     reportPhase("workspace readiness")
     let before = workspace?.identity ?? null
+    let priorConsole: readonly StorybookChromeConsoleEntry[] | null = null
     const legacy = workspace !== null && (workspace.raw?.capabilities as {inPageNavigation?: unknown} | undefined)?.inPageNavigation !== true
     const nativeNavigation = workspace?.stalled === true || new URL(selected.url).origin !== origin ||
       legacy && (!sameDestination || input.expectedRevision !== undefined && before?.revision !== input.expectedRevision)
@@ -196,6 +200,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
         if (!sameStorybookViewUrl(previous.href, requested.href) ||
           !sameDestination && input.expectedRevision === undefined) throw new Error("Storybook recovery route change is not authorised")
       }
+      if (before !== null) priorConsole = await this.#chrome.consoleEntries(selected.targetId, 0, signal)
       await this.#chrome.navigate(selected.targetId, navigationUrl, signal)
       before = null
     }
@@ -210,6 +215,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
       }
       if (input.followEnvironment === true && navigationIdentity.followEnvironment !== true) throw new Error("Storybook environment following was disabled before navigation")
       const previous = identity
+      priorConsole = await this.#chrome.consoleEntries(selected.targetId, 0, signal)
       const result = bridgeIdentity(await this.#chrome.callBridge(selected.targetId, "navigate", {
         schemaVersion: 1, expectedPackageId: previous.packageId, packageId, route,
         url: new URL(navigationUrl).pathname + new URL(navigationUrl).search,
@@ -220,6 +226,15 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
       if (identity.timeOrigin !== previous.timeOrigin || result.timeOrigin !== previous.timeOrigin) {
         throw new Error("Storybook in-page navigation replaced its realm")
       }
+    }
+    let errors: readonly StorybookChromeConsoleEntry[] | undefined
+    if (priorConsole !== null) {
+      const currentConsole = await this.#chrome.consoleEntries(selected.targetId, 250, signal)
+      const seen = new Set(priorConsole.filter(entry => typeof entry.timestamp === "number").map(entry => JSON.stringify(entry)))
+      errors = consoleErrors(currentConsole.filter(entry => !seen.has(JSON.stringify(entry))))
+      const verified = bridgeIdentity(await this.#chrome.callBridge(selected.targetId, "identity", {schemaVersion: 1}, signal))
+      if (verified.timeOrigin !== identity.timeOrigin) throw new Error("Storybook workspace replaced its realm during opening verification")
+      identity = verified
     }
     if (identity.packageId !== packageId || identity.route !== route) {
       throw new Error(`Storybook bridge identity mismatch: expected ${packageId}:${route}`)
@@ -235,7 +250,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Outp
     if (unresolved === null) this.#state.writeWorkspace({packageId, cdpOrigin, browserIdentity,
       targetId: selected.targetId, url: current.url, viewName: identity.viewName})
     const view = this.#views.register({...current, packageId, route: identity.route}, origin)
-    return Object.freeze({view, identity, reused})
+    return Object.freeze({view, identity, reused, ...(errors === undefined ? {} : {consoleErrors: errors})})
   }
 
   async #observeWorkspace(

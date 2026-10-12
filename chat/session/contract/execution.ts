@@ -10,7 +10,7 @@ export type ExecutionSelection = Readonly<{connectionId?: string, model?: string
 /** Источник каждого независимо наследуемого значения исполнения. */
 export type ExecutionSource = "general" | "type" | "executor" | "session" | "native"
 
-/** Адрес Ollama на этой машине; SSH запускается только отдельными аргументами. */
+/** Адрес Ollama на машине выбранного ACP executor; SSH запускается только отдельными аргументами. */
 export type OllamaEndpoint = ProviderConnection.Input
 
 /** Capsule Studio на машине ACP-исполнителя и уже запущенный профиль выбранного сервиса. */
@@ -40,8 +40,23 @@ export type CapsuleSsh = Readonly<{
   dockerContext?: string
 }>
 
-/** Реальное подключение среды; credentials и команды запуска в каталог не входят. */
-export type ExecutionConnection = Readonly<{id: string, label: string, enabled: boolean}> & (
+/**
+Доставка ACP выбранному участнику и заранее настроенному executor.
+
+@property peerId - Identity участника: от 1 до 256 ASCII букв, цифр и `._:-`,
+первый символ — буква либо цифра. Сеть и авторизация участника принадлежат хосту.
+
+@property executorId - Identity executor из разрешённого списка удалённого хоста,
+с теми же ограничениями формата. Не является command, путём или provider session.
+*/
+export type ExecutionPeer = Readonly<{peerId: string, executorId: string}>
+
+/**
+Реальное подключение среды; credentials и команды запуска в каталог не входят.
+Peer независим от вида provider, сохраняет connection ID и исключает SSH.
+Endpoint принадлежит provider на машине peer; каталог и запуск назначает его хост.
+*/
+export type ExecutionConnection = Readonly<{id: string, label: string, enabled: boolean, peer?: ExecutionPeer}> & (
   Readonly<{provider: "codex", ssh?: CodexSsh}> | Readonly<{provider: "ollama", endpoint: OllamaEndpoint}> |
   Readonly<{provider: "capsule", endpoint: CapsuleEndpoint, ssh?: CapsuleSsh}> |
   Readonly<{provider: "chrome-studio", endpoint: ProviderConnectionChromeStudio.Input, ssh?: Omit<CapsuleSsh, "dockerContext">}>

@@ -1,3 +1,4 @@
+import type {OwnedStream} from "./owned-stream"
 import type {
   NewSessionRequest,
   PromptResponse,
@@ -11,11 +12,13 @@ import type {
 
 /** Контракт долгоживущего ACP-подключения одного владельца сессии. */
 export declare namespace StorybookTechAcp {
+
   /**
   Подключение к агенту со штатными типами ACP SDK.
 
-  @property cwd - Абсолютный существующий локальный каталог дочернего процесса.
-  Не является самостоятельным ограничением файлового доступа агента.
+  @property cwd - Абсолютный существующий локальный каталог назначения.
+  Для process transport это каталог дочернего процесса; ownedStream сохраняет
+  ту же проверку локального назначения. Не является самостоятельным sandbox.
 
   @property [agentCwd] - Абсолютный каталог на машине агента для session/new,
   session/load и session/resume. Локальный transport не читает этот путь;
@@ -76,6 +79,13 @@ export declare namespace StorybookTechAcp {
   @property [installation] - Абсолютный корень установленного инструмента Storybook.
   Адаптер разрешается относительно его package.json, независимо от cwd проекта
   и каталога bundle/artifact. Без значения используется текущий исходный модуль.
+
+  @property [ownedStream] - Готовое соединение с исполнителем вместо запуска процесса.
+  Сохраняет initialize, session lifecycle, updates, replay, permission и cancel.
+  Не читает process environment или registry и не запускает CLI. Несовместим
+  с command, adapter, args, argsForEnv, env, mode, config, exclusiveMcp и installation
+  при любом заданном значении. Политику удалённого исполнителя обеспечивает хост
+  этого транспорта; MCP и agentCwd остаются заявкой, проверяемой его авторизацией.
   */
   type Input = Readonly<{
     cwd: string
@@ -100,10 +110,11 @@ export declare namespace StorybookTechAcp {
     signal?: AbortSignal
     exclusiveMcp?: boolean
     installation?: string
+    ownedStream?: OwnedStream
   }>
 
   /**
-  Сессия и принадлежащий ей процесс ACP.
+  Сессия и принадлежащий ей транспорт ACP.
 
   @property sessionId - Фактически созданная либо восстановленная ACP identity.
 
@@ -115,7 +126,8 @@ export declare namespace StorybookTechAcp {
   @property cancel - Отправляет session/cancel активной сессии.
   Завершение отправки не подменяет итог текущего prompt.
 
-  @property dispose - Закрывает transport и подтверждает выход дочернего процесса.
+  @property dispose - Закрывает transport и ожидает его освобождения владельцем.
+  Для process transport подтверждает выход дочернего процесса.
   Повторные вызовы разделяют одно завершение; после начала disposal новые вызовы
   отклоняются. Владение историей чата сюда не передаётся.
   */

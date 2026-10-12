@@ -66,7 +66,9 @@
     "@zavx0z/provider-tech-ssh": "link:@zavx0z/provider-tech-ssh",
     "@zavx0z/provider-app-chrome-studio": "link:@zavx0z/provider-app-chrome-studio",
     "@zavx0z/provider-connection-chrome-studio": "link:@zavx0z/provider-connection-chrome-studio",
-    "@zavx0z/immersive": "link:@zavx0z/immersive"
+    "@zavx0z/immersive": "link:@zavx0z/immersive",
+    "@metafor/tech-peer": "link:@metafor/tech-peer",
+    "@zavx0z/provider-tech-peer": "link:@zavx0z/provider-tech-peer"
   },
   "bin": {
     "zavx0z": "./app/bin/zavx0z.ts"

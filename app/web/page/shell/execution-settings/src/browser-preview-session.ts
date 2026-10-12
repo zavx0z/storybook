@@ -4,6 +4,7 @@ import {remotePoint} from "@capsule/webrtc/input"
 import {mapCapturedPointerCommand, type CapsuleRemoteInputScreen} from "@capsule/webrtc/preview"
 import type {InputCommand, InputButton, InputModifier} from "@capsule/input/protocol"
 import type {BrowserViewerDescriptor} from "./client"
+import type {CapsuleRtcIceConfiguration} from "@capsule/webrtc/ice"
 
 type Video = CapsuleRtcVideoElementLike & Pick<HTMLVideoElement, "getBoundingClientRect">
 type Viewer = Pick<CapsuleRtcViewer, "connect" | "close" | "sendControl">
@@ -25,6 +26,7 @@ export function createBrowserPreviewSession(options: Readonly<{
   origin: string
   video: Video
   open(signal: AbortSignal): Promise<BrowserViewerDescriptor>
+  configuration?(descriptor: BrowserViewerDescriptor, signal: AbortSignal): Promise<CapsuleRtcIceConfiguration>
   onState(state: BrowserPreviewState): void
   lifecycle?: Lifecycle | undefined
   onBoundary?: (() => void) | undefined
@@ -95,6 +97,15 @@ export function createBrowserPreviewSession(options: Readonly<{
         if (closed || controller.signal.aborted) return
         viewer = (options.viewerFactory ?? (options => new CapsuleRtcViewer(options)))({
           serverOrigin: options.origin, instanceId: descriptor.instanceId, controlEnabled: descriptor.controlEnabled,
+          preparePeer: async peer => {
+            // Согласование системного звука не включает микрофон пользователя.
+            if (descriptor.audio === true) peer.addTransceiver("audio", {direction: "recvonly"})
+          },
+          loadIceConfiguration: async () => {
+            controller.signal.throwIfAborted()
+            if (!options.configuration) throw new Error("Хост не предоставил ICE-конфигурацию браузера")
+            return options.configuration(descriptor, controller.signal)
+          },
           socketFactory: generated => {
             const peer = new URL(generated).searchParams.get("peer")
             const url = new URL(descriptor.socketPath, options.origin)

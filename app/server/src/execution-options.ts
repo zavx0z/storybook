@@ -1,5 +1,6 @@
 import type createAcp from "@zavx0z/storybook-tech-acp"
-import {providerTransport} from "./provider-routing"
+import {resolveProviderTransport, type OpenProviderPeer} from "./provider-routing"
+import {randomUUID} from "node:crypto"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
 export {internalCodexPolicy} from "./provider-routing"
@@ -7,9 +8,10 @@ export {internalCodexPolicy} from "./provider-routing"
 /**
 Одно короткоживущее ACP-подключение читает реальные варианты по явному запросу HUD.
 Сообщения модели не отправляются, пользовательская беседа не изменяется.
-Параллельные probe отклоняются, отмена и завершение освобождают процесс.
+Параллельные probe отклоняются, отмена и завершение освобождают транспорт.
+Peer probe получает отдельное временное назначение без native resume reference.
 */
-export function createExecutionOptions(options: {project: string, toolRoot: string, connect: typeof createAcp}) {
+export function createExecutionOptions(options: {project: string, toolRoot: string, connect: typeof createAcp, openPeer?: OpenProviderPeer}) {
   let active: AbortController | undefined
   let finished: Promise<void> | undefined
   let disposed = false
@@ -27,7 +29,7 @@ export function createExecutionOptions(options: {project: string, toolRoot: stri
       let connection: Awaited<ReturnType<typeof createAcp>> | undefined
       try {
         connection = await options.connect({
-          ...providerTransport(options, selected),
+          ...await resolveProviderTransport(options, selected, {assignmentId: `capabilities:${randomUUID()}`, signal: lifetime}),
           // Native cwd удалённого агента остаётся в отдельном agentCwd.
           cwd: options.project,
           signal: lifetime,

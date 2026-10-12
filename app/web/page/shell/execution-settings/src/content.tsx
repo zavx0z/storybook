@@ -11,6 +11,7 @@ import Preferences from "@zavx0z/storybook-chat-preferences"
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import {createSettingsClient} from "./client"
 import {BrowserPreview} from "./browser-preview"
+import {connectionPeer, connectionPeerError} from "./state"
 
 type SettingsDocument = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>
 type Connection = SettingsDocument["connections"][number]
@@ -73,6 +74,8 @@ function SettingsForm(props: Readonly<{initial: SettingsDocument, client: Return
   const change = (value: SettingsDocument) => {setDraft(value); setError(""); setNotice("")}
   const save = async () => {
     if (busy || !dirty) return
+    const peerError = connectionPeerError(draft.connections)
+    if (peerError) {setError(peerError); return}
     setBusy(true)
     setError("")
     try {
@@ -271,7 +274,7 @@ function ConnectionCard(props: Readonly<{
     } finally {if (alive.current) setProbing(false)}
   }
   return <Panel
-    label={connection.label}
+    label={connection.peer ? `${connection.label} · Пир: ${connection.peer.peerId} / ${connection.peer.executorId}` : connection.label}
     checked={connection.enabled}
     checkDisabled={props.busy || probing}
     onCheckedChange={enabled => props.onChange({...connection, enabled})}
@@ -331,7 +334,12 @@ function ConnectionFields(props: Readonly<{
         disabled={props.busy || props.probing}
         onInput={label => props.onChange({...connection, label})}
       />
-      {connection.provider === "codex" ? <CodexFields
+      <PeerFields
+        connection={connection}
+        busy={props.busy || props.probing}
+        onChange={props.onChange}
+      />
+      {connection.provider === "codex" && connection.peer === undefined ? <CodexFields
         connection={connection}
         busy={props.busy || props.probing}
         onChange={props.onChange}
@@ -351,6 +359,67 @@ function ConnectionFields(props: Readonly<{
       {props.result ? <SettingsNotice text={props.result} /> : null}
       {props.error ? <SettingsError text={props.error} /> : null}
     </section>
+}
+function PeerFields(props: Readonly<{
+  connection: Connection
+  busy: boolean
+  onChange(value: Connection): void
+}>) {
+  const [open, setOpen] = useState(props.connection.peer !== undefined)
+  const previous = useRef<Connection | undefined>(undefined)
+  const retainedPeer = useRef(props.connection.peer ?? {peerId: "", executorId: ""})
+  const peer = props.connection.peer
+  return <Panel
+    label="Пир"
+    checked={peer !== undefined}
+    checkDisabled={props.busy}
+    onCheckedChange={enabled => {
+      if (enabled) {
+        previous.current = props.connection
+        props.onChange(connectionPeer(props.connection, retainedPeer.current))
+      } else {
+        if (peer !== undefined) retainedPeer.current = peer
+        props.onChange(connectionPeer(props.connection, undefined, previous.current))
+      }
+      setOpen(enabled)
+    }}
+    expanded={open}
+    onToggle={setOpen}
+  >
+    {peer === undefined ? null : <PeerRemoteFields
+      peer={peer}
+      busy={props.busy}
+      onChange={value => props.onChange(connectionPeer(props.connection, value))}
+    />}
+  </Panel>
+}
+function PeerRemoteFields(props: Readonly<{
+  peer: NonNullable<Connection["peer"]>
+  busy: boolean
+  onChange(value: NonNullable<Connection["peer"]>): void
+}>) {
+  return <section
+    aria-label="Исполнение через пира"
+    style={css`
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-4);
+    `}
+  >
+    <TextField
+      label="Участник"
+      value={props.peer.peerId}
+      disabled={props.busy}
+      onInput={peerId => props.onChange({...props.peer, peerId})}
+    />
+    <TextField
+      label="Исполнитель"
+      value={props.peer.executorId}
+      disabled={props.busy}
+      onInput={executorId => props.onChange({...props.peer, executorId})}
+    />
+    <SettingsNotice text="Адрес сервиса и профиль относятся к машине участника. Доступ к исполнителю настраивает его хост." />
+  </section>
 }
 function CodexFields(props: Readonly<{
   connection: Extract<Connection, {provider: "codex"}>
@@ -447,7 +516,7 @@ function BrowserProfileFields(props: Readonly<{
         if (service === "qwen" || service === "deepseek" || service === "chatgpt") props.onChange({...props.connection, endpoint: {...endpoint, service}})
       }}
     />
-    <Panel
+    {props.connection.peer === undefined ? <Panel
       label="SSH"
       checked={!!props.connection.ssh}
       checkDisabled={props.busy}
@@ -463,7 +532,7 @@ function BrowserProfileFields(props: Readonly<{
       busy={props.busy}
       onChange={props.onChange}
     />
-    </Panel>
+    </Panel> : null}
   </section>
 }
 function BrowserSshFields(props: Parameters<typeof BrowserProfileFields>[0]) {
@@ -565,7 +634,7 @@ function OllamaFields(props: Readonly<{
       disabled={props.busy}
       onInput={url => props.onChange({...props.connection, endpoint: {...endpoint, url}})}
     />
-    <Panel
+    {props.connection.peer === undefined ? <Panel
       label="SSH"
       checked={!!endpoint.ssh}
       checkDisabled={props.busy}
@@ -581,7 +650,7 @@ function OllamaFields(props: Readonly<{
       busy={props.busy}
       onChange={props.onChange}
     />
-    </Panel>
+    </Panel> : null}
   </section>
 }
 
