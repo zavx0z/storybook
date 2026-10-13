@@ -14,6 +14,7 @@
     "@zavx0z/storybook-chat-preferences": "workspace:*",
     "@capsule/webrtc": "link:@capsule/webrtc",
     "@capsule/input": "link:@capsule/input",
+    "@capsule/screenshot": "link:@capsule/screenshot",
     "@zavx0z/immersive": "^0.0.0"
   },
   "devDependencies": {

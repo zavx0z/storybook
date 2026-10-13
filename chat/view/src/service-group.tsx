@@ -14,7 +14,7 @@ import { ChatContent, ChatContextContent, ChatData } from "./content"
 Конструктор в useMemo не публикует состояние; чтение начинается из commit effect.
 Disposal отзывает всё вложенное окно и освобождает долю общего бюджета host. */
 export default function ServiceGroup(
-  props: Readonly<{ group: HistoryGroup; view: StorybookChatView.Input }>
+  props: Readonly<{ group: HistoryGroup; view: StorybookChatView.Timeline }>
 ) {
   const heights = useRef<ReadonlyMap<string, number>>(new Map())
   const controller = useMemo(
@@ -49,7 +49,7 @@ export default function ServiceGroup(
     chatId: conversationId,
     rows: rows.map(({ evidence, ...row }) => row)
   }
-  const view: StorybookChatView.Input = {
+  const view: StorybookChatView.Timeline = {
     ...props.view,
     history,
     onHistoryViewport: (value) => controller?.viewport(value),
@@ -102,7 +102,7 @@ function ServiceOccurrence(
       loading: boolean
       error?: string | undefined
     }
-    view: StorybookChatView.Input
+    view: StorybookChatView.Timeline
     height: number
   }>
 ) {
@@ -167,7 +167,7 @@ function ServiceOccurrence(
 }
 
 function ServiceBody(
-  props: Readonly<{ body: DisplayBody; header: HistoryOccurrence; view: StorybookChatView.Input }>
+  props: Readonly<{ body: DisplayBody; header: HistoryOccurrence; view: StorybookChatView.Timeline }>
 ) {
   const { body, header, view } = props
   return (
@@ -186,7 +186,7 @@ function ServiceBody(
 function ServiceToolContent(
   props: Readonly<{
     content: NonNullable<Extract<DisplayBody, { kind: "tool" }>["call"]["content"]>[number]
-    view: StorybookChatView.Input
+    view: StorybookChatView.Timeline
   }>
 ) {
   const { content, view } = props
@@ -209,10 +209,10 @@ export function ContentFragments(
   props: Readonly<{
     id: string
     body: Extract<DisplayBody, { kind: "message" | "context" }>
-    view: StorybookChatView.Input
+    view: StorybookChatView.Timeline
   }>
 ) {
-  type Page = Awaited<ReturnType<NonNullable<StorybookChatView.Input["readHistoryContent"]>>>
+  type Page = Awaited<ReturnType<NonNullable<StorybookChatView.Timeline["readHistoryContent"]>>>
   const [page, setPage] = useState<Page | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -279,7 +279,7 @@ export function ContentFragments(
 
 /** Readonly JSON fragment — отдельная frontend проекция, не поддельный ACP event. */
 export function DetailFragments(
-  props: Readonly<{ body: Extract<DisplayBody, { kind: "detail" }>; view: StorybookChatView.Input }>
+  props: Readonly<{ body: Extract<DisplayBody, { kind: "detail" }>; view: StorybookChatView.Timeline }>
 ) {
   const [page, setPage] = useState(props.body.detail)
   const [loading, setLoading] = useState(false)
@@ -351,7 +351,7 @@ export function DetailFragments(
 function ServiceRows(
   props: Readonly<{
     rows: readonly Parameters<typeof ServiceOccurrence>[0]["row"][]
-    view: StorybookChatView.Input
+    view: StorybookChatView.Timeline
     heights: ReadonlyMap<string, number>
   }>
 ) {
@@ -388,7 +388,7 @@ function PendingService(
   )
 }
 function ServiceToolBody(
-  props: Readonly<{ body: Extract<DisplayBody, { kind: "tool" }>; view: StorybookChatView.Input }>
+  props: Readonly<{ body: Extract<DisplayBody, { kind: "tool" }>; view: StorybookChatView.Timeline }>
 ) {
   const terminal = readTerminalOutput(props.body.call)
   return (
@@ -415,7 +415,7 @@ function ServiceContextBody(
   props: Readonly<{
     body: Extract<DisplayBody, { kind: "message" | "context" }>
     header: HistoryOccurrence
-    view: StorybookChatView.Input
+    view: StorybookChatView.Timeline
   }>
 ) {
   return (
@@ -431,8 +431,8 @@ function ServiceContextBody(
 }
 function ContentPage(
   props: Readonly<{
-    page: Awaited<ReturnType<NonNullable<StorybookChatView.Input["readHistoryContent"]>>>
-    view: StorybookChatView.Input
+    page: Awaited<ReturnType<NonNullable<StorybookChatView.Timeline["readHistoryContent"]>>>
+    view: StorybookChatView.Timeline
   }>
 ) {
   return (

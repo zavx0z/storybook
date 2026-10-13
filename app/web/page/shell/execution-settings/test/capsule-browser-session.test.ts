@@ -229,3 +229,181 @@ test("audio runtime предлагает один receive-only канал без
     f.session.close()
   }
 })
+
+test("compiled viewer сохраняет host-owned MetaFor/Storybook route и отклоняет cross-origin, URL и peer injection", async () => {
+  const {mkdtemp, rm} = await import("node:fs/promises")
+  const {tmpdir} = await import("node:os")
+  const {join} = await import("node:path")
+  const {pathToFileURL} = await import("node:url")
+  const directory = await mkdtemp(join(tmpdir(), "shared-browser-viewer-"))
+  const originalSocket = globalThis.WebSocket
+  const sockets: string[] = []
+  try {
+    const built = await Bun.build({entrypoints: [join(import.meta.dir, "../src/browser-preview-session.ts")], target: "bun", outdir: directory, packages: "bundle"})
+    if (!built.success) throw new AggregateError(built.logs, "Shared browser session did not compile")
+    const {createBrowserPreviewSession: create} = await import(pathToFileURL(join(directory, "browser-preview-session.js")).href) as typeof import("../src/browser-preview-session")
+    globalThis.WebSocket = class {constructor(url: string | URL) {sockets.push(String(url))}} as unknown as typeof WebSocket
+    const make = async (socketPath: string, origin = "http://storybook") => {
+      let options!: CapsuleRtcViewerOptions
+      const session = create({origin, video: new Video(), open: async () => ({instanceId: "instance-1", profile: "work", socketPath, controlEnabled: true}), onState() {},
+        viewerFactory: value => {options = value; return {connect() {}, close() {}, sendControl() {return true}}}})
+      await session.start()
+      return {session, socket: (generated: string) => options.socketFactory!(generated)}
+    }
+    for (const [origin, path, expected] of [
+      ["http://storybook", "/api/browser/browser-viewer?ticket=private", "ws://storybook/api/browser/browser-viewer?ticket=private&peer=viewer-1"],
+      ["http://127.0.0.1:4444", "/agents/browser/socket?ticket=private&instanceId=instance-1", "ws://127.0.0.1:4444/agents/browser/socket?ticket=private&instanceId=instance-1&peer=viewer-1"],
+      ["https://metafor.example", "/agents/browser/socket?ticket=private&instanceId=instance-1", "wss://metafor.example/agents/browser/socket?ticket=private&instanceId=instance-1&peer=viewer-1"],
+    ]) {
+      const f = await make(path!, origin)
+      try {f.socket("ws://generated/rtc?peer=viewer-1"); expect(sockets.at(-1)).toBe(expected)} finally {f.session.close()}
+    }
+    for (const path of [
+      "https://outsider.example/socket?ticket=private", "http://storybook/api/browser/browser-viewer?ticket=private", "//outsider.example/socket?ticket=private",
+      "/\\outsider.example/socket?ticket=private", "/agents/browser/socket?ticket=private#fragment", "/agents/../socket?ticket=private",
+      "/agents/browser/socket?ticket=private&peer=injected", "/agents/browser/socket?ticket=private&%70eer=injected",
+      "/agents/browser/socket?ticket=private\n", "javascript:alert(1)",
+    ]) {
+      const f = await make(path)
+      const before = sockets.length
+      try {expect(() => f.socket("ws://generated/rtc?peer=viewer-1")).toThrow("Некорректный адрес viewer"); expect(sockets).toHaveLength(before)} finally {f.session.close()}
+    }
+    const f = await make("/agents/browser/socket?ticket=private&instanceId=instance-1")
+    try {
+      for (const generated of ["ws://generated/rtc", "ws://generated/rtc?peer=a&peer=b", "ws://generated/rtc?peer=viewer%26injected%3Dtrue"]) {
+        expect(() => f.socket(generated)).toThrow("Некорректный адрес viewer")
+      }
+    } finally {f.session.close()}
+  } finally {globalThis.WebSocket = originalSocket; await rm(directory, {recursive: true, force: true})}
+})
+
+test("active viewer renews the same descriptor sequentially without creating another RTC peer and close aborts an in-flight renewal", async () => {
+  const descriptor = {instanceId: "instance-1", profile: "work", socketPath: "/agents/browser/socket?ticket=private&instanceId=instance-1", controlEnabled: true}
+  let peers = 0, closes = 0, renews = 0, pending = 0, maximum = 0
+  let renewalSignal: AbortSignal | undefined
+  const started = Promise.withResolvers<void>(), release = Promise.withResolvers<void>()
+  const session = createBrowserPreviewSession({origin: "http://storybook", video: new Video(), open: async () => descriptor, onState() {}, renewalIntervalMs: 5,
+    async renew(value, signal) {
+      expect(value).toBe(descriptor)
+      expect(signal.aborted).toBe(false)
+      renewalSignal = signal
+      renews++
+      pending++
+      maximum = Math.max(maximum, pending)
+      try {
+        if (renews === 2) {started.resolve(); await release.promise}
+        else await Bun.sleep(15)
+      } finally {pending--}
+    },
+    viewerFactory: () => {peers++; return {connect() {}, close() {closes++}, sendControl() {return true}}},
+  })
+  try {
+    await session.start()
+    await started.promise
+    expect(renews).toBe(2)
+    expect(peers).toBe(1)
+    expect(maximum).toBe(1)
+    session.close()
+    expect(renewalSignal?.aborted).toBe(true)
+    release.resolve()
+    await Bun.sleep(25)
+    expect(renews).toBe(2)
+    expect(peers).toBe(1)
+    expect(closes).toBe(1)
+    expect(pending).toBe(0)
+  } finally {release.resolve(); session.close()}
+})
+
+test("failed renewal fails closed once, stops its timer and requires a new manual viewer session", async () => {
+  let peers = 0, closes = 0, renews = 0
+  const states: Array<{status: string; error: string}> = []
+  const session = createBrowserPreviewSession({origin: "http://storybook", video: new Video(),
+    open: async () => ({instanceId: "instance-1", profile: "work", socketPath: "/agents/browser/socket?ticket=private&instanceId=instance-1", controlEnabled: true}),
+    onState: state => states.push(state), renewalIntervalMs: 5,
+    async renew() {renews++; throw new Error("Provider revoked the viewer")},
+    viewerFactory: () => {peers++; return {connect() {}, close() {closes++}, sendControl() {return true}}},
+  })
+  try {
+    await session.start()
+    await Bun.sleep(30)
+    expect(states.filter(state => state.status === "failed")).toEqual([expect.objectContaining({error: "Provider revoked the viewer"})])
+    expect(closes).toBe(1)
+    expect(renews).toBe(1)
+    await session.start()
+    await Bun.sleep(20)
+    expect(renews).toBe(1)
+    expect(peers).toBe(1)
+  } finally {session.close()}
+  expect(closes).toBe(1)
+})
+
+test("viewer without renewal capability preserves the previous lifecycle and closing before the timer sends no renewal", async () => {
+  const without = fixture()
+  await without.session.start()
+  await Bun.sleep(15)
+  expect(without.counts()).toEqual({started: 1, closed: 0, created: 1})
+  without.session.close()
+  let renews = 0
+  const session = createBrowserPreviewSession({origin: "http://storybook", video: new Video(),
+    open: async () => ({instanceId: "instance-1", profile: "work", socketPath: "/agents/browser/socket?ticket=private&instanceId=instance-1", controlEnabled: true}),
+    onState() {}, renewalIntervalMs: 20, async renew() {renews++},
+    viewerFactory: () => ({connect() {}, close() {}, sendControl() {return true}}),
+  })
+  await session.start()
+  session.close()
+  await Bun.sleep(30)
+  expect(renews).toBe(0)
+})
+
+test("disconnected or terminal viewer stops renewal; recovery of the same RTC resumes only the existing grant", async () => {
+  let callbacks!: CapsuleRtcViewerOptions
+  let renews = 0, peers = 0
+  const session = createBrowserPreviewSession({origin: "http://storybook", video: new Video(),
+    open: async () => ({instanceId: "instance-1", profile: "work", socketPath: "/agents/browser/socket?ticket=private&instanceId=instance-1", controlEnabled: true}),
+    onState() {}, renewalIntervalMs: 5, async renew() {renews++},
+    viewerFactory: options => {callbacks = options; peers++; return {connect() {}, close() {}, sendControl() {return true}}},
+  })
+  const status = (value: "connected" | "disconnected" | "failed" | "closed") => callbacks.onState?.({status: value, controlStatus: "closed", instanceId: "instance-1", viewerPeerId: "viewer-1", signalingUrl: "unused"})
+  try {
+    await session.start()
+    status("disconnected")
+    await Bun.sleep(20)
+    expect(renews).toBe(0)
+    status("connected")
+    await Bun.sleep(15)
+    expect(renews).toBeGreaterThan(0)
+    expect(peers).toBe(1)
+    for (const terminal of ["failed", "closed"] as const) {
+      status(terminal)
+      const before = renews
+      await Bun.sleep(20)
+      expect(renews).toBe(before)
+    }
+  } finally {session.close()}
+})
+
+test("ended video track stops renewal even while RTC remains connected; a new live stream resumes the same viewer", async () => {
+  let callbacks!: CapsuleRtcViewerOptions
+  let mediaState!: (state: import("../src/browser-preview-session").BrowserPreviewState) => void
+  let renews = 0, peers = 0
+  const session = createBrowserPreviewSession({origin: "http://storybook", video: new Video(),
+    open: async () => ({instanceId: "instance-1", profile: "work", socketPath: "/agents/browser/socket?ticket=private&instanceId=instance-1", controlEnabled: true}),
+    onState() {}, renewalIntervalMs: 5, async renew() {renews++},
+    mediaFactory: (_video, emit) => {mediaState = emit; return {async attach() {}, clear() {}, setMuted() {}}},
+    viewerFactory: options => {callbacks = options; peers++; return {connect() {}, close() {}, sendControl() {return true}}},
+  })
+  const connected = () => callbacks.onState?.({status: "connected", controlStatus: "closed", instanceId: "instance-1", viewerPeerId: "viewer-1", signalingUrl: "unused"})
+  try {
+    await session.start()
+    connected()
+    mediaState({status: "connected", controlStatus: "closed", mediaStatus: "failed", width: 1000, height: 500, error: "Remote video track ended."})
+    await Bun.sleep(20)
+    connected()
+    await Bun.sleep(20)
+    expect(renews).toBe(0)
+    mediaState({status: "connected", controlStatus: "closed", mediaStatus: "playing", width: 1000, height: 500, error: ""})
+    await Bun.sleep(15)
+    expect(renews).toBeGreaterThan(0)
+    expect(peers).toBe(1)
+  } finally {session.close()}
+})

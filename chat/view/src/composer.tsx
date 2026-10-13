@@ -63,10 +63,10 @@ export function ChatComposer(input: Readonly<{view: Contract.Input}>) {
       draft={props.draft}
       busy={busy}
       sendDisabled={props.configuring === true}
-      canCancel={props.status === "connecting" || props.status === "running"}
+      canCancel={props.onCancel !== undefined && (props.status === "connecting" || props.status === "running")}
       onDraftChange={props.onDraftChange}
       onSend={props.onSend}
-      onCancel={props.onCancel}
+      onCancel={props.onCancel ?? (() => {})}
       onFocus={() => setSettingsOpen(false)}
       attachments={props.attachments}
       onAttach={props.onAttach}
@@ -74,12 +74,12 @@ export function ChatComposer(input: Readonly<{view: Contract.Input}>) {
       onRemove={props.onRemoveAttachment}
       onPreview={attachment => props.onMedia?.({source: attachment.attachment, mimeType: attachment.attachment.mimeType, label: attachment.attachment.name})}
     >
-      <ChatApprovalControl
+      {props.execution ? <ChatApprovalControl
         approval={props.execution?.effective.approvalMode === "scoped-autonomous" ? "В пределах назначения" : "С подтверждениями"}
         expanded={settingsOpen}
         disabled={props.sending === true}
         onToggle={() => setSettingsOpen(!settingsOpen)}
-      />
+      /> : null}
     </Composer>
   </div>
 }

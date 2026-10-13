@@ -540,6 +540,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@capsule/input": "link:@capsule/input",
+        "@capsule/screenshot": "link:@capsule/screenshot",
         "@capsule/webrtc": "link:@capsule/webrtc",
         "@zavx0z/immersive": "^0.0.0",
         "@zavx0z/storybook-app-settings": "workspace:*",
@@ -1403,6 +1404,8 @@
     "@agentclientprotocol/sdk": ["@agentclientprotocol/sdk@1.6.0", "", { "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-XxXrmX7aZkDgOB0Rg9cu+ZFyiUUc5lF2n9seO3Gc4OR+MTdfZOwIqF6m3LvsmmM8K3qgPmXkDH8/IFM2u9vdcQ=="],
 
     "@capsule/input": ["@capsule/input@link:@capsule/input", {}],
+
+    "@capsule/screenshot": ["@capsule/screenshot@link:@capsule/screenshot", {}],
 
     "@capsule/webrtc": ["@capsule/webrtc@link:@capsule/webrtc", {}],
 

@@ -5,6 +5,7 @@ import {mapCapturedPointerCommand, type CapsuleRemoteInputScreen} from "@capsule
 import type {InputCommand, InputButton, InputModifier} from "@capsule/input/protocol"
 import type {BrowserViewerDescriptor} from "./client"
 import type {CapsuleRtcIceConfiguration} from "@capsule/webrtc/ice"
+import {CapsuleBrowserScreenshotProvider, type CapsuleScreenshotVideoLike, type CapsuleScreenshotBrowserSocketLike, type CapsuleScreenshotCanvasLike} from "@capsule/screenshot/browser"
 
 type Video = CapsuleRtcVideoElementLike & Pick<HTMLVideoElement, "getBoundingClientRect">
 type Viewer = Pick<CapsuleRtcViewer, "connect" | "close" | "sendControl">
@@ -18,27 +19,40 @@ type Lifecycle = Readonly<{
   }>
 }>
 type Media = Pick<CapsuleRtcMediaController, "attach" | "clear" | "setMuted">
+type ScreenshotVideo = CapsuleScreenshotVideoLike & Pick<HTMLVideoElement, "srcObject" | "autoplay" | "muted" | "playsInline" | "play" | "pause">
 export type BrowserPreviewState = Readonly<{status: string, controlStatus: string, mediaStatus: string, width: number, height: number, error: string}>
 export const idleBrowserPreview: BrowserPreviewState = {status: "idle", controlStatus: "closed", mediaStatus: "idle", width: 0, height: 0, error: ""}
 
-/** Только semantic события, нормализованные штатными helper Capsule; lifecycle остаётся у viewer/media. */
+/** Semantic ввод принадлежит viewer/media. PNG provider кодирует тот же stream публичным Capsule adapter; отдельный capture decoder не создаёт UI или RTC peer. */
 export function createBrowserPreviewSession(options: Readonly<{
   origin: string
   video: Video
   open(signal: AbortSignal): Promise<BrowserViewerDescriptor>
   configuration?(descriptor: BrowserViewerDescriptor, signal: AbortSignal): Promise<CapsuleRtcIceConfiguration>
+  renew?(descriptor: BrowserViewerDescriptor, signal: AbortSignal): Promise<void>
+  /** Интервал owning grant; проверки могут назначить короткий интервал без ожидания минуты. */
+  renewalIntervalMs?: number | undefined
   onState(state: BrowserPreviewState): void
   lifecycle?: Lifecycle | undefined
   onBoundary?: (() => void) | undefined
   viewerFactory?: (options: CapsuleRtcViewerOptions) => Viewer
   mediaFactory?: (video: Video, onState: (state: BrowserPreviewState) => void) => Media
+  screenshotVideoFactory?: (() => ScreenshotVideo) | undefined
+  screenshotSocketFactory?: ((url: string) => CapsuleScreenshotBrowserSocketLike) | undefined
+  screenshotCanvasFactory?: (() => CapsuleScreenshotCanvasLike) | undefined
 }>) {
   const controller = new AbortController()
   let viewer: Viewer | undefined
+  let screenshot: CapsuleBrowserScreenshotProvider | undefined
+  let screenshotVideo: ScreenshotVideo | undefined
   let state = idleBrowserPreview
   let mediaError = ""
   let viewerError = ""
   let closed = false
+  let failed = false
+  let renewalTimer: ReturnType<typeof setTimeout> | undefined
+  let renewing = false
+  let activeDescriptor: BrowserViewerDescriptor | undefined
   let started = false
   let control = true
   let screen: CapsuleRemoteInputScreen | undefined
@@ -46,9 +60,14 @@ export function createBrowserPreviewSession(options: Readonly<{
   let move: InputCommand | undefined
   let moveTimer: ReturnType<typeof setTimeout> | undefined
   const keys = new Map<string, Extract<InputCommand, {type: "keyDown" | "keyUp"}>>()
-  const emit = (next: BrowserPreviewState) => {
-    if (closed || JSON.stringify(next) === JSON.stringify(state)) return
+  const unavailableStream = (value: BrowserPreviewState) => value.mediaStatus === "failed" || ["failed", "disconnected", "closed"].includes(value.status)
+  const emit = (next: BrowserPreviewState, terminal = false) => {
+    if (closed || failed && !terminal || JSON.stringify(next) === JSON.stringify(state)) return
     state = next
+    if (unavailableStream(next)) {
+      clearTimeout(renewalTimer)
+      renewalTimer = undefined
+    } else if (next.status === "connected" && activeDescriptor) scheduleRenewal(activeDescriptor)
     options.onState(state)
   }
   const media = options.mediaFactory?.(options.video, emit) ?? new CapsuleRtcMediaController(options.video, {
@@ -59,7 +78,7 @@ export function createBrowserPreviewSession(options: Readonly<{
   })
   const base = () => ({v: 1 as const, id: `storybook-${++serial}`})
   const send = (command: InputCommand, force = false): boolean => {
-    if (closed || !viewer || !force && (!control || state.controlStatus !== "open")) return false
+    if (closed || failed || !viewer || !force && (!control || state.controlStatus !== "open")) return false
     const value = screen ? mapCapturedPointerCommand(command, options.video.videoWidth, options.video.videoHeight, screen) : command
     return viewer.sendControl(value)
   }
@@ -87,6 +106,44 @@ export function createBrowserPreviewSession(options: Readonly<{
     viewerError = snapshot.error ?? snapshot.controlError ?? ""
     emit({...state, status: snapshot.status, controlStatus: snapshot.controlStatus, error: mediaError || viewerError})
   }
+  const closeScreenshot = () => {
+    screenshot?.close()
+    screenshot = undefined
+    screenshotVideo?.pause()
+    if (screenshotVideo) screenshotVideo.srcObject = null
+    screenshotVideo = undefined
+  }
+  const fail = (error: unknown) => {
+    if (closed || failed) return
+    release()
+    failed = true
+    clearTimeout(renewalTimer)
+    renewalTimer = undefined
+    controller.abort(error)
+    viewer?.close()
+    viewer = undefined
+    closeScreenshot()
+    media.clear()
+    emit({...state, status: "failed", controlStatus: "closed", error: error instanceof Error ? error.message : String(error)}, true)
+  }
+  const scheduleRenewal = (descriptor: BrowserViewerDescriptor) => {
+    if (!options.renew || closed || failed || controller.signal.aborted || renewing || renewalTimer !== undefined || unavailableStream(state)) return
+    renewalTimer = setTimeout(() => {
+      renewalTimer = undefined
+      if (closed || failed || controller.signal.aborted || unavailableStream(state)) return
+      renewing = true
+      void (async () => {
+        try {
+          await options.renew!(descriptor, controller.signal)
+        } catch (error) {
+          if (!closed && !failed && !unavailableStream(state)) fail(error)
+        } finally {
+          renewing = false
+          scheduleRenewal(descriptor)
+        }
+      })()
+    }, Math.max(1, options.renewalIntervalMs ?? 60_000))
+  }
   return {
     async start() {
       if (started || closed) return
@@ -95,6 +152,38 @@ export function createBrowserPreviewSession(options: Readonly<{
       try {
         const descriptor = await options.open(controller.signal)
         if (closed || controller.signal.aborted) return
+        activeDescriptor = descriptor
+        if (descriptor.screenshotSocketPath !== undefined) {
+          const origin = new URL(options.origin), path = descriptor.screenshotSocketPath, url = new URL(path, origin)
+          const viewerUrl = new URL(descriptor.socketPath, origin)
+          if (path.length > 4096 || !path.startsWith("/") || path.startsWith("//") || /[\\\u0000-\u0020\u007f]/u.test(path) || !["http:", "https:"].includes(origin.protocol)
+            || typeof descriptor.instanceId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(descriptor.instanceId)
+            || typeof descriptor.profile !== "string" || !descriptor.profile || descriptor.profile.length > 128 || /[\u0000-\u001f\u007f]/u.test(descriptor.profile)
+            || url.origin !== origin.origin || url.username || url.password || url.hash || `${url.pathname}${url.search}` !== path
+            || [...url.searchParams.keys()].sort().join(",") !== "instanceId,profile,ticket"
+            || url.searchParams.get("instanceId") !== descriptor.instanceId || url.searchParams.get("profile") !== descriptor.profile
+            || viewerUrl.origin !== origin.origin || viewerUrl.searchParams.getAll("ticket").length !== 1
+            || !url.searchParams.get("ticket") || url.searchParams.get("ticket") !== viewerUrl.searchParams.get("ticket")) throw new Error("Некорректный адрес PNG provider")
+          url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+          screenshotVideo = options.screenshotVideoFactory?.() ?? globalThis.document.createElement("video")
+          screenshotVideo.autoplay = true
+          screenshotVideo.muted = true
+          screenshotVideo.playsInline = true
+          screenshot = new CapsuleBrowserScreenshotProvider({serverOrigin: options.origin, instanceId: descriptor.instanceId, video: screenshotVideo,
+            socketFactory: () => {
+              if (options.screenshotSocketFactory) return options.screenshotSocketFactory(url.href)
+              const socket = new WebSocket(url)
+              return {
+                get readyState() {return socket.readyState},
+                get bufferedAmount() {return socket.bufferedAmount},
+                send(payload) {socket.send(typeof payload === "string" ? payload : Uint8Array.from(payload).buffer)},
+                close(code, reason) {socket.close(code, reason)},
+                addEventListener(type, listener) {socket.addEventListener(type, listener)},
+              }
+            },
+            ...(options.screenshotCanvasFactory ? {canvasFactory: options.screenshotCanvasFactory} : {})})
+          screenshot.connect()
+        }
         viewer = (options.viewerFactory ?? (options => new CapsuleRtcViewer(options)))({
           serverOrigin: options.origin, instanceId: descriptor.instanceId, controlEnabled: descriptor.controlEnabled,
           preparePeer: async peer => {
@@ -107,16 +196,27 @@ export function createBrowserPreviewSession(options: Readonly<{
             return options.configuration(descriptor, controller.signal)
           },
           socketFactory: generated => {
-            const peer = new URL(generated).searchParams.get("peer")
-            const url = new URL(descriptor.socketPath, options.origin)
-            if (url.origin !== new URL(options.origin).origin || url.pathname !== "/api/browser/browser-viewer" || !peer) throw new Error("Некорректный адрес viewer")
+            const generatedUrl = new URL(generated)
+            const peer = generatedUrl.searchParams.get("peer")
+            const origin = new URL(options.origin)
+            const path = descriptor.socketPath
+            const url = new URL(path, origin)
+            if (!path.startsWith("/") || path.startsWith("//") || /[\\\u0000-\u0020\u007f]/u.test(path) ||
+                !["http:", "https:"].includes(origin.protocol) || url.origin !== origin.origin || url.username || url.password || url.hash ||
+                `${url.pathname}${url.search}` !== path || url.searchParams.has("peer") || generatedUrl.searchParams.getAll("peer").length !== 1 ||
+                !peer || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(peer)) throw new Error("Некорректный адрес viewer")
             url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
             url.searchParams.set("peer", peer)
             return new WebSocket(url)
           },
           onState: viewerState,
           onStream: stream => {
-            if (!closed && stream !== null && typeof stream === "object" && "getVideoTracks" in stream && typeof stream.getVideoTracks === "function") {
+            if (!closed && !failed && stream !== null && typeof stream === "object" && "getVideoTracks" in stream && typeof stream.getVideoTracks === "function") {
+              if (screenshotVideo) {
+                const video = screenshotVideo
+                video.srcObject = stream as MediaStream
+                void video.play().catch(error => {if (!closed) emit({...state, error: error instanceof Error ? error.message : String(error)})})
+              }
               void media.attach(stream as CapsuleRtcMediaStreamLike).catch(error => {if (!closed) emit({...state, error: error instanceof Error ? error.message : String(error)})})
             }
           },
@@ -129,9 +229,8 @@ export function createBrowserPreviewSession(options: Readonly<{
           },
         })
         viewer.connect()
-      } catch (error) {
-        if (!closed) {viewer?.close(); media.clear(); emit({...state, status: "failed", error: error instanceof Error ? error.message : String(error)})}
-      }
+        scheduleRenewal(descriptor)
+      } catch (error) {fail(error)}
     },
     pointer(type: "pointerDown" | "pointerUp" | "pointerMove", event: Pick<PointerEvent, "clientX" | "clientY" | "button" | "buttons" | "detail">, captured = false): boolean {
       if (!control || state.controlStatus !== "open" || options.video.videoWidth < 1 || options.video.videoHeight < 1) return false
@@ -199,12 +298,15 @@ export function createBrowserPreviewSession(options: Readonly<{
       if (closed) return
       release()
       closed = true
+      clearTimeout(renewalTimer)
+      renewalTimer = undefined
       controller.abort()
       lifecycle?.removeEventListener("blur", boundary)
       lifecycle?.removeEventListener("pagehide", boundary)
       lifecycle?.document.removeEventListener("visibilitychange", hidden)
       viewer?.close()
       viewer = undefined
+      closeScreenshot()
       media.clear()
     },
   }

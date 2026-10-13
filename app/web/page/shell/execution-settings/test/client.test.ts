@@ -11,6 +11,7 @@ test("переключение вкладок разделяет один зап
     await response.promise
     return Response.json([{id: "model", category: "model", name: "Модель", value: "a", options: [{value: "a", name: "A"}]}])
   }, {preconnect() {}}), new AbortController().signal)
+  expect(client.renewBrowserViewer).toBeUndefined()
   const first = client.options("codex")
   const second = client.options("codex")
   response.resolve()

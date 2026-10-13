@@ -13,6 +13,8 @@ type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
 
 /** Представление беседы с управляемыми принимающим владельцем данными. */
 export declare namespace StorybookChatView {
+  /** Публичная timeline использует только историю и её lazy callbacks, без composer, settings и исполнения. */
+  type Timeline = Pick<Input, "history" | "onHistoryViewport" | "onHistoryVisible" | "onHistoryExpand" | "onHistoryRetry" | "onHistoryEvidence" | "onHistoryTail" | "onHistoryRetryPage" | "createGroupHistory" | "readHistoryContent" | "readHistoryTerminal" | "readHistoryDetail" | "onMedia" | "onCopyMessage" | "onCopyText">
   /**
   Снимок одной беседы и действия над ней.
 
@@ -85,7 +87,7 @@ export declare namespace StorybookChatView {
     error?: string | undefined
     onDraftChange(value: string): void
     onSend(): void
-    onCancel(): void
+    onCancel?: (() => void) | undefined
     settings?: Snapshot["settings"]
     /**
     Разрешённые настройки и их источники; изменение сохраняет override только этой беседы.

@@ -6,7 +6,8 @@
   "type": "module",
   "description": "История беседы, редактор сообщения и управление ответом агента в Inspector",
   "exports": {
-    ".": "./index.tsx"
+    ".": "./index.tsx",
+    "./timeline": "./src/timeline.tsx"
   },
   "scripts": {
     "test": "bun test --preload ./spec/fixture/preload.ts --preload @zavx0z/immersive/headless/preload ./spec"

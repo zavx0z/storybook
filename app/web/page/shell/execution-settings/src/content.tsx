@@ -23,22 +23,23 @@ const scopes: readonly {value: Scope, label: string}[] = [
 ]
 
 /** Закрытое окно не держит черновик и отменяет запросы возможностей. */
-export function SettingsContent(props: Readonly<{open: boolean, section: "defaults" | "connections", fetcher: typeof fetch}>) {
+export function SettingsContent(props: Readonly<{open: boolean, section: "defaults" | "connections", fetcher: typeof fetch, clientFactory?: ((signal: AbortSignal) => ReturnType<typeof createSettingsClient>) | undefined}>) {
   return <div style={css`
     height: 100%;
     min-height: 0;
   `}>
     {props.open ? <SettingsLoader
       fetcher={props.fetcher}
+      clientFactory={props.clientFactory}
       section={props.section}
     /> : null}
   </div>
 }
 
-function SettingsLoader(props: Readonly<{fetcher: typeof fetch, section: "defaults" | "connections"}>) {
+function SettingsLoader(props: Readonly<{fetcher: typeof fetch, section: "defaults" | "connections", clientFactory?: ((signal: AbortSignal) => ReturnType<typeof createSettingsClient>) | undefined}>) {
   const [state] = useState(() => {
     const controller = new AbortController()
-    return {controller, client: createSettingsClient(props.fetcher, controller.signal)}
+    return {controller, client: props.clientFactory?.(controller.signal) ?? createSettingsClient(props.fetcher, controller.signal)}
   })
   const [value, setValue] = useState<SettingsDocument | null>(null)
   const [error, setError] = useState("")
@@ -350,6 +351,7 @@ function ConnectionFields(props: Readonly<{
         onChange={props.onChange}
       /> : null}
       {(connection.provider === "capsule" || connection.provider === "chrome-studio") ? <BrowserProfileFields
+        client={props.client}
         connection={connection}
         busy={props.busy || props.probing}
         onChange={props.onChange}
@@ -476,6 +478,7 @@ function CodexRemoteFields(props: Readonly<{
   </section>
 }
 function BrowserProfileFields(props: Readonly<{
+  client: ReturnType<typeof createSettingsClient>
   connection: Extract<Connection, {provider: "capsule" | "chrome-studio"}>
   busy: boolean
   onChange(value: Connection): void
@@ -497,12 +500,12 @@ function BrowserProfileFields(props: Readonly<{
       disabled={props.busy}
       onInput={url => props.onChange({...props.connection, endpoint: {...endpoint, url}})}
     />
-    <TextField
+    {props.client.browserProfiles ? null : <TextField
       label="Профиль"
       value={endpoint.profile}
       disabled={props.busy}
       onInput={profile => props.onChange({...props.connection, endpoint: {...endpoint, profile}})}
-    />
+    />}
     <SelectField
       label="Сервис"
       value={endpoint.service}
@@ -535,7 +538,7 @@ function BrowserProfileFields(props: Readonly<{
     </Panel> : null}
   </section>
 }
-function BrowserSshFields(props: Parameters<typeof BrowserProfileFields>[0]) {
+function BrowserSshFields(props: Omit<Parameters<typeof BrowserProfileFields>[0], "client">) {
   return <div style={css`
         display: flex;
         flex-direction: column;

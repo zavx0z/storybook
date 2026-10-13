@@ -1,14 +1,51 @@
 import type {StorybookAppSettings} from "@zavx0z/storybook-app-settings"
 import type {CapsuleRtcIceConfiguration} from "@capsule/webrtc/ice"
 
-export type BrowserViewerDescriptor = Readonly<{instanceId: string, profile: string, socketPath: string, controlEnabled: boolean, audio?: boolean}>
+/** Host предоставляет точный root-relative same-origin socketPath без fragment, credentials и peer query; session добавляет свой peer. */
+export type BrowserViewerDescriptor = Readonly<{
+  instanceId: string
+  profile: string
+  socketPath: string
+  controlEnabled: boolean
+  audio?: boolean
+  /** Назначенный тому же grant канал PNG provider; отсутствие не создаёт decoder или socket. */
+  screenshotSocketPath?: string
+}>
+
+/** Каталог существующих профилей и immutable saves; owner подтверждает current и разрешённые операции. */
+export type BrowserProfileCatalog = Readonly<{
+  profiles: readonly Readonly<{
+    name: string
+    label?: string
+    saves: readonly Readonly<{id: string, title?: string, createdAt?: string}>[]
+    canOpen: boolean
+  }>[]
+  /** null saveId обозначает подтверждённое существующее working state, а не создание профиля. */
+  current: Readonly<{name: string, saveId: string | null, active: boolean}> | null
+  capabilities: Readonly<{open: boolean, save: boolean}>
+}>
 
 type SettingsDocument = Awaited<ReturnType<StorybookAppSettings.Output["read"]>>
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 type Settings = NonNullable<Awaited<ReturnType<StorybookChatSession.Output["read"]>>["settings"]>
 
+/** Host может продлевать существующий viewer grant; отсутствие capability сохраняет прежний lifecycle. */
+export type SettingsClient = Readonly<{
+  openBrowserViewer(connectionId: string, signal: AbortSignal): Promise<BrowserViewerDescriptor>
+  browserViewerConfiguration(descriptor: BrowserViewerDescriptor, signal: AbortSignal): Promise<CapsuleRtcIceConfiguration>
+  renewBrowserViewer?(descriptor: BrowserViewerDescriptor, signal: AbortSignal): Promise<void>
+  browserProfiles?(connectionId: string, signal: AbortSignal): Promise<BrowserProfileCatalog>
+  /** Возвращает каталог после observed completion владельца, а не после одного admission. */
+  openBrowserProfile?(connectionId: string, selection: Readonly<{name: string, saveId: string | null}>, signal: AbortSignal): Promise<BrowserProfileCatalog>
+  /** Сохраняет текущий профиль; завершение не открывает его заново. */
+  saveBrowserProfile?(connectionId: string, signal: AbortSignal): Promise<BrowserProfileCatalog>
+  read(): Promise<SettingsDocument>
+  save(settings: SettingsDocument): Promise<SettingsDocument>
+  options(connectionId: string, model?: string): Promise<Settings>
+}>
+
 /** Запросы HUD используют тот же browser grant, что и чат; секреты в конфигурацию не попадают. */
-export function createSettingsClient(fetcher: typeof fetch, signal: AbortSignal) {
+export function createSettingsClient(fetcher: typeof fetch, signal: AbortSignal): SettingsClient {
   const catalog = new Map<string, {expires: number, value: Promise<Settings>}>()
   let probes = Promise.resolve()
   const post = async <T,>(operation: string, body: object, requestSignal: AbortSignal = signal): Promise<T> => {

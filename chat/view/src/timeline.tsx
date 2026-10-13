@@ -114,7 +114,7 @@ function TimelineDetailContent(props: Readonly<{content: Content, service: boole
   </div>
 }
 
-function TimelineToolDetails(props: Readonly<{item: Extract<DisplayBody, {kind: "tool"}>, view: StorybookChatView.Input, onMedia?: ((media: MediaPreview) => void) | undefined}>) {
+function TimelineToolDetails(props: Readonly<{item: Extract<DisplayBody, {kind: "tool"}>, view: StorybookChatView.Timeline, onMedia?: ((media: MediaPreview) => void) | undefined}>) {
   const item = props.item
   const terminal = readTerminalOutput(item.call)
   return <div>
@@ -141,7 +141,7 @@ function TimelineToolDetails(props: Readonly<{item: Extract<DisplayBody, {kind: 
   </div>
 }
 
-function TimelineDetails(props: Readonly<{item: Item, view: StorybookChatView.Input, onMedia?: ((media: MediaPreview) => void) | undefined}>) {
+function TimelineDetails(props: Readonly<{item: Item, view: StorybookChatView.Timeline, onMedia?: ((media: MediaPreview) => void) | undefined}>) {
   const item = props.item
   return <div data-chat-details="">
     {item.kind === "message" || item.kind === "context" ? <TimelineContentDetails
@@ -170,7 +170,7 @@ function TimelineTurn(props: Readonly<{item: Extract<Item, {kind: "turn"}>}>) {
 }
 
 /** Заголовок сохраняется без тела; раскрытие вызывает явное lazy действие владельца. */
-function TimelineFoldedEntry(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input}>) {
+function TimelineFoldedEntry(props: Readonly<{row: StorybookChatView.Timeline["history"]["rows"][number], view: StorybookChatView.Timeline}>) {
   const row = props.row
   const header = row.header
   const label = header.kind === "tool" ? `${header.title ?? "Вызов инструмента"} · ${header.status ? toolStatuses[header.status] ?? "Состояние получено" : "Состояние не получено"}`
@@ -191,7 +191,7 @@ function TimelineFoldedEntry(props: Readonly<{row: StorybookChatView.Input["hist
   </section>
 }
 
-function MissingBody(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input}>) {
+function MissingBody(props: Readonly<{row: StorybookChatView.Timeline["history"]["rows"][number], view: StorybookChatView.Timeline}>) {
   const statusText = props.row.loading ? "Загрузка записи…" : props.row.error ?? "Загрузка записи…"
   return <div data-chat-body-placeholder="">
     {statusText}
@@ -202,7 +202,7 @@ function MissingBody(props: Readonly<{row: StorybookChatView.Input["history"]["r
   </div>
 }
 
-function LazyDetails(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input}>) {
+function LazyDetails(props: Readonly<{row: StorybookChatView.Timeline["history"]["rows"][number], view: StorybookChatView.Timeline}>) {
   const row = props.row
   return <div>
     {row.body && row.body.kind !== "group" && row.body.kind !== "detail" ? <TimelineDetails item={row.body as Item} view={props.view} onMedia={props.view.onMedia} /> : null}
@@ -217,7 +217,7 @@ function LazyDetails(props: Readonly<{row: StorybookChatView.Input["history"]["r
 }
 
 /** Малые сообщения сохраняют DOM в пределах resident страниц; подробности читаются по раскрытию. */
-function TimelineEntry(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input, height: number}>) {
+function TimelineEntry(props: Readonly<{row: StorybookChatView.Timeline["history"]["rows"][number], view: StorybookChatView.Timeline, height: number}>) {
   const {row, view} = props
   const header = row.header
   const message = header.kind === "message" && header.role !== "thought" && header.purpose !== "command"
@@ -244,7 +244,7 @@ function TimelineEntry(props: Readonly<{row: StorybookChatView.Input["history"][
 }
 
 /** Полная timeline и legacy messages здесь не принимаются. */
-export function ChatTimeline(props: Readonly<{view: StorybookChatView.Input, heights?: ReadonlyMap<string, number>}>) {
+export function ChatTimeline(props: Readonly<{view: StorybookChatView.Timeline, heights?: ReadonlyMap<string, number>}>) {
   return <div
     data-chat-timeline=""
     style={css`
@@ -270,7 +270,7 @@ function ReloadBody(props: Readonly<{id: string, onRetry(id: string): void}>) {
   return <Button label="Повторить загрузку" onClick={() => props.onRetry(props.id)} />
 }
 
-function TurnHeader(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number]}>) {
+function TurnHeader(props: Readonly<{row: StorybookChatView.Timeline["history"]["rows"][number]}>) {
   const header = props.row.header
   const turn = header.kind === "turn" ? header : undefined
   const label = turn?.state === "completed" ? "Выполнение завершено" : turn?.state === "started" ? "Выполнение началось" : turn?.state === "cancelled" ? "Выполнение остановлено" : readableChatError(turn?.error ?? "Ошибка выполнения")
@@ -279,7 +279,7 @@ function TurnHeader(props: Readonly<{row: StorybookChatView.Input["history"]["ro
   </p>
 }
 
-function EvidenceDetails(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input}>) {
+function EvidenceDetails(props: Readonly<{row: StorybookChatView.Timeline["history"]["rows"][number], view: StorybookChatView.Timeline}>) {
   const row = props.row
   return <section data-chat-evidence="">
     <Button
@@ -295,7 +295,7 @@ function EvidenceDetails(props: Readonly<{row: StorybookChatView.Input["history"
   </section>
 }
 
-function EvidenceNext(props: Readonly<{row: StorybookChatView.Input["history"]["rows"][number], view: StorybookChatView.Input}>) {
+function EvidenceNext(props: Readonly<{row: StorybookChatView.Timeline["history"]["rows"][number], view: StorybookChatView.Timeline}>) {
   return <Button
     label="Следующие события"
     disabled={props.row.loading}

@@ -16,6 +16,16 @@ Capsule принимает адрес Studio на машине исполнен�
 уже запущенного профиля. Управление мышью и клавиатурой доступно у Capsule.
 Сворачивание освобождает viewer, не останавливая браузер; несохранённое
 подключение не запускает просмотр.
+Назначенный через clientFactory host возвращает точный относительный путь viewer
+своего origin; controller проверяет URL и добавляет identity RTC peer, сохраняя
+маршрут и параметры владельца без привязки к маршрутам Storybook.
+Если host предоставляет продление viewer grant, открытая панель поддерживает
+его без пересоздания RTC. Отказ завершает просмотр с ошибкой; человек может
+переподключить его явно. Закрытие отменяет продление и освобождает grant.
+Если host предоставляет каталог существующих профилей и сохранений, панель
+разделяет локальный выбор и явные Open/Save/Refresh. Чтение и выбор сохраняют
+текущий viewer. Open переподключает его после подтверждённого завершения владельца;
+Save оставляет просмотр закрытым. Без этих capabilities сохраняется поле имени профиля.
 Chrome Studio подключает Qwen, DeepSeek или ChatGPT в уже запущенном профиле обычного
 Chrome. Адрес Studio и имя профиля определяют подключение; CDP назначает и
 проверяет сама Studio. При SSH исполнение и хранилище Provider находятся на
@@ -37,6 +47,7 @@ import {Directories} from "./src/directories"
 import {windowState} from "./src/state"
 import type {StorybookAppWebPageShellExecutionSettings} from "./contract"
 export type {StorybookAppWebPageShellExecutionSettings} from "./contract"
+export type {BrowserProfileCatalog, BrowserViewerDescriptor, SettingsClient} from "./src/client"
 
 /** Окно использует Document и HUD приложения; смена раздела сохраняет черновики. */
 export default function ExecutionSettings(props: StorybookAppWebPageShellExecutionSettings.Input) {
@@ -90,6 +101,7 @@ export default function ExecutionSettings(props: StorybookAppWebPageShellExecuti
         <SettingsPages
           section={section}
           open={open && executionVisited}
+          clientFactory={props.clientFactory}
           fetcher={props.fetcher ?? globalThis.fetch}
           directories={props.directories}
           onDirectoryError={setDirectoryError}
@@ -138,6 +150,7 @@ function SettingsPages(props: Readonly<{
   section: string
   open: boolean
   fetcher: typeof fetch
+  clientFactory?: StorybookAppWebPageShellExecutionSettings.Input["clientFactory"]
   directories: StorybookAppWebPageShellExecutionSettings.Input["directories"]
   onDirectoryError(message: string): void
   onSetup(): void
@@ -180,6 +193,7 @@ function SettingsPages(props: Readonly<{
         open={props.open}
         section={props.section === "connections" ? "connections" : "defaults"}
         fetcher={props.fetcher}
+        clientFactory={props.clientFactory}
       />
     </div>
   </div>

@@ -3,6 +3,7 @@ import {Panel} from "@zavx0z/immersive/ui"
 import {Button} from "@zavx0z/immersive/ui"
 import {Typography} from "@zavx0z/immersive/ui"
 import {Notification} from "@zavx0z/immersive/ui"
+import {BrowserProfiles} from "./browser-profiles"
 import {createSettingsClient} from "./client"
 import {createBrowserPreviewSession, idleBrowserPreview} from "./browser-preview-session"
 
@@ -12,12 +13,19 @@ type Props = Readonly<{provider: "capsule" | "chrome-studio", connectionId: stri
 export function BrowserPreview(props: Props) {
   const [open, setOpen] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const [viewerEnabled, setViewerEnabled] = useState(true)
   return <Panel
     label="Браузер"
     expanded={open}
     onToggle={setOpen}
   >
-    {open && props.available ? <BrowserPreviewView
+    {open && props.available && props.client.browserProfiles ? <BrowserProfiles
+      connectionId={props.connectionId}
+      client={props.client}
+      onOpened={() => {setViewerEnabled(true); setAttempt(value => value + 1)}}
+      onSaved={() => setViewerEnabled(false)}
+    /> : null}
+    {open && props.available && viewerEnabled ? <BrowserPreviewView
       key={attempt}
       provider={props.provider}
       connectionId={props.connectionId}
@@ -26,6 +34,7 @@ export function BrowserPreview(props: Props) {
       onReconnect={() => setAttempt(value => value + 1)}
     /> : null}
     {open && !props.available ? <UnavailableBrowser /> : null}
+    {open && props.available && !viewerEnabled ? <Typography text="Просмотр закрыт. Выберите сохранение и нажмите «Открыть»." /> : null}
   </Panel>
 }
 
@@ -82,6 +91,7 @@ function BrowserPreviewView(props: Omit<Props, "available"> & Readonly<{onReconn
     const value = (props.sessionFactory ?? createBrowserPreviewSession)({origin: globalThis.location?.origin ?? "http://localhost", video: element,
       open: signal => props.client.openBrowserViewer(props.connectionId, signal),
       configuration: (descriptor, signal) => props.client.browserViewerConfiguration(descriptor, signal),
+      ...(props.client.renewBrowserViewer ? {renew: (descriptor, signal) => props.client.renewBrowserViewer!(descriptor, signal)} : {}),
       onState: value => {if (alive) setState(value)},
       onBoundary: release,
     })

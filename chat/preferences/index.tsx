@@ -15,6 +15,8 @@ export type {StorybookChatPreferences} from "./contract"
 
 /** Управляемая форма не создаёт соединение и не удерживает историю чата. */
 export default function ChatPreferences(props: StorybookChatPreferences.Input) {
+  const visible = (field: StorybookChatPreferences.Field) => props.fields?.includes(field) ?? true
+  const disabled = (field: StorybookChatPreferences.Field) => props.busy || props.disabledFields?.includes(field)
   const change = (key: "connectionId" | "model" | "thoughtLevel", value: string) => {
     const next = {...props.selection}
     if (key === "connectionId") {
@@ -31,27 +33,27 @@ export default function ChatPreferences(props: StorybookChatPreferences.Input) {
     gap: 8px;
     min-width: 0;
   `}>
-    <SelectField
+    {visible("connectionId") ? <SelectField
       label="Провайдер"
       value={props.selection.connectionId ?? ""}
       options={[
         {key: "inherit", value: "", label: `${props.inheritLabel ?? "Наследовать"}${props.effective?.connectionId ? ` · ${props.connections.find(item => item.id === props.effective?.connectionId)?.label ?? props.effective.connectionId}` : ""}`},
         ...props.connections.map(item => ({key: item.id, value: item.id, label: `${item.label}${item.enabled ? "" : " · отключено"}`})),
       ]}
-      disabled={props.busy}
+      disabled={disabled("connectionId")}
       onChange={value => change("connectionId", value)}
-    />
-    <PreferenceField
+    /> : null}
+    {visible("connectionId") ? <PreferenceField
       field="connectionId"
       selection={props.selection}
       effective={props.effective}
       sources={props.sources}
       connections={props.connections}
       settings={props.settings}
-      busy={props.busy}
+      busy={disabled("connectionId")}
       onChange={props.onChange}
-    />
-    {(["model", "thoughtLevel"] as const).map(field => (
+    /> : null}
+    {(["model", "thoughtLevel"] as const).filter(visible).map(field => (
       <PreferenceField
         key={field}
         field={field}
@@ -60,13 +62,13 @@ export default function ChatPreferences(props: StorybookChatPreferences.Input) {
         sources={props.sources}
         connections={props.connections}
         settings={props.settings}
-        busy={props.busy}
+        busy={disabled(field)}
         inheritLabel={props.inheritLabel}
         onChange={props.onChange}
         onValue={value => change(field, value)}
       />
     ))}
-    <SelectField
+    {visible("approvalMode") ? <SelectField
       label="Подтверждения"
       value={props.selection.approvalMode ?? ""}
       options={[
@@ -74,16 +76,16 @@ export default function ChatPreferences(props: StorybookChatPreferences.Input) {
         {key: "ask", value: "ask", label: "С подтверждениями"},
         {key: "scoped-autonomous", value: "scoped-autonomous", label: "В пределах назначения без запросов"},
       ]}
-      disabled={props.busy}
+      disabled={disabled("approvalMode")}
       onChange={value => {
         const next = {...props.selection}
         if (value === "ask" || value === "scoped-autonomous") next.approvalMode = value
         else delete next.approvalMode
         props.onChange(next)
       }}
-    />
-    <Typography
+    /> : null}
+    {visible("approvalMode") ? <Typography
       text="Область назначения сохраняется. Отдельные запросы исполнителя за её пределами подтверждаются вручную. Автоматическая проверка действий среды пока недоступна."
-    />
+    /> : null}
   </section>
 }

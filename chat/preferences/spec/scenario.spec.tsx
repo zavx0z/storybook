@@ -7,13 +7,13 @@ describe.each([
   {name: "Наследование типа", props: {
     selection: {model: "fast", thoughtLevel: "high"}, effective: {connectionId: "codex", model: "fast", thoughtLevel: "high"},
     sources: {connectionId: "general", model: "session", thoughtLevel: "type"},
-    connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}],
+    connections: [{id: "codex", label: "Codex", enabled: true}],
     settings: [{id: "model", category: "model", name: "Model", value: "fast", options: [{value: "fast", name: "Fast"}]}],
   } satisfies Omit<StorybookChatPreferences.Input, "onChange">},
   {name: "Варианты ещё не загружены", props: {
     selection: {model: "saved-model"}, effective: {connectionId: "codex", model: "saved-model"},
     sources: {connectionId: "general", model: "session"},
-    connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}],
+    connections: [{id: "codex", label: "Codex", enabled: true}],
     settings: [],
   } satisfies Omit<StorybookChatPreferences.Input, "onChange">},
 ])("$name", async ({props: input}) => {

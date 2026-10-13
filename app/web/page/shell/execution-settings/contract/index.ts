@@ -7,6 +7,8 @@ export declare namespace StorybookAppWebPageShellExecutionSettings {
       read(signal: AbortSignal): Promise<Directories>
       save(draft: DirectoryDraft, signal: AbortSignal): Promise<Directories>
     }> | undefined
+    /** Другой владелец предоставляет операции настройки и опциональный PNG grant того же браузера; разметка и lifecycle окна остаются общими. */
+    clientFactory?: ((signal: AbortSignal) => ReturnType<typeof import("../src/client")["createSettingsClient"]>) | undefined
     fetcher?: typeof fetch
     initialState?: Partial<WindowState> | undefined
     onStateChange?: ((state: WindowState) => void) | undefined
